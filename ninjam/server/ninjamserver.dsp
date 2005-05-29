@@ -146,6 +146,10 @@ SOURCE=..\..\WDL\jnetlib\util.h
 # End Group
 # Begin Source File
 
+SOURCE=..\mpb.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File

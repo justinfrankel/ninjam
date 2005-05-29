@@ -45,6 +45,11 @@ Net_Message *mpb_server_auth_challenge::build()
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
+  if (!p) 
+  {
+    delete nm;
+    return 0;
+  }
 
   memcpy(p,challenge,sizeof(challenge));
   p+=sizeof(challenge);
@@ -55,6 +60,39 @@ Net_Message *mpb_server_auth_challenge::build()
     *p++=sc&0xff;
     sc>>=8;
   }
+
+  return nm;
+}
+
+
+int mpb_server_auth_reply::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_SERVER_AUTH_REPLY) return -1;
+  if (msg->get_size() < 1) return 1;
+  unsigned char *p=(unsigned char *)msg->get_data();
+  if (!p) return 2;
+
+  flag=*p;
+
+  return 0;
+}
+
+Net_Message *mpb_server_auth_reply::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_SERVER_AUTH_REPLY);
+  
+  nm->set_size(1);
+
+  unsigned char *p=(unsigned char *)nm->get_data();
+
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+
+  *p=flag;
 
   return nm;
 }
