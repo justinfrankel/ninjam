@@ -9,12 +9,12 @@ int Net_Message::parseFromBuffer(void *data, int len) // returns bytes used, if 
 
   int type=*dp++;
 
-  unsigned int size = *dp++; 
-  size |= ((unsigned int)*dp++)<<8; 
-  size |= ((unsigned int)*dp++)<<16; 
-  size |= ((unsigned int)*dp++)<<24; 
+  int size = *dp++; 
+  size |= ((int)*dp++)<<8; 
+  size |= ((int)*dp++)<<16; 
+  size |= ((int)*dp++)<<24; 
   len -= 5;
-  if (size < 0 || size > NET_MESSAGE_MAX_SIZE) return -1;
+  if (type == MESSAGE_INVALID || size < 0 || size > NET_MESSAGE_MAX_SIZE) return -1;
 
   if (size < len) return 0;
 
@@ -33,7 +33,7 @@ int Net_Message::makeMessageHeader(void *data) // makes message header, data sho
 
 	unsigned char *dp=(unsigned char *)data;
   *dp++ = (unsigned char) m_type;
-  unsigned int size=(unsigned int) get_size();
+  int size=get_size();
   *dp++=size&0xff; size>>=8;
   *dp++=size&0xff; size>>=8;
   *dp++=size&0xff; size>>=8;
