@@ -73,7 +73,8 @@ class User_Connection
 
 
     User_Channel m_channels[MAX_USER_CHANNELS];
-    User_SubscribeMask m_subscribemask[MAX_USERS];
+
+    WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
 
     User_TransferState m_uploads[MAX_UPLOADS];
     User_TransferState m_downloads[MAX_DOWNLOADS];

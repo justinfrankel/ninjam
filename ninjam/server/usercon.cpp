@@ -21,6 +21,11 @@ User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_
 
 User_Connection::~User_Connection()
 {
+  int x;
+  for (x = 0; x < m_sublist.GetSize(); x ++)
+    delete m_sublist.Get(x);
+
+  m_sublist.Empty();
 }
 
 
@@ -118,7 +123,7 @@ int User_Connection::Run(User_Group *group)
             int v,p,f;
             int whichch=0;
             char *chnp=0;
-            while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f)) && whichch < MAX_USER_CHANNELS)
+            while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS)
             {
               if (!chnp) chnp=""; 
               // only if something changes, do we add it to the rec
@@ -168,6 +173,47 @@ int User_Connection::Run(User_Group *group)
 
             if (mfmt_changes) group->Broadcast(mfmt.build(),this);
           }         
+        }
+      break;
+      case MESSAGE_CLIENT_SET_USERMASK:
+        {
+          mpb_client_set_usermask umi;
+          if (!umi.parse(msg))
+          {
+            int offs=0;
+            char *unp=0;
+            unsigned int fla=0;
+            while ((offs=umi.parse_get_rec(offs,&unp,&fla))>0)
+            {
+              if (unp)
+              {
+                int x;
+                for (x = 0; x < m_sublist.GetSize() && strcmp(unp,m_sublist.Get(x)->username.Get()); x ++);
+                if (x == m_sublist.GetSize()) // add new
+                {
+                  if (fla) // only add if we need to subscribe
+                  {
+                    User_SubscribeMask *n=new User_SubscribeMask;
+                    n->username.Set(unp);
+                    n->channelmask = fla;
+                    m_sublist.Add(n);
+                  }
+                }
+                else
+                {
+                  if (fla) // update flag
+                  {
+                    m_sublist.Get(x)->channelmask=fla;
+                  }
+                  else // remove
+                  {
+                    delete m_sublist.Get(x);
+                    m_sublist.Delete(x);
+                  }
+                }
+              }
+            }
+          }
         }
       break;
 
