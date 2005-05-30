@@ -345,3 +345,46 @@ Net_Message *mpb_server_download_interval_begin::build()
 
   return nm;
 }
+
+
+// MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE
+int mpb_server_download_interval_write::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE) return -1;
+  if (msg->get_size() < 3) return 1;
+  unsigned char *p=(unsigned char *)msg->get_data();
+  if (!p) return 2;
+
+  transfer_id = (int)*p++;
+  transfer_id |= ((int)*p++)<<8;
+  flags = (char)*p++;
+
+  audio_data = p;
+  audio_data_len = msg->get_size()-3;
+
+  return 0;
+}
+
+
+Net_Message *mpb_server_download_interval_write::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
+  
+  nm->set_size(3+(audio_data?audio_data_len:0));
+
+  unsigned char *p=(unsigned char *)nm->get_data();
+
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+  *p++=(unsigned char)((transfer_id)&0xff);
+  *p++|=(unsigned char)((transfer_id>>8)&0xff);
+  *p++=(unsigned char) flags;
+
+  if (audio_data&&audio_data_len) memcpy(p,audio_data,audio_data_len);
+
+  return nm;
+}
