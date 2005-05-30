@@ -388,3 +388,88 @@ Net_Message *mpb_server_download_interval_write::build()
 
   return nm;
 }
+
+
+
+/////////////////////////////////////////////////////////////////////////
+//////////// client to server messages
+/////////////////////////////////////////////////////////////////////////
+
+
+// MESSAGE_CLIENT_AUTH_USER
+int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER) return -1;
+  if (msg->get_size() < sizeof(passhash)+4+1) return 1;
+  unsigned char *p=(unsigned char *)msg->get_data();
+  if (!p) return 2;
+  int len=msg->get_size();
+
+  memcpy(passhash,p,sizeof(passhash));
+  p+=sizeof(passhash);
+  len -= sizeof(passhash);
+
+  username=(char *)p;
+  while (*p && len>0)
+  {
+    p++;
+    len--;
+  }
+  if (!len) return 3;
+  p++;
+  len--;
+  
+
+  int capsl=len; // additional bytes are caps bytes
+  client_caps=0;
+  int shift=0;
+
+  if (capsl > 4) capsl=4;
+
+  while (capsl--)
+  {
+    client_caps |= ((int)*p++)<<shift;
+    shift+=8;
+  }
+
+  return 0;
+}
+
+Net_Message *mpb_client_auth_user::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_CLIENT_AUTH_USER);
+  
+  int scsize=0;
+  int sc=client_caps;
+  while (sc)
+  {
+    scsize++;
+    sc>>=8;
+  }
+
+  nm->set_size(sizeof(passhash) + strlen(username?username:"")+1 + scsize);
+
+  unsigned char *p=(unsigned char *)nm->get_data();
+
+  if (!p) 
+  {
+    delete nm;
+    return 0;
+  }
+
+  memcpy(p,passhash,sizeof(passhash));
+  p+=sizeof(passhash);
+
+  strcpy((char*)p,username?username:"");
+  p+=strlen(username?username:"")+1;
+
+  sc=client_caps;
+  while (scsize--)
+  {
+    *p++=sc&0xff;
+    sc>>=8;
+  }
+
+  return nm;
+}

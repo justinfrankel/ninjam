@@ -124,6 +124,24 @@ class mpb_server_download_interval_write
 
 
 #define MESSAGE_CLIENT_AUTH_USER 0x80
+class mpb_client_auth_user
+{
+  public:
+    mpb_client_auth_user() : client_caps(0), username(0) { memset(passhash,0,sizeof(passhash)); }
+    ~mpb_client_auth_user() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+
+    // public data
+    unsigned char passhash[20];
+    int client_caps;
+    char *username;
+};
+
+
+
 #define MESSAGE_CLIENT_SET_USERMASK 0x81
 #define MESSAGE_CLIENT_SET_CHANNEL_INFO 0x82
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN 0x83
