@@ -8,7 +8,8 @@ User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_
 {
   m_netcon.attach(con);
 
-  // fucko: randomize m_challenge
+  int x;
+  for (x = 0; x < sizeof(m_challenge); x ++) m_challenge[x]=(unsigned char)rand();
 
   mpb_server_auth_challenge ch;
   memcpy(ch.challenge,m_challenge,sizeof(ch.challenge));
@@ -49,7 +50,23 @@ int User_Connection::Run(User_Group *group)
         m_netcon.Kill();
         return -1;
       }
-      // fucko: verify user/password hash
+
+      // fucko: verify user/password hash, check to see if user exists, etc
+
+      // disconnect any user by the same name
+      {
+        int user;
+        for (user = 0; user < group->m_users.GetSize(); user++)
+        {
+          User_Connection *u=group->m_users.Get(user);
+          if (!strcmp(u->m_username.Get(),authrep.username))
+          {
+            delete u;
+            group->m_users.Delete(user);
+            break;
+          }
+        }
+      }
 
       {
         mpb_server_auth_reply bh;
