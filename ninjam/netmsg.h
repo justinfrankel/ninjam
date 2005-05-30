@@ -61,6 +61,8 @@ class Net_Connection
     void Send(Net_Message *msg);
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
 
+    void Kill() { m_con->close(1); }
+
   private:
     int m_error;
 

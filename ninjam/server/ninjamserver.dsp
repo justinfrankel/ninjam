@@ -160,6 +160,10 @@ SOURCE=..\netmsg.cpp
 
 SOURCE=.\ninjamsrv.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=.\usercon.cpp
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
