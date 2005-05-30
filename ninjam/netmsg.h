@@ -53,7 +53,7 @@ class Net_Connection
 {
   public:
     Net_Connection() : m_con(0), m_msgsendpos(-1), m_recvstate(0),m_error(0) { }
-    ~Net_Connection() { delete m_con; delete m_recvmsg;}
+    ~Net_Connection();
 
     void attach(JNL_Connection *con) { m_con=con; }
 

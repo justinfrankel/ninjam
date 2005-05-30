@@ -67,7 +67,7 @@ Net_Message *Net_Connection::Run()
   m_con->run();
 
   // handle sending
-  while (m_con->send_bytes_available()>64 && m_sendq.GetSize()>0)
+  while (m_con->send_bytes_available()>64 && m_sendq.Available()>0)
   {
     Net_Message **topofq = (Net_Message **)m_sendq.Get();
 
@@ -156,7 +156,7 @@ Net_Message *Net_Connection::Run()
 
 void Net_Connection::Send(Net_Message *msg)
 {
-  if (msg && !m_error)
+  if (msg)
   {
     msg->addRef();
     m_sendq.Add(&msg,sizeof(Net_Message *));
@@ -167,4 +167,23 @@ int Net_Connection::GetStatus()
 {
   if (m_error) return -1;
   return !m_con || m_con->get_state()!=JNL_Connection::STATE_CONNECTED; // 1 if disconnected somehow
+}
+
+Net_Connection::~Net_Connection()
+{ 
+  Net_Message **p=(Net_Message **)m_sendq.Get();
+  if (p)
+  {
+    int n=m_sendq.Available()/sizeof(Net_Message *);
+    while (n-->0)
+    {
+      (*p)->releaseRef();
+      p++;
+    }
+    m_sendq.Advance(m_sendq.Available());
+    
+  }
+
+  delete m_con; 
+  delete m_recvmsg;
 }

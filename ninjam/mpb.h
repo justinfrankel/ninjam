@@ -74,8 +74,8 @@ class mpb_server_userinfo_change_notify
     // pan is -128..127
     // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
     // flags ...
-    void build_add_rec(int isRemove, int channelid, int volume, int pan, int flags, char *username, char *chname);
-    int parse_get_rec(int offs, int *isRemove, int *channelid, int *volume, int *pan, int *flags, char **username, char **chname); // returns offset of next item on success, or <0 if out of items
+    void build_add_rec(int isActive, int channelid, int volume, int pan, int flags, char *username, char *chname);
+    int parse_get_rec(int offs, int *isActive, int *channelid, int *volume, int *pan, int *flags, char **username, char **chname); // returns offset of next item on success, or <0 if out of items
 
    private:
 
@@ -165,15 +165,15 @@ class mpb_client_set_usermask
 class mpb_client_set_channel_info
 {
   public:
-    mpb_client_set_channel_info() : m_intmsg(0), mpisize(5) { }
+    mpb_client_set_channel_info() : m_intmsg(0), mpisize(6) { }
     ~mpb_client_set_channel_info() { }
 
     int parse(Net_Message *msg); // return 0 on success
     Net_Message *build();
 
 
-    void build_add_rec(char *chname, int volume, int pan);
-    int parse_get_rec(int offs, char **chname, int *volume, int *pan); // returns offset of next item on success, or <0 if out of items
+    void build_add_rec(char *chname, int volume, int pan, int flags);
+    int parse_get_rec(int offs, char **chname, int *volume, int *pan, int *flags); // returns offset of next item on success, or <0 if out of items
 
     int mpisize;
 

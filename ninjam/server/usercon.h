@@ -23,8 +23,9 @@ public:
 class User_Channel
 {
 public:
-  User_Channel() { volume=0; panning=128; flags=0; }
+  User_Channel() { active=0; volume=0; panning=128; flags=0; }
   ~User_Channel() { }
+  int active;
   WDL_String name;
   int volume;
   int panning;
@@ -58,6 +59,7 @@ class User_Connection
     int Run(User_Group *group); // returns 1 if disconnected, -1 if error in data. 0 if ok.
     void SendConfigChangeNotify(int bpm, int bpi);
 
+    void Send(Net_Message *msg) { m_netcon.Send(msg); }
 
 
 
@@ -65,8 +67,7 @@ class User_Connection
     WDL_String m_username;
     
     // auth info
-    int m_auth_state;
-    int m_last_bpm, m_last_bpi;
+    int m_auth_state;    
     unsigned char m_challenge[8];
     int m_clientcaps;
 
@@ -86,7 +87,17 @@ class User_Group
     User_Group();
     ~User_Group();
 
+    void Run();
+    void SetConfig(int bpi, int bpm);
+    void Broadcast(Net_Message *msg);
+
+
+
+
+
     WDL_PtrList<User_Connection> m_users;
+
+    int m_last_bpm, m_last_bpi;
 
 };
 
