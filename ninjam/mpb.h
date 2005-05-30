@@ -35,7 +35,7 @@ class mpb_server_auth_reply
 
 
     // public data
-    char flag;
+    char flag;  // low bit is success bit
 };
 
 
@@ -73,7 +73,7 @@ class mpb_server_userinfo_change_notify
     // public accessors
     // pan is -128..127
     // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
-    // flags ...
+    // flags, &1 = no default subscribe
     void build_add_rec(int isActive, int channelid, int volume, int pan, int flags, char *username, char *chname);
     int parse_get_rec(int offs, int *isActive, int *channelid, int *volume, int *pan, int *flags, char **username, char **chname); // returns offset of next item on success, or <0 if out of items
 
@@ -172,6 +172,9 @@ class mpb_client_set_channel_info
     Net_Message *build();
 
 
+    // pan is -128..127
+    // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
+    // flags, &1 = no default subscribe
     void build_add_rec(char *chname, int volume, int pan, int flags);
     int parse_get_rec(int offs, char **chname, int *volume, int *pan, int *flags); // returns offset of next item on success, or <0 if out of items
 
