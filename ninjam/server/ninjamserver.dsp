@@ -84,6 +84,9 @@ LINK32=link.exe
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+# Begin Group "common"
+
+# PROP Default_Filter ""
 # Begin Group "jnetlib"
 
 # PROP Default_Filter ""
@@ -152,6 +155,7 @@ SOURCE=..\mpb.cpp
 
 SOURCE=..\netmsg.cpp
 # End Source File
+# End Group
 # Begin Source File
 
 SOURCE=.\ninjamsrv.cpp
@@ -160,6 +164,9 @@ SOURCE=.\ninjamsrv.cpp
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
+# Begin Group "common headers"
+
+# PROP Default_Filter ""
 # Begin Source File
 
 SOURCE=..\mpb.h
@@ -167,6 +174,11 @@ SOURCE=..\mpb.h
 # Begin Source File
 
 SOURCE=..\netmsg.h
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=.\usercon.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"
