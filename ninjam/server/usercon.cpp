@@ -126,7 +126,8 @@ int User_Connection::Run(User_Group *group)
             int mfmt_changes=0;
             
             int offs=0;
-            int v,p,f;
+            short v;
+            int p,f;
             int whichch=0;
             char *chnp=0;
             while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS)

@@ -170,11 +170,11 @@ Net_Message *mpb_server_userinfo_change_notify::build()
 
 
 void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channelid, 
-                                                      int volume, int pan, int flags, char *username, char *chname)
+                                                      short volume, int pan, int flags, char *username, char *chname)
 {
   int size=1+ // is remove
            1+ // channel index
-           4+ // volume
+           2+ // volume
            1+ // pan
            1+ // flags
            strlen(username?username:"")+1+strlen(chname?chname:"")+1;
@@ -198,8 +198,6 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channeli
 
     *p++=volume&0xff;
     *p++=(volume>>8)&0xff;
-    *p++=(volume>>16)&0xff;
-    *p++=(volume>>24)&0xff;
 
     if (pan<-128) pan=-128;
     else if (pan>127)pan=127;
@@ -216,12 +214,12 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channeli
 
 
 // returns offset of next item on success, or <= 0 if out of items
-int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, int *channelid, int *volume, 
+int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, int *channelid, short *volume, 
                                                      int *pan, int *flags, char **username, char **chname)
 {
   int hdrsize=1+ // is remove
            1+ // channel index
-           4+ // volume
+           2+ // volume
            1+ // pan
            1; // flags
 
@@ -260,9 +258,7 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, in
   *isActive=(int)*hdrbuf++;
   *channelid=(int)*hdrbuf++;
   *volume=(int)*hdrbuf++;
-  *volume |= ((int)*hdrbuf++)<<8;
-  *volume |= ((int)*hdrbuf++)<<16;
-  *volume |= ((int)*hdrbuf++)<<24;
+  *volume |= ((int)*hdrbuf++)<<8;  
   *pan = (int) *hdrbuf++;
   *flags = (int) *hdrbuf++;
 
@@ -588,7 +584,7 @@ Net_Message *mpb_client_set_channel_info::build()
 }
 
 
-void mpb_client_set_channel_info::build_add_rec(char *chname, int volume, int pan, int flags)
+void mpb_client_set_channel_info::build_add_rec(char *chname, short volume, int pan, int flags)
 {
   int size=mpisize+strlen(chname?chname:"")+1;
 
@@ -615,19 +611,17 @@ void mpb_client_set_channel_info::build_add_rec(char *chname, int volume, int pa
     else if (pan > 127) pan=127;
     if (mpisize>0) *p++=(volume)&0xff;
     if (mpisize>1) *p++=(volume>>8)&0xff;
-    if (mpisize>2) *p++=(volume>>16)&0xff;
-    if (mpisize>3) *p++=(volume>>24)&0xff;
-    if (mpisize>4) *p++=(unsigned char)pan;
-    if (mpisize>5) *p++=(unsigned char)flags;
-    if (mpisize>6)
-      memset(p,0,mpisize-6);
+    if (mpisize>2) *p++=(unsigned char)pan;
+    if (mpisize>3) *p++=(unsigned char)flags;
+    if (mpisize>4)
+      memset(p,0,mpisize-4);
 
   }
 }
 
 
 // returns offset of next item on success, or <= 0 if out of items
-int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, int *volume, int *pan, int *flags)
+int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, short *volume, int *pan, int *flags)
 {
   if (!m_intmsg) return 0;
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
@@ -650,17 +644,15 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, int *vol
 
   if (len<mpisize) return -1;
 
-  if (mpisize>3)
+  if (mpisize>1)
   {
     *volume=(int)p[0];
     *volume|=((int)p[1])<<8;
-    *volume|=((int)p[2])<<16;
-    *volume|=((int)p[3])<<24;
   }
   else *volume=0;
-  if (mpisize>4) *pan=(int)p[4];
+  if (mpisize>3) *pan=(int)p[2];
   else *pan=0;
-  if (mpisize>5) *flags=(int)p[4];
+  if (mpisize>4) *flags=(int)p[3];
   else *flags=0;
 
   return (p+mpisize) - (unsigned char *)m_intmsg->get_data();

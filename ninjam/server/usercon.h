@@ -95,7 +95,8 @@ class User_Group
     void Broadcast(Net_Message *msg, User_Connection *nosend=0);
 
 
-
+    // sends a message to the people subscribing to a channel of a user
+    void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
 
     WDL_PtrList<User_Connection> m_users;

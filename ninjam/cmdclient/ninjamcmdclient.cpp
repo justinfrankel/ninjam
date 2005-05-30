@@ -93,7 +93,7 @@ int main(int argc, char **argv)
                 {
                   mpb_client_set_channel_info sci;
 
-                  sci.build_add_rec("default channel",-18,0,0);
+                  sci.build_add_rec("default channel",-328,0,0);
 
                   netcon->Send(sci.build());
                 }
@@ -119,13 +119,14 @@ int main(int argc, char **argv)
               if (!ucn.parse(msg))
               {
                 int offs=0;
-                int a=0, cid=0, v=0,p=0,f=0;
+                int a=0, cid=0, p=0,f=0;
+                short v=0;
                 char *un=0,*chn=0;
                 while ((offs=ucn.parse_get_rec(offs,&a,&cid,&v,&p,&f,&un,&chn))>0)
                 {
                   if (!un) un="";
                   if (!chn) chn="";
-                  printf("user %s, channel %d \"%s\": %s v:%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",v/10,p,f);
+                  printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
                 }
               }
             }
