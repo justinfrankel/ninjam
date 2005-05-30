@@ -31,8 +31,6 @@ int Net_Message::parseMessageHeader(void *data, int len) // returns bytes used, 
   len -= 5;
   if (type == MESSAGE_INVALID || size < 0 || size > NET_MESSAGE_MAX_SIZE) return -1;
 
-  if (size < len) return 0;
-
   m_type=type;
   set_size(size);
 

@@ -47,17 +47,22 @@ int User_Connection::Run(User_Group *group)
   Net_Message *msg=m_netcon.Run();
   if (msg)
   {
+    msg->addRef();
     if (m_auth_state < 1)
     {
       mpb_client_auth_user authrep;
       if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
       {
         m_netcon.Kill();
+        msg->releaseRef();
         return -1;
       }
 
       // fucko: verify user/password hash, check to see if user exists, etc
+      printf("Got user: %s\n",authrep.username);
 
+
+      m_username.Set(authrep.username);
       // disconnect any user by the same name
       {
         int user;
@@ -126,6 +131,7 @@ int User_Connection::Run(User_Group *group)
             while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS)
             {
               if (!chnp) chnp=""; 
+
               // only if something changes, do we add it to the rec
               int hadch=!m_channels[whichch].active;
               if (!hadch) hadch = strcmp(chnp,m_channels[whichch].name.Get());
@@ -220,6 +226,7 @@ int User_Connection::Run(User_Group *group)
       default:
       break;
     }
+    msg->releaseRef();
   }
 
 
