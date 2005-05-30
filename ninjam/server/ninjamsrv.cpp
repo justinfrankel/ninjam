@@ -17,10 +17,7 @@ int main(int argc, char **argv)
     for (;;)
     {
       JNL_Connection *con=listener.get_connect(65536,65536);
-      if (con)
-      {
-
-      }
+      if (con) m_group.AddConnection(con);
 
       m_group.Run();
       Sleep(10);

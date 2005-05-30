@@ -225,3 +225,8 @@ void User_Group::SetConfig(int bpi, int bpm)
   mk.beats_minute=bpm;
   Broadcast(mk.build());
 }
+
+void User_Group::AddConnection(JNL_Connection *con)
+{
+  m_users.Add(new User_Connection(con));
+}

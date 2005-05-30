@@ -87,6 +87,8 @@ class User_Group
     User_Group();
     ~User_Group();
 
+    void AddConnection(JNL_Connection *con);
+
     void Run();
     void SetConfig(int bpi, int bpm);
     void Broadcast(Net_Message *msg);
