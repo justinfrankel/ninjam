@@ -59,8 +59,25 @@ class mpb_server_config_change_notify
 
 
 
-#define MESSAGE_SERVER_USERLIST_CHANGE_NOTIFY 0x03
+#define MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY 0x03
 
+class mpb_server_userinfo_change_notify
+{
+  public:
+    mpb_server_userinfo_change_notify() : m_intmsg(0) { }
+    ~mpb_server_userinfo_change_notify() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build(); // if you call build_add_rec at all, you must do delete x->build(); to avoid a mem leak.
+
+    // public accessors
+    void build_add_rec(int isRemove, int channelid, int volume, int pan, char *username, char *chname);
+    int parse_get_rec(int idx, int *isRemove, int *channelid, int *volume, int *pan, char **username, char **chname); // return 0 on success
+
+   private:
+
+     Net_Message *m_intmsg;
+};
 
 
 #define MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN 0x04

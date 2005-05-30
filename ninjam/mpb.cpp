@@ -140,3 +140,74 @@ Net_Message *mpb_server_config_change_notify::build()
 
   return nm;
 }
+
+
+// MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY
+int mpb_server_userinfo_change_notify::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY) return -1;
+  if (msg->get_size() < 1) return 1;
+
+  m_intmsg = msg;
+  return 0;
+}
+
+Net_Message *mpb_server_userinfo_change_notify::build()
+{
+  if (m_intmsg) 
+  {
+    Net_Message *n=m_intmsg;
+    m_intmsg=0;
+    return n;
+  }
+
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY); 
+  nm->set_size(0);
+
+  return nm;
+}
+
+
+void mpb_server_userinfo_change_notify::build_add_rec(int isRemove, int channelid, 
+                                                      int volume, int pan, char *username, char *chname)
+{
+  int size=1+ // is remove
+           1+ // channel index
+           1+ // volume
+           1+ // pan
+           strlen(username?username:"")+1+strlen(chname?chname:"")+1;
+
+  if (!m_intmsg) m_intmsg = new Net_Message;
+  int oldsize=m_intmsg->get_size();
+  m_intmsg->set_size(size+oldsize);
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  if (p)
+  {
+    p+=oldsize;
+    *p++=!!isRemove;
+    
+    if (channelid < 0) channelid=0;
+    else if (channelid>255)channelid=255;
+    *p++=channelid;
+
+    if (volume< 0) volume=0;
+    else if (volume>255)volume=255;
+    *p++=volume;
+
+    if (pan<-128) pan=-128;
+    else if (pan>127)pan=127;
+    *p++=(unsigned char)pan;
+
+    strcpy((char*)p,username);
+    p+=strlen(username)+1;
+    strcpy((char*)p,chname);
+    p+=strlen(chname)+1;
+  }
+}
+
+int mpb_server_userinfo_change_notify::parse_get_rec(int idx, int *isRemove, int *channelid, int *volume, 
+                                                     int *pan, char **username, char **chname)
+{
+  return -1;
+}
