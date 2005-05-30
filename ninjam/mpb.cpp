@@ -170,12 +170,13 @@ Net_Message *mpb_server_userinfo_change_notify::build()
 
 
 void mpb_server_userinfo_change_notify::build_add_rec(int isRemove, int channelid, 
-                                                      int volume, int pan, char *username, char *chname)
+                                                      int volume, int pan, int flags, char *username, char *chname)
 {
   int size=1+ // is remove
            1+ // channel index
-           1+ // volume
+           4+ // volume
            1+ // pan
+           1+ // flags
            strlen(username?username:"")+1+strlen(chname?chname:"")+1;
 
   if (!m_intmsg) m_intmsg = new Net_Message;
@@ -191,13 +192,16 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isRemove, int channeli
     else if (channelid>255)channelid=255;
     *p++=channelid;
 
-    if (volume< 0) volume=0;
-    else if (volume>255)volume=255;
-    *p++=volume;
+    *p++=volume&0xff;
+    *p++=(volume>>8)&0xff;
+    *p++=(volume>>16)&0xff;
+    *p++=(volume>>24)&0xff;
 
     if (pan<-128) pan=-128;
     else if (pan>127)pan=127;
     *p++=(unsigned char)pan;
+
+    *p++=(unsigned char)flags;
 
     strcpy((char*)p,username);
     p+=strlen(username)+1;
@@ -206,8 +210,61 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isRemove, int channeli
   }
 }
 
-int mpb_server_userinfo_change_notify::parse_get_rec(int idx, int *isRemove, int *channelid, int *volume, 
-                                                     int *pan, char **username, char **chname)
+
+// returns offset of next item on success, or <= 0 if out of items
+int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isRemove, int *channelid, int *volume, 
+                                                     int *pan, int *flags, char **username, char **chname)
 {
-  return -1;
+  int hdrsize=1+ // is remove
+           1+ // channel index
+           4+ // volume
+           1+ // pan
+           1; // flags
+
+  if (!m_intmsg) return 0;
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  int len=m_intmsg->get_size()-offs;
+  if (!p || len < hdrsize+2) return 0;
+  p+=offs;
+
+  unsigned char *hdrbuf=p;
+  char *unp;
+  char *cnp;
+
+  if (len < hdrsize+2) return 0;
+  hdrbuf=p;
+  len -= hdrsize;
+  unp=(char *)hdrbuf+hdrsize;
+  cnp=unp;
+  while (*cnp)
+  {
+    cnp++;
+    if (!len--) return 0;
+  }
+  cnp++;
+  if (!len--) return 0;
+
+  p=(unsigned char *)cnp;
+  while (*p)
+  {
+    p++;
+    if (!len--) return 0;
+  }
+  p++;
+  if (!len--) return 0;
+
+  *isRemove=(int)*hdrbuf++;
+  *channelid=(int)*hdrbuf++;
+  *volume=(int)*hdrbuf++;
+  *volume |= ((int)*hdrbuf++)<<8;
+  *volume |= ((int)*hdrbuf++)<<16;
+  *volume |= ((int)*hdrbuf++)<<24;
+  *pan = (int) *hdrbuf++;
+  *flags = (int) *hdrbuf++;
+
+  *username = unp;
+  *chname = cnp;
+
+
+  return p - (unsigned char *)m_intmsg->get_data();
 }

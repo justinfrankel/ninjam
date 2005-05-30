@@ -71,8 +71,11 @@ class mpb_server_userinfo_change_notify
     Net_Message *build(); // if you call build_add_rec at all, you must do delete x->build(); to avoid a mem leak.
 
     // public accessors
-    void build_add_rec(int isRemove, int channelid, int volume, int pan, char *username, char *chname);
-    int parse_get_rec(int idx, int *isRemove, int *channelid, int *volume, int *pan, char **username, char **chname); // return 0 on success
+    // pan is -128..127
+    // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
+    // flags ...
+    void build_add_rec(int isRemove, int channelid, int volume, int pan, int flags, char *username, char *chname);
+    int parse_get_rec(int offs, int *isRemove, int *channelid, int *volume, int *pan, int *flags, char **username, char **chname); // returns offset of next item on success, or <0 if out of items
 
    private:
 
