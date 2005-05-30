@@ -21,6 +21,7 @@ User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_
 
 User_Connection::~User_Connection()
 {
+
   int x;
   for (x = 0; x < m_sublist.GetSize(); x ++)
     delete m_sublist.Get(x);
@@ -279,6 +280,37 @@ void User_Group::Run()
       {
         if (p->Run(this))
         {
+
+          // broadcast to other users that this user is no longer present
+          if (p->m_auth_state>0) 
+          {
+            mpb_server_userinfo_change_notify mfmt;
+            int mfmt_changes=0;
+
+            int whichch=0;
+            char *chnp=0;
+            while (whichch < MAX_USER_CHANNELS)
+            {
+              p->m_channels[whichch].name.Set("");
+
+              if (p->m_channels[whichch].active) // only send deactivate if it was previously active
+              {
+                p->m_channels[whichch].active=0;
+                mfmt_changes++;
+                mfmt.build_add_rec(0,whichch,
+                                  p->m_channels[whichch].volume,
+                                  p->m_channels[whichch].panning,
+                                  p->m_channels[whichch].flags,
+                                  p->m_username.Get(),
+                                  p->m_channels[whichch].name.Get());
+              }
+
+              whichch++;
+            }
+
+            if (mfmt_changes) Broadcast(mfmt.build(),p);
+          }
+
           delete p;
           m_users.Delete(x--);
         }

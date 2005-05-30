@@ -97,6 +97,7 @@ int main(int argc, char **argv)
 
                   netcon->Send(sci.build());
                 }
+                else netcon->Kill();
               }
             }
           break;
