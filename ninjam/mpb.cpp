@@ -179,7 +179,11 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isRemove, int channeli
            1+ // flags
            strlen(username?username:"")+1+strlen(chname?chname:"")+1;
 
-  if (!m_intmsg) m_intmsg = new Net_Message;
+  if (!m_intmsg) 
+  {
+    m_intmsg = new Net_Message;
+    m_intmsg->set_type(MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY); 
+  }
   int oldsize=m_intmsg->get_size();
   m_intmsg->set_size(size+oldsize);
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
@@ -274,7 +278,7 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isRemove, in
 int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN) return -1;
-  if (msg->get_size() < 28+1) return 1;
+  if (msg->get_size() < 27+1) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
@@ -291,8 +295,7 @@ int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on s
   transfer_id = (int)*p++;
   transfer_id |= ((int)*p++)<<8;
   chidx = (int)*p++;
-  chidx |= ((int)*p++)<<8;
-  int len=msg->get_size()-28;
+  int len=msg->get_size()-27;
 
   username=(char *)p;
 
@@ -315,7 +318,7 @@ Net_Message *mpb_server_download_interval_begin::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
   
-  nm->set_size(28+strlen(username?username:"")+1);
+  nm->set_size(27+strlen(username?username:"")+1);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -338,7 +341,6 @@ Net_Message *mpb_server_download_interval_begin::build()
   *p++=(unsigned char)((transfer_id)&0xff);
   *p++|=(unsigned char)((transfer_id>>8)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
-  *p++|=(unsigned char)((chidx>>8)&0xff);
 
   strcpy((char *)p,username?username:"");
 
@@ -472,4 +474,87 @@ Net_Message *mpb_client_auth_user::build()
   }
 
   return nm;
+}
+
+
+// MESSAGE_CLIENT_SET_USERMASK
+int mpb_client_set_usermask::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_CLIENT_SET_USERMASK) return -1;
+  if (msg->get_size() < 1) return 1;
+
+  m_intmsg = msg;
+  return 0;
+}
+
+Net_Message *mpb_client_set_usermask::build()
+{
+  if (m_intmsg) 
+  {
+    Net_Message *n=m_intmsg;
+    m_intmsg=0;
+    return n;
+  }
+
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_CLIENT_SET_USERMASK); 
+  nm->set_size(0);
+
+  return nm;
+}
+
+
+void mpb_client_set_usermask::build_add_rec(char *username, unsigned int chflags)
+{
+  int size=4+strlen(username?username:"")+1;
+
+  if (!m_intmsg) 
+  {
+    m_intmsg = new Net_Message;
+    m_intmsg->set_type(MESSAGE_CLIENT_SET_USERMASK); 
+  }
+  int oldsize=m_intmsg->get_size();
+  m_intmsg->set_size(size+oldsize);
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  if (p)
+  {
+    p+=oldsize;
+
+    strcpy((char*)p,username);
+    p+=strlen(username)+1;
+
+    *p++=chflags&0xff;
+    *p++=(chflags>>8)&0xff;
+    *p++=(chflags>>16)&0xff;
+    *p++=(chflags>>24)&0xff;
+  }
+}
+
+
+// returns offset of next item on success, or <= 0 if out of items
+int mpb_client_set_usermask::parse_get_rec(int offs, char **username, unsigned int *chflags)
+{
+  if (!m_intmsg) return 0;
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  int len=m_intmsg->get_size()-offs;
+  if (!p || len < 5) return 0;
+  p+=offs;
+
+  *username=(char*)p;
+  while (*p && len > 0)
+  {
+    len--;
+    p++;
+  }
+  p++;
+  len--;
+
+  if (len<4) return -1;
+
+  *chflags = ((int)*p++); 
+  *chflags |= ((int)*p++)<<8;
+  *chflags |= ((int)*p++)<<16;
+  *chflags |= ((int)*p++)<<24;
+
+  return p - (unsigned char *)m_intmsg->get_data();
 }

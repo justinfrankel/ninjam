@@ -98,7 +98,7 @@ class mpb_server_download_interval_begin
     int estsize;
     int fourcc;
     int transfer_id; // 0 cached by guid, otherwise it is a transfer id (only 2 bytes)
-    int chidx;       // only 2 bytes
+    int chidx;       // only 1 byte
     char *username;
 };
 
@@ -143,6 +143,27 @@ class mpb_client_auth_user
 
 
 #define MESSAGE_CLIENT_SET_USERMASK 0x81
+class mpb_client_set_usermask
+{
+  public:
+    mpb_client_set_usermask() : m_intmsg(0) { }
+    ~mpb_client_set_usermask() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+
+    void build_add_rec(char *username, unsigned int chflags);
+    int parse_get_rec(int offs, char **username, unsigned int *chflags); // returns offset of next item on success, or <0 if out of items
+
+   private:
+
+     Net_Message *m_intmsg;
+};
+
+
+
+
 #define MESSAGE_CLIENT_SET_CHANNEL_INFO 0x82
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN 0x83
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE 0x84
