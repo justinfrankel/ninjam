@@ -64,7 +64,7 @@ int User_Connection::Run(User_Group *group)
         for (user = 0; user < group->m_users.GetSize(); user++)
         {
           User_Connection *u=group->m_users.Get(user);
-          if (!strcmp(u->m_username.Get(),authrep.username))
+          if (u != this && !strcmp(u->m_username.Get(),authrep.username))
           {
             delete u;
             group->m_users.Delete(user);
