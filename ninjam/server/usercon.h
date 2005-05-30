@@ -91,7 +91,7 @@ class User_Group
 
     void Run();
     void SetConfig(int bpi, int bpm);
-    void Broadcast(Net_Message *msg);
+    void Broadcast(Net_Message *msg, User_Connection *nosend=0);
 
 
 

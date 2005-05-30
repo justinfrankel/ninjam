@@ -149,7 +149,7 @@ int User_Connection::Run(User_Group *group)
               whichch++;
             }
 
-            if (mfmt_changes) group->Broadcast(mfmt.build());
+            if (mfmt_changes) group->Broadcast(mfmt.build(),this);
           }         
         }
       break;
@@ -179,7 +179,7 @@ User_Group::~User_Group()
 }
 
 
-void User_Group::Broadcast(Net_Message *msg)
+void User_Group::Broadcast(Net_Message *msg, User_Connection *nosend)
 {
   if (msg)
   {
@@ -189,7 +189,7 @@ void User_Group::Broadcast(Net_Message *msg)
     for (x = 0; x < m_users.GetSize(); x ++)
     {
       User_Connection *p=m_users.Get(x);
-      if (p && p->m_auth_state > 0)
+      if (p && p->m_auth_state > 0 && p != nosend)
       {
         p->Send(msg);
       }
