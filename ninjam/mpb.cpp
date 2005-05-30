@@ -268,3 +268,80 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isRemove, in
 
   return p - (unsigned char *)m_intmsg->get_data();
 }
+
+
+// MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN
+int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN) return -1;
+  if (msg->get_size() < 28+1) return 1;
+  unsigned char *p=(unsigned char *)msg->get_data();
+  if (!p) return 2;
+
+  memcpy(guid,p,sizeof(guid));
+  p+=sizeof(guid);
+  estsize = (int)*p++;
+  estsize |= ((int)*p++)<<8;
+  estsize |= ((int)*p++)<<16;
+  estsize |= ((int)*p++)<<24;
+  fourcc = (int)*p++;
+  fourcc |= ((int)*p++)<<8;
+  fourcc |= ((int)*p++)<<16;
+  fourcc |= ((int)*p++)<<24;
+  transfer_id = (int)*p++;
+  transfer_id |= ((int)*p++)<<8;
+  chidx = (int)*p++;
+  chidx |= ((int)*p++)<<8;
+  int len=msg->get_size()-28;
+
+  username=(char *)p;
+
+
+  // validate null termination for now
+  while (len)
+  {
+    if (!*p) break;
+    p++;
+    len--;
+  }
+  if (!len) return -1;
+
+  return 0;
+}
+
+
+Net_Message *mpb_server_download_interval_begin::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
+  
+  nm->set_size(28+strlen(username?username:"")+1);
+
+  unsigned char *p=(unsigned char *)nm->get_data();
+
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+
+  memcpy(p,guid,sizeof(guid));
+  p+=sizeof(guid);
+  *p++=(unsigned char)((estsize)&0xff);
+  *p++|=(unsigned char)((estsize>>8)&0xff);
+  *p++|=(unsigned char)((estsize>>16)&0xff);
+  *p++|=(unsigned char)((estsize>>24)&0xff);
+  *p++=(unsigned char)((fourcc)&0xff);
+  *p++|=(unsigned char)((fourcc>>8)&0xff);
+  *p++|=(unsigned char)((fourcc>>16)&0xff);
+  *p++|=(unsigned char)((fourcc>>24)&0xff);
+  *p++=(unsigned char)((transfer_id)&0xff);
+  *p++|=(unsigned char)((transfer_id>>8)&0xff);
+  *p++=(unsigned char)((chidx)&0xff);
+  *p++|=(unsigned char)((chidx>>8)&0xff);
+
+  strcpy((char *)p,username?username:"");
+
+
+  return nm;
+}
