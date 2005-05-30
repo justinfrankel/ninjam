@@ -184,8 +184,28 @@ class mpb_client_set_channel_info
 
 
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN 0x83
-#define MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE 0x84
+class mpb_client_upload_interval_begin
+{
+  public:
+    mpb_client_upload_interval_begin() : estsize(0), fourcc(0), chidx(0), transfer_id(0) { memset(guid,0,sizeof(guid)); }
+    ~mpb_client_upload_interval_begin() { }
 
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+    // public data
+    unsigned char guid[16];
+    int estsize;
+    int fourcc;
+    int transfer_id; // 0 cached by guid, otherwise it is a transfer id (only 2 bytes)
+    int chidx;       // only 1 byte
+};
+
+
+
+// this uses the exact same message format as the server version
+#define MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE 0x84
+#define mpb_client_upload_interval_write mpb_server_download_interval_write
 
 
 
