@@ -558,3 +558,107 @@ int mpb_client_set_usermask::parse_get_rec(int offs, char **username, unsigned i
 
   return p - (unsigned char *)m_intmsg->get_data();
 }
+
+
+// MESSAGE_CLIENT_SET_CHANNEL_INFO
+int mpb_client_set_channel_info::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_CLIENT_SET_CHANNEL_INFO) return -1;
+  if (msg->get_size() < 2) return 1;
+
+  m_intmsg = msg;
+
+  return 0;
+}
+
+Net_Message *mpb_client_set_channel_info::build()
+{
+  if (m_intmsg) 
+  {
+    Net_Message *n=m_intmsg;
+    m_intmsg=0;
+    return n;
+  }
+
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_CLIENT_SET_CHANNEL_INFO); 
+  nm->set_size(0);
+
+  return nm;
+}
+
+
+void mpb_client_set_channel_info::build_add_rec(char *chname, int volume, int pan)
+{
+  int size=mpisize+strlen(chname?chname:"")+1;
+
+  if (!m_intmsg) 
+  {
+    m_intmsg = new Net_Message;
+    m_intmsg->set_type(MESSAGE_CLIENT_SET_CHANNEL_INFO); 
+    m_intmsg->set_size(2);
+    unsigned char *p=(unsigned char*)m_intmsg->get_data();
+    if (!p) return;
+    *p++ = mpisize&0xff;
+    *p++ = (mpisize>>8)&0xff;
+  }
+  int oldsize=m_intmsg->get_size();
+  m_intmsg->set_size(size+oldsize);
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  if (p)
+  {
+    p+=oldsize;
+
+    strcpy((char*)p,chname);
+    p+=strlen(chname)+1;
+    if (pan < -128) pan=-128;
+    else if (pan > 127) pan=127;
+    if (mpisize>0) *p++=(volume)&0xff;
+    if (mpisize>1) *p++=(volume>>8)&0xff;
+    if (mpisize>2) *p++=(volume>>16)&0xff;
+    if (mpisize>3) *p++=(volume>>24)&0xff;
+    if (mpisize>4) *p++=(unsigned char)pan;
+    if (mpisize>5)
+      memset(p,0,mpisize-5);
+
+  }
+}
+
+
+// returns offset of next item on success, or <= 0 if out of items
+int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, int *volume, int *pan)
+{
+  if (!m_intmsg) return 0;
+  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  int len=m_intmsg->get_size()-offs;
+  if (!p || len < 5) return 0;
+
+  mpisize=(int)p[0] | (((int)p[1])<<8);
+
+  p+=offs;
+
+  *chname=(char*)p;
+  while (*p && len > 0)
+  {
+    len--;
+    p++;
+  }
+  p++;
+  len--;
+
+  if (len<mpisize) return -1;
+
+  if (mpisize>3)
+  {
+    *volume=(int)p[0];
+    *volume|=((int)p[1])<<8;
+    *volume|=((int)p[2])<<16;
+    *volume|=((int)p[3])<<24;
+  }
+  if (mpisize>4)
+  {
+    *pan=(int)p[4];
+  }
+
+  return (p+mpisize) - (unsigned char *)m_intmsg->get_data();
+}

@@ -161,10 +161,28 @@ class mpb_client_set_usermask
      Net_Message *m_intmsg;
 };
 
-
-
-
 #define MESSAGE_CLIENT_SET_CHANNEL_INFO 0x82
+class mpb_client_set_channel_info
+{
+  public:
+    mpb_client_set_channel_info() : m_intmsg(0), mpisize(5) { }
+    ~mpb_client_set_channel_info() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+
+    void build_add_rec(char *chname, int volume, int pan);
+    int parse_get_rec(int offs, char **chname, int *volume, int *pan); // returns offset of next item on success, or <0 if out of items
+
+    int mpisize;
+
+   private:
+
+     Net_Message *m_intmsg;
+};
+
+
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN 0x83
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE 0x84
 
