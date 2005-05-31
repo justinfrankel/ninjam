@@ -85,7 +85,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
   int mixl=min(len*sch,netdec.m_samples_used);
 
   int x;
-  for (x = 0; x < len; x ++)
+  if (1) for (x = 0; x < mixl; x ++)
   {    
     float vl,vr;
     if (sch == 1)
@@ -102,7 +102,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
     // process vl/vr here
 
     if (nch == 1) buf[x]+=vl;
-    else
+    else 
     {
       buf[x+x]+=vl;
       buf[x+x+1]+=vr;
@@ -283,6 +283,11 @@ int main(int argc, char **argv)
               {
                 EnterCriticalSection(&net_cs);
                 vorbisrecvbuf.Add(diw.audio_data,diw.audio_data_len);              
+                {
+                  static FILE *fp;
+                  if (!fp) fp=fopen("C:\\test.ogg","wb");
+                  if (fp) fwrite(diw.audio_data,diw.audio_data_len,1,fp);
+                }
                 LeaveCriticalSection(&net_cs);
               }
             }

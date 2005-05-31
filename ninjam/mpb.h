@@ -208,7 +208,22 @@ class mpb_client_upload_interval_begin
 
 // this uses the exact same message format as the server version
 #define MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE 0x84
-#define mpb_client_upload_interval_write mpb_server_download_interval_write
+class mpb_client_upload_interval_write
+{
+  public:
+    mpb_client_upload_interval_write() : transfer_id(0), flags(0), audio_data(0), audio_data_len(0) { }
+    ~mpb_client_upload_interval_write() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+    // public data
+    int transfer_id; // transfer id (only 2 bytes) 
+    char flags; // & 1 = end
+
+    void *audio_data;
+    int audio_data_len; // not encoded in, just used internally
+};
 
 
 
