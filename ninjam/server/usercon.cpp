@@ -224,6 +224,13 @@ int User_Connection::Run(User_Group *group)
           }
         }
       break;
+      case MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE:
+        {
+          // for now, let's just change the message type, and rebroadcast.
+          msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
+          group->Broadcast(msg,this);
+        }
+      break;
 
       default:
       break;
