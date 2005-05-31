@@ -83,6 +83,12 @@ void audiostream_onsamples(float *buf, int len, int nch)
   LeaveCriticalSection(&net_cs);
   // decode any available incoming streams and mix in
 
+
+  if (1)
+  {
+    memset(buf,0,len*sizeof(float)*nch);// silence
+  }
+
   if (netdec.m_samples_used >= needed)
   {
     float *sptr=(float *)netdec.m_samples.Get();

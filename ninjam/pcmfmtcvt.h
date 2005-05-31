@@ -200,6 +200,7 @@ static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sa
   if (!src_srate) src_srate=48000;
   if (!dest_srate) dest_srate=48000;
 
+
   double rspos=0.0;
   double drspos = src_srate/dest_srate;
 
@@ -211,16 +212,16 @@ static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sa
     if (src_srate != dest_srate)
     {
       int ipos = (int)rspos;
-      //double fracpos=rspos-ipos; 
+      double fracpos=rspos-ipos; 
       if (src_nch == 2)
       {
         ipos+=ipos;
-        ls=src[ipos+1];
-        rs=src[ipos+1];
+        ls=src[ipos]*(1.0-fracpos) + src[ipos+2]*fracpos;
+        rs=src[ipos+1]*(1.0-fracpos) + src[ipos+3]*fracpos;
       }
       else 
       {
-        rs=ls=src[ipos];
+        rs=ls=src[ipos]*(1.0-fracpos) + src[ipos+1]*fracpos;
       }
     }
     else
