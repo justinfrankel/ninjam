@@ -1,17 +1,16 @@
-#include "jesusonic.h"
-
-
 #include <windows.h>
 #include <mmsystem.h>
 
 #include "audiostream.h"
 
-
 #ifdef _MSC_VER 
+
 
 #if 1
 #define printf myPrintf
 static void myPrintf(char *s, ... ) { }
+#define fflush(x)
+#define getchar()
 
 
 #else
@@ -491,7 +490,7 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
 #include "asio.h"
 #include "asiodrivers.h"
 
-#include "iasiothiscallresolver.h"
+// GCC only: #include "iasiothiscallresolver.h"
 
 enum {
 	// number of input and outputs supported by the host application
@@ -617,8 +616,6 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
 
     if (myDriverInfo.started)
     {
-      _controlfp(_RC_CHOP,_MCW_RC);
-
       int bytes=buffSize*splsize*2;
 //      EnterCriticalSection(&myDriverInfo.cs);
 

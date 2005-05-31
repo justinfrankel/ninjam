@@ -1,6 +1,9 @@
 #ifndef _AUDIOSTREAM_H_
 #define _AUDIOSTREAM_H_
 
+
+#define SUPPORT_ASIO
+
 extern void audiostream_onunder();
 extern void audiostream_onover();
 extern void audiostream_onsamples(char *buf, int len);
@@ -44,7 +47,7 @@ class audioStreamer_CoreAudio  : public audioStreamer
 
 #ifdef _WIN32
 
-#include "ptrlist.h"
+#include "../WDL/ptrlist.h"
 
 #ifdef SUPPORT_ASIO
 class audioStreamer_ASIO  : public audioStreamer

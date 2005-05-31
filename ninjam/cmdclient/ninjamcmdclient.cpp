@@ -4,6 +4,22 @@
 #include "../netmsg.h"
 #include "../mpb.h"
 
+#include "../audiostream.h"
+
+audioStreamer *g_audio;
+
+int g_audio_enable;
+void audiostream_onunder() { }
+void audiostream_onover() { }
+
+void audiostream_onsamples(char *buf, int len)
+{
+  if (!g_audio_enable) return;
+
+
+}
+
+
 
 int main(int argc, char **argv)
 {
@@ -14,8 +30,21 @@ int main(int argc, char **argv)
     printf("Usage: ninjam hostname\n");
     return 0;
   }
-  JNL::open_socketlib();
 
+  g_audio_enable=0;
+  char *dev_name_in="0:0,0:0,0";
+  audioStreamer_ASIO *audio=new audioStreamer_ASIO;
+
+  int nbufs=2,bufsize=4096;
+  if (audio->Open(&dev_name_in,48000,2,16,-1,&nbufs,&bufsize))
+  {
+    printf("Error opening audio!\n");
+    return 0;
+  }
+  printf("Opened %s\n",dev_name_in);
+
+  g_audio=audio;
+  JNL::open_socketlib();
 
   int m_bpm=120,m_bpi=32;
   Net_Connection *netcon=0;
@@ -143,6 +172,7 @@ int main(int argc, char **argv)
   }
 
 
+  delete g_audio;
 
   JNL::close_socketlib();
   return 0;
