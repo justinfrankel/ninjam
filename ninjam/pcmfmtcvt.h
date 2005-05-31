@@ -176,4 +176,68 @@ static void floatsToPcm(float *src, int src_spacing, int items, void *dest, int 
   }
 }
 
+
+static int resampleLengthNeeded(int src_srate, int dest_srate, int dest_len)
+{
+  // safety
+  if (!src_srate) src_srate=48000;
+  if (!dest_srate) dest_srate=48000;
+  int ss=(src_srate*dest_len)/dest_srate;
+
+  return ss;
+}
+
+static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sample pairs
+                            float *dest, int dest_srate, int dest_nch, 
+                            int dest_len, float vol, float pan)
+{
+  // fucko: better resampling, this is shite
+  int x;
+  if (pan < -1.0f) pan=-1.0f;
+  else if (pan > 1.0f) pan=1.0f;
+  if (vol > 4.0f) vol=4.0f;
+  if (vol < 0.0f) vol=0.0f;
+  if (!src_srate) src_srate=48000;
+  if (!dest_srate) dest_srate=48000;
+
+  double rspos=0.0;
+  double drspos = dest_srate/src_srate;
+
+  for (x = 0; x < dest_len; x ++)
+  {
+    int ipos = (int)rspos;
+    //double fracpos=rspos-ipos; 
+
+    double ls;
+    double rs;
+    if (src_nch == 2)
+    {
+      ipos+=ipos;
+      ls=src[ipos+1];
+      rs=src[ipos+1];
+    }
+    else 
+    {
+      rs=ls=src[ipos];
+    }
+
+    rspos+=drspos;
+
+    if (dest_nch == 2)
+    {
+      if (pan < 0.0f)  rs *= 1.0+pan;
+      else if (pan > 0.0f) ls *= 1.0-pan;
+
+      dest[0]+=(float) (ls*vol);
+      dest[1]+=(float) (rs*vol);
+      dest+=2;
+    }
+    else
+    {
+      dest[0]+=(float) (ls*vol);
+      dest++;
+    }
+  }
+}
+
 #endif //_PCMFMTCVT_H_

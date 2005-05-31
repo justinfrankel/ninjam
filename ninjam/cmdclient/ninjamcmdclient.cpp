@@ -8,6 +8,8 @@
 
 #include "../vorbisencdec.h"
 
+#include "../pcmfmtcvt.h"
+
 extern char *get_asio_configstr();
 
 
@@ -67,8 +69,9 @@ void audiostream_onsamples(float *buf, int len, int nch)
   }
   m_outoggbuf.Compact();
 
+  int needed;
   EnterCriticalSection(&net_cs);
-  while (netdec.m_samples_used < len*nch && vorbisrecvbuf.GetSize()>0)
+  while (netdec.m_samples_used < (needed=resampleLengthNeeded(netdec.GetSampleRate(),g_audio->m_srate,len)*netdec.GetNumChannels()) && vorbisrecvbuf.GetSize()>0)
   {
     int l=vorbisrecvbuf.GetSize();
     if (l > 4096) l=4096;
@@ -80,38 +83,21 @@ void audiostream_onsamples(float *buf, int len, int nch)
   LeaveCriticalSection(&net_cs);
   // decode any available incoming streams and mix in
 
-  float *sptr=(float *)netdec.m_samples.Get();
-  int sch=netdec.GetNumChannels();
-  int mixl=min(len*sch,netdec.m_samples_used);
+  if (netdec.m_samples_used >= needed)
+  {
+    float *sptr=(float *)netdec.m_samples.Get();
 
-  int x;
-  if (1) for (x = 0; x < mixl; x ++)
-  {    
-    float vl,vr;
-    if (sch == 1)
-    {
-      vl=vr=sptr[x];
-    }
-    else
-    {
-      vl=sptr[x+x];
-      vr=sptr[x+x+1];
-      if (nch == 1) vl=(vl+vr)*0.5f;
-    }
+    mixFloats(sptr,
+              netdec.GetSampleRate(),
+              netdec.GetNumChannels(),
+              buf,
+              g_audio->m_srate,nch,len,
+              1.0,0.0);
 
-    // process vl/vr here
-
-    if (nch == 1) buf[x]+=vl;
-    else 
-    {
-      buf[x+x]+=vl;
-      buf[x+x+1]+=vr;
-    }
- 
-
+    // advance the queue
+    netdec.m_samples_used -= needed;
+    memcpy(sptr,sptr+needed,netdec.m_samples_used*sizeof(float));
   }
-  memcpy(sptr,sptr+mixl,(netdec.m_samples_used-mixl)*sizeof(float));
-  netdec.m_samples_used -= mixl;
 }
 
 
