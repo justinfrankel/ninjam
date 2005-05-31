@@ -591,92 +591,13 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
     // interleave the first two buffers into the queue
     if (myDriverInfo.inputBuffers==1)
     {
-      if (splsize == 3)
-      {
-        unsigned char *i1=(unsigned char *)myDriverInfo.bufferInfos[0].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          i24_to_float(i1,o);
-          o[1]=o[0];            
-          o++;
-          i1+=3;
-        }
-      }
-      else if (splsize == 4)
-      {
-        int *i1=(int *)myDriverInfo.bufferInfos[0].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          i32_to_float(*i1++,o);
-          o[1]=o[0];            
-          o++;
-        }
-      }
-      else if (splsize == 2)
-      {
-        short *i1=(short *)myDriverInfo.bufferInfos[0].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          INT16_TO_float(*o,*i1);
-          i1++;
-          o[1]=o[0];            
-          o++;
-        }
-      }
+      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf,2);
+      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf+1,2);
     }
     else
     {
-      if (splsize == 3)
-      {
-        unsigned char *i1=(unsigned char *)myDriverInfo.bufferInfos[0].buffers[index];
-        unsigned char *i2=(unsigned char *)myDriverInfo.bufferInfos[1].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          i24_to_float(i1,o);
-          i24_to_float(i2,o+1);
-          o+=2;
-          i1+=3;
-          i2+=3;
-        }
-      }
-      else if (splsize == 4)
-      {
-        int *i1=(int *)myDriverInfo.bufferInfos[0].buffers[index];
-        int *i2=(int *)myDriverInfo.bufferInfos[1].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          i32_to_float(*i1,o);
-          i32_to_float(*i2,o+1);
-          i1++;
-          i2++;
-          o+=2;      
-        }
-      }
-      else if (splsize == 2)
-      {
-        short *i1=(short *)myDriverInfo.bufferInfos[0].buffers[index];
-        short *i2=(short *)myDriverInfo.bufferInfos[1].buffers[index];
-        float *o=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {          
-          INT16_TO_float(*o,*i1);
-          INT16_TO_float(o[1],*i2);
-          i1++;
-          i2++;
-          o+=2;
-        }
-      }
+      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf,2);
+      pcmToFloats(myDriverInfo.bufferInfos[1].buffers[index],buffSize,splsize*8,1,asio_pcmbuf+1,2);
     }
 
     {
@@ -692,90 +613,12 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
     // uninterleave the latest samples into the second two buffers
     if (myDriverInfo.outputBuffers==1)
     {
-      if (splsize==4)
-      {
-        int *o1=(int*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_to_i32(i,o1);
-          i+=2;
-          o1++;
-        }
-      }
-      else if (splsize==3)
-      {
-        unsigned char *o1=(unsigned char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_to_i24(i,o1);
-          i+=2;
-          o1+=3;
-        }
-      }
-      else if (splsize==2)
-      {
-        short *o1=(short*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_TO_INT16(*o1,*i);
-          i+=2;
-          o1++;
-        }
-      }
+      floatsToPcm(asio_pcmbuf,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index],splsize*8,1);
     }
     else
     {
-      if (splsize==4)
-      {
-        int *o1=(int*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        int *o2=(int*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_to_i32(i,o1);
-          float_to_i32(i+1,o2);
-          i+=2;
-          o1++;
-          o2++;
-        }
-      }
-      else if (splsize==3)
-      {
-        unsigned char *o1=(unsigned char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        unsigned char *o2=(unsigned char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_to_i24(i,o1);
-          float_to_i24(i+1,o2);
-          i+=2;
-          o1+=3;
-          o2+=3;
-        }
-      }
-      else if (splsize==2)
-      {
-        short *o1=(short*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-        short *o2=(short*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index];
-        float *i=asio_pcmbuf;
-        int l=buffSize;
-        while (l--)
-        {
-          float_TO_INT16(*o1,*i);
-          float_TO_INT16(*o2,i[1]);
-          i+=2;
-          o1++;
-          o2++;
-        }
-      }
+      floatsToPcm(asio_pcmbuf,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index],splsize*8,1);
+      floatsToPcm(asio_pcmbuf+1,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index],splsize*8,1);
     }
   }
   

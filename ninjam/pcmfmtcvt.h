@@ -105,4 +105,75 @@ static inline void float_to_i24(float *vv, unsigned char *i24)
   }
 }
 
+
+static void pcmToFloats(void *src, int items, int bps, int src_spacing, float *dest, int dest_spacing)
+{
+  if (bps == 32)
+  {
+    int *i1=(int *)src;
+    while (items--)
+    {          
+      i32_to_float(*i1,dest);
+      i1+=src_spacing;
+      dest+=dest_spacing;      
+    }
+  }
+  else if (bps == 24)
+  {
+    unsigned char *i1=(unsigned char *)src;
+    int adv=3*src_spacing;
+    while (items--)
+    {          
+      i24_to_float(i1,dest);
+      dest+=dest_spacing;
+      i1+=adv;
+    }
+  }
+  else if (bps == 16)
+  {
+    short *i1=(short *)src;
+    while (items--)
+    {          
+      INT16_TO_float(*dest,*i1);
+      i1+=src_spacing;
+      dest+=dest_spacing;
+    }
+  }
+}
+
+static void floatsToPcm(float *src, int src_spacing, int items, void *dest, int bps, int dest_spacing)
+{
+  if (bps==32)
+  {
+    int *o1=(int*)dest;
+    while (items--)
+    {
+      float_to_i32(src,o1);
+      src+=src_spacing;
+      o1+=dest_spacing;
+    }
+  }
+  else if (bps == 24)
+  {
+    unsigned char *o1=(unsigned char*)dest;
+    int adv=dest_spacing*3;
+    while (items--)
+    {
+      float_to_i24(src,o1);
+      src+=src_spacing;
+      o1+=adv;
+    }
+  }
+  else if (bps==16)
+  {
+    short *o1=(short*)dest;
+    while (items--)
+    {
+      float_TO_INT16(*o1,*src);
+      src+=src_spacing;
+      o1+=dest_spacing;
+    }
+  }
+}
+
 #endif //_PCMFMTCVT_H_
