@@ -5,6 +5,7 @@
 
 
 
+
 struct
 {
    int mode;
@@ -87,8 +88,8 @@ BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_SETCURSEL,(WPARAM)wd,0);
       SendMessage(hwndDlg,WM_COMMAND,MAKEWPARAM(IDC_COMBO1,CBN_SELCHANGE),0);
     }   
-    delete asioDrivers;
-    asioDrivers=0;
+    //delete asioDrivers; // fucko thsi shouldnt be commented
+   // asioDrivers=0;
     
     return 1;
   }
@@ -159,8 +160,8 @@ BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         asioDrivers->removeCurrentDriver();
       }
-      delete asioDrivers;
-      asioDrivers=0;
+      //delete asioDrivers;// fucko thsi shouldnt be commented
+     // asioDrivers=0;
     }
     // repopulate channel list
   }
@@ -185,8 +186,8 @@ BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         }
       }
       asioDrivers->removeCurrentDriver();
-      if (asioDrivers) delete asioDrivers;
-      asioDrivers=0;
+     // if (asioDrivers) delete asioDrivers;
+   //   asioDrivers=0;// fucko thsi shouldnt be commented
     }
   }
 
@@ -289,7 +290,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
 char *get_asio_configstr()
 {
-//  DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
+  DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
   static char tmpbuf[64];
     wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
       configdata.asio_input[0],
