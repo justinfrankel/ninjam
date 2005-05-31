@@ -6,8 +6,7 @@
 
 #include "../audiostream.h"
 
-
-#include "vorbis/vorbisenc.h"
+#include "../vorbisencdec.h"
 
 extern char *get_asio_configstr();
 
@@ -16,22 +15,32 @@ extern char *get_asio_configstr();
 CRITICAL_SECTION net_cs;
 audioStreamer *g_audio;
 
+VorbisEncoder *g_vorbisenc;
+
 int g_audio_enable;
 void audiostream_onunder() { }
 void audiostream_onover() { }
 
-void audiostream_onsamples(char *_buf, int len)
+void audiostream_onsamples(float *buf, int len, int nch)
 {
   if (!g_audio_enable) 
   {
-    memset(_buf,0,len);
+    memset(buf,0,len*nch*sizeof(float));
     return;
   }
 
-  float *buf=(float *)_buf;
-  len /= 8; // change length to sample pairs
-
   // encode my audio and send to server
+  char outbuf[65536];
+  static FILE *fp;
+  int obl=g_vorbisenc->Encode(buf,len,outbuf,sizeof(outbuf));
+  if (obl)
+  {
+    if (!fp) fp=fopen("C:\\test.ogg","wb");
+    if (fp) 
+    {
+      fwrite(outbuf,obl,1,fp);
+    }
+  }
 
   EnterCriticalSection(&net_cs);
   //send
@@ -76,6 +85,11 @@ int main(int argc, char **argv)
   }
 
   JNL::open_socketlib();
+
+  printf("Creating audio encoder... (%dhz %dch)",g_audio->m_srate,g_audio->m_nch);
+  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+  if (g_vorbisenc->isError()) printf("ERROR\n");
+  else printf("YAY\n");
 
   int m_bpm=120,m_bpi=32;
   Net_Connection *netcon=0;
@@ -157,7 +171,7 @@ int main(int argc, char **argv)
                 {
                   mpb_client_set_channel_info sci;
 
-                  sci.build_add_rec("default channel",-328,0,0);
+                  sci.build_add_rec("default channel",0,0,0);
 
                   EnterCriticalSection(&net_cs);
                   netcon->Send(sci.build());

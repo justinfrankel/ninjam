@@ -6,7 +6,7 @@
 
 extern void audiostream_onunder();
 extern void audiostream_onover();
-extern void audiostream_onsamples(char *buf, int len);
+extern void audiostream_onsamples(float *buf, int nsamples, int nch);
 
 class audioStreamer
 {

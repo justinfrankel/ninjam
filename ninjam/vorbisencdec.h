@@ -10,8 +10,16 @@ class VorbisEncoder
 public:
   VorbisEncoder(int srate, int nch, float qv)
   {
+
+    memset(&vi,0,sizeof(vi));
+    memset(&vc,0,sizeof(vc));
+    memset(&vd,0,sizeof(vd));
+    memset(&vb,0,sizeof(vb));
+
     m_nch=nch;
-    m_err=vorbis_info_init_vbr(&vi,nch,srate,qv);
+    vorbis_info_init(&vi);
+
+    m_err=vorbis_encode_init_vbr(&vi,nch,srate,qv);
 
     vorbis_comment_init(&vc);
     vorbis_analysis_init(&vd,&vi);
@@ -39,6 +47,7 @@ public:
 
   int Encode(float *in, int inlen, char *out, int outlen) // length in sample (PAIRS)
   {
+    if (m_err) return 0;
 
     if (inlen == 0)
     {
@@ -54,10 +63,10 @@ public:
         if (m_nch==2) buffer[1][i]=in[i2+1];
         i2+=m_nch;
       }
-      int eos=0;
       vorbis_analysis_wrote(&vd,i);
     }
 
+    int eos=0;
     while(vorbis_analysis_blockout(&vd,&vb)==1)
     {
       vorbis_analysis(&vb,NULL);
@@ -79,12 +88,14 @@ public:
       }
     }
 
-    int l=min(m_outqueue.Avail(),outlen);
+    int l=min(m_outqueue.Available(),outlen);
     memcpy(out,m_outqueue.Get(),l);
     m_outqueue.Advance(l);
     m_outqueue.Compact();
     return l;
   }
+
+  int isError() { return m_err; }
 
 
   ~VorbisEncoder()
