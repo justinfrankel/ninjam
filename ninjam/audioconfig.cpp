@@ -19,7 +19,7 @@ struct
 };
 
 int load_config()
-{
+{ 
   char *fn=m_inifile.Get();
   int *p=(int *)&configdata;
   int s=sizeof(configdata)/sizeof(int);
