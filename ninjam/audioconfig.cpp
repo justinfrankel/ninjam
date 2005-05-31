@@ -1,9 +1,9 @@
 #include <windows.h>
-
+#include <stdio.h>
 #include "../WDL/string.h"
 #include "resource.h"
 
-WDL_String m_inifile;
+
 
 struct
 {
@@ -17,7 +17,8 @@ struct
    {0,1}, //asio_input;
    {0,1}, //asio_output;
 };
-
+/*
+WDL_String m_inifile;
 int load_config()
 { 
   char *fn=m_inifile.Get();
@@ -52,6 +53,7 @@ void save_config()
   }
 }
 
+  */
 
 
 #include "asiosys.h"
@@ -283,9 +285,11 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 }
 
 
+
+
 char *get_asio_configstr()
 {
-  DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
+//  DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
   static char tmpbuf[64];
     wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
       configdata.asio_input[0],

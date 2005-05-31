@@ -130,8 +130,11 @@ int main(int argc, char **argv)
   g_audio_enable=0;
 
   {
-    char *dev_name_in=get_asio_configstr();
-    audioStreamer_ASIO *audio=new audioStreamer_ASIO;
+    audioStreamer_ASIO *audio;
+    char *dev_name_in;
+    
+    dev_name_in=get_asio_configstr();
+    audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;
     if (audio->Open(&dev_name_in,48000,2,16,-1,&nbufs,&bufsize))
@@ -139,7 +142,8 @@ int main(int argc, char **argv)
       printf("Error opening audio!\n");
       return 0;
     }
-    printf("Opened %s\n",dev_name_in);
+    printf("Opened %s (%dHz %dch %dbps)\n",dev_name_in,
+      audio->m_srate, audio->m_nch, audio->m_bps);
     g_audio=audio;
   }
 

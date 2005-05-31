@@ -7,8 +7,9 @@
 
 #include "pcmfmtcvt.h"
 
-#ifdef _MSC_VER 
+#include <stdio.h>
 
+#ifdef NOT_MSC_VER 
 
 #if 1
 #define printf myPrintf
