@@ -7,29 +7,50 @@
 #include "../audiostream.h"
 
 
-
+#include "vorbis/vorbisenc.h"
 
 extern char *get_asio_configstr();
 
 
 
+CRITICAL_SECTION net_cs;
 audioStreamer *g_audio;
 
 int g_audio_enable;
 void audiostream_onunder() { }
 void audiostream_onover() { }
 
-void audiostream_onsamples(char *buf, int len)
+void audiostream_onsamples(char *_buf, int len)
 {
-  if (!g_audio_enable) return;
+  if (!g_audio_enable) 
+  {
+    memset(_buf,0,len);
+    return;
+  }
 
+  float *buf=(float *)_buf;
+  len /= 8; // change length to sample pairs
 
+  // encode my audio and send to server
+
+  EnterCriticalSection(&net_cs);
+  //send
+  LeaveCriticalSection(&net_cs);
+
+  // decode any available incoming streams and mix in
+  int x;
+  for (x = 0; x < len; x ++)
+  {
+
+    buf+=2;
+  }
 }
 
 
 
 int main(int argc, char **argv)
 {
+  InitializeCriticalSection(&net_cs);
   printf("Ninjam v0.0 command line client starting up...\n");
 
   if (argc != 2)
@@ -40,18 +61,20 @@ int main(int argc, char **argv)
 
   g_audio_enable=0;
 
-  char *dev_name_in=get_asio_configstr();
-  audioStreamer_ASIO *audio=new audioStreamer_ASIO;
-
-  int nbufs=2,bufsize=4096;
-  if (audio->Open(&dev_name_in,48000,2,16,-1,&nbufs,&bufsize))
   {
-    printf("Error opening audio!\n");
-    return 0;
-  }
-  printf("Opened %s\n",dev_name_in);
+    char *dev_name_in=get_asio_configstr();
+    audioStreamer_ASIO *audio=new audioStreamer_ASIO;
 
-  g_audio=audio;
+    int nbufs=2,bufsize=4096;
+    if (audio->Open(&dev_name_in,48000,2,16,-1,&nbufs,&bufsize))
+    {
+      printf("Error opening audio!\n");
+      return 0;
+    }
+    printf("Opened %s\n",dev_name_in);
+    g_audio=audio;
+  }
+
   JNL::open_socketlib();
 
   int m_bpm=120,m_bpi=32;
@@ -87,7 +110,9 @@ int main(int argc, char **argv)
 
     while (!netcon->GetStatus())
     {
+      EnterCriticalSection(&net_cs);
       Net_Message *msg=netcon->Run();
+      LeaveCriticalSection(&net_cs);
       if (msg)
       {
         msg->addRef();
@@ -114,7 +139,9 @@ int main(int argc, char **argv)
                 repl.username=buf;
                 // fucko: make password hash
 
+                EnterCriticalSection(&net_cs);
                 netcon->Send(repl.build());
+                LeaveCriticalSection(&net_cs);
               }
             }
           break;
@@ -132,9 +159,16 @@ int main(int argc, char **argv)
 
                   sci.build_add_rec("default channel",-328,0,0);
 
+                  EnterCriticalSection(&net_cs);
                   netcon->Send(sci.build());
+                  LeaveCriticalSection(&net_cs);
                 }
-                else netcon->Kill();
+                else 
+                {
+                  EnterCriticalSection(&net_cs);
+                  netcon->Kill();
+                  LeaveCriticalSection(&net_cs);
+                }
               }
             }
           break;
@@ -146,6 +180,7 @@ int main(int argc, char **argv)
                 m_bpm=ccn.beats_minute;
                 m_bpi=ccn.beats_interval;
                 printf("Got info update from server, bpm=%d, bpi=%d\n",m_bpm,m_bpi);
+                g_audio_enable=1;
               }
             }
 
