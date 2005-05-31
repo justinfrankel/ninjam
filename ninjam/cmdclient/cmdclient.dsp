@@ -189,19 +189,6 @@ SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisfile_static.lib"
-
-!IF  "$(CFG)" == "cmdclient - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "cmdclient - Win32 Debug"
-
-# PROP Exclude_From_Build 1
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
 SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\ogg_static.lib"
 
 !IF  "$(CFG)" == "cmdclient - Win32 Release"
@@ -268,19 +255,6 @@ SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbis_static_d.lib"
 # Begin Source File
 
 SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisenc_static_d.lib"
-
-!IF  "$(CFG)" == "cmdclient - Win32 Release"
-
-# PROP Exclude_From_Build 1
-
-!ELSEIF  "$(CFG)" == "cmdclient - Win32 Debug"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisfile_static_d.lib"
 
 !IF  "$(CFG)" == "cmdclient - Win32 Release"
 
