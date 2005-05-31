@@ -9,6 +9,7 @@
 #include "../vorbisencdec.h"
 
 #include "../pcmfmtcvt.h"
+#include "../../WDL/sha.h"
 
 extern char *get_asio_configstr();
 
@@ -206,6 +207,14 @@ int main(int argc, char **argv)
                 mpb_client_auth_user repl;
                 repl.username=buf;
                 // fucko: make password hash
+
+                WDL_SHA1 tmp;
+                tmp.add(cha.challenge,sizeof(cha.challenge));
+                tmp.add(buf,strlen(buf));
+                tmp.add(":",1);
+                tmp.add(pass,strlen(pass));
+                tmp.result(repl.passhash);               
+
 
                 EnterCriticalSection(&net_cs);
                 netcon->Send(repl.build());

@@ -182,6 +182,14 @@ SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\WDL\sha.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\sha.h
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\ogg_static.lib"
 
 !IF  "$(CFG)" == "cmdclient - Win32 Release"
