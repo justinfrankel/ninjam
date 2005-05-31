@@ -14,12 +14,18 @@ extern char *get_asio_configstr();
 
 CRITICAL_SECTION net_cs;
 audioStreamer *g_audio;
+Net_Connection *netcon=0;
 
 VorbisEncoder *g_vorbisenc;
 
 int g_audio_enable;
 void audiostream_onunder() { }
 void audiostream_onover() { }
+
+WDL_Queue m_outoggbuf;
+
+#define MIN_ENC_BLOCKSIZE 8192
+#define MAX_ENC_BLOCKSIZE (16384-128)
 
 void audiostream_onsamples(float *buf, int len, int nch)
 {
@@ -31,20 +37,33 @@ void audiostream_onsamples(float *buf, int len, int nch)
 
   // encode my audio and send to server
   char outbuf[65536];
-  static FILE *fp;
   int obl=g_vorbisenc->Encode(buf,len,outbuf,sizeof(outbuf));
   if (obl)
   {
-    if (!fp) fp=fopen("C:\\test.ogg","wb");
-    if (fp) 
-    {
-      fwrite(outbuf,obl,1,fp);
-    }
+    m_outoggbuf.Add(outbuf,obl);
   }
 
-  EnterCriticalSection(&net_cs);
-  //send
-  LeaveCriticalSection(&net_cs);
+  while (m_outoggbuf.Available()>MIN_ENC_BLOCKSIZE)
+  {
+    int s=m_outoggbuf.Available();
+    if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
+
+    {
+      mpb_client_upload_interval_write wh;
+      wh.transfer_id=1;
+      wh.audio_data=m_outoggbuf.Get();
+      wh.audio_data_len=s;
+
+      EnterCriticalSection(&net_cs);
+      //send
+      netcon->Send(wh.build());
+      LeaveCriticalSection(&net_cs);
+    }
+
+    m_outoggbuf.Advance(s);
+  }
+  m_outoggbuf.Compact();
+
 
   // decode any available incoming streams and mix in
   int x;
@@ -92,7 +111,6 @@ int main(int argc, char **argv)
   else printf("YAY\n");
 
   int m_bpm=120,m_bpi=32;
-  Net_Connection *netcon=0;
   {
     printf("Connecting to %s...\n",argv[1]);
     JNL_Connection *con=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
