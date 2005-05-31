@@ -37,7 +37,7 @@ class VorbisDecoder
     }
 
     int GetSampleRate() { return vi.rate; }
-    int GetNumChannels() { return vi.channels; }
+    int GetNumChannels() { return vi.channels?vi.channels:1; }
 
     WDL_HeapBuf m_samples; // we let the size get as big as it needs to, so we don't worry about tons of mallocs/etc
     int m_samples_used;

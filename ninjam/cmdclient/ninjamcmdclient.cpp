@@ -18,6 +18,9 @@ Net_Connection *netcon=0;
 
 VorbisEncoder *g_vorbisenc;
 
+WDL_Queue vorbisrecvbuf;
+VorbisDecoder netdec;
+
 int g_audio_enable;
 void audiostream_onunder() { }
 void audiostream_onover() { }
@@ -64,14 +67,51 @@ void audiostream_onsamples(float *buf, int len, int nch)
   }
   m_outoggbuf.Compact();
 
+  EnterCriticalSection(&net_cs);
+  while (netdec.m_samples_used < len*nch && vorbisrecvbuf.GetSize()>0)
+  {
+    int l=vorbisrecvbuf.GetSize();
+    if (l > 4096) l=4096;
+    netdec.Decode((char*)vorbisrecvbuf.Get(),l);
+    vorbisrecvbuf.Advance(l);
+  }
+  vorbisrecvbuf.Compact();
 
+  LeaveCriticalSection(&net_cs);
   // decode any available incoming streams and mix in
+
+  float *sptr=(float *)netdec.m_samples.Get();
+  int sch=netdec.GetNumChannels();
+  int mixl=min(len*sch,netdec.m_samples_used);
+
   int x;
   for (x = 0; x < len; x ++)
-  {
+  {    
+    float vl,vr;
+    if (sch == 1)
+    {
+      vl=vr=sptr[x];
+    }
+    else
+    {
+      vl=sptr[x+x];
+      vr=sptr[x+x+1];
+      if (nch == 1) vl=(vl+vr)*0.5f;
+    }
 
-    buf+=2;
+    // process vl/vr here
+
+    if (nch == 1) buf[x]+=vl;
+    else
+    {
+      buf[x+x]+=vl;
+      buf[x+x+1]+=vr;
+    }
+ 
+
   }
+  memcpy(sptr,sptr+mixl,(netdec.m_samples_used-mixl)*sizeof(float));
+  netdec.m_samples_used -= mixl;
 }
 
 
@@ -232,6 +272,18 @@ int main(int argc, char **argv)
                   if (!chn) chn="";
                   printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
                 }
+              }
+            }
+          break;
+          case MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE:
+            {
+              mpb_server_download_interval_write diw;
+              diw.parse(msg);
+              if (diw.audio_data_len > 0&& diw.audio_data) 
+              {
+                EnterCriticalSection(&net_cs);
+                vorbisrecvbuf.Add(diw.audio_data,diw.audio_data_len);              
+                LeaveCriticalSection(&net_cs);
               }
             }
           break;
