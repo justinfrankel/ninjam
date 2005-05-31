@@ -6,6 +6,13 @@
 
 #include "../audiostream.h"
 
+
+
+
+extern char *get_asio_configstr();
+
+
+
 audioStreamer *g_audio;
 
 int g_audio_enable;
@@ -32,7 +39,8 @@ int main(int argc, char **argv)
   }
 
   g_audio_enable=0;
-  char *dev_name_in="0:0,0:0,0";
+
+  char *dev_name_in=get_asio_configstr();
   audioStreamer_ASIO *audio=new audioStreamer_ASIO;
 
   int nbufs=2,bufsize=4096;
