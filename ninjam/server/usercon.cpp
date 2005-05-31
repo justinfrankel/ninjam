@@ -3,13 +3,14 @@
 #include "usercon.h"
 #include "../mpb.h"
 
+#include "../../WDL/rng.h"
+#include "../../WDL/sha.h"
 
 User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_state(0)
 {
   m_netcon.attach(con);
 
-  int x;
-  for (x = 0; x < sizeof(m_challenge); x ++) m_challenge[x]=(unsigned char)rand();
+  WDL_RNG_bytes(m_challenge,sizeof(m_challenge));
 
   mpb_server_auth_challenge ch;
   memcpy(ch.challenge,m_challenge,sizeof(ch.challenge));
@@ -59,8 +60,25 @@ int User_Connection::Run(User_Group *group)
         return -1;
       }
 
-      // fucko: verify user/password hash, check to see if user exists, etc
-      printf("Got user: %s\n",authrep.username);
+      {
+        WDL_SHA1 shatmp;
+        shatmp.add(m_challenge,sizeof(m_challenge));
+        shatmp.add(authrep.username,strlen(authrep.username));
+        shatmp.add(":",1);
+        shatmp.add("gay",3); // fucko: pass
+
+        char buf[WDL_SHA1SIZE];
+        shatmp.result(buf);
+
+        if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
+        {
+          m_netcon.Kill();
+          msg->releaseRef();
+          return -1;
+        }
+
+        printf("Got user: %s\n",authrep.username);
+      }
 
 
       m_username.Set(authrep.username);

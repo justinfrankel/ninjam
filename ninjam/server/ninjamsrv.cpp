@@ -5,8 +5,16 @@
 #include "../mpb.h"
 #include "usercon.h"
 
+#include "../../WDL/rng.h"
+
 int main(int argc, char **argv)
 {
+
+  DWORD v=GetTickCount();
+  WDL_RNG_addentropy(&v,sizeof(v));
+  v=(DWORD)time(NULL);
+  WDL_RNG_addentropy(&v,sizeof(v));
+
   printf("Ninjam v0.0 server starting up...\n");
   JNL::open_socketlib();
 

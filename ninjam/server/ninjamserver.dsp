@@ -158,11 +158,11 @@ SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\rng.cpp
+SOURCE=..\..\WDL\rng.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sha.cpp
+SOURCE=..\..\WDL\sha.cpp
 # End Source File
 # End Group
 # Begin Source File
@@ -190,11 +190,11 @@ SOURCE=..\netmsg.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\rng.h
+SOURCE=..\..\WDL\rng.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\sha.h
+SOURCE=..\..\WDL\sha.h
 # End Source File
 # End Group
 # Begin Source File
