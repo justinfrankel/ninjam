@@ -274,7 +274,7 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, in
 int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN) return -1;
-  if (msg->get_size() < 29+1) return 1;
+  if (msg->get_size() < 25+1) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
@@ -288,12 +288,8 @@ int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on s
   fourcc |= ((int)*p++)<<8;
   fourcc |= ((int)*p++)<<16;
   fourcc |= ((int)*p++)<<24;
-  transfer_id = (int)*p++;
-  transfer_id |= ((int)*p++)<<8;
-  transfer_id |= ((int)*p++)<<16;
-  transfer_id |= ((int)*p++)<<24;
   chidx = (int)*p++;
-  int len=msg->get_size()-29;
+  int len=msg->get_size()-25;
 
   username=(char *)p;
 
@@ -316,7 +312,7 @@ Net_Message *mpb_server_download_interval_begin::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
   
-  nm->set_size(29+strlen(username?username:"")+1);
+  nm->set_size(25+strlen(username?username:"")+1);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -336,10 +332,6 @@ Net_Message *mpb_server_download_interval_begin::build()
   *p++|=(unsigned char)((fourcc>>8)&0xff);
   *p++|=(unsigned char)((fourcc>>16)&0xff);
   *p++|=(unsigned char)((fourcc>>24)&0xff);
-  *p++=(unsigned char)((transfer_id)&0xff);
-  *p++|=(unsigned char)((transfer_id>>8)&0xff);
-  *p++|=(unsigned char)((transfer_id>>16)&0xff);
-  *p++|=(unsigned char)((transfer_id>>24)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
 
   strcpy((char *)p,username?username:"");
@@ -353,18 +345,16 @@ Net_Message *mpb_server_download_interval_begin::build()
 int mpb_server_download_interval_write::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE) return -1;
-  if (msg->get_size() < 5) return 1;
+  if (msg->get_size() < 17) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
-  transfer_id = (int)*p++;
-  transfer_id |= ((int)*p++)<<8;
-  transfer_id |= ((int)*p++)<<16;
-  transfer_id |= ((int)*p++)<<24;
+  memcpy(guid,p,sizeof(guid));
+  p+=sizeof(guid);
   flags = (char)*p++;
 
   audio_data = p;
-  audio_data_len = msg->get_size()-5;
+  audio_data_len = msg->get_size()-17;
 
   return 0;
 }
@@ -375,7 +365,7 @@ Net_Message *mpb_server_download_interval_write::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
   
-  nm->set_size(5+(audio_data?audio_data_len:0));
+  nm->set_size(17+(audio_data?audio_data_len:0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -384,10 +374,8 @@ Net_Message *mpb_server_download_interval_write::build()
     delete nm;
     return 0;
   }
-  *p++=(unsigned char)((transfer_id)&0xff);
-  *p++|=(unsigned char)((transfer_id>>8)&0xff);
-  *p++|=(unsigned char)((transfer_id>>16)&0xff);
-  *p++|=(unsigned char)((transfer_id>>24)&0xff);
+  memcpy(p,guid,sizeof(guid));
+  p+=sizeof(guid);
   *p++=(unsigned char) flags;
 
   if (audio_data&&audio_data_len) memcpy(p,audio_data,audio_data_len);
@@ -671,7 +659,7 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, short *v
 int mpb_client_upload_interval_begin::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN) return -1;
-  if (msg->get_size() < 29) return 1;
+  if (msg->get_size() < 25) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
@@ -685,10 +673,6 @@ int mpb_client_upload_interval_begin::parse(Net_Message *msg) // return 0 on suc
   fourcc |= ((int)*p++)<<8;
   fourcc |= ((int)*p++)<<16;
   fourcc |= ((int)*p++)<<24;
-  transfer_id = (int)*p++;
-  transfer_id |= ((int)*p++)<<8;
-  transfer_id |= ((int)*p++)<<16;
-  transfer_id |= ((int)*p++)<<24;
   chidx = (int)*p++;
 
   return 0;
@@ -700,7 +684,7 @@ Net_Message *mpb_client_upload_interval_begin::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN);
   
-  nm->set_size(29);
+  nm->set_size(25);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -720,10 +704,6 @@ Net_Message *mpb_client_upload_interval_begin::build()
   *p++|=(unsigned char)((fourcc>>8)&0xff);
   *p++|=(unsigned char)((fourcc>>16)&0xff);
   *p++|=(unsigned char)((fourcc>>24)&0xff);
-  *p++=(unsigned char)((transfer_id)&0xff);
-  *p++|=(unsigned char)((transfer_id>>8)&0xff);
-  *p++|=(unsigned char)((transfer_id>>16)&0xff);
-  *p++|=(unsigned char)((transfer_id>>24)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
 
 
@@ -735,14 +715,12 @@ Net_Message *mpb_client_upload_interval_begin::build()
 int mpb_client_upload_interval_write::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE) return -1;
-  if (msg->get_size() < 5) return 1;
+  if (msg->get_size() < 17) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
-  transfer_id = (int)*p++;
-  transfer_id |= ((int)*p++)<<8;
-  transfer_id |= ((int)*p++)<<16;
-  transfer_id |= ((int)*p++)<<24;
+  memcpy(guid,p,sizeof(guid));
+  p+=sizeof(guid);
   flags = (char)*p++;
 
   audio_data = p;
@@ -757,7 +735,7 @@ Net_Message *mpb_client_upload_interval_write::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE);
   
-  nm->set_size(5+(audio_data?audio_data_len:0));
+  nm->set_size(17+(audio_data?audio_data_len:0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -766,10 +744,8 @@ Net_Message *mpb_client_upload_interval_write::build()
     delete nm;
     return 0;
   }
-  *p++=(unsigned char)((transfer_id)&0xff);
-  *p++|=(unsigned char)((transfer_id>>8)&0xff);
-  *p++|=(unsigned char)((transfer_id>>16)&0xff);
-  *p++|=(unsigned char)((transfer_id>>24)&0xff);
+  memcpy(p,guid,sizeof(guid));
+  p+=sizeof(guid);
   *p++=(unsigned char) flags;
 
   if (audio_data&&audio_data_len) memcpy(p,audio_data,audio_data_len);

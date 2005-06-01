@@ -32,19 +32,28 @@ public:
   int flags;
 };
 
+
+
 class User_TransferState
 {
 public:
-  User_TransferState() { }
-  ~User_TransferState() { }
+  User_TransferState() : fp(0), bytes_sofar(0), bytes_estimated(0), fourcc(0)
+  { 
+    memset(guid,0,sizeof(guid));
+  }
+  ~User_TransferState() 
+  { 
+    if (fp) fclose(fp);
+    fp=0;
+  }
+
+  unsigned char guid[16];
+  unsigned int fourcc;
+  unsigned int bytes_estimated;
 
   unsigned int bytes_sofar;
-  unsigned int bytes_estimated;
-  unsigned int fourcc;
   
   FILE *fp;
-
-
 };
 
 
@@ -76,9 +85,8 @@ class User_Connection
 
     WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
 
-    User_TransferState m_uploads[MAX_UPLOADS];
-    User_TransferState m_downloads[MAX_DOWNLOADS];
-
+    WDL_PtrList<User_TransferState> m_recvfiles;
+    WDL_PtrList<User_TransferState> m_sendfiles;
 };
 
 
@@ -102,7 +110,6 @@ class User_Group
     WDL_PtrList<User_Connection> m_users;
 
     int m_last_bpm, m_last_bpi;
-
 };
 
 

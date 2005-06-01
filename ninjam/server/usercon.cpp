@@ -26,8 +26,13 @@ User_Connection::~User_Connection()
   int x;
   for (x = 0; x < m_sublist.GetSize(); x ++)
     delete m_sublist.Get(x);
-
   m_sublist.Empty();
+  for (x = 0; x < m_recvfiles.GetSize(); x ++)
+    delete m_recvfiles.Get(x);
+  m_recvfiles.Empty();
+  for (x = 0; x < m_sendfiles.GetSize(); x ++)
+    delete m_sendfiles.Get(x);
+  m_sendfiles.Empty();
 }
 
 
@@ -242,11 +247,83 @@ int User_Connection::Run(User_Group *group)
           }
         }
       break;
+      case MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN:
+        {
+          mpb_client_upload_interval_begin mp;
+          if (!mp.parse(msg))
+          {
+            msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
+                       
+            char *myusername=m_username.Get();
+            int user;
+            for (user=0;user<group->m_users.GetSize(); user++)
+            {
+              User_Connection *u=group->m_users.Get(user);
+              if (u && u != this)
+              {
+                int i;
+                for (i=0; i < u->m_sublist.GetSize(); i ++)
+                {
+                  User_SubscribeMask *sm=u->m_sublist.Get(i);
+                  if (!strcmp(sm->username.Get(),myusername))
+                  {
+                    if (sm->channelmask & (1<<mp.chidx))
+                    {
+                      static unsigned char zero_guid[16];
+                      if (memcmp(mp.guid,zero_guid,sizeof(zero_guid))) // zero = silence, so simply rebroadcast
+                      {
+                        // add entry in send list
+                        User_TransferState *nt=new User_TransferState;
+                        memcpy(nt->guid,mp.guid,sizeof(nt->guid));
+                        nt->bytes_estimated = mp.estsize;
+                        nt->fourcc = mp.fourcc;
+                        u->m_sendfiles.Add(nt);
+                      }
+
+                      u->Send(msg);
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+        //m_recvfiles
+      break;
       case MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE:
         {
-          // for now, let's just change the message type, and rebroadcast.
-          msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
-          group->Broadcast(msg,this);
+          mpb_client_upload_interval_write mp;
+          if (!mp.parse(msg))
+          {
+            msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
+
+            char *myusername=m_username.Get();
+            int user;
+            for (user=0;user<group->m_users.GetSize(); user++)
+            {
+              User_Connection *u=group->m_users.Get(user);
+              if (u && u != this)
+              {
+                int i;
+                for (i=0; i < u->m_sendfiles.GetSize(); i ++)
+                {
+                  User_TransferState *t=u->m_sendfiles.Get(i);
+                  if (t && !memcmp(t->guid,mp.guid,sizeof(t->guid)))
+                  {
+                    u->Send(msg);
+                    if (mp.flags & 1)
+                    {
+                      delete t;
+                      u->m_sendfiles.Delete(i);
+                      // remove from transfer list
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+          }
         }
       break;
 

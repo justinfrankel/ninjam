@@ -87,7 +87,7 @@ class mpb_server_userinfo_change_notify
 class mpb_server_download_interval_begin
 {
   public:
-    mpb_server_download_interval_begin() : estsize(0), fourcc(0), chidx(0), transfer_id(0), username(0) { memset(guid,0,sizeof(guid)); }
+    mpb_server_download_interval_begin() : estsize(0), fourcc(0), chidx(0), username(0) { memset(guid,0,sizeof(guid)); }
     ~mpb_server_download_interval_begin() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -97,7 +97,6 @@ class mpb_server_download_interval_begin
     unsigned char guid[16];
     int estsize;
     int fourcc;
-    int transfer_id; // 0 cached by guid, otherwise it is a transfer id
     int chidx;       // only 1 byte
     char *username;
 };
@@ -107,14 +106,14 @@ class mpb_server_download_interval_begin
 class mpb_server_download_interval_write
 {
   public:
-    mpb_server_download_interval_write() : transfer_id(0), flags(0), audio_data(0), audio_data_len(0) { }
+    mpb_server_download_interval_write() : flags(0), audio_data(0), audio_data_len(0) { memset(guid,0,sizeof(guid)); }
     ~mpb_server_download_interval_write() { }
 
     int parse(Net_Message *msg); // return 0 on success
     Net_Message *build();
 
     // public data
-    int transfer_id; // transfer id
+    unsigned char guid[16]; // transfer id
     char flags; // & 1 = end
 
     void *audio_data;
@@ -190,7 +189,7 @@ class mpb_client_set_channel_info
 class mpb_client_upload_interval_begin
 {
   public:
-    mpb_client_upload_interval_begin() : estsize(0), fourcc(0), chidx(0), transfer_id(0) { memset(guid,0,sizeof(guid)); }
+    mpb_client_upload_interval_begin() : estsize(0), fourcc(0), chidx(0){ memset(guid,0,sizeof(guid)); }
     ~mpb_client_upload_interval_begin() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -200,7 +199,6 @@ class mpb_client_upload_interval_begin
     unsigned char guid[16];
     int estsize;
     int fourcc;
-    int transfer_id; // 0 cached by guid, otherwise it is a transfer id
     int chidx;       // only 1 byte
 };
 
@@ -211,14 +209,14 @@ class mpb_client_upload_interval_begin
 class mpb_client_upload_interval_write
 {
   public:
-    mpb_client_upload_interval_write() : transfer_id(0), flags(0), audio_data(0), audio_data_len(0) { }
+    mpb_client_upload_interval_write() : flags(0), audio_data(0), audio_data_len(0) { memset(guid,0,sizeof(guid)); }
     ~mpb_client_upload_interval_write() { }
 
     int parse(Net_Message *msg); // return 0 on success
     Net_Message *build();
 
     // public data
-    int transfer_id; // transfer id
+    unsigned char guid[16];
     char flags; // & 1 = end
 
     void *audio_data;
