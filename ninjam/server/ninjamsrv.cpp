@@ -10,6 +10,13 @@
 int main(int argc, char **argv)
 {
 
+  int bpm,bpi;
+  if (argc != 3 || !(bpm=atoi(argv[1])) || !(bpi=atoi(argv[2])))
+  {
+    printf("Usage: ninjamsrv bpm bpi\n");
+    return 1;
+  }
+
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
   v=(DWORD)time(NULL);
@@ -27,7 +34,7 @@ int main(int argc, char **argv)
 
     User_Group m_group;
 
-    m_group.SetConfig(16,120);
+    m_group.SetConfig(bpi,bpm);
     for (;;)
     {
       JNL_Connection *con=listener.get_connect(65536,65536);

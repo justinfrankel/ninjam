@@ -132,8 +132,7 @@ Net_Connection *netcon=0;
 
 
 // per-channel encoding stuff
-VorbisEncoder *g_vorbisenc, *g_vorbisenc_2;
-int g_vorbisenc_2_needreinit;
+VorbisEncoder *g_vorbisenc;
 downloadState g_curwritefile;
 
 
@@ -290,7 +289,7 @@ void on_new_interval()
   if (g_vorbisenc)
   {
     // finish any encoding
-    if (1) g_vorbisenc->Encode(NULL,0);
+    //if (1) g_vorbisenc->Encode(NULL,0);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -318,20 +317,13 @@ void on_new_interval()
 
     //delete g_vorbisenc;
   //  g_vorbisenc=0;
-
-    if (1)
-    {
-      EnterCriticalSection(&net_cs);
-      VorbisEncoder *t;
-      // swap g_vorbisenc and g_vorbisenc_2
-      t=g_vorbisenc;
-      g_vorbisenc=g_vorbisenc_2;
-      g_vorbisenc_2=t;
-      if (g_vorbisenc_2_needreinit) g_vorbisenc->reinit();
-      g_vorbisenc_2_needreinit=1;
-      LeaveCriticalSection(&net_cs);
-    }
+    g_vorbisenc->reinit();
   }
+  else
+  {
+    g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+  }
+
 
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
@@ -494,9 +486,6 @@ int main(int argc, char **argv)
     g_audio=audio;
   }
 
-  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
-  g_vorbisenc_2 = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
-
   JNL::open_socketlib();
 
   {
@@ -531,12 +520,6 @@ int main(int argc, char **argv)
     while (!netcon->GetStatus() && !g_done)
     {
       EnterCriticalSection(&net_cs);
-
-      if (g_vorbisenc_2_needreinit) 
-      {
-        g_vorbisenc_2_needreinit=0;
-        g_vorbisenc_2->reinit();
-      }
 
       Net_Message *msg=netcon->Run();
       LeaveCriticalSection(&net_cs);
@@ -744,7 +727,19 @@ int main(int argc, char **argv)
   printf("Shutting down\n");
   timingPrint();
 
+  delete netcon;
+
   delete g_audio;
+
+
+  delete g_vorbisenc;
+  g_curwritefile.Close();
+
+  int x;
+  for (x = 0; x < m_remoteusers.GetSize(); x ++) delete m_remoteusers.Get(x);
+  m_remoteusers.Empty();
+  for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
+  m_downloads.Empty();
 
   JNL::close_socketlib();
   return 0;
