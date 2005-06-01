@@ -18,6 +18,16 @@ extern char *get_asio_configstr();
 
 unsigned char zero_guid[16];
 
+
+void makeFilenameFromGuid(WDL_String *s, unsigned char guid[16])
+{
+  char buf[256];
+  int x;
+  for (x = 0; x < sizeof(guid); x ++) wsprintf(buf+x*2,"%02x",guid[x]);
+  strcpy(buf+x*2,".ogg");
+  s->Set(buf);
+}
+
 #define DOWNLOAD_TIMEOUT 8
 
 class downloadState
@@ -42,19 +52,16 @@ public:
   void Open()
   {    
     Close();
-    char buf[256];
-    int x;
-    for (x = 0; x < sizeof(guid); x ++)
-      wsprintf(buf+x*2,"%02x",guid[x]);
-    strcpy(buf+x*2,".ogg");
-    fp=fopen(buf,"wb");
+    WDL_String s;
+    makeFilenameFromGuid(&s,guid);
+    fp=fopen(s.Get(),"wb");
   }
 
   void Write(void *buf, int len)
   {
     if (fp)
     {
-      fwrite(buf,len,1,fp);
+      fwrite(buf,1,len,fp);
       fflush(fp);
     }
   }
@@ -71,20 +78,30 @@ private:
 class RemoteUser_Channel
 {
   public:
-    RemoteUser_Channel() : active(0), volume(1.0), pan(0.0), muted(false)
+    RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0)
     {
       memset(cur_guid,0,sizeof(cur_guid));
     }
     ~RemoteUser_Channel()
     {
+      delete decode_codec;
+      decode_codec=0;
+      if (decode_fp) fclose(decode_fp);
+      decode_fp=0;
     }
 
     int active;
-    double volume, pan;
+    float volume, pan;
     bool muted;
 
     unsigned char cur_guid[16];
     WDL_String name;
+
+
+    // decode/mixer state, used by mixer
+    FILE *decode_fp;
+    VorbisDecoder *decode_codec;
+
 };
 
 class RemoteUser
@@ -102,6 +119,8 @@ public:
 
 };
 
+
+
 WDL_PtrList<RemoteUser> m_remoteusers;
 
 CRITICAL_SECTION net_cs;
@@ -113,9 +132,6 @@ Net_Connection *netcon=0;
 VorbisEncoder *g_vorbisenc;
 downloadState g_curwritefile;
 
-
-WDL_Queue vorbisrecvbuf;
-VorbisDecoder netdec;
 
 
 int g_audio_enable;
@@ -180,22 +196,6 @@ void process_samples(float *buf, int len, int nch)
   }
 
 
-
-  int needed;
-  EnterCriticalSection(&net_cs);
-  while (netdec.m_samples_used < (needed=resampleLengthNeeded(netdec.GetSampleRate(),g_audio->m_srate,len)*netdec.GetNumChannels()) && vorbisrecvbuf.GetSize()>0)
-  {
-    int l=vorbisrecvbuf.GetSize();
-    if (l > 4096) l=4096;
-    netdec.Decode((char*)vorbisrecvbuf.Get(),l);
-    vorbisrecvbuf.Advance(l);
-  }
-  vorbisrecvbuf.Compact();
-
-  LeaveCriticalSection(&net_cs);
-  // decode any available incoming streams and mix in
-
-
   if (1)
   {
     memset(buf,0,len*sizeof(float)*nch);// silence
@@ -235,21 +235,50 @@ void process_samples(float *buf, int len, int nch)
     }   
   }
 
-  if (netdec.m_samples_used >= needed)
+
+  // mix in all active channels
+  int u;
+  for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
-    float *sptr=(float *)netdec.m_samples.Get();
+    RemoteUser *user=m_remoteusers.Get(u);
+    int ch;
+    for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+    {
+      RemoteUser_Channel *chan=&user->channels[ch];
+      if (chan->decode_codec && chan->decode_fp)
+      {
+        int needed;
+        while (chan->decode_codec->m_samples_used < 
+              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),g_audio->m_srate,len)*chan->decode_codec->GetNumChannels()) && 
+              !feof(chan->decode_fp))
+        {
+          char buf[4096];
+          int l=fread(buf,1,sizeof(buf),chan->decode_fp);
+          chan->decode_codec->Decode(buf,l);
+        }
 
-    mixFloats(sptr,
-              netdec.GetSampleRate(),
-              netdec.GetNumChannels(),
-              buf,
-              g_audio->m_srate,nch,len,
-              1.0,0.0);
 
-    // advance the queue
-    netdec.m_samples_used -= needed;
-    memcpy(sptr,sptr+needed,netdec.m_samples_used*sizeof(float));
+        if (chan->decode_codec->m_samples_used >= needed)
+        {
+          float *sptr=(float *)chan->decode_codec->m_samples.Get();
+
+          if (!chan->muted) mixFloats(sptr,
+                    chan->decode_codec->GetSampleRate(),
+                    chan->decode_codec->GetNumChannels(),
+                    buf,
+                    g_audio->m_srate,nch,len,
+                    chan->volume,chan->pan);
+
+          // advance the queue
+          chan->decode_codec->m_samples_used -= needed;
+          memcpy(sptr,sptr+needed,chan->decode_codec->m_samples_used*sizeof(float));
+        }
+
+      }
+    }
   }
+
+
 }
 
 void on_new_interval()
@@ -292,6 +321,37 @@ void on_new_interval()
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
   g_curwritefile.Open();
+
+
+  int u;
+  for (u = 0; u < m_remoteusers.GetSize(); u ++)
+  {
+    RemoteUser *user=m_remoteusers.Get(u);
+    int ch;
+    for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+    {
+      RemoteUser_Channel *chan=&user->channels[ch];
+      if (chan->active)
+      {
+        if (chan->decode_codec) delete chan->decode_codec;
+        chan->decode_codec=0;
+        if (chan->decode_fp) fclose(chan->decode_fp);
+        chan->decode_fp=0;
+
+        if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
+        {
+          WDL_String s;
+          makeFilenameFromGuid(&s,chan->cur_guid);
+          chan->decode_fp=fopen(s.Get(),"rb");
+          if (chan->decode_fp)
+          {
+            chan->decode_codec= new VorbisDecoder;
+          }
+        }
+      }
+    }
+  }
+
 
   EnterCriticalSection(&net_cs);
 
@@ -535,15 +595,38 @@ int main(int argc, char **argv)
                 {
                   if (!un) un="";
                   if (!chn) chn="";
-                  printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
-                  if (a)
+
+                  int x;
+                  RemoteUser *theuser;
+                  for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
+                  if (x == m_remoteusers.GetSize())
                   {
-                    printf("subscribing to user...\n");
-                    mpb_client_set_usermask su;
-                    su.build_add_rec(un,~0);// subscribe to everything for now
-                    EnterCriticalSection(&net_cs);
-                    netcon->Send(su.build());
-                    LeaveCriticalSection(&net_cs);
+                    theuser=new RemoteUser;
+                    theuser->name.Set(un);
+                    m_remoteusers.Add(theuser);
+                  }
+
+                  printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
+
+                  if (cid >= 0 && cid < MAX_USER_CHANNELS)
+                  {
+                    if (a)
+                    {
+                      theuser->channels[cid].name.Set(chn);
+                      theuser->channels[cid].active=1;
+
+                      printf("subscribing to user...\n");
+                      mpb_client_set_usermask su;
+                      su.build_add_rec(un,~0);// subscribe to everything for now
+                      EnterCriticalSection(&net_cs);
+                      netcon->Send(su.build());
+                      LeaveCriticalSection(&net_cs);
+                    }
+                    else
+                    {
+                      theuser->channels[cid].name.Set("");
+                      theuser->channels[cid].active=0;
+                    }
                   }
                 }
               }
@@ -554,13 +637,23 @@ int main(int argc, char **argv)
               mpb_server_download_interval_begin dib;
               if (!dib.parse(msg) && dib.username)
               {
-                //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
-                if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
+                int x;
+                RemoteUser *theuser;
+                for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),dib.username); x ++);
+                if (x < m_remoteusers.GetSize() && dib.chidx >= 0 && dib.chidx < MAX_USER_CHANNELS)
                 {
-                  downloadState *ds=new downloadState;
-                  memcpy(ds->guid,dib.guid,sizeof(ds->guid));
-                  ds->Open();
-                  m_downloads.Add(ds);
+
+                  memcpy(theuser->channels[dib.chidx].cur_guid,dib.guid,sizeof(dib.guid));
+
+                  //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
+                  if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
+                  {
+                    downloadState *ds=new downloadState;
+                    memcpy(ds->guid,dib.guid,sizeof(ds->guid));
+                    ds->Open();
+                    m_downloads.Add(ds);
+                  }
+
                 }
               }
             }
