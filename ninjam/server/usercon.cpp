@@ -277,7 +277,7 @@ int User_Connection::Run(User_Group *group)
               newrecv->fourcc=mp.fourcc;
               memcpy(newrecv->guid,mp.guid,sizeof(newrecv->guid));
 
-              if (1)
+              if (0) // server doesn't HAVE to cache, but might be useful eventually
               {
                 char fn[512];
                 int x;

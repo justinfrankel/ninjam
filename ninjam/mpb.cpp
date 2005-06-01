@@ -724,7 +724,7 @@ int mpb_client_upload_interval_write::parse(Net_Message *msg) // return 0 on suc
   flags = (char)*p++;
 
   audio_data = p;
-  audio_data_len = msg->get_size()-5;
+  audio_data_len = msg->get_size()-17;
 
   return 0;
 }
