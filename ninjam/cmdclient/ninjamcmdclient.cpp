@@ -81,7 +81,7 @@ private:
 class RemoteUser_Channel
 {
   public:
-    RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0)
+    RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0)
     {
       memset(cur_guid,0,sizeof(cur_guid));
     }
@@ -104,6 +104,7 @@ class RemoteUser_Channel
     // decode/mixer state, used by mixer
     FILE *decode_fp;
     VorbisDecoder *decode_codec;
+    int dump_samples;
 
 };
 
@@ -259,13 +260,18 @@ void process_samples(float *buf, int len, int nch)
           int l=fread(buf,1,sizeof(buf),chan->decode_fp);
           chan->decode_codec->Decode(buf,l);
         }
+        if (feof(chan->decode_fp))
+        {
+          int l=ftell(chan->decode_fp);
+          fseek(chan->decode_fp,0,SEEK_SET);
+          fseek(chan->decode_fp,l,SEEK_SET);
+        }
 
-
-        if (chan->decode_codec->m_samples_used >= needed)
+        if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
         {
           float *sptr=(float *)chan->decode_codec->m_samples.Get();
 
-          if (!chan->muted) mixFloats(sptr,
+          if (!chan->muted) mixFloats(sptr+chan->dump_samples,
                     chan->decode_codec->GetSampleRate(),
                     chan->decode_codec->GetNumChannels(),
                     buf,
@@ -273,8 +279,16 @@ void process_samples(float *buf, int len, int nch)
                     chan->volume,chan->pan);
 
           // advance the queue
-          chan->decode_codec->m_samples_used -= needed;
-          memcpy(sptr,sptr+needed,chan->decode_codec->m_samples_used*sizeof(float));
+          chan->decode_codec->m_samples_used -= needed+chan->dump_samples;
+          memcpy(sptr,sptr+needed+chan->dump_samples,chan->decode_codec->m_samples_used*sizeof(float));
+          chan->dump_samples=0;
+        }
+        else
+        {
+          static int cnt=0;
+
+          printf("underrun %d on user %s\r",cnt++,user->name.Get());
+          chan->dump_samples+=needed;
         }
 
       }
@@ -327,7 +341,7 @@ void on_new_interval()
 
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
-  g_curwritefile.Open(); //only save other peoples for now
+//  g_curwritefile.Open(); //only save other peoples for now
 
 
   int u;
@@ -345,6 +359,8 @@ void on_new_interval()
         chan->decode_codec=0;
         if (chan->decode_fp) fclose(chan->decode_fp);
         chan->decode_fp=0;
+
+        chan->dump_samples=0;
 
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
         {
