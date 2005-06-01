@@ -255,6 +255,31 @@ int User_Connection::Run(User_Group *group)
             msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
                        
             char *myusername=m_username.Get();
+            static unsigned char zero_guid[16];
+
+
+            if (memcmp(mp.guid,zero_guid,sizeof(zero_guid))) // zero = silence, so simply rebroadcast
+            {
+              User_TransferState *newrecv=new User_TransferState;
+              newrecv->bytes_estimated=mp.estsize;
+              newrecv->fourcc=mp.fourcc;
+              memcpy(newrecv->guid,mp.guid,sizeof(newrecv->guid));
+
+              if (1)
+              {
+                char fn[512];
+                int x;
+                for (x = 0; x < 16; x ++)
+                  wsprintf(fn+x*2,"%02x",mp.guid[x]);
+                strcpy(fn+x*2,".ogg");
+
+                newrecv->fp = fopen(fn,"wb");
+              }
+              
+              m_recvfiles.Add(newrecv);
+            }
+
+
             int user;
             for (user=0;user<group->m_users.GetSize(); user++)
             {
@@ -269,7 +294,6 @@ int User_Connection::Run(User_Group *group)
                   {
                     if (sm->channelmask & (1<<mp.chidx))
                     {
-                      static unsigned char zero_guid[16];
                       if (memcmp(mp.guid,zero_guid,sizeof(zero_guid))) // zero = silence, so simply rebroadcast
                       {
                         // add entry in send list
@@ -299,7 +323,27 @@ int User_Connection::Run(User_Group *group)
             msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
 
             char *myusername=m_username.Get();
-            int user;
+            int user,x;
+
+
+            for (x = 0; x < m_recvfiles.GetSize(); x ++)
+            {
+              User_TransferState *t=m_recvfiles.Get(x);
+              if (!memcmp(t->guid,mp.guid,sizeof(mp.guid)))
+              {
+                if (t->fp) fwrite(mp.audio_data,mp.audio_data_len,1,t->fp);
+
+                t->bytes_sofar+=mp.audio_data_len;
+                if (mp.flags & 1)
+                {
+                  delete t;
+                  m_recvfiles.Delete(x);
+                }
+                break;
+              }
+            }
+
+
             for (user=0;user<group->m_users.GetSize(); user++)
             {
               User_Connection *u=group->m_users.Get(user);
@@ -311,6 +355,7 @@ int User_Connection::Run(User_Group *group)
                   User_TransferState *t=u->m_sendfiles.Get(i);
                   if (t && !memcmp(t->guid,mp.guid,sizeof(t->guid)))
                   {
+                    t->bytes_sofar += mp.audio_data_len;
                     u->Send(msg);
                     if (mp.flags & 1)
                     {
