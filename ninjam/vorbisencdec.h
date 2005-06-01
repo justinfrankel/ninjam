@@ -4,6 +4,7 @@
 #include "vorbis/vorbisenc.h"
 #include <vorbis/codec.h>
 #include "../WDL/queue.h"
+#include "../WDL/timing.h"
 
 class VorbisDecoder
 {
@@ -165,13 +166,21 @@ public:
   {
     if (!bla)
     {
+      timingEnter(0);
       ogg_stream_clear(&os);
       vorbis_block_clear(&vb);
       vorbis_dsp_clear(&vd);
+      timingLeave(0);
 
+      timingEnter(1);
       vorbis_analysis_init(&vd,&vi);
+      timingLeave(1);
+      timingEnter(2);
       vorbis_block_init(&vd,&vb);
+      timingLeave(2);
+      timingEnter(3);
       ogg_stream_init(&os,rand());
+      timingLeave(3);
     }
 
     outqueue.Advance(outqueue.Available());

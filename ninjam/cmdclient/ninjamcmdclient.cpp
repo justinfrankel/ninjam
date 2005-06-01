@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <math.h>
+#include <signal.h>
 
 #include "../../WDL/jnetlib/jnetlib.h"
 #include "../netmsg.h"
@@ -13,6 +14,8 @@
 #include "../../WDL/sha.h"
 #include "../../WDL/rng.h"
 #include "../../WDL/string.h"
+
+#include "../../WDL/timing.h"
 
 extern char *get_asio_configstr();
 
@@ -332,7 +335,7 @@ void on_new_interval()
 
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
-  //g_curwritefile.Open(); //only save other peoples for now
+  g_curwritefile.Open(); //only save other peoples for now
 
 
   int u;
@@ -443,8 +446,19 @@ void audiostream_onsamples(float *buf, int len, int nch)
 }
 
 
+int g_done=0;
+
+void sigfunc(int sig)
+{
+  printf("Got Ctrl+C\n");
+  g_done++;
+}
+
 int main(int argc, char **argv)
 {
+  timingInit();
+  signal(SIGINT,sigfunc);
+
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
   v=(DWORD)time(NULL);
@@ -514,7 +528,7 @@ int main(int argc, char **argv)
   if (netcon)
   {
 
-    while (!netcon->GetStatus())
+    while (!netcon->GetStatus() && !g_done)
     {
       EnterCriticalSection(&net_cs);
 
@@ -727,6 +741,8 @@ int main(int argc, char **argv)
     }
   }
 
+  printf("Shutting down\n");
+  timingPrint();
 
   delete g_audio;
 
