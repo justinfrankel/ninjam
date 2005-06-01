@@ -6,6 +6,9 @@
 #include "../../WDL/rng.h"
 #include "../../WDL/sha.h"
 
+
+#define TRANSFER_TIMEOUT 8
+
 User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_state(0)
 {
   m_netcon.attach(con);
@@ -252,13 +255,22 @@ int User_Connection::Run(User_Group *group)
           mpb_client_upload_interval_begin mp;
           if (!mp.parse(msg))
           {
-            msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
-                       
             char *myusername=m_username.Get();
+
+            mpb_server_download_interval_begin nmb;
+            nmb.chidx=mp.chidx;
+            nmb.estsize=mp.estsize;
+            nmb.fourcc=mp.fourcc;
+            memcpy(nmb.guid,mp.guid,sizeof(nmb.guid));
+            nmb.username = myusername;
+
+            Net_Message *newmsg=nmb.build();
+            newmsg->addRef();
+                      
             static unsigned char zero_guid[16];
 
 
-            if (memcmp(mp.guid,zero_guid,sizeof(zero_guid))) // zero = silence, so simply rebroadcast
+            if (mp.fourcc && memcmp(mp.guid,zero_guid,sizeof(zero_guid))) // zero = silence, so simply rebroadcast
             {
               User_TransferState *newrecv=new User_TransferState;
               newrecv->bytes_estimated=mp.estsize;
@@ -304,13 +316,14 @@ int User_Connection::Run(User_Group *group)
                         u->m_sendfiles.Add(nt);
                       }
 
-                      u->Send(msg);
+                      u->Send(newmsg);
                     }
                     break;
                   }
                 }
               }
             }
+            newmsg->releaseRef();
           }
         }
         //m_recvfiles
@@ -320,6 +333,8 @@ int User_Connection::Run(User_Group *group)
           mpb_client_upload_interval_write mp;
           if (!mp.parse(msg))
           {
+            time_t now;
+            time(&now);
             msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
 
             char *myusername=m_username.Get();
@@ -340,6 +355,11 @@ int User_Connection::Run(User_Group *group)
                   m_recvfiles.Delete(x);
                 }
                 break;
+              }
+              if (now-t->last_acttime > TRANSFER_TIMEOUT)
+              {
+                delete t;
+                m_recvfiles.Delete(x--);
               }
             }
 
@@ -364,6 +384,11 @@ int User_Connection::Run(User_Group *group)
                       // remove from transfer list
                     }
                     break;
+                  }
+                  if (now-t->last_acttime > TRANSFER_TIMEOUT)
+                  {
+                    delete t;
+                    m_sendfiles.Delete(i--);
                   }
                 }
               }
