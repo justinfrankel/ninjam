@@ -158,11 +158,24 @@ public:
     if (m_err) return;
 
 
-    reinit();
+    reinit(1);
   }
 
-  void reinit()
+  void reinit(int bla=0)
   {
+    if (!bla)
+    {
+      ogg_stream_clear(&os);
+      vorbis_block_clear(&vb);
+      vorbis_dsp_clear(&vd);
+      vorbis_comment_clear(&vc);
+
+      vorbis_comment_init(&vc);
+      vorbis_analysis_init(&vd,&vi);
+      vorbis_block_init(&vd,&vb);
+      ogg_stream_init(&os,rand());
+    }
+
     outqueue.Advance(outqueue.Available());
     outqueue.Compact();
 
