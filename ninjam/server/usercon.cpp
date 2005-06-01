@@ -335,7 +335,8 @@ int User_Connection::Run(User_Group *group)
           {
             time_t now;
             time(&now);
-            msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
+            msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE); // we rely on the fact that the upload/download write messages are identical
+                                                                   // though we may need to update this at a later date if we change things.
 
             char *myusername=m_username.Get();
             int user,x;
