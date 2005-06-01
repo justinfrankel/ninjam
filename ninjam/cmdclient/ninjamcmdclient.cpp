@@ -224,8 +224,8 @@ void process_samples(float *buf, int len, int nch)
       {
         if (1)
         {
-          float val=(float) sin((double)m_metronome_state*sc)*0.5f;
-          if (!m_metronome_tmp) val *= 0.5f;
+          float val=(float) sin((double)m_metronome_state*sc)*0.7f;
+          if (!m_metronome_tmp) val *= 0.1f;
           if (nch == 1) buf[x]+=val;
           else
           {
