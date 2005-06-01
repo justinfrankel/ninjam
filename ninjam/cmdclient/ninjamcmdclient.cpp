@@ -19,11 +19,11 @@ extern char *get_asio_configstr();
 unsigned char zero_guid[16];
 
 
-void makeFilenameFromGuid(WDL_String *s, unsigned char guid[16])
+void makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
   int x;
-  for (x = 0; x < sizeof(guid); x ++) wsprintf(buf+x*2,"%02x",guid[x]);
+  for (x = 0; x < 16; x ++) wsprintf(buf+x*2,"%02x",guid[x]);
   strcpy(buf+x*2,".ogg");
   s->Set(buf);
 }
@@ -129,7 +129,8 @@ Net_Connection *netcon=0;
 
 
 // per-channel encoding stuff
-VorbisEncoder *g_vorbisenc;
+VorbisEncoder *g_vorbisenc, *g_vorbisenc_2;
+int g_vorbisenc_2_needreinit;
 downloadState g_curwritefile;
 
 
@@ -196,7 +197,7 @@ void process_samples(float *buf, int len, int nch)
   }
 
 
-  if (1)
+  if (! (1)) // input monitoring
   {
     memset(buf,0,len*sizeof(float)*nch);// silence
   }
@@ -220,13 +221,13 @@ void process_samples(float *buf, int len, int nch)
       {
         if (1)
         {
-          float val=(float) (((WDL_RNG_int32()&0xffffff)/(double) 0xffffff)*2.0-1.0);
-          if (!m_metronome_tmp) val *= 0.3f;
-          if (nch == 1) buf[x]=val;
+          float val=(float) sin((double)m_metronome_state*sc)*0.5f;
+          if (!m_metronome_tmp) val *= 0.5f;
+          if (nch == 1) buf[x]+=val;
           else
           {
-            buf[x+x]=val;
-            buf[x+x+1]=val;
+            buf[x+x]+=val;
+            buf[x+x+1]+=val;
           }
         }
         if (++m_metronome_state >= metrolen) m_metronome_state=0;
@@ -286,7 +287,7 @@ void on_new_interval()
   if (g_vorbisenc)
   {
     // finish any encoding
-    g_vorbisenc->Encode(NULL,0);
+    if (1) g_vorbisenc->Encode(NULL,0);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -312,18 +313,30 @@ void on_new_interval()
     while (g_vorbisenc->outqueue.Available()>0);
     g_vorbisenc->outqueue.Compact(); // free any memory left
 
-    delete g_vorbisenc;
-    g_vorbisenc=0;
-  }
+    //delete g_vorbisenc;
+  //  g_vorbisenc=0;
 
-  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+    if (1)
+    {
+      EnterCriticalSection(&net_cs);
+      VorbisEncoder *t;
+      // swap g_vorbisenc and g_vorbisenc_2
+      t=g_vorbisenc;
+      g_vorbisenc=g_vorbisenc_2;
+      g_vorbisenc_2=t;
+      if (g_vorbisenc_2_needreinit) g_vorbisenc->reinit();
+      g_vorbisenc_2_needreinit=1;
+      LeaveCriticalSection(&net_cs);
+    }
+  }
 
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
-  g_curwritefile.Open();
+  //g_curwritefile.Open(); //only save other peoples for now
 
 
   int u;
+  // disable playback
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -467,6 +480,9 @@ int main(int argc, char **argv)
     g_audio=audio;
   }
 
+  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+  g_vorbisenc_2 = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+
   JNL::open_socketlib();
 
   {
@@ -501,6 +517,13 @@ int main(int argc, char **argv)
     while (!netcon->GetStatus())
     {
       EnterCriticalSection(&net_cs);
+
+      if (g_vorbisenc_2_needreinit) 
+      {
+        g_vorbisenc_2_needreinit=0;
+        g_vorbisenc_2->reinit();
+      }
+
       Net_Message *msg=netcon->Run();
       LeaveCriticalSection(&net_cs);
       if (msg)
