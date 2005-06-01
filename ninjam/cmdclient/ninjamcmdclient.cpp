@@ -321,7 +321,7 @@ void on_new_interval()
   }
   else
   {
-    g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
+    g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,-0.1); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
   }
 
 
