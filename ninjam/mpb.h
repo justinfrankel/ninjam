@@ -97,7 +97,7 @@ class mpb_server_download_interval_begin
     unsigned char guid[16];
     int estsize;
     int fourcc;
-    int transfer_id; // 0 cached by guid, otherwise it is a transfer id (only 2 bytes)
+    int transfer_id; // 0 cached by guid, otherwise it is a transfer id
     int chidx;       // only 1 byte
     char *username;
 };
@@ -114,7 +114,7 @@ class mpb_server_download_interval_write
     Net_Message *build();
 
     // public data
-    int transfer_id; // transfer id (only 2 bytes) 
+    int transfer_id; // transfer id
     char flags; // & 1 = end
 
     void *audio_data;
@@ -200,7 +200,7 @@ class mpb_client_upload_interval_begin
     unsigned char guid[16];
     int estsize;
     int fourcc;
-    int transfer_id; // 0 cached by guid, otherwise it is a transfer id (only 2 bytes)
+    int transfer_id; // 0 cached by guid, otherwise it is a transfer id
     int chidx;       // only 1 byte
 };
 
@@ -218,7 +218,7 @@ class mpb_client_upload_interval_write
     Net_Message *build();
 
     // public data
-    int transfer_id; // transfer id (only 2 bytes) 
+    int transfer_id; // transfer id
     char flags; // & 1 = end
 
     void *audio_data;
