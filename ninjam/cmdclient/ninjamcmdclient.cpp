@@ -12,6 +12,7 @@
 #include "../pcmfmtcvt.h"
 #include "../../WDL/sha.h"
 #include "../../WDL/rng.h"
+#include "../../WDL/string.h"
 
 extern char *get_asio_configstr();
 
@@ -65,6 +66,43 @@ private:
   FILE *fp;
 };
 
+
+#define MAX_USER_CHANNELS 32
+class RemoteUser_Channel
+{
+  public:
+    RemoteUser_Channel() : active(0), volume(1.0), pan(0.0), muted(false)
+    {
+      memset(cur_guid,0,sizeof(cur_guid));
+    }
+    ~RemoteUser_Channel()
+    {
+    }
+
+    int active;
+    double volume, pan;
+    bool muted;
+
+    unsigned char cur_guid[16];
+    WDL_String name;
+};
+
+class RemoteUser
+{
+public:
+  RemoteUser()
+  {
+  }
+  ~RemoteUser()
+  {
+  }
+
+  WDL_String name;
+  RemoteUser_Channel channels[MAX_USER_CHANNELS];
+
+};
+
+WDL_PtrList<RemoteUser> m_remoteusers;
 
 CRITICAL_SECTION net_cs;
 audioStreamer *g_audio;
@@ -498,6 +536,15 @@ int main(int argc, char **argv)
                   if (!un) un="";
                   if (!chn) chn="";
                   printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
+                  if (a)
+                  {
+                    printf("subscribing to user...\n");
+                    mpb_client_set_usermask su;
+                    su.build_add_rec(un,~0);// subscribe to everything for now
+                    EnterCriticalSection(&net_cs);
+                    netcon->Send(su.build());
+                    LeaveCriticalSection(&net_cs);
+                  }
                 }
               }
             }
