@@ -349,7 +349,7 @@ int User_Connection::Run(User_Group *group)
               {
                 t->last_acttime=now;
 
-                if (t->fp) fwrite(mp.audio_data,mp.audio_data_len,1,t->fp);
+                if (t->fp) fwrite(mp.audio_data,1,mp.audio_data_len,t->fp);
 
                 t->bytes_sofar+=mp.audio_data_len;
                 if (mp.flags & 1)
