@@ -347,6 +347,8 @@ int User_Connection::Run(User_Group *group)
               User_TransferState *t=m_recvfiles.Get(x);
               if (!memcmp(t->guid,mp.guid,sizeof(mp.guid)))
               {
+                t->last_acttime=now;
+
                 if (t->fp) fwrite(mp.audio_data,mp.audio_data_len,1,t->fp);
 
                 t->bytes_sofar+=mp.audio_data_len;
@@ -376,6 +378,7 @@ int User_Connection::Run(User_Group *group)
                   User_TransferState *t=u->m_sendfiles.Get(i);
                   if (t && !memcmp(t->guid,mp.guid,sizeof(t->guid)))
                   {
+                    t->last_acttime=now;
                     t->bytes_sofar += mp.audio_data_len;
                     u->Send(msg);
                     if (mp.flags & 1)
