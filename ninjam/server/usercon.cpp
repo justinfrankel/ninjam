@@ -392,7 +392,7 @@ int User_Connection::Run(User_Group *group)
                   if (now-t->last_acttime > TRANSFER_TIMEOUT)
                   {
                     delete t;
-                    m_sendfiles.Delete(i--);
+                    u->m_sendfiles.Delete(i--);
                   }
                 }
               }
