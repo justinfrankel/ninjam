@@ -10,65 +10,86 @@
 
 #include "../pcmfmtcvt.h"
 #include "../../WDL/sha.h"
+#include "../../WDL/rng.h"
 
 extern char *get_asio_configstr();
 
+unsigned char zero_send_guid[16];
 
 
 CRITICAL_SECTION net_cs;
 audioStreamer *g_audio;
 Net_Connection *netcon=0;
 
+
+// per-channel encoding stuff
+unsigned char current_send_guid[16];
 VorbisEncoder *g_vorbisenc;
+
 
 WDL_Queue vorbisrecvbuf;
 VorbisDecoder netdec;
+
 
 int g_audio_enable;
 void audiostream_onunder() { }
 void audiostream_onover() { }
 
-WDL_Queue m_outoggbuf;
 
 #define MIN_ENC_BLOCKSIZE 8192
 #define MAX_ENC_BLOCKSIZE (16384-128)
 
-void audiostream_onsamples(float *buf, int len, int nch)
+int m_bpm=120,m_bpi=32;
+int m_beatinfo_updated=1;
+
+
+
+// only used by the audio thread
+int m_active_bpm=120, m_active_bpi=32;
+int m_interval_length=1000;
+int m_interval_pos=-1;
+
+void updateBPMinfo(int bpm, int bpi)
 {
-  if (!g_audio_enable) 
-  {
-    memset(buf,0,len*nch*sizeof(float));
-    return;
-  }
+  EnterCriticalSection(&net_cs);
+  m_bpm=bpm;
+  m_bpi=bpi;
+  m_beatinfo_updated=1;
+  LeaveCriticalSection(&net_cs);
+}
 
-  // encode my audio and send to server
-  char outbuf[65536];
-  int obl=g_vorbisenc->Encode(buf,len,outbuf,sizeof(outbuf));
-  if (obl)
-  {
-    m_outoggbuf.Add(outbuf,obl);
-  }
 
-  while (m_outoggbuf.Available()>MIN_ENC_BLOCKSIZE)
-  {
-    int s=m_outoggbuf.Available();
-    if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
+void process_samples(float *buf, int len, int nch)
+{
 
+  // encode my audio and send to server, if enabled
+  if (g_vorbisenc)
+  {
+    g_vorbisenc->Encode(buf,len);
+
+    while (g_vorbisenc->outqueue.Available()>MIN_ENC_BLOCKSIZE)
     {
-      mpb_client_upload_interval_write wh;
-      wh.transfer_id=1;
-      wh.audio_data=m_outoggbuf.Get();
-      wh.audio_data_len=s;
+      int s=g_vorbisenc->outqueue.Available();
+      if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
-      EnterCriticalSection(&net_cs);
-      //send
-      netcon->Send(wh.build());
-      LeaveCriticalSection(&net_cs);
+      {
+        mpb_client_upload_interval_write wh;
+        memcpy(wh.guid,current_send_guid,sizeof(current_send_guid));
+        wh.flags=0;
+        wh.audio_data=g_vorbisenc->outqueue.Get();
+        wh.audio_data_len=s;
+
+        EnterCriticalSection(&net_cs);
+        netcon->Send(wh.build());
+        LeaveCriticalSection(&net_cs);
+      }
+
+      g_vorbisenc->outqueue.Advance(s);
     }
-
-    m_outoggbuf.Advance(s);
+    g_vorbisenc->outqueue.Compact();
   }
-  m_outoggbuf.Compact();
+
+
 
   int needed;
   EnterCriticalSection(&net_cs);
@@ -107,10 +128,113 @@ void audiostream_onsamples(float *buf, int len, int nch)
   }
 }
 
+void on_new_interval()
+{
+  if (g_vorbisenc)
+  {
+    // finish any encoding
+    g_vorbisenc->Encode(NULL,0);
+
+    // send any final message, with the last one with a flag 
+    // saying "we're done"
+    do
+    {
+      mpb_client_upload_interval_write wh;
+      int l=g_vorbisenc->outqueue.Available();
+      if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
+
+      memcpy(wh.guid,current_send_guid,sizeof(wh.guid));
+      wh.audio_data=g_vorbisenc->outqueue.Get();
+      wh.audio_data_len=l;
+
+      g_vorbisenc->outqueue.Advance(l);
+      wh.flags=g_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
+
+      EnterCriticalSection(&net_cs);
+      netcon->Send(wh.build());
+      LeaveCriticalSection(&net_cs);
+    }
+    while (g_vorbisenc->outqueue.Available()>0);
+    g_vorbisenc->outqueue.Compact(); // free any memory left
+
+  }
+
+  WDL_RNG_bytes(&current_send_guid,sizeof(current_send_guid));
+
+  EnterCriticalSection(&net_cs);
+
+  LeaveCriticalSection(&net_cs);
+  
+  //if (g_vorbisenc->isError()) printf("ERROR\n");
+  //else printf("YAY\n");
+
+}
+
+void audiostream_onsamples(float *buf, int len, int nch)
+{
+  if (!g_audio_enable) 
+  {
+    memset(buf,0,len*nch*sizeof(float));
+    return;
+  }
+
+
+  EnterCriticalSection(&net_cs);
+  if (m_beatinfo_updated)
+  {
+    double v=(double)m_bpm*(1.0/60.0);
+    // beats per second
+
+    // (beats/interval) / (beats/sec)
+    v = (double) m_bpi / v;
+
+    // seconds/interval
+
+    // samples/interval
+    v *= (double) g_audio->m_srate;
+
+    m_interval_length = (int)v;
+    m_interval_pos=-1;
+    m_active_bpm=m_bpm;
+    m_active_bpi=m_bpi;
+  }
+  LeaveCriticalSection(&net_cs);
+
+
+  while (len > 0)
+  {
+    int x=m_interval_length-m_interval_pos;
+    if (!x || m_interval_pos < 0)
+    {
+      // new buffer time
+      on_new_interval();
+
+      m_interval_pos=0;
+      x=m_interval_length;
+    }
+
+    if (x > len) x=len;
+
+    process_samples(buf,x,nch);
+
+
+    buf += x*nch;
+    len -= x;
+    
+    break;
+  }  
+
+}
 
 
 int main(int argc, char **argv)
 {
+  DWORD v=GetTickCount();
+  WDL_RNG_addentropy(&v,sizeof(v));
+  v=(DWORD)time(NULL);
+  WDL_RNG_addentropy(&v,sizeof(v));
+
+
   InitializeCriticalSection(&net_cs);
   printf("Ninjam v0.0 command line client starting up...\n");
 
@@ -139,15 +263,10 @@ int main(int argc, char **argv)
       audio->m_srate, audio->m_nch, audio->m_bps);
     g_audio=audio;
   }
+  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
 
   JNL::open_socketlib();
 
-  printf("Creating audio encoder... (%dhz %dch)",g_audio->m_srate,g_audio->m_nch);
-  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
-  if (g_vorbisenc->isError()) printf("ERROR\n");
-  else printf("YAY\n");
-
-  int m_bpm=120,m_bpi=32;
   {
     printf("Connecting to %s...\n",argv[1]);
     JNL_Connection *con=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
@@ -254,8 +373,7 @@ int main(int argc, char **argv)
               mpb_server_config_change_notify ccn;
               if (!ccn.parse(msg))
               {
-                m_bpm=ccn.beats_minute;
-                m_bpi=ccn.beats_interval;
+                updateBPMinfo(ccn.beats_minute,ccn.beats_interval);
                 printf("Got info update from server, bpm=%d, bpi=%d\n",m_bpm,m_bpi);
                 g_audio_enable=1;
               }
@@ -280,11 +398,20 @@ int main(int argc, char **argv)
               }
             }
           break;
+          case MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN:
+            {
+              mpb_server_download_interval_begin dib;
+              if (!dib.parse(msg) && dib.username)
+              {
+                printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
+              }
+            }
+          break;
           case MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE:
+            if (0) 
             {
               mpb_server_download_interval_write diw;
-              diw.parse(msg);
-              if (diw.audio_data_len > 0&& diw.audio_data) 
+              if (!diw.parse(msg) && diw.audio_data_len > 0&& diw.audio_data) 
               {
                 EnterCriticalSection(&net_cs);
                 vorbisrecvbuf.Add(diw.audio_data,diw.audio_data_len);              

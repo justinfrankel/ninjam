@@ -182,6 +182,14 @@ SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\WDL\rng.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\rng.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\WDL\sha.cpp
 # End Source File
 # Begin Source File

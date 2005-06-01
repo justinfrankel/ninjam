@@ -158,6 +158,17 @@ public:
     if (m_err) return;
 
 
+    reinit();
+  }
+
+  void reinit()
+  {
+    outqueue.Advance(outqueue.Available());
+    outqueue.Compact();
+
+    ogg_packet header;
+    ogg_packet header_comm;
+    ogg_packet header_code;
     vorbis_analysis_headerout(&vd,&vc,&header,&header_comm,&header_code);
     ogg_stream_packetin(&os,&header); /* automatically placed in its own page */
     ogg_stream_packetin(&os,&header_comm);
@@ -167,16 +178,14 @@ public:
     {
 		  int result=ogg_stream_flush(&os,&og);
 		  if(result==0)break;
-      m_outqueue.Add(og.header,og.header_len);
-		  m_outqueue.Add(og.body,og.body_len);
+      outqueue.Add(og.header,og.header_len);
+		  outqueue.Add(og.body,og.body_len);
 	  }
-
-
   }
 
-  int Encode(float *in, int inlen, char *out, int outlen) // length in sample (PAIRS)
+  void Encode(float *in, int inlen) // length in sample (PAIRS)
   {
-    if (m_err) return 0;
+    if (m_err) return;
 
     if (inlen == 0)
     {
@@ -210,18 +219,12 @@ public:
         {
 		      int result=ogg_stream_flush(&os,&og);
 		      if(result==0)break;
-          m_outqueue.Add(og.header,og.header_len);
-		      m_outqueue.Add(og.body,og.body_len);
+          outqueue.Add(og.header,og.header_len);
+		      outqueue.Add(og.body,og.body_len);
           if(ogg_page_eos(&og)) eos=1;
 	      }
       }
     }
-
-    int l=min(m_outqueue.Available(),outlen);
-    memcpy(out,m_outqueue.Get(),l);
-    m_outqueue.Advance(l);
-    m_outqueue.Compact();
-    return l;
   }
 
   int isError() { return m_err; }
@@ -236,9 +239,10 @@ public:
     if (!m_err) vorbis_info_clear(&vi);
   }
 
+  WDL_Queue outqueue;
+
 private:
   int m_err,m_nch;
-  WDL_Queue m_outqueue;
 
   ogg_stream_state os;
   ogg_page         og;
@@ -247,10 +251,6 @@ private:
   vorbis_comment   vc;
   vorbis_dsp_state vd;
   vorbis_block     vb;
-
-  ogg_packet header;
-  ogg_packet header_comm;
-  ogg_packet header_code;
 
 };
 
