@@ -67,9 +67,9 @@ void process_samples(float *buf, int len, int nch)
   {
     g_vorbisenc->Encode(buf,len);
 
-    while (g_vorbisenc->outqueue.Available()>MIN_ENC_BLOCKSIZE)
+    int s;
+    while ((s=g_vorbisenc->outqueue.Available())>MIN_ENC_BLOCKSIZE)
     {
-      int s=g_vorbisenc->outqueue.Available();
       if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
       {
@@ -157,11 +157,18 @@ void on_new_interval()
     while (g_vorbisenc->outqueue.Available()>0);
     g_vorbisenc->outqueue.Compact(); // free any memory left
 
+    delete g_vorbisenc;
+    g_vorbisenc=0;
   }
+
+  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
 
   WDL_RNG_bytes(&current_send_guid,sizeof(current_send_guid));
 
   EnterCriticalSection(&net_cs);
+
+  {
+  }
 
   LeaveCriticalSection(&net_cs);
   
@@ -193,6 +200,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
     // samples/interval
     v *= (double) g_audio->m_srate;
 
+    m_beatinfo_updated=0;
     m_interval_length = (int)v;
     m_interval_pos=-1;
     m_active_bpm=m_bpm;
@@ -218,10 +226,9 @@ void audiostream_onsamples(float *buf, int len, int nch)
     process_samples(buf,x,nch);
 
 
+    m_interval_pos+=x;
     buf += x*nch;
-    len -= x;
-    
-    break;
+    len -= x;    
   }  
 
 }
@@ -263,7 +270,6 @@ int main(int argc, char **argv)
       audio->m_srate, audio->m_nch, audio->m_bps);
     g_audio=audio;
   }
-  g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
 
   JNL::open_socketlib();
 

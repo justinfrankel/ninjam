@@ -176,6 +176,7 @@ public:
 
 	  for (;;)
     {
+      ogg_page og;
 		  int result=ogg_stream_flush(&os,&og);
 		  if(result==0)break;
       outqueue.Add(og.header,og.header_len);
@@ -209,6 +210,7 @@ public:
     {
       vorbis_analysis(&vb,NULL);
       vorbis_bitrate_addblock(&vb);
+      ogg_packet       op;
 
       while(vorbis_bitrate_flushpacket(&vd,&op))
       {
@@ -217,6 +219,7 @@ public:
 
 	      while (!eos)
         {
+          ogg_page og;
 		      int result=ogg_stream_flush(&os,&og);
 		      if(result==0)break;
           outqueue.Add(og.header,og.header_len);
@@ -245,8 +248,6 @@ private:
   int m_err,m_nch;
 
   ogg_stream_state os;
-  ogg_page         og;
-  ogg_packet       op;
   vorbis_info      vi;
   vorbis_comment   vc;
   vorbis_dsp_state vd;
