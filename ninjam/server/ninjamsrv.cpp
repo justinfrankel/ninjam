@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 
     User_Group m_group;
 
-    m_group.SetConfig(4,120);
+    m_group.SetConfig(16,120);
     for (;;)
     {
       JNL_Connection *con=listener.get_connect(65536,65536);
