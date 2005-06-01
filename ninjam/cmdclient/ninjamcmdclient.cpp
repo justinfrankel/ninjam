@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <math.h>
 
 #include "../../WDL/jnetlib/jnetlib.h"
 #include "../netmsg.h"
@@ -14,7 +15,55 @@
 
 extern char *get_asio_configstr();
 
-unsigned char zero_send_guid[16];
+unsigned char zero_guid[16];
+
+#define DOWNLOAD_TIMEOUT 8
+
+class downloadState
+{
+public:
+  downloadState() : fp(0)
+  {
+    memset(&guid,0,sizeof(guid));
+    time(&last_time);
+  }
+  ~downloadState()
+  {
+    Close();
+  }
+
+  void Close()
+  {
+    if (fp) fclose(fp);
+    fp=0;
+  }
+
+  void Open()
+  {    
+    Close();
+    char buf[256];
+    int x;
+    for (x = 0; x < sizeof(guid); x ++)
+      wsprintf(buf+x*2,"%02x",guid[x]);
+    strcpy(buf+x*2,".ogg");
+    fp=fopen(buf,"wb");
+  }
+
+  void Write(void *buf, int len)
+  {
+    if (fp)
+    {
+      fwrite(buf,len,1,fp);
+      fflush(fp);
+    }
+  }
+
+  time_t last_time;
+  unsigned char guid[16];
+
+private:
+  FILE *fp;
+};
 
 
 CRITICAL_SECTION net_cs;
@@ -23,8 +72,8 @@ Net_Connection *netcon=0;
 
 
 // per-channel encoding stuff
-unsigned char current_send_guid[16];
 VorbisEncoder *g_vorbisenc;
+downloadState g_curwritefile;
 
 
 WDL_Queue vorbisrecvbuf;
@@ -44,10 +93,12 @@ int m_beatinfo_updated=1;
 
 
 
+WDL_PtrList<downloadState> m_downloads;
+
 // only used by the audio thread
 int m_active_bpm=120, m_active_bpi=32;
 int m_interval_length=1000;
-int m_interval_pos=-1;
+int m_interval_pos=-1, m_metronome_pos=0, m_metronome_state=0, m_metronome_tmp=0,m_metronome_interval;
 
 void updateBPMinfo(int bpm, int bpi)
 {
@@ -74,10 +125,11 @@ void process_samples(float *buf, int len, int nch)
 
       {
         mpb_client_upload_interval_write wh;
-        memcpy(wh.guid,current_send_guid,sizeof(current_send_guid));
+        memcpy(wh.guid,g_curwritefile.guid,sizeof(g_curwritefile.guid));
         wh.flags=0;
         wh.audio_data=g_vorbisenc->outqueue.Get();
         wh.audio_data_len=s;
+        g_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
         EnterCriticalSection(&net_cs);
         netcon->Send(wh.build());
@@ -109,6 +161,40 @@ void process_samples(float *buf, int len, int nch)
   if (1)
   {
     memset(buf,0,len*sizeof(float)*nch);// silence
+  }
+
+  // mix in (super shitty) metronome (fucko!!!!)
+  {
+    int metrolen=g_audio->m_srate / 100;
+    double sc=12000.0/(double)g_audio->m_srate;
+    int x;
+    for (x = 0; x < len; x ++)
+    {
+      if (m_metronome_pos <= 0)
+      {
+        m_metronome_state=1;
+        m_metronome_tmp=m_interval_pos+x<m_metronome_interval;
+        m_metronome_pos = m_metronome_interval;
+      }
+      m_metronome_pos--;
+
+      if (m_metronome_state>0)
+      {
+        if (1)
+        {
+          float val=(float) (((WDL_RNG_int32()&0xffffff)/(double) 0xffffff)*2.0-1.0);
+          if (!m_metronome_tmp) val *= 0.3f;
+          if (nch == 1) buf[x]=val;
+          else
+          {
+            buf[x+x]=val;
+            buf[x+x+1]=val;
+          }
+        }
+        if (++m_metronome_state >= metrolen) m_metronome_state=0;
+
+      }
+    }   
   }
 
   if (netdec.m_samples_used >= needed)
@@ -143,9 +229,11 @@ void on_new_interval()
       int l=g_vorbisenc->outqueue.Available();
       if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
 
-      memcpy(wh.guid,current_send_guid,sizeof(wh.guid));
+      memcpy(wh.guid,g_curwritefile.guid,sizeof(wh.guid));
       wh.audio_data=g_vorbisenc->outqueue.Get();
       wh.audio_data_len=l;
+
+      g_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
       g_vorbisenc->outqueue.Advance(l);
       wh.flags=g_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
@@ -163,14 +251,16 @@ void on_new_interval()
 
   g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,0.25);
 
-  WDL_RNG_bytes(&current_send_guid,sizeof(current_send_guid));
+  WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
+
+  g_curwritefile.Open();
 
   EnterCriticalSection(&net_cs);
 
   {
     mpb_client_upload_interval_begin cuib;
     cuib.chidx=0;
-    memcpy(cuib.guid,current_send_guid,sizeof(cuib.guid));
+    memcpy(cuib.guid,g_curwritefile.guid,sizeof(cuib.guid));
     cuib.fourcc='oggv';
     cuib.estsize=0;
     netcon->Send(cuib.build());
@@ -211,6 +301,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
     m_interval_pos=-1;
     m_active_bpm=m_bpm;
     m_active_bpi=m_bpi;
+    m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
   }
   LeaveCriticalSection(&net_cs);
 
@@ -223,6 +314,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
       // new buffer time
       on_new_interval();
 
+      m_metronome_pos=0;
       m_interval_pos=0;
       x=m_interval_length;
     }
@@ -415,24 +507,49 @@ int main(int argc, char **argv)
               mpb_server_download_interval_begin dib;
               if (!dib.parse(msg) && dib.username)
               {
-                printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
+                //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
+                if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
+                {
+                  downloadState *ds=new downloadState;
+                  memcpy(ds->guid,dib.guid,sizeof(ds->guid));
+                  ds->Open();
+                  m_downloads.Add(ds);
+                }
               }
             }
           break;
           case MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE:
-            if (0) 
             {
               mpb_server_download_interval_write diw;
-              if (!diw.parse(msg) && diw.audio_data_len > 0&& diw.audio_data) 
+              if (!diw.parse(msg)) 
               {
-                EnterCriticalSection(&net_cs);
-                vorbisrecvbuf.Add(diw.audio_data,diw.audio_data_len);              
+                time_t now;
+                time(&now);
+                int x;
+                for (x = 0; x < m_downloads.GetSize(); x ++)
                 {
-                  static FILE *fp;
-                  if (!fp) fp=fopen("C:\\test.ogg","wb");
-                  if (fp) fwrite(diw.audio_data,diw.audio_data_len,1,fp);
+                  downloadState *ds=m_downloads.Get(x);
+                  if (x)
+                  {
+                    if (!memcmp(ds->guid,diw.guid,sizeof(ds->guid)))
+                    {
+                      ds->last_time=now;
+                      if (diw.audio_data_len > 0 && diw.audio_data) ds->Write(diw.audio_data,diw.audio_data_len);
+                      if (diw.flags & 1)
+                      {
+                        delete ds;
+                        m_downloads.Delete(x);
+                      }
+                      break;
+                    }
+
+                    if (now - ds->last_time > DOWNLOAD_TIMEOUT)
+                    {
+                      delete ds;
+                      m_downloads.Delete(x--);
+                    }
+                  }
                 }
-                LeaveCriticalSection(&net_cs);
               }
             }
           break;
