@@ -168,6 +168,12 @@ void on_new_interval()
   EnterCriticalSection(&net_cs);
 
   {
+    mpb_client_upload_interval_begin cuib;
+    cuib.chidx=0;
+    memcpy(cuib.guid,current_send_guid,sizeof(cuib.guid));
+    cuib.fourcc='oggv';
+    cuib.estsize=0;
+    netcon->Send(cuib.build());
   }
 
   LeaveCriticalSection(&net_cs);
