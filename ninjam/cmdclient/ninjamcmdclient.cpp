@@ -19,11 +19,11 @@
 
 
 int config_savelocalaudio=0;
-int config_monitor=0;
-int config_metronome=1;
+int config_monitor=1;
+int config_metronome=0;
 
 
-int config_debug_underrun=0, config_debug_sendrecv=0;
+int config_debug_underrun=1, config_debug_sendrecv=0;
 
 extern char *get_asio_configstr();
 
@@ -599,8 +599,9 @@ int main(int argc, char **argv)
     while (!netcon->GetStatus() && !g_done)
     {
       EnterCriticalSection(&net_cs);
+      int s=0;
 
-      Net_Message *msg=netcon->Run();
+      Net_Message *msg=netcon->Run(&s);
       LeaveCriticalSection(&net_cs);
       if (msg)
       {
@@ -815,7 +816,7 @@ int main(int argc, char **argv)
 
         msg->releaseRef();
       }
-      else Sleep(10);
+      if (s) Sleep(1);
     }
   }
 

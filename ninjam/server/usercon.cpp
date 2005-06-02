@@ -50,11 +50,11 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
-int User_Connection::Run(User_Group *group)
+int User_Connection::Run(User_Group *group, int *wantsleep)
 {
   if (m_netcon.GetStatus()) return m_netcon.GetStatus();
 
-  Net_Message *msg=m_netcon.Run();
+  Net_Message *msg=m_netcon.Run(wantsleep);
   if (msg)
   {
     msg->addRef();
@@ -447,17 +447,18 @@ void User_Group::Broadcast(Net_Message *msg, User_Connection *nosend)
   }
 }
 
-void User_Group::Run()
+int User_Group::Run()
 {
+    int nosleep=0;
     int x;
     for (x = 0; x < m_users.GetSize(); x ++)
     {
       User_Connection *p=m_users.Get(x);
       if (p)
       {
-        if (p->Run(this))
+        int nsl=0;
+        if (p->Run(this,&nsl))
         {
-
           // broadcast to other users that this user is no longer present
           if (p->m_auth_state>0) 
           {
@@ -491,8 +492,10 @@ void User_Group::Run()
           delete p;
           m_users.Delete(x--);
         }
+        if (!nsl) nosleep=1;
       }
     }
+    return !nosleep;
 }
 
 void User_Group::SetConfig(int bpi, int bpm)

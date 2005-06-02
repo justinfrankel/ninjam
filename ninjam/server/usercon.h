@@ -67,7 +67,7 @@ class User_Connection
     User_Connection(JNL_Connection *con);
     ~User_Connection();
 
-    int Run(User_Group *group); // returns 1 if disconnected, -1 if error in data. 0 if ok.
+    int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
     void SendConfigChangeNotify(int bpm, int bpi);
 
     void Send(Net_Message *msg) { m_netcon.Send(msg); }
@@ -100,7 +100,7 @@ class User_Group
 
     void AddConnection(JNL_Connection *con);
 
-    void Run();
+    int Run(); // return 1 if safe to sleep
     void SetConfig(int bpi, int bpm);
     void Broadcast(Net_Message *msg, User_Connection *nosend=0);
 

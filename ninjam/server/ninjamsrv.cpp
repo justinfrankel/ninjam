@@ -44,8 +44,7 @@ int main(int argc, char **argv)
         m_group.AddConnection(con);
       }
 
-      m_group.Run();
-      Sleep(10);
+      if (m_group.Run()) Sleep(1);
     }
 
 
