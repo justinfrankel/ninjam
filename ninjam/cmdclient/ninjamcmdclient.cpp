@@ -416,7 +416,6 @@ void on_new_interval()
 
 
   int u;
-  // disable playback
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -434,8 +433,12 @@ void on_new_interval()
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
         {
           WDL_String s;
-          makeFilenameFromGuid(&s,chan->cur_guid);
+          //if (!memcmp(chan->decode_last_guid,zero_guid,sizeof(zero_guid))) // loop the first sample
+
+
           memcpy(chan->decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
+
+          makeFilenameFromGuid(&s,chan->decode_last_guid);
           chan->decode_fp=fopen(s.Get(),"rb");
           if (chan->decode_fp)
           {
