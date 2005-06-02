@@ -23,7 +23,7 @@ int config_monitor=1;
 int config_metronome=0;
 
 
-int config_debug_underrun=1, config_debug_sendrecv=0;
+int config_debug_underrun=1, config_debug_sendrecv=1;
 
 extern char *get_asio_configstr();
 
