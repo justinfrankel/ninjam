@@ -182,6 +182,10 @@ SOURCE=..\netmsg.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\njclient.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\WDL\rng.cpp
 # End Source File
 # Begin Source File
@@ -305,6 +309,10 @@ SOURCE=..\mpb.h
 # Begin Source File
 
 SOURCE=..\netmsg.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\njclient.h
 # End Source File
 # Begin Source File
 
