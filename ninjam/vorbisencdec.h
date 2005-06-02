@@ -43,15 +43,15 @@ class VorbisDecoder
     WDL_HeapBuf m_samples; // we let the size get as big as it needs to, so we don't worry about tons of mallocs/etc
     int m_samples_used;
 
-    void Decode(char *src, int srclen)
+    void *DecodeGetSrcBuffer(int srclen)
     {
-      if (srclen > 0)
-      {
-		    void * b=ogg_sync_buffer(&oy,srclen);
-		    memcpy(b,src,srclen);
-		    ogg_sync_wrote(&oy,srclen);
-      }
+		  return ogg_sync_buffer(&oy,srclen);
+    }
 
+    void DecodeWrote(int srclen)
+    {
+      ogg_sync_wrote(&oy,srclen);
+  
 		  while(ogg_sync_pageout(&oy,&og)>0)
 		  {
 			  int serial=ogg_page_serialno(&og);
@@ -114,6 +114,16 @@ class VorbisDecoder
 		  }
     }
 
+    void Reset()
+    {
+//      packets=0;
+      m_samples_used=0;
+    //  ogg_stream_clear(&os);
+  //	  ogg_sync_clear(&oy);
+
+//      ogg_sync_init(&oy); /* Now we can read pages */
+    }
+
   private:
 
 
@@ -154,7 +164,7 @@ public:
     vorbis_comment_init(&vc);
     vorbis_analysis_init(&vd,&vi);
     vorbis_block_init(&vd,&vb);
-    ogg_stream_init(&os,rand());
+    ogg_stream_init(&os,m_ser=rand());
 
     if (m_err) return;
 
@@ -166,13 +176,13 @@ public:
   {
     if (!bla)
     {
-      ogg_stream_clear(&os);
+      //ogg_stream_clear(&os);
       //vorbis_block_clear(&vb);
       //vorbis_dsp_clear(&vd);
  
       //vorbis_analysis_init(&vd,&vi);
       //vorbis_block_init(&vd,&vb);
-      ogg_stream_init(&os,rand());
+      ogg_stream_init(&os,m_ser); //++?
  
       outqueue.Advance(outqueue.Available());
       outqueue.Compact();
@@ -265,6 +275,7 @@ private:
   vorbis_comment   vc;
   vorbis_dsp_state vd;
   vorbis_block     vb;
+  int m_ser;
 
 };
 

@@ -301,16 +301,15 @@ void process_samples(float *buf, int len, int nch)
       {
         int needed;
         while (chan->decode_codec->m_samples_used < 
-              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),g_audio->m_srate,len)*chan->decode_codec->GetNumChannels()) && 
-              !feof(chan->decode_fp))
+              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),g_audio->m_srate,len)*chan->decode_codec->GetNumChannels()))
         {
-          char buf[4096];
-          int l=fread(buf,1,sizeof(buf),chan->decode_fp);
-          chan->decode_codec->Decode(buf,l);
-        }
-        if (feof(chan->decode_fp))
-        {
-          clearerr(chan->decode_fp);
+          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->decode_fp);
+          chan->decode_codec->DecodeWrote(l);
+          if (!l) 
+          {
+            clearerr(chan->decode_fp);
+            break;
+          }
         }
 
         if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
@@ -355,13 +354,13 @@ void process_samples(float *buf, int len, int nch)
 
 void on_new_interval()
 {
-  printf("entered new interval\n");
+  printf("entered new interval (%d samples)\n",m_interval_length);
   if (g_vorbisenc && config_send)
   {
     // finish any encoding
     //if (1) g_vorbisenc->Encode(NULL,0);
-    static float empty[1024];
-    g_vorbisenc->Encode(empty,2048);
+    static float empty[2048];
+    g_vorbisenc->Encode(empty,1024);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -427,8 +426,6 @@ void on_new_interval()
       RemoteUser_Channel *chan=&user->channels[ch];
       if (chan->active)
       {
-        if (chan->decode_codec) delete chan->decode_codec;
-        chan->decode_codec=0;
         if (chan->decode_fp) fclose(chan->decode_fp);
         chan->decode_fp=0;
 
@@ -442,8 +439,15 @@ void on_new_interval()
           chan->decode_fp=fopen(s.Get(),"rb");
           if (chan->decode_fp)
           {
-            chan->decode_codec= new VorbisDecoder;
+            if (!chan->decode_codec)
+              chan->decode_codec= new VorbisDecoder;
+            else chan->decode_codec->Reset();
           }
+        }
+        if (!chan->decode_fp)
+        {
+          delete chan->decode_codec;
+          chan->decode_codec=0;
         }
       }
     }
@@ -608,6 +612,7 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         parmuser=argv[p];
       }
+      else usage();
     }
   }
 
@@ -727,13 +732,16 @@ int main(int argc, char **argv)
 
                 if (ar.flag) // send our channel information
                 {
-                  mpb_client_set_channel_info sci;
+                  if (config_send)
+                  {
+                    mpb_client_set_channel_info sci;
 
-                  sci.build_add_rec("default channel",0,0,0);
+                    sci.build_add_rec("default channel",0,0,0);
 
-                  EnterCriticalSection(&net_cs);
-                  netcon->Send(sci.build());
-                  LeaveCriticalSection(&net_cs);
+                    EnterCriticalSection(&net_cs);
+                    netcon->Send(sci.build());
+                    LeaveCriticalSection(&net_cs);
+                  }
                 }
                 else 
                 {
