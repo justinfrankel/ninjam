@@ -169,8 +169,8 @@ void audiostream_onunder() { }
 void audiostream_onover() { }
 
 
-#define MIN_ENC_BLOCKSIZE 8192
-#define MAX_ENC_BLOCKSIZE (16384-128)
+#define MIN_ENC_BLOCKSIZE 2048
+#define MAX_ENC_BLOCKSIZE (8192+1024)
 
 int m_bpm=120,m_bpi=32;
 int m_beatinfo_updated=1;
@@ -203,7 +203,7 @@ void process_samples(float *buf, int len, int nch)
     g_vorbisenc->Encode(buf,len);
 
     int s;
-    while ((s=g_vorbisenc->outqueue.Available())>MIN_ENC_BLOCKSIZE)
+    while ((s=g_vorbisenc->outqueue.Available())>(g_vorbisenc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
     {
       if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
@@ -355,13 +355,17 @@ void process_samples(float *buf, int len, int nch)
 
 void on_new_interval()
 {
+  printf("entered new interval\n");
   if (g_vorbisenc && config_send)
   {
     // finish any encoding
+    int boo;
+    for(boo=0;boo<2;boo++)
+    {
     {
       //if (1) g_vorbisenc->Encode(NULL,0);
-      static float empty[16384];
-      g_vorbisenc->Encode(empty,16384/g_audio->m_nch);
+      static float empty[2048];
+      g_vorbisenc->Encode(empty,1024);
     }
 
     // send any final message, with the last one with a flag 
@@ -379,7 +383,7 @@ void on_new_interval()
       g_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
       g_vorbisenc->outqueue.Advance(l);
-      wh.flags=g_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
+      wh.flags=g_vorbisenc->outqueue.GetSize()>0 && boo? 0 : 1;
 
       EnterCriticalSection(&net_cs);
       if (g_vorbisenc_header_needsend)
@@ -400,6 +404,7 @@ void on_new_interval()
       LeaveCriticalSection(&net_cs);
     }
     while (g_vorbisenc->outqueue.Available()>0);
+    }
     g_vorbisenc->outqueue.Compact(); // free any memory left
 
     //delete g_vorbisenc;
@@ -542,6 +547,7 @@ void usage()
     "  -nosend\n"
     "  -norecv\n"
     "  -savelocal\n"
+    "  -user <username>\n"
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
@@ -560,6 +566,7 @@ int main(int argc, char **argv)
   v=(DWORD)time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
 
+  char *parmuser=NULL;
 
   InitializeCriticalSection(&net_cs);
   printf("Ninjam v0.0 command line client starting up...\n");
@@ -601,6 +608,11 @@ int main(int argc, char **argv)
       {
         if (++p >= argc) usage();
         audioconfigstr=argv[p];
+      }
+      else if (!stricmp(argv[p],"-user"))
+      {
+        if (++p >= argc) usage();
+        parmuser=argv[p];
       }
     }
   }
@@ -678,12 +690,20 @@ int main(int argc, char **argv)
                 printf("Got challenge.\n");
 
                 char buf[512],pass[512];
-                printf("Enter username: ");
-                fflush(stdout);
-                gets(buf);
-                printf("Enter password: ");
-                fflush(stdout);
-                gets(pass);
+                if (parmuser)
+                {
+                  strcpy(buf,parmuser);
+                  strcpy(pass,"gay");
+                }
+                else
+                {
+                  printf("Enter username: ");
+                  fflush(stdout);
+                  gets(buf);
+                  printf("Enter password: ");
+                  fflush(stdout);
+                  gets(pass);
+                }
 
                 mpb_client_auth_user repl;
                 repl.username=buf;
