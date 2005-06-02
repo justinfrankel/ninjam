@@ -88,7 +88,7 @@ class VorbisDecoder
 					  {
 						  int n,c;
 
-              int newsize=(m_samples_used+samples*vi.channels)*sizeof(float);
+              int newsize=(m_samples_used+(samples+4096)*vi.channels)*sizeof(float);
 
               if (m_samples.GetSize() < newsize) m_samples.Resize(newsize);
 

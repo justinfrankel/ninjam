@@ -22,9 +22,22 @@ int config_savelocalaudio=0;
 int config_monitor=0;
 int config_metronome=1;
 
+
+int config_debug_underrun=0, config_debug_sendrecv=0;
+
 extern char *get_asio_configstr();
 
 unsigned char zero_guid[16];
+
+
+char *guidtostr_tmp(unsigned char *guid)
+{
+  static char tmp[64];
+  int x;
+  for (x = 0; x < 16; x ++) wsprintf(tmp+x*2,"%02x",guid[x]);
+  return tmp;
+}
+
 
 
 void guidtostr(unsigned char *guid, char *str)
@@ -205,9 +218,17 @@ void process_samples(float *buf, int len, int nch)
         EnterCriticalSection(&net_cs);
         if (g_vorbisenc_header_needsend)
         {
+          if (config_debug_sendrecv)
+          {
+            mpb_client_upload_interval_begin dib;
+            dib.parse(g_vorbisenc_header_needsend);
+            printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
+          }
           netcon->Send(g_vorbisenc_header_needsend);
           g_vorbisenc_header_needsend=0;
         }
+
+        if (config_debug_sendrecv) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
 
         netcon->Send(wh.build());
         LeaveCriticalSection(&net_cs);
@@ -304,14 +325,16 @@ void process_samples(float *buf, int len, int nch)
         {
           chan->dump_samples+=needed;
 
-          if (1)
+          if (config_debug_underrun)
           {
           static int cnt=0;
 
           char s[512];
           guidtostr(chan->decode_last_guid,s);
 
-          printf("underrun %d on user %s at %d on %s\n",cnt++,user->name.Get(),ftell(chan->decode_fp),s);
+          char buf[512];
+          sprintf(buf,"underrun %d on user %s at %d on %s, %d/%d samples\n",cnt++,user->name.Get(),ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
+          OutputDebugString(buf);
           }
         }
 
@@ -327,7 +350,11 @@ void on_new_interval()
   if (g_vorbisenc)
   {
     // finish any encoding
-    //if (1) g_vorbisenc->Encode(NULL,0);
+    {
+      //if (1) g_vorbisenc->Encode(NULL,0);
+      static float empty[16384];
+      g_vorbisenc->Encode(empty,16384/g_audio->m_nch);
+    }
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -349,11 +376,18 @@ void on_new_interval()
       EnterCriticalSection(&net_cs);
       if (g_vorbisenc_header_needsend)
       {
+        if (config_debug_sendrecv)
+        {
+          mpb_client_upload_interval_begin dib;
+          dib.parse(g_vorbisenc_header_needsend);
+          printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
+        }
         netcon->Send(g_vorbisenc_header_needsend);
         g_vorbisenc_header_needsend=0;
       }
 
 
+      if (config_debug_sendrecv) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
       netcon->Send(wh.build());
       LeaveCriticalSection(&net_cs);
     }
@@ -722,6 +756,7 @@ int main(int argc, char **argv)
                   //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
                   if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
                   {
+                    if (config_debug_sendrecv) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                     downloadState *ds=new downloadState;
                     memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                     ds->Open();
@@ -748,6 +783,8 @@ int main(int argc, char **argv)
                   {
                     if (!memcmp(ds->guid,diw.guid,sizeof(ds->guid)))
                     {
+                      if (config_debug_sendrecv) printf("RECV BLOCK DATA %s%s %d bytes\n",guidtostr_tmp(diw.guid),diw.flags&1?":end":"",diw.audio_data_len);
+
                       ds->last_time=now;
                       if (diw.audio_data_len > 0 && diw.audio_data)
                       {
