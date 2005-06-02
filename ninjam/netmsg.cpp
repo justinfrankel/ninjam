@@ -167,7 +167,7 @@ void Net_Connection::Send(Net_Message *msg)
 int Net_Connection::GetStatus()
 {
   if (m_error) return -1;
-  return !m_con || m_con->get_state()!=JNL_Connection::STATE_CONNECTED; // 1 if disconnected somehow
+  return !m_con || m_con->get_state()<JNL_Connection::STATE_RESOLVING || m_con->get_state()>JNL_Connection::STATE_CONNECTED; // 1 if disconnected somehow
 }
 
 Net_Connection::~Net_Connection()
