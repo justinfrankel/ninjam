@@ -60,7 +60,7 @@ int Net_Message::makeMessageHeader(void *data) // makes message header, data sho
 
 Net_Message *Net_Connection::Run(int *wantsleep)
 {
-  *wantsleep=1;
+  if (wantsleep) *wantsleep=1;
   if (!m_con || m_error) return 0;
 
   m_con->run();
@@ -74,7 +74,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
     Net_Message *sendm=*topofq;
     if (sendm)
     {
-      *wantsleep=0;
+      if (wantsleep) *wantsleep=0;
       if (m_msgsendpos<0) // send header
       {
         char buf[32];
@@ -147,7 +147,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
       m_recvmsg=0;
       m_recvstate=0;
     }
-    *wantsleep=0;
+    if (wantsleep) *wantsleep=0;
   }
 
   m_con->run();
