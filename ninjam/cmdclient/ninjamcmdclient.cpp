@@ -17,17 +17,27 @@
 
 #include "../../WDL/timing.h"
 
+
+int config_savelocalaudio=0;
+int config_monitor=0;
+int config_metronome=0;
+
 extern char *get_asio_configstr();
 
 unsigned char zero_guid[16];
 
 
+void guidtostr(unsigned char *guid, char *str)
+{
+  int x;
+  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+}
+
 void makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
-  int x;
-  for (x = 0; x < 16; x ++) wsprintf(buf+x*2,"%02x",guid[x]);
-  strcpy(buf+x*2,".ogg");
+  guidtostr(guid,buf);
+  strcat(buf,".ogg");
   s->Set(buf);
 }
 
@@ -84,6 +94,7 @@ class RemoteUser_Channel
     RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0)
     {
       memset(cur_guid,0,sizeof(cur_guid));
+      memset(decode_last_guid,0,sizeof(decode_last_guid));
     }
     ~RemoteUser_Channel()
     {
@@ -105,6 +116,7 @@ class RemoteUser_Channel
     FILE *decode_fp;
     VorbisDecoder *decode_codec;
     int dump_samples;
+    unsigned char decode_last_guid[16];
 
 };
 
@@ -135,6 +147,7 @@ Net_Connection *netcon=0;
 // per-channel encoding stuff
 VorbisEncoder *g_vorbisenc;
 downloadState g_curwritefile;
+Net_Message *g_vorbisenc_header_needsend;
 
 
 
@@ -190,6 +203,22 @@ void process_samples(float *buf, int len, int nch)
         g_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
         EnterCriticalSection(&net_cs);
+        if (g_vorbisenc_header_needsend)
+        {
+          mpb_client_upload_interval_begin p;
+          p.parse(g_vorbisenc_header_needsend);
+          char s[512];
+          guidtostr(p.guid,s);
+          printf("send: %s: begin\n",s);
+
+          netcon->Send(g_vorbisenc_header_needsend);
+          g_vorbisenc_header_needsend=0;
+        }
+
+        char s[512];
+        guidtostr(wh.guid,s);
+        printf("send: %s: %d bytes (normal)\n",s,wh.audio_data_len);
+
         netcon->Send(wh.build());
         LeaveCriticalSection(&net_cs);
       }
@@ -200,7 +229,7 @@ void process_samples(float *buf, int len, int nch)
   }
 
 
-  if (! (1)) // input monitoring
+  if (!config_monitor) // input monitoring
   {
     memset(buf,0,len*sizeof(float)*nch);// silence
   }
@@ -222,7 +251,7 @@ void process_samples(float *buf, int len, int nch)
 
       if (m_metronome_state>0)
       {
-        if (1)
+        if (config_metronome)
         {
           float val=(float) sin((double)m_metronome_state*sc)*0.7f;
           if (!m_metronome_tmp) val *= 0.1f;
@@ -262,9 +291,7 @@ void process_samples(float *buf, int len, int nch)
         }
         if (feof(chan->decode_fp))
         {
-          int l=ftell(chan->decode_fp);
-          fseek(chan->decode_fp,0,SEEK_SET);
-          fseek(chan->decode_fp,l,SEEK_SET);
+          clearerr(chan->decode_fp);
         }
 
         if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
@@ -285,10 +312,14 @@ void process_samples(float *buf, int len, int nch)
         }
         else
         {
-          static int cnt=0;
-
-          printf("underrun %d on user %s\r",cnt++,user->name.Get());
           chan->dump_samples+=needed;
+
+          //static int cnt=0;
+
+          //char s[512];
+          //guidtostr(chan->decode_last_guid,s);
+
+          //printf("underrun %d on user %s at %d on %s\n",cnt++,user->name.Get(),ftell(chan->decode_fp),s);
         }
 
       }
@@ -323,6 +354,23 @@ void on_new_interval()
       wh.flags=g_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
 
       EnterCriticalSection(&net_cs);
+      if (g_vorbisenc_header_needsend)
+      {
+          mpb_client_upload_interval_begin p;
+          p.parse(g_vorbisenc_header_needsend);
+          char s[512];
+          guidtostr(p.guid,s);
+          printf("send: %s: begin\n",s);
+
+        netcon->Send(g_vorbisenc_header_needsend);
+        g_vorbisenc_header_needsend=0;
+      }
+
+
+      char s[512];
+      guidtostr(wh.guid,s);
+      printf("send: %s: %d bytes (in cleanup)\n",s,wh.audio_data_len);
+
       netcon->Send(wh.build());
       LeaveCriticalSection(&net_cs);
     }
@@ -341,7 +389,7 @@ void on_new_interval()
 
   WDL_RNG_bytes(&g_curwritefile.guid,sizeof(g_curwritefile.guid));
 
-//  g_curwritefile.Open(); //only save other peoples for now
+  if (config_savelocalaudio) g_curwritefile.Open(); //only save other peoples for now
 
 
   int u;
@@ -366,6 +414,7 @@ void on_new_interval()
         {
           WDL_String s;
           makeFilenameFromGuid(&s,chan->cur_guid);
+          memcpy(chan->decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
           chan->decode_fp=fopen(s.Get(),"rb");
           if (chan->decode_fp)
           {
@@ -377,18 +426,15 @@ void on_new_interval()
   }
 
 
-  EnterCriticalSection(&net_cs);
-
   {
     mpb_client_upload_interval_begin cuib;
     cuib.chidx=0;
     memcpy(cuib.guid,g_curwritefile.guid,sizeof(cuib.guid));
     cuib.fourcc='oggv';
     cuib.estsize=0;
-    netcon->Send(cuib.build());
+    delete g_vorbisenc_header_needsend;
+    g_vorbisenc_header_needsend=cuib.build();
   }
-
-  LeaveCriticalSection(&net_cs);
   
   //if (g_vorbisenc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
@@ -678,6 +724,9 @@ int main(int argc, char **argv)
                 for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),dib.username); x ++);
                 if (x < m_remoteusers.GetSize() && dib.chidx >= 0 && dib.chidx < MAX_USER_CHANNELS)
                 {
+                  char s[512];
+                  guidtostr(dib.guid,s);
+                  printf("recv: %s: begin\n",s);
 
                   memcpy(theuser->channels[dib.chidx].cur_guid,dib.guid,sizeof(dib.guid));
 
@@ -687,6 +736,7 @@ int main(int argc, char **argv)
                     downloadState *ds=new downloadState;
                     memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                     ds->Open();
+                 
                     m_downloads.Add(ds);
                   }
 
@@ -710,7 +760,14 @@ int main(int argc, char **argv)
                     if (!memcmp(ds->guid,diw.guid,sizeof(ds->guid)))
                     {
                       ds->last_time=now;
-                      if (diw.audio_data_len > 0 && diw.audio_data) ds->Write(diw.audio_data,diw.audio_data_len);
+                      if (diw.audio_data_len > 0 && diw.audio_data)
+                      {
+                        char s[512];
+                        guidtostr(diw.guid,s);
+                        printf("recv: %s: %d bytes\n",s,diw.audio_data_len);
+
+                        ds->Write(diw.audio_data,diw.audio_data_len);
+                      }
                       if (diw.flags & 1)
                       {
                         delete ds;
@@ -743,12 +800,13 @@ int main(int argc, char **argv)
   printf("Shutting down\n");
   timingPrint();
 
-  delete netcon;
-
   delete g_audio;
 
+  delete netcon;
 
   delete g_vorbisenc;
+  delete g_vorbisenc_header_needsend;
+  g_vorbisenc_header_needsend=0;
   g_curwritefile.Close();
 
   int x;
