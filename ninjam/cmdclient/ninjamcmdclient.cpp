@@ -359,14 +359,9 @@ void on_new_interval()
   if (g_vorbisenc && config_send)
   {
     // finish any encoding
-    int boo;
-    for(boo=0;boo<2;boo++)
-    {
-    {
-      //if (1) g_vorbisenc->Encode(NULL,0);
-      static float empty[2048];
-      g_vorbisenc->Encode(empty,1024);
-    }
+    //if (1) g_vorbisenc->Encode(NULL,0);
+    static float empty[1024];
+    g_vorbisenc->Encode(empty,2048);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -383,7 +378,7 @@ void on_new_interval()
       g_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
       g_vorbisenc->outqueue.Advance(l);
-      wh.flags=g_vorbisenc->outqueue.GetSize()>0 && boo? 0 : 1;
+      wh.flags=g_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
 
       EnterCriticalSection(&net_cs);
       if (g_vorbisenc_header_needsend)
@@ -404,7 +399,6 @@ void on_new_interval()
       LeaveCriticalSection(&net_cs);
     }
     while (g_vorbisenc->outqueue.Available()>0);
-    }
     g_vorbisenc->outqueue.Compact(); // free any memory left
 
     //delete g_vorbisenc;
