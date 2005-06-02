@@ -138,7 +138,7 @@ int main(int argc, char **argv)
   JNL::open_socketlib();
 
   printf("Connecting to %s...\n",argv[1]);
-  g_client->Connect(argv[1],userbuf,passbuf);
+  g_client->Connect(argv[1],parmuser,passbuf);
 
 
   while (g_client->GetStatus() >= 0 && !g_done)
