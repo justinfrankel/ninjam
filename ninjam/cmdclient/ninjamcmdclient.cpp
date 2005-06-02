@@ -18,12 +18,12 @@
 #include "../../WDL/timing.h"
 
 
+int config_send=1;
+int config_recv=1;
 int config_savelocalaudio=0;
-int config_monitor=1;
-int config_metronome=0;
-
-
-int config_debug_underrun=1, config_debug_sendrecv=1;
+float config_monitor=1.0f;
+float config_metronome=0.5f;
+int config_debug_level=0;
 
 extern char *get_asio_configstr();
 
@@ -198,7 +198,7 @@ void process_samples(float *buf, int len, int nch)
 {
 
   // encode my audio and send to server, if enabled
-  if (g_vorbisenc)
+  if (config_send && g_vorbisenc)
   {
     g_vorbisenc->Encode(buf,len);
 
@@ -218,7 +218,7 @@ void process_samples(float *buf, int len, int nch)
         EnterCriticalSection(&net_cs);
         if (g_vorbisenc_header_needsend)
         {
-          if (config_debug_sendrecv)
+          if (config_debug_level>1)
           {
             mpb_client_upload_interval_begin dib;
             dib.parse(g_vorbisenc_header_needsend);
@@ -228,7 +228,7 @@ void process_samples(float *buf, int len, int nch)
           g_vorbisenc_header_needsend=0;
         }
 
-        if (config_debug_sendrecv) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
+        if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
 
         netcon->Send(wh.build());
         LeaveCriticalSection(&net_cs);
@@ -240,9 +240,16 @@ void process_samples(float *buf, int len, int nch)
   }
 
 
-  if (!config_monitor) // input monitoring
+  if (config_monitor < 0.00001f) // input monitoring
   {
     memset(buf,0,len*sizeof(float)*nch);// silence
+  }
+  else
+  {
+    int x;
+    int l=len*nch;
+    for (x = 0; x < l; x ++)
+      buf[x] *= config_monitor;
   }
 
   // mix in (super shitty) metronome (fucko!!!!)
@@ -250,6 +257,7 @@ void process_samples(float *buf, int len, int nch)
     int metrolen=g_audio->m_srate / 100;
     double sc=12000.0/(double)g_audio->m_srate;
     int x;
+    int um=config_metronome>0.0001f;
     for (x = 0; x < len; x ++)
     {
       if (m_metronome_pos <= 0)
@@ -262,10 +270,10 @@ void process_samples(float *buf, int len, int nch)
 
       if (m_metronome_state>0)
       {
-        if (config_metronome)
+        if (um)
         {
-          float val=(float) sin((double)m_metronome_state*sc)*0.7f;
-          if (!m_metronome_tmp) val *= 0.1f;
+          float val=(float) sin((double)m_metronome_state*sc)*config_metronome;
+          if (!m_metronome_tmp) val *= 0.25f;
           if (nch == 1) buf[x]+=val;
           else
           {
@@ -325,7 +333,7 @@ void process_samples(float *buf, int len, int nch)
         {
           chan->dump_samples+=needed;
 
-          if (config_debug_underrun)
+          if (config_debug_level>0)
           {
           static int cnt=0;
 
@@ -347,7 +355,7 @@ void process_samples(float *buf, int len, int nch)
 
 void on_new_interval()
 {
-  if (g_vorbisenc)
+  if (g_vorbisenc && config_send)
   {
     // finish any encoding
     {
@@ -376,7 +384,7 @@ void on_new_interval()
       EnterCriticalSection(&net_cs);
       if (g_vorbisenc_header_needsend)
       {
-        if (config_debug_sendrecv)
+        if (config_debug_level>1)
         {
           mpb_client_upload_interval_begin dib;
           dib.parse(g_vorbisenc_header_needsend);
@@ -387,7 +395,7 @@ void on_new_interval()
       }
 
 
-      if (config_debug_sendrecv) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
+      if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
       netcon->Send(wh.build());
       LeaveCriticalSection(&net_cs);
     }
@@ -398,7 +406,7 @@ void on_new_interval()
   //  g_vorbisenc=0;
     g_vorbisenc->reinit();
   }
-  else
+  else if (config_send)
   {
     g_vorbisenc = new VorbisEncoder(g_audio->m_srate,g_audio->m_nch,-0.1f); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
   }
@@ -525,6 +533,23 @@ void sigfunc(int sig)
   g_done++;
 }
 
+
+void usage()
+{
+
+  printf("Usage: ninjam hostname [options]\n"
+    "Options:\n"
+    "  -nosend\n"
+    "  -norecv\n"
+    "  -savelocal\n"
+    "  -monitor <level in dB>\n"
+    "  -metronome <level in dB>\n"
+    "  -debuglevel [0..2]\n"
+    "  -audiostr 0:0,0:0,0\n");
+
+  exit(1);
+}
+
 int main(int argc, char **argv)
 {
   timingInit();
@@ -538,11 +563,46 @@ int main(int argc, char **argv)
 
   InitializeCriticalSection(&net_cs);
   printf("Ninjam v0.0 command line client starting up...\n");
+  char *audioconfigstr=NULL;
 
-  if (argc != 2)
+  if (argc < 2) usage();
   {
-    printf("Usage: ninjam hostname\n");
-    return 0;
+    int p;
+    for (p = 2; p < argc; p++)
+    {
+      if (!stricmp(argv[p],"-nosend"))
+      {
+        config_send=0;
+      }
+      else if (!stricmp(argv[p],"-norecv"))
+      {
+        config_recv=0;
+      }
+      else if (!stricmp(argv[p],"-savelocal"))
+      {
+        config_savelocalaudio=1;
+      }
+      else if (!stricmp(argv[p],"-monitor"))
+      {
+        if (++p >= argc) usage();
+        config_monitor=(float)pow(2.0,atof(argv[p])/6.0);
+      }
+      else if (!stricmp(argv[p],"-metronome"))
+      {
+        if (++p >= argc) usage();
+        config_metronome=(float)pow(2.0,atof(argv[p])/6.0);
+      }
+      else if (!stricmp(argv[p],"-debuglevel"))
+      {
+        if (++p >= argc) usage();
+        config_debug_level=atoi(argv[p]);
+      }
+      else if (!stricmp(argv[p],"-audiostr"))
+      {
+        if (++p >= argc) usage();
+        audioconfigstr=argv[p];
+      }
+    }
   }
 
   g_audio_enable=0;
@@ -551,7 +611,7 @@ int main(int argc, char **argv)
     audioStreamer_ASIO *audio;
     char *dev_name_in;
     
-    dev_name_in=get_asio_configstr();
+    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr();
     audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;
@@ -708,7 +768,7 @@ int main(int argc, char **argv)
 
                   printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
 
-                  if (cid >= 0 && cid < MAX_USER_CHANNELS)
+                  if (cid >= 0 && cid < MAX_USER_CHANNELS && config_recv)
                   {
                     if (a)
                     {
@@ -757,7 +817,7 @@ int main(int argc, char **argv)
                   //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
                   if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
                   {
-                    if (config_debug_sendrecv) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
+                    if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                     downloadState *ds=new downloadState;
                     memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                     ds->Open();
@@ -784,7 +844,7 @@ int main(int argc, char **argv)
                   {
                     if (!memcmp(ds->guid,diw.guid,sizeof(ds->guid)))
                     {
-                      if (config_debug_sendrecv) printf("RECV BLOCK DATA %s%s %d bytes\n",guidtostr_tmp(diw.guid),diw.flags&1?":end":"",diw.audio_data_len);
+                      if (config_debug_level>1) printf("RECV BLOCK DATA %s%s %d bytes\n",guidtostr_tmp(diw.guid),diw.flags&1?":end":"",diw.audio_data_len);
 
                       ds->last_time=now;
                       if (diw.audio_data_len > 0 && diw.audio_data)
