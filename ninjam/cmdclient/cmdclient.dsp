@@ -174,6 +174,10 @@ SOURCE=..\audiostream_win32.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\lameencdec.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\mpb.cpp
 # End Source File
 # Begin Source File
@@ -302,6 +306,10 @@ SOURCE=..\..\WDL\Timing.h
 # Begin Group "common headers"
 
 # PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\lameencdec.h
+# End Source File
 # Begin Source File
 
 SOURCE=..\mpb.h

@@ -218,6 +218,25 @@ typedef VOID	(*BEWRITEVBRHEADER)		(LPCSTR);
 #define	TEXT_BEVERSION			"beVersion"
 #define	TEXT_BEWRITEVBRHEADER	"beWriteVBRHeader"
 
+
+
+#define MP3_ERR -1
+#define MP3_OK  0
+#define MP3_NEED_MORE 1
+
+// void *InitMP3_Create();
+// void ExitMP3_Delete(void *);
+
+// int decodeMP3_unclipped(void *,unsigned char *inmemory,int inmemsize,char *outmemory,int outmemsize,int *done);
+//    always uses all of inmemory, returns MP3_NEED_MORE if it needs more, and done is the output size.
+//    it appears outmemory is interleaved. outmemory is doubles, too. ick.
+//    is 'done' bytes or samples? inmemsize should be 1152*2*sizeof(double)
+
+// void get_decode_info(void *,int *nch, int *srate);//JF> added for querying the decode stats
+// void remove_buf(void *);
+
+
+
 #else
 
 __declspec(dllexport) BE_ERR	beInitStream(PBE_CONFIG pbeConfig, PDWORD dwSamples, PDWORD dwBufferSize, PHBE_STREAM phbeStream);
