@@ -17,7 +17,7 @@
 
 #if 1
 #define ENCODER LameEncoder
-#define ENCODER_BITRATE 96000
+#define ENCODER_BITRATE 64
 #define ENCODER_FMT_STRING "mp3"
 #define ENCODER_FMT_TYPE 'mp3 '
 #else

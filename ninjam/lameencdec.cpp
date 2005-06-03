@@ -299,9 +299,14 @@ LameEncoder::LameEncoder(int srate, int nch, int bitrate)
   if (nch == 1) beConfig.format.LHV1.nMode = BE_MP3_MODE_MONO;
   else beConfig.format.LHV1.nMode = BE_MP3_MODE_JSTEREO;
 
-  beConfig.format.LHV1.dwBitrate=bitrate/1000;
-  beConfig.format.LHV1.dwMaxBitrate=bitrate/1000;
+  beConfig.format.LHV1.dwBitrate=bitrate;
+  beConfig.format.LHV1.dwMaxBitrate=bitrate;
   beConfig.format.LHV1.dwReSampleRate	= srate;
+
+  // if mpeg 1, and bitrate is less than 48kbps per channel, switch to mpeg 2
+  if (beConfig.format.LHV1.dwReSampleRate >= 32000 && bitrate < 48*nch)
+    beConfig.format.LHV1.dwReSampleRate/=2;
+
 
   beConfig.format.LHV1.dwMpegVersion		= beConfig.format.LHV1.dwReSampleRate < 32000 ? MPEG2 : MPEG1;
 
