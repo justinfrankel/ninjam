@@ -531,7 +531,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         while (chan->decode_codec->m_samples_used < 
               (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len)*chan->decode_codec->GetNumChannels()))
         {
-          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->decode_fp);
+          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);
           chan->decode_codec->DecodeWrote(l);
           if (!l) 
           {
@@ -585,9 +585,7 @@ void NJClient::on_new_interval(int nch, int srate)
   if (m_vorbisenc && config_send)
   {
     // finish any encoding
-    //if (1) m_vorbisenc->Encode(NULL,0);
-    static float empty[2048];
-    m_vorbisenc->Encode(empty,1024);
+    m_vorbisenc->Encode(NULL,0);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
@@ -670,7 +668,7 @@ void NJClient::on_new_interval(int nch, int srate)
           if (chan->decode_fp)
           {
             if (!chan->decode_codec)
-              chan->decode_codec= new VorbisDecoder;
+              chan->decode_codec= new DECODER;
             else chan->decode_codec->Reset();
           }
         }

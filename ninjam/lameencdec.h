@@ -27,6 +27,37 @@ class LameEncoder
     unsigned long hbeStream;
 };
 
+class LameDecoder
+{
+  public:
+    LameDecoder();
+    ~LameDecoder();
+
+    int GetSampleRate() { return m_srate?m_srate:48000; }
+    int GetNumChannels() { return m_nch?m_nch:1; }
+
+    WDL_HeapBuf m_samples; // we let the size get as big as it needs to, so we don't worry about tons of mallocs/etc
+    int m_samples_used;
+
+    void *DecodeGetSrcBuffer(int srclen)
+    {
+      if (srctmp.GetSize() < srclen) srctmp.Resize(srclen);
+      return srctmp.Get();
+    }
+    void DecodeWrote(int srclen);
+
+    int GetError() { return errorstat; }
+
+    void Reset();
+
+  private:
+    WDL_HeapBuf srctmp;
+    int errorstat;
+    int m_srate,m_nch;
+
+    void *decinst;
+};
+
 
 
 #endif

@@ -17,14 +17,19 @@
 
 #if 1
 #define ENCODER LameEncoder
-#define ENCODER_BITRATE 64
+#define ENCODER_BITRATE 96
 #define ENCODER_FMT_STRING "mp3"
 #define ENCODER_FMT_TYPE 'mp3 '
+
+#define DECODER LameDecoder
+
 #else
 #define ENCODER VorbisEncoder
 #define ENCODER_BITRATE -0.1f
 #define ENCODER_FMT_STRING "ogg"
 #define ENCODER_FMT_TYPE 'ogg '
+#define DECODER VorbisDecoder
+
 #endif
 
 #define MAX_USER_CHANNELS 32
@@ -45,7 +50,7 @@ class RemoteUser_Channel
 
     // decode/mixer state, used by mixer
     FILE *decode_fp;
-    VorbisDecoder *decode_codec;
+    DECODER *decode_codec;
     int dump_samples;
     unsigned char decode_last_guid[16];
 

@@ -213,7 +213,9 @@ public:
 
     if (inlen == 0)
     {
-      vorbis_analysis_wrote(&vd,0);
+      // disable this for now, it fucks us sometimes
+      // maybe we should throw some silence in instead?
+      if (0) vorbis_analysis_wrote(&vd,0);
     }
     else
     {
