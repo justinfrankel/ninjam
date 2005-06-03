@@ -12,9 +12,20 @@
 
 #include "../netmsg.h"
 #include "vorbisencdec.h"
+#include "lameencdec.h"
 
 
-
+#if 1
+#define ENCODER LameEncoder
+#define ENCODER_BITRATE 96000
+#define ENCODER_FMT_STRING "mp3"
+#define ENCODER_FMT_TYPE 'mp3 '
+#else
+#define ENCODER VorbisEncoder
+#define ENCODER_BITRATE -0.1f
+#define ENCODER_FMT_STRING "ogg"
+#define ENCODER_FMT_TYPE 'ogg '
+#endif
 
 #define MAX_USER_CHANNELS 32
 class RemoteUser_Channel
@@ -126,7 +137,7 @@ private:
 
 
 // per-channel encoding stuff
-  VorbisEncoder *m_vorbisenc;
+  ENCODER *m_vorbisenc;
   RemoteDownload *m_curwritefile;
   Net_Message *m_vorbisenc_header_needsend;
 

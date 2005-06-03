@@ -16,6 +16,8 @@ class LameEncoder
 
     WDL_Queue outqueue;
 
+    void reinit() { }
+
   private:
     int m_nch;
     WDL_Queue spltmp[2];

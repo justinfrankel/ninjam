@@ -30,7 +30,7 @@ void makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
   guidtostr(guid,buf);
-  strcat(buf,".ogg");
+  strcat(buf,"." ENCODER_FMT_STRING);
   s->Set(buf);
 }
 
@@ -633,7 +633,7 @@ void NJClient::on_new_interval(int nch, int srate)
   }
   else if (config_send)
   {
-    m_vorbisenc = new VorbisEncoder(srate,nch,-0.1f); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+    m_vorbisenc = new ENCODER(srate,nch,ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
   }
 
 
@@ -688,7 +688,7 @@ void NJClient::on_new_interval(int nch, int srate)
     mpb_client_upload_interval_begin cuib;
     cuib.chidx=0;
     memcpy(cuib.guid,m_curwritefile->guid,sizeof(cuib.guid));
-    cuib.fourcc='oggv';
+    cuib.fourcc=ENCODER_FMT_TYPE;
     cuib.estsize=0;
     delete m_vorbisenc_header_needsend;
     m_vorbisenc_header_needsend=cuib.build();

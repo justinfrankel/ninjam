@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <stdio.h>
 
 #pragma pack(push)
 #pragma pack(1)
@@ -298,8 +299,8 @@ LameEncoder::LameEncoder(int srate, int nch, int bitrate)
   if (nch == 1) beConfig.format.LHV1.nMode = BE_MP3_MODE_MONO;
   else beConfig.format.LHV1.nMode = BE_MP3_MODE_JSTEREO;
 
-  beConfig.format.LHV1.dwBitrate=bitrate;
-  beConfig.format.LHV1.dwMaxBitrate=bitrate;
+  beConfig.format.LHV1.dwBitrate=bitrate/1000;
+  beConfig.format.LHV1.dwMaxBitrate=bitrate/1000;
   beConfig.format.LHV1.dwReSampleRate	= srate;
 
   beConfig.format.LHV1.dwMpegVersion		= beConfig.format.LHV1.dwReSampleRate < 32000 ? MPEG2 : MPEG1;
@@ -312,9 +313,12 @@ LameEncoder::LameEncoder(int srate, int nch, int bitrate)
   if (beInitStream(&beConfig, (DWORD*)&in_size_samples, (DWORD*)&out_size_bytes, (PHBE_STREAM) &hbeStream) != BE_ERR_SUCCESSFUL)
   {
     errorstat=2;
+    printf("error init stream\n");
     return;
   }
   outtmp.Resize(out_size_bytes);
+
+  printf("we're in good shape\n");
 }
 
 void LameEncoder::Encode(float *in, int in_spls)
@@ -327,11 +331,25 @@ void LameEncoder::Encode(float *in, int in_spls)
     int x;
     for (x = 0; x < in_spls; x ++)
     {
-      spltmp[0].Add(in+x+x,sizeof(float));
-      spltmp[1].Add(in+x+x+1,sizeof(float));
+      float f=in[x+x];
+      f*=32767.0f;
+      spltmp[0].Add(&f,sizeof(float));
+
+      f=in[x+x+1];
+      f*=32767.0f;
+      spltmp[1].Add(&f,sizeof(float));
     }
   }
-  else spltmp[0].Add(in,in_spls*sizeof(float));
+  else 
+  {
+    int x;
+    for (x = 0; x < in_spls; x ++)
+    {
+      float f=in[x];
+      f*=32767.0f;
+      spltmp[0].Add(&f,sizeof(float));
+    }
+  }
 
 
   while (spltmp[0].Available() >= (int) (in_size_samples*sizeof(float)))
@@ -340,6 +358,7 @@ void LameEncoder::Encode(float *in, int in_spls)
     if (beEncodeChunkFloatS16NI(hbeStream, in_size_samples, (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
                         (unsigned char*)outtmp.Get(), &dwo) != BE_ERR_SUCCESSFUL)
     {
+      printf("error calling encode\n");
       errorstat=3;
       return;
     }
