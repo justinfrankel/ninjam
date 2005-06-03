@@ -359,6 +359,7 @@ LameEncoder::LameEncoder(int srate, int nch, int bitrate)
     printf("error init stream\n");
     return;
   }
+  in_size_samples/=m_nch;
   outtmp.Resize(out_size_bytes);
 }
 
@@ -403,13 +404,14 @@ void LameEncoder::Encode(float *in, int in_spls)
         errorstat=3;
         return;
       }
+//      printf("encoded to %d bytes (%d) %d\n",dwo, outtmp.GetSize(),in_size_samples);
       outqueue.Add(outtmp.Get(),dwo);
       spltmp[0].Advance(in_size_samples*sizeof(float));
       if (m_nch > 1) spltmp[1].Advance(in_size_samples*sizeof(float));
     }
 
   }
-  else if (0)
+  else if (1)
   {
     if (spltmp[0].Available() && spltmp[0].Available() < (int) (in_size_samples*sizeof(float)))
     {
@@ -430,6 +432,16 @@ void LameEncoder::Encode(float *in, int in_spls)
       outqueue.Add(outtmp.Get(),dwo);
       spltmp[0].Advance(in_size_samples*sizeof(float));
       if (m_nch > 1) spltmp[1].Advance(in_size_samples*sizeof(float));
+
+      /*
+      dwo=0;
+      if (beEncodeChunkFloatS16NI(hbeStream, 0, (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
+                          (unsigned char*)outtmp.Get(), &dwo) == BE_ERR_SUCCESSFUL && dwo > 0)
+      {
+        outqueue.Add(outtmp.Get(),dwo);
+      }
+      */
+
     }
   }
 
@@ -448,6 +460,7 @@ LameEncoder::~LameEncoder()
 
 LameDecoder::LameDecoder()
 {
+  m_samplesdec=0;
   decinst=0;
   errorstat=0;
   m_samples_used=0;
@@ -488,6 +501,8 @@ void LameDecoder::DecodeWrote(int srclen)
       float *fbuf=(float *)m_samples.Get();
       fbuf += m_samples_used;
 
+      m_samplesdec += bout/m_nch;
+
       for (x = 0; x < bout; x ++)
       {
         fbuf[x]=(float)(buf[x] * (1.0/32767.0));        
@@ -502,9 +517,16 @@ void LameDecoder::DecodeWrote(int srclen)
 void LameDecoder::Reset()
 {
   m_samples_used=0; 
+  m_samplesdec=0;
 
   //if (decinst) remove_buf(decinst);
-
+/*
+  if (decinst)
+  {
+    ExitMP3_Delete(decinst);
+  }
+  decinst=InitMP3_Create();
+  */
 }
 
 LameDecoder::~LameDecoder()

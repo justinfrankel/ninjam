@@ -56,6 +56,8 @@ class LameDecoder
 
     void Reset();
 
+    int m_samplesdec;
+
   private:
     WDL_HeapBuf srctmp;
     int errorstat;

@@ -139,6 +139,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 
     m_beatinfo_updated=0;
     m_interval_length = (int)v;
+    m_interval_length-=m_interval_length%1152;//hack
     m_interval_pos=-1;
     m_active_bpm=m_bpm;
     m_active_bpi=m_bpi;
@@ -531,7 +532,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         while (chan->decode_codec->m_samples_used < 
               (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len)*chan->decode_codec->GetNumChannels()))
         {
-          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);
+          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
           chan->decode_codec->DecodeWrote(l);
           if (!l) 
           {
@@ -552,13 +553,13 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
                     chan->volume,chan->pan);
 
           // advance the queue
+          chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
           chan->decode_codec->m_samples_used -= needed+chan->dump_samples;
           memcpy(sptr,sptr+needed+chan->dump_samples,chan->decode_codec->m_samples_used*sizeof(float));
           chan->dump_samples=0;
         }
         else
         {
-          chan->dump_samples+=needed;
 
           if (config_debug_level>0)
           {
@@ -571,6 +572,11 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
           sprintf(buf,"underrun %d on user %s at %d on %s, %d/%d samples\n",cnt++,user->name.Get(),ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
           OutputDebugString(buf);
           }
+
+          chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
+          chan->decode_codec->m_samples_used=0;
+          //chan->dump_samples+=needed;
+
         }
 
       }
@@ -652,6 +658,10 @@ void NJClient::on_new_interval(int nch, int srate)
       {
         if (chan->decode_fp) fclose(chan->decode_fp);
         chan->decode_fp=0;
+        if (chan->decode_codec) 
+          printf("last samplesdec=%d\n",chan->decode_codec->m_samplesdec);
+        printf("last samplesout=%d\n",chan->decode_samplesout);
+        chan->decode_samplesout=0;
 
         chan->dump_samples=0;
 
@@ -703,6 +713,7 @@ RemoteUser_Channel::RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), m
 {
   memset(cur_guid,0,sizeof(cur_guid));
   memset(decode_last_guid,0,sizeof(decode_last_guid));
+  decode_samplesout=0;
 }
 
 RemoteUser_Channel::~RemoteUser_Channel()
