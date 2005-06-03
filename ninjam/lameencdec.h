@@ -16,7 +16,13 @@ class LameEncoder
 
     WDL_Queue outqueue;
 
-    void reinit() { }
+    void reinit() 
+    { 
+      spltmp[0].Advance(spltmp[0].Available());  
+      spltmp[0].Compact();
+      spltmp[1].Advance(spltmp[1].Available());  
+      spltmp[1].Compact();
+    }
 
   private:
     int m_nch;

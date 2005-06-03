@@ -418,7 +418,7 @@ void LameEncoder::Encode(float *in, int in_spls)
       spltmp[0].Add(buf,l);
       if (m_nch>1) spltmp[1].Add(buf,l);
       DWORD dwo=0;
-      if (beEncodeChunkFloatS16NI(hbeStream, spltmp[0].Available(), (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
+      if (beEncodeChunkFloatS16NI(hbeStream, in_size_samples, (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
                           (unsigned char*)outtmp.Get(), &dwo) != BE_ERR_SUCCESSFUL)
       {
         //printf("error calling encode\n");
@@ -466,7 +466,6 @@ LameDecoder::LameDecoder()
 
 void LameDecoder::DecodeWrote(int srclen)
 {
-  OutputDebugString("Calling DecodeWrote\n");
   if (errorstat||!decinst) return;
 
   for (;;)
@@ -502,7 +501,7 @@ void LameDecoder::DecodeWrote(int srclen)
 
 void LameDecoder::Reset()
 {
- // m_samples_used=0; 
+  m_samples_used=0; 
 
   //if (decinst) remove_buf(decinst);
 
