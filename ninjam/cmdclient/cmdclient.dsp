@@ -324,11 +324,15 @@ SOURCE=..\njclient.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\pcmfmtcvt.h
+SOURCE=..\..\WDL\pcmfmtcvt.h
 # End Source File
 # Begin Source File
 
 SOURCE=..\vorbisencdec.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\wavwrite.h
 # End Source File
 # End Group
 # Begin Source File
