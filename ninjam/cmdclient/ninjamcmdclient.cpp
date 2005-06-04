@@ -48,6 +48,7 @@ void usage()
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
+    "  -writewav <filename>\n"
     "  -audiostr 0:0,0:0,0\n");
 
   exit(1);
@@ -58,6 +59,7 @@ int main(int argc, char **argv)
   signal(SIGINT,sigfunc);
 
   char *parmuser=NULL;
+  char *wavfile=NULL;
 
   printf("Ninjam v0.0 command line client starting up...\n");
   char *audioconfigstr=NULL;
@@ -105,6 +107,11 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         parmuser=argv[p];
       }
+      else if (!stricmp(argv[p],"-writewav"))
+      {
+        if (++p >= argc) usage();
+        wavfile=argv[p];
+      }
       else usage();
     }
   }
@@ -141,6 +148,11 @@ int main(int argc, char **argv)
   g_client->Connect(argv[1],parmuser,passbuf);
 
 
+  if (wavfile)
+  {
+    g_client->waveWrite = new WaveWriter(wavfile,16,g_audio->m_nch,g_audio->m_srate);
+  }
+
   while (g_client->GetStatus() >= 0 && !g_done)
   {
     if (g_client->Run()) Sleep(1);
@@ -150,6 +162,7 @@ int main(int argc, char **argv)
 
   printf("Shutting down\n");
 
+  delete g_client->waveWrite;
   delete g_client;
   delete g_audio;
 
