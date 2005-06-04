@@ -13,8 +13,8 @@
 #include "../WDL/wavwrite.h"
 
 #include "../netmsg.h"
-#include "vorbisencdec.h"
-#include "lameencdec.h"
+#include "../WDL/vorbisencdec.h"
+#include "../WDL/lameencdec.h"
 
 
 #if 1

@@ -88,6 +88,25 @@ LINK32=link.exe
 # Begin Group "common"
 
 # PROP Default_Filter ""
+# Begin Group "asio"
+
+# PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\asio\asio.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\asio\asiodrivers.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\asio\asiolist.cpp
+# End Source File
+# End Group
+# Begin Group "wdl src"
+
+# PROP Default_Filter ""
 # Begin Group "jnetlib"
 
 # PROP Default_Filter ""
@@ -148,20 +167,17 @@ SOURCE=..\..\WDL\jnetlib\util.cpp
 SOURCE=..\..\WDL\jnetlib\util.h
 # End Source File
 # End Group
-# Begin Group "asio"
-
-# PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=..\asio\asio.cpp
+SOURCE=..\..\WDL\lameencdec.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\asio\asiodrivers.cpp
+SOURCE=..\..\WDL\rng.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\asio\asiolist.cpp
+SOURCE=..\..\WDL\sha.cpp
 # End Source File
 # End Group
 # Begin Source File
@@ -174,10 +190,6 @@ SOURCE=..\audiostream_win32.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\lameencdec.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\mpb.cpp
 # End Source File
 # Begin Source File
@@ -187,22 +199,6 @@ SOURCE=..\netmsg.cpp
 # Begin Source File
 
 SOURCE=..\njclient.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\rng.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\rng.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\sha.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\sha.h
 # End Source File
 # Begin Source File
 
@@ -306,10 +302,50 @@ SOURCE=..\..\WDL\Timing.h
 # Begin Group "common headers"
 
 # PROP Default_Filter ""
+# Begin Group "wdl"
+
+# PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=..\lameencdec.h
+SOURCE=..\..\WDL\heapbuf.h
 # End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\lameencdec.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\pcmfmtcvt.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\ptrlist.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\queue.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\rng.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\sha.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\string.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\vorbisencdec.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\wavwrite.h
+# End Source File
+# End Group
 # Begin Source File
 
 SOURCE=..\mpb.h
@@ -321,18 +357,6 @@ SOURCE=..\netmsg.h
 # Begin Source File
 
 SOURCE=..\njclient.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\pcmfmtcvt.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\vorbisencdec.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\wavwrite.h
 # End Source File
 # End Group
 # Begin Source File
