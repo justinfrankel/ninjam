@@ -213,7 +213,7 @@ void NJClient::Connect(char *host, char *user, char *pass)
 int NJClient::GetStatus()
 {
   if (!m_status || m_status == -1) return NJC_STATUS_PRECONNECT;
-  if (m_status == 999) return NJC_STATUS_DISCONNECTED;
+  if (m_status == 999) return NJC_STATUS_RECONNECTING;
   if (m_status == 1000) return NJC_STATUS_CANTCONNECT;
   if (m_status == 1001) return NJC_STATUS_INVALIDAUTH;
 
