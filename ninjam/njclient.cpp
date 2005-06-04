@@ -9,6 +9,7 @@
 #define MAX_ENC_BLOCKSIZE (8192+1024)
 
 
+#define NJ_PORT 2049
 
 unsigned char zero_guid[16];
 
@@ -137,7 +138,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 {
   if (!m_audio_enable) 
   {
-    memset(buf,0,len*nch*sizeof(float));
+    input_monitor_samples(buf,len,nch,srate);
     return;
   }
 
@@ -195,11 +196,14 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 
 void NJClient::Connect(char *host, char *user, char *pass)
 {
+  m_host.Set(host);
   m_user.Set(user);
   m_pass.Set(pass);
 
+  delete m_netcon;
+
   JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
-  c->connect(host,2049);
+  c->connect(host,NJ_PORT);
   m_netcon = new Net_Connection;
   m_netcon->attach(c);
 
@@ -222,8 +226,18 @@ int NJClient::Run() // nonzero if sleep ok
   if (!m_netcon) return 1;
   if (m_netcon->GetStatus())
   {
-    if (m_status == 0) m_status=1000;
-    else if (m_status != 1001) m_status = 999;
+    m_audio_enable=0;
+    if (m_status == 0 || m_status == 999) m_status=1000;
+    else if (m_status != 1001)  // try reconnecting if this is a disconnect
+    {
+      m_status = 999;
+      JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
+      c->connect(m_host.Get(),NJ_PORT);
+      delete m_netcon;
+      m_netcon = new Net_Connection;
+      m_netcon->attach(c);
+
+    }
     return 1;
   }
 
@@ -442,6 +456,21 @@ int NJClient::Run() // nonzero if sleep ok
 
 }
 
+void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
+{
+  if (config_monitor < 0.00001f) // input monitoring
+  {
+    memset(buf,0,len*sizeof(float)*nch);// silence
+  }
+  else
+  {
+    int x;
+    int l=len*nch;
+    for (x = 0; x < l; x ++)
+      buf[x] *= config_monitor;
+  }
+}
+
 void NJClient::process_samples(float *buf, int len, int nch, int srate)
 {
 
@@ -487,60 +516,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     m_vorbisenc->outqueue.Compact();
   }
 
-
-  if (config_monitor < 0.00001f) // input monitoring
-  {
-    memset(buf,0,len*sizeof(float)*nch);// silence
-  }
-  else
-  {
-    int x;
-    int l=len*nch;
-    for (x = 0; x < l; x ++)
-      buf[x] *= config_monitor;
-  }
-
-  if (waveWrite)
-  {
-    waveWrite->WriteFloats(buf,len*nch);
-  }
-
-
-  // mix in (super shitty) metronome (fucko!!!!)
-  {
-    int metrolen=srate / 100;
-    double sc=12000.0/(double)srate;
-    int x;
-    int um=config_metronome>0.0001f;
-    for (x = 0; x < len; x ++)
-    {
-      if (m_metronome_pos <= 0)
-      {
-        m_metronome_state=1;
-        m_metronome_tmp=m_interval_pos+x<m_metronome_interval;
-        m_metronome_pos = m_metronome_interval;
-      }
-      m_metronome_pos--;
-
-      if (m_metronome_state>0)
-      {
-        if (um)
-        {
-          float val=(float) sin((double)m_metronome_state*sc)*config_metronome;
-          if (!m_metronome_tmp) val *= 0.25f;
-          if (nch == 1) buf[x]+=val;
-          else
-          {
-            buf[x+x]+=val;
-            buf[x+x+1]+=val;
-          }
-        }
-        if (++m_metronome_state >= metrolen) m_metronome_state=0;
-
-      }
-    }   
-  }
-
+  input_monitor_samples(buf,len,nch,srate);
 
   // mix in all active channels
   int u;
@@ -607,6 +583,50 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       }
     }
   }
+
+  // write out wave if necessary
+
+  if (waveWrite)
+  {
+    waveWrite->WriteFloats(buf,len*nch);
+  }
+
+
+  // mix in (super shitty) metronome (fucko!!!!)
+  {
+    int metrolen=srate / 100;
+    double sc=12000.0/(double)srate;
+    int x;
+    int um=config_metronome>0.0001f;
+    for (x = 0; x < len; x ++)
+    {
+      if (m_metronome_pos <= 0)
+      {
+        m_metronome_state=1;
+        m_metronome_tmp=m_interval_pos+x<m_metronome_interval;
+        m_metronome_pos = m_metronome_interval;
+      }
+      m_metronome_pos--;
+
+      if (m_metronome_state>0)
+      {
+        if (um)
+        {
+          float val=(float) sin((double)m_metronome_state*sc)*config_metronome;
+          if (!m_metronome_tmp) val *= 0.25f;
+          if (nch == 1) buf[x]+=val;
+          else
+          {
+            buf[x+x]+=val;
+            buf[x+x+1]+=val;
+          }
+        }
+        if (++m_metronome_state >= metrolen) m_metronome_state=0;
+
+      }
+    }   
+  }
+
 }
 
 
