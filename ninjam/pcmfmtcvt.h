@@ -177,19 +177,19 @@ static void floatsToPcm(float *src, int src_spacing, int items, void *dest, int 
 }
 
 
-static int resampleLengthNeeded(int src_srate, int dest_srate, int dest_len)
+static int resampleLengthNeeded(int src_srate, int dest_srate, int dest_len, double *state)
 {
   // safety
   if (!src_srate) src_srate=48000;
   if (!dest_srate) dest_srate=48000;
-  int ss=(src_srate*dest_len)/dest_srate;
+  if (src_srate == dest_srate) return dest_len;
+  return (int) (((double)src_srate*(double)dest_len/(double)dest_srate)+*state);
 
-  return ss;
 }
 
 static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sample pairs
                             float *dest, int dest_srate, int dest_nch, 
-                            int dest_len, float vol, float pan)
+                            int dest_len, float vol, float pan, double *state)
 {
   // fucko: better resampling, this is shite
   int x;
@@ -201,7 +201,7 @@ static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sa
   if (!dest_srate) dest_srate=48000;
 
 
-  double rspos=0.0;
+  double rspos=*state;
   double drspos = (double)src_srate/(double)dest_srate;
 
   for (x = 0; x < dest_len; x ++)
@@ -255,6 +255,7 @@ static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sa
       dest++;
     }
   }
+  *state = rspos - (int)rspos;
 }
 
 #endif //_PCMFMTCVT_H_

@@ -529,7 +529,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       if (chan->decode_codec && chan->decode_fp)
       {
         int needed;
-        while (chan->decode_codec->m_samples_used < 
+        while (chan->decode_codec->m_samples_used <= 
               (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
         {
           int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
@@ -694,7 +694,7 @@ void NJClient::on_new_interval(int nch, int srate)
             if (!chan->decode_codec)
               chan->decode_codec= new DECODER;
             else chan->decode_codec->Reset();
-            chan->resample_state=0.0;
+            //chan->resample_state=0.0;
           }
         }
         if (!chan->decode_fp)
