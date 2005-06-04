@@ -261,6 +261,9 @@ __declspec(dllexport) BE_ERR	beWriteVBRHeader(LPCSTR lpszFileName);
 #include "lameencdec.h"
 
 
+//#define LATENCY_GAP_HACK
+
+
 
 static HINSTANCE hlamedll;
 static BEINITSTREAM     beInitStream;
@@ -361,6 +364,22 @@ LameEncoder::LameEncoder(int srate, int nch, int bitrate)
   }
   in_size_samples/=m_nch;
   outtmp.Resize(out_size_bytes);
+
+
+#ifdef LATENCY_GAP_HACK
+    {
+      WDL_HeapBuf w;
+      w.Resize(in_size_samples*sizeof(float));
+      memset(w.Get(),0,in_size_samples*sizeof(float));
+      DWORD dwo=0;
+      if (beEncodeChunkFloatS16NI(hbeStream, in_size_samples, (float*)w.Get(), (float*)w.Get(), 
+                          (unsigned char*)outtmp.Get(), &dwo) == BE_ERR_SUCCESSFUL && dwo > 0)
+      {
+        outqueue.Add(outtmp.Get(),dwo);
+      }
+    }
+#endif
+
 }
 
 void LameEncoder::Encode(float *in, int in_spls)
@@ -419,6 +438,7 @@ void LameEncoder::Encode(float *in, int in_spls)
       int l=in_size_samples*sizeof(float)-spltmp[0].Available();
       spltmp[0].Add(buf,l);
       if (m_nch>1) spltmp[1].Add(buf,l);
+
       DWORD dwo=0;
       if (beEncodeChunkFloatS16NI(hbeStream, in_size_samples, (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
                           (unsigned char*)outtmp.Get(), &dwo) != BE_ERR_SUCCESSFUL)
@@ -427,22 +447,30 @@ void LameEncoder::Encode(float *in, int in_spls)
         //errorstat=3;
         return;
       }
-      if (dwo<1) return;
 
       outqueue.Add(outtmp.Get(),dwo);
+
       spltmp[0].Advance(in_size_samples*sizeof(float));
       if (m_nch > 1) spltmp[1].Advance(in_size_samples*sizeof(float));
-
-      /*
-      dwo=0;
-      if (beEncodeChunkFloatS16NI(hbeStream, 0, (float*)spltmp[0].Get(), (float*)spltmp[m_nch > 1].Get(), 
+    }
+    // encode a spare blank frame to divide
+#ifdef LATENCY_GAP_HACK
+    {
+      WDL_HeapBuf w;
+      w.Resize(in_size_samples*sizeof(float));
+      memset(w.Get(),0,in_size_samples*sizeof(float));
+      int x;
+      for(x=0;x<2;x++) // 2 spare frames!!
+      {
+      DWORD dwo=0;
+      if (beEncodeChunkFloatS16NI(hbeStream, in_size_samples, (float*)w.Get(), (float*)w.Get(), 
                           (unsigned char*)outtmp.Get(), &dwo) == BE_ERR_SUCCESSFUL && dwo > 0)
       {
         outqueue.Add(outtmp.Get(),dwo);
       }
-      */
-
+      }
     }
+#endif
   }
 
 
@@ -460,6 +488,7 @@ LameEncoder::~LameEncoder()
 
 LameDecoder::LameDecoder()
 {
+  m_samples_remove=1152*2;
   m_samplesdec=0;
   decinst=0;
   errorstat=0;
@@ -494,20 +523,38 @@ void LameDecoder::DecodeWrote(int srclen)
     {
       if (!m_srate || !m_nch) get_decode_info(decinst,&m_nch,&m_srate);
       bout /= sizeof(double);
-      int x;
-      int newsize=(m_samples_used+bout+4096)*sizeof(float);
-      if (m_samples.GetSize() < newsize) m_samples.Resize(newsize);
 
-      float *fbuf=(float *)m_samples.Get();
-      fbuf += m_samples_used;
+      int bout_pairs=bout/m_nch;
+      double *bufptr=buf;
 
-      m_samplesdec += bout/m_nch;
-
-      for (x = 0; x < bout; x ++)
+#ifdef LATENCY_GAP_HACK
+      if (m_samples_remove>0)
       {
-        fbuf[x]=(float)(buf[x] * (1.0/32767.0));        
+        int rem=min(m_samples_remove,bout_pairs);
+        bout -= rem*m_nch;
+        bufptr+=rem*m_nch;
+        bout_pairs -= rem;
+        m_samples_remove -= rem;
       }
-      m_samples_used+=bout;
+#endif
+
+      if (bout > 0)
+      {
+        int x;
+        int newsize=(m_samples_used+bout+4096)*sizeof(float);
+        if (m_samples.GetSize() < newsize) m_samples.Resize(newsize);
+
+        float *fbuf=(float *)m_samples.Get();
+        fbuf += m_samples_used;
+
+        m_samplesdec += bout_pairs;
+        m_samples_used+=bout;
+
+        for (x = 0; x < bout; x ++)
+        {
+          fbuf[x]=(float)(bufptr[x] * (1.0/32767.0));        
+        }
+      }
     }
 
     srclen=0;
@@ -516,6 +563,7 @@ void LameDecoder::DecodeWrote(int srclen)
 
 void LameDecoder::Reset()
 {
+  m_samples_remove=1152*2;
   m_samples_used=0; 
   m_samplesdec=0;
 

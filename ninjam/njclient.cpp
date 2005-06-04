@@ -530,7 +530,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       {
         int needed;
         while (chan->decode_codec->m_samples_used < 
-              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len)*chan->decode_codec->GetNumChannels()))
+              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
         {
           int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
           chan->decode_codec->DecodeWrote(l);
@@ -550,7 +550,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
                     chan->decode_codec->GetNumChannels(),
                     buf,
                     srate,nch,len,
-                    chan->volume,chan->pan);
+                    chan->volume,chan->pan,&chan->resample_state);
 
           // advance the queue
           chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
@@ -575,7 +575,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
           chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
           chan->decode_codec->m_samples_used=0;
-          //chan->dump_samples+=needed;
+          chan->dump_samples+=needed;
 
         }
 
@@ -656,11 +656,25 @@ void NJClient::on_new_interval(int nch, int srate)
       RemoteUser_Channel *chan=&user->channels[ch];
       if (chan->active)
       {
-        if (chan->decode_fp) fclose(chan->decode_fp);
+        if (chan->decode_fp) 
+        {
+          /*
+          if (chan->decode_codec)
+          {
+            int ab;
+            ab=fread(chan->decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->decode_fp);
+            if (ab)
+            {
+              chan->decode_codec->DecodeWrote(ab);
+            }
+          }
+          */
+          fclose(chan->decode_fp);
+        }
         chan->decode_fp=0;
-        if (chan->decode_codec) 
-          printf("last samplesdec=%d\n",chan->decode_codec->m_samplesdec);
-        printf("last samplesout=%d\n",chan->decode_samplesout);
+        //if (chan->decode_codec) 
+//          printf("last samplesdec=%d\n",chan->decode_codec->m_samplesdec);
+  //      printf("last samplesout=%d\n",chan->decode_samplesout);
         chan->decode_samplesout=0;
 
         chan->dump_samples=0;
@@ -680,6 +694,7 @@ void NJClient::on_new_interval(int nch, int srate)
             if (!chan->decode_codec)
               chan->decode_codec= new DECODER;
             else chan->decode_codec->Reset();
+            chan->resample_state=0.0;
           }
         }
         if (!chan->decode_fp)
@@ -709,11 +724,11 @@ void NJClient::on_new_interval(int nch, int srate)
 
 
 
-RemoteUser_Channel::RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0)
+RemoteUser_Channel::RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0),
+                                           decode_samplesout(0), resample_state(0.0)
 {
   memset(cur_guid,0,sizeof(cur_guid));
   memset(decode_last_guid,0,sizeof(decode_last_guid));
-  decode_samplesout=0;
 }
 
 RemoteUser_Channel::~RemoteUser_Channel()

@@ -62,6 +62,7 @@ class LameDecoder
     WDL_HeapBuf srctmp;
     int errorstat;
     int m_srate,m_nch;
+    int m_samples_remove;
 
     void *decinst;
 };

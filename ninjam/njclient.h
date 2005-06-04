@@ -51,8 +51,10 @@ class RemoteUser_Channel
     // decode/mixer state, used by mixer
     FILE *decode_fp;
     DECODER *decode_codec;
+    int decode_samplesout;
     int dump_samples;
     unsigned char decode_last_guid[16];
+    double resample_state;
 
 };
 
