@@ -1,7 +1,8 @@
 #include <math.h>
 #include "njclient.h"
 #include "../mpb.h"
-#include "../pcmfmtcvt.h"
+#include "../WDL/pcmfmtcvt.h"
+#include "../WDL/wavwrite.h"
 
 
 #define MIN_ENC_BLOCKSIZE 2048
@@ -55,6 +56,7 @@ NJClient::NJClient()
   config_debug_level=0;
 
 
+  waveWrite=0;
 
   m_bpm=120;
   m_bpi=32;
@@ -480,6 +482,12 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     for (x = 0; x < l; x ++)
       buf[x] *= config_monitor;
   }
+
+  if (waveWrite)
+  {
+    waveWrite->WriteFloats(buf,len*nch);
+  }
+
 
   // mix in (super shitty) metronome (fucko!!!!)
   {

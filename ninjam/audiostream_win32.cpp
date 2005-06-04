@@ -5,7 +5,7 @@
 #include "audiostream.h"
 
 
-#include "pcmfmtcvt.h"
+#include "../../WDL/pcmfmtcvt.h"
 
 #include <stdio.h>
 

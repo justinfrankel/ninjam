@@ -10,6 +10,8 @@
 #include "../WDL/sha.h"
 #include "../WDL/rng.h"
 
+#include "../WDL/wavwrite.h"
+
 #include "../netmsg.h"
 #include "vorbisencdec.h"
 #include "lameencdec.h"
@@ -124,6 +126,8 @@ public:
   int GetBPM() { return m_active_bpm; }
   int GetBPI() { return m_active_bpi; }
 
+
+  WaveWriter *waveWrite;
 
 private:
   void updateBPMinfo(int bpm, int bpi);
