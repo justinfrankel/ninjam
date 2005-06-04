@@ -48,7 +48,8 @@ void usage()
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
-    "  -writewav <filename>\n"
+    "  -writewav <filename.wav>\n"
+    "  -writelog <filename.log>\n"
     "  -audiostr 0:0,0:0,0\n");
 
   exit(1);
@@ -60,8 +61,9 @@ int main(int argc, char **argv)
 
   char *parmuser=NULL;
   char *wavfile=NULL;
+  char *logfile=NULL;
 
-  printf("Ninjam v0.0 command line client starting up...\n");
+  printf("Ninjam v0.001 command line client starting up...\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
 
@@ -112,6 +114,11 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         wavfile=argv[p];
       }
+      else if (!stricmp(argv[p],"-writelog"))
+      {
+        if (++p >= argc) usage();
+        logfile=argv[p];
+      }
       else usage();
     }
   }
@@ -152,6 +159,10 @@ int main(int argc, char **argv)
   {
     g_client->waveWrite = new WaveWriter(wavfile,16,g_audio->m_nch,g_audio->m_srate);
   }
+  if (logfile)
+  {
+    g_client->SetLogFile(logfile);
+  }
 
   while (g_client->GetStatus() >= 0 && !g_done)
   {
@@ -162,9 +173,14 @@ int main(int argc, char **argv)
 
   printf("Shutting down\n");
 
-  delete g_client->waveWrite;
-  delete g_client;
   delete g_audio;
+
+
+  delete g_client->waveWrite;
+  g_client->waveWrite=0;
+
+
+  delete g_client;
 
   JNL::close_socketlib();
   return 0;

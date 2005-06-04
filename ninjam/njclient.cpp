@@ -57,6 +57,7 @@ NJClient::NJClient()
 
 
   waveWrite=0;
+  m_logFile=0;
 
   m_bpm=120;
   m_bpi=32;
@@ -82,6 +83,18 @@ NJClient::NJClient()
 }
 
 
+void NJClient::SetLogFile(char *name)
+{
+  EnterCriticalSection(&m_net_cs);
+  if (m_logFile) fclose(m_logFile);
+  m_logFile=0;
+  if (name && *name)
+  {
+    m_logFile=fopen(name,"a+t");
+  }
+  LeaveCriticalSection(&m_net_cs);
+}
+
 
 NJClient::~NJClient()
 {
@@ -96,6 +109,10 @@ NJClient::~NJClient()
   delete m_curwritefile;
   m_curwritefile=0;
 
+  delete waveWrite;
+
+  if (m_logFile)
+    fclose(m_logFile);
 
   int x;
   for (x = 0; x < m_remoteusers.GetSize(); x ++) delete m_remoteusers.Get(x);
@@ -596,6 +613,15 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 void NJClient::on_new_interval(int nch, int srate)
 {
   printf("entered new interval (%d samples)\n",m_interval_length);
+
+  if (m_logFile)
+  {
+      EnterCriticalSection(&m_net_cs);
+      if (m_logFile)
+        fprintf(m_logFile,"new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
+      LeaveCriticalSection(&m_net_cs);
+  }
+
   if (m_vorbisenc && config_send)
   {
     // finish any encoding
@@ -649,7 +675,19 @@ void NJClient::on_new_interval(int nch, int srate)
   }
 
 
-  WDL_RNG_bytes(&m_curwritefile->guid,sizeof(m_curwritefile->guid));
+  WDL_RNG_bytes(m_curwritefile->guid,sizeof(m_curwritefile->guid));
+
+  if (config_send && m_logFile)
+  {
+      EnterCriticalSection(&m_net_cs);
+      if (m_logFile)
+      {
+        char guidstr[64];
+        guidtostr(m_curwritefile->guid,guidstr);
+        fprintf(m_logFile,":%s\n",guidstr);
+      }
+      LeaveCriticalSection(&m_net_cs);
+  }
 
   if (config_savelocalaudio) m_curwritefile->Open(); //only save other peoples for now
 
@@ -686,6 +724,19 @@ void NJClient::on_new_interval(int nch, int srate)
         chan->decode_samplesout=0;
 
         chan->dump_samples=0;
+
+        if (m_logFile)
+        {
+            EnterCriticalSection(&m_net_cs);
+            if (m_logFile)
+            {
+              char guidstr[64];
+              guidtostr(chan->cur_guid,guidstr);
+              fprintf(m_logFile,"%s:%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
+            }
+            LeaveCriticalSection(&m_net_cs);
+        }
+
 
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
         {

@@ -126,15 +126,18 @@ public:
   int GetBPM() { return m_active_bpm; }
   int GetBPI() { return m_active_bpi; }
 
+  void SetLogFile(char *name=NULL);
 
   WaveWriter *waveWrite;
 
 private:
+
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float *buf, int len, int nch, int srate);
   void on_new_interval(int nch, int srate);
 
   int m_status;
+  FILE *m_logFile;
 
   WDL_String m_user, m_pass;
 
