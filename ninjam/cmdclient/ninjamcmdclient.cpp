@@ -188,6 +188,7 @@ int main(int argc, char **argv)
     dll.Append("\\jesus.dll");
 
     hDllInst = LoadLibrary(dll.Get());
+    if (!hDllInst) hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
     if (hDllInst) 
     {
       *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
