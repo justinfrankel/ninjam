@@ -56,12 +56,15 @@ int Net_Message::makeMessageHeader(void *data) // makes message header, data sho
 
 
 
-
-
 Net_Message *Net_Connection::Run(int *wantsleep)
 {
   if (wantsleep) *wantsleep=1;
   if (!m_con || m_error) return 0;
+
+#ifdef _WIN32
+  EnterCriticalSection(&m_cs);
+#endif
+
 
   m_con->run();
 
@@ -152,6 +155,9 @@ Net_Message *Net_Connection::Run(int *wantsleep)
 
   m_con->run();
 
+#ifdef _WIN32
+  LeaveCriticalSection(&m_cs);
+#endif
   return retv;
 }
 
@@ -159,8 +165,14 @@ void Net_Connection::Send(Net_Message *msg)
 {
   if (msg)
   {
+#ifdef _WIN32
+    EnterCriticalSection(&m_cs);
+#endif
     msg->addRef();
     m_sendq.Add(&msg,sizeof(Net_Message *));
+#ifdef _WIN32
+    LeaveCriticalSection(&m_cs);
+#endif
   }
 }
 
@@ -187,4 +199,20 @@ Net_Connection::~Net_Connection()
 
   delete m_con; 
   delete m_recvmsg;
+#ifdef _WIN32
+  DeleteCriticalSection(&m_cs);
+#endif
+
+}
+
+
+void Net_Connection::Kill() 
+{ 
+#ifdef _WIN32
+  EnterCriticalSection(&m_cs);
+#endif
+  m_con->close(1); 
+#ifdef _WIN32
+  LeaveCriticalSection(&m_cs);
+#endif
 }

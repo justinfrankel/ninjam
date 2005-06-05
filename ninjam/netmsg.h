@@ -52,7 +52,12 @@ class Net_Message
 class Net_Connection
 {
   public:
-    Net_Connection() : m_con(0), m_msgsendpos(-1), m_recvstate(0),m_error(0),m_recvmsg(0) { }
+    Net_Connection() : m_con(0), m_msgsendpos(-1), m_recvstate(0),m_error(0),m_recvmsg(0) 
+    { 
+#ifdef _WIN32
+      InitializeCriticalSection(&m_cs);
+#endif
+    }
     ~Net_Connection();
 
     void attach(JNL_Connection *con) { m_con=con; }
@@ -61,7 +66,7 @@ class Net_Connection
     void Send(Net_Message *msg);
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
 
-    void Kill() { m_con->close(1); }
+    void Kill();
 
   private:
     int m_error;
@@ -73,6 +78,10 @@ class Net_Connection
 
     JNL_Connection *m_con;
     WDL_Queue m_sendq;
+
+#ifdef _WIN32
+    CRITICAL_SECTION m_cs;
+#endif
 
 };
 
