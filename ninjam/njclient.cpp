@@ -555,70 +555,11 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
   {
     RemoteUser *user=m_remoteusers.Get(u);
     int ch;
-    if (!user || user->muted) continue;
-    float uservol=user->volume;
-    float userpan=user->pan;
+    if (!user) continue;
 
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
-      RemoteUser_Channel *chan=&user->channels[ch];
-      if (chan->decode_codec && chan->decode_fp)
-      {
-        int needed;
-        while (chan->decode_codec->m_samples_used <= 
-              (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
-        {
-          int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
-          chan->decode_codec->DecodeWrote(l);
-          if (!l) 
-          {
-            clearerr(chan->decode_fp);
-            break;
-          }
-        }
-
-        if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
-        {
-          float *sptr=(float *)chan->decode_codec->m_samples.Get();
-          float lpan=chan->pan+userpan;
-          if (lpan<-1.0)lpan=-1.0;
-          else if (lpan>1.0)lpan=1.0;
-
-          if (!(user->mutedmask & (1<<ch))) mixFloats(sptr+chan->dump_samples,
-                    chan->decode_codec->GetSampleRate(),
-                    chan->decode_codec->GetNumChannels(),
-                    buf,
-                    srate,nch,len,
-                    chan->volume*uservol,lpan,&chan->resample_state);
-
-          // advance the queue
-          chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
-          chan->decode_codec->m_samples_used -= needed+chan->dump_samples;
-          memcpy(sptr,sptr+needed+chan->dump_samples,chan->decode_codec->m_samples_used*sizeof(float));
-          chan->dump_samples=0;
-        }
-        else
-        {
-
-          if (config_debug_level>0)
-          {
-          static int cnt=0;
-
-          char s[512];
-          guidtostr(chan->decode_last_guid,s);
-
-          char buf[512];
-          sprintf(buf,"underrun %d on user %s at %d on %s, %d/%d samples\n",cnt++,user->name.Get(),ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
-          OutputDebugString(buf);
-          }
-
-          chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
-          chan->decode_codec->m_samples_used=0;
-          chan->dump_samples+=needed;
-
-        }
-
-      }
+      mixInChannel(user->muted || (user->mutedmask & (1<<ch)),user->volume,user->pan,&user->channels[ch],buf,len,srate,nch);
     }
   }
   LeaveCriticalSection(&m_users_cs);
@@ -669,6 +610,67 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
 }
 
+void NJClient::mixInChannel(bool muted, float vol, float pan, RemoteUser_Channel *chan, float *buf, int len, int srate, int nch)
+{
+  if (chan->decode_codec && chan->decode_fp)
+  {
+    int needed;
+    while (chan->decode_codec->m_samples_used <= 
+          (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
+    {
+      int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
+      chan->decode_codec->DecodeWrote(l);
+      if (!l) 
+      {
+        clearerr(chan->decode_fp);
+        break;
+      }
+    }
+
+    if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
+    {
+      float *sptr=(float *)chan->decode_codec->m_samples.Get();
+      float lpan=chan->pan+pan;
+      if (lpan<-1.0)lpan=-1.0;
+      else if (lpan>1.0)lpan=1.0;
+
+      if (!muted) mixFloats(sptr+chan->dump_samples,
+                chan->decode_codec->GetSampleRate(),
+                chan->decode_codec->GetNumChannels(),
+                buf,
+                srate,nch,len,
+                chan->volume*vol,lpan,&chan->resample_state);
+
+      // advance the queue
+      chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
+      chan->decode_codec->m_samples_used -= needed+chan->dump_samples;
+      memcpy(sptr,sptr+needed+chan->dump_samples,chan->decode_codec->m_samples_used*sizeof(float));
+      chan->dump_samples=0;
+    }
+    else
+    {
+
+      if (config_debug_level>0)
+      {
+      static int cnt=0;
+
+      char s[512];
+      guidtostr(chan->decode_last_guid,s);
+
+      char buf[512];
+      sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
+      OutputDebugString(buf);
+      }
+
+      chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
+      chan->decode_codec->m_samples_used=0;
+      chan->dump_samples+=needed;
+
+    }
+
+  }
+
+}
 
 void NJClient::on_new_interval(int nch, int srate)
 {

@@ -37,6 +37,8 @@
 class RemoteDownload;
 class RemoteUser;
 class RemoteUser_Channel;
+class Local_Channel;
+
 
 class NJClient
 {
@@ -113,10 +115,14 @@ private:
   int m_interval_pos, m_metronome_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
 
 
+  WDL_PtrList<Local_Channel> m_locchannels;
 // per-channel encoding stuff
+  // these are moving to local_channel
   NJ_ENCODER *m_enc;
   RemoteDownload *m_curwritefile;
   Net_Message *m_enc_header_needsend;
+
+  void mixInChannel(bool muted, float vol, float pan, RemoteUser_Channel *chan, float *buf, int len, int srate, int nch);
 
   CRITICAL_SECTION m_users_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
@@ -184,6 +190,32 @@ private:
   FILE *fp;
 };
 
+
+#define MAX_LOCAL_CHANNELS 2
+
+class Local_Channel
+{
+public:
+  Local_Channel();
+  ~Local_Channel();
+
+  int channel_idx;
+
+
+  int src_channel;
+
+  float volume;
+  float pan;
+  bool muted;
+
+  int broadcasting;
+
+  WDL_String name;
+  NJ_ENCODER *m_enc;
+  RemoteDownload *m_curwritefile;
+  Net_Message *m_enc_header_needsend;
+  
+};
 
 
 
