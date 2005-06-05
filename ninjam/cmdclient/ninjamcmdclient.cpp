@@ -253,7 +253,7 @@ int main(int argc, char **argv)
         DispatchMessage(&msg);
       }
       Sleep(1);
-      if (0&&g_client->HasUserInfoChanged())
+      if (g_client->HasUserInfoChanged())
       {
         printf("\nUser, channel list:\n");
         int us=0;
