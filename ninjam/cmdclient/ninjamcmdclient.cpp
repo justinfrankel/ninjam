@@ -262,8 +262,8 @@ int main(int argc, char **argv)
           g_client->GetPosition(NULL,&l);
           lastloopcnt = lc;
 
-          printf("\rEntering new interval (%d samples, %.2f bpm)%20s\n",l,g_client->GetActualBPM(),"");
-          printf("[%57s]\r","");
+          printf("\rEntering interval %d (%d samples, %.2f bpm)%20s\n",lc, l,g_client->GetActualBPM(),"");
+          printf("[%28s|%29s]\r[","","");
           statuspos=0;
         }
         else
