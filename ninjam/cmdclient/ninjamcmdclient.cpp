@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   char *wavfile=NULL;
   char *logfile=NULL;
 
-  printf("Ninjam v0.001 command line client starting up...\n");
+  printf("Ninjam v0.002 command line client starting up...\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
 
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
     audioStreamer_ASIO *audio;
     char *dev_name_in;
     
-    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr();
+    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",1);
     audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;
