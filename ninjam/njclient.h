@@ -56,7 +56,6 @@ public:
 
 
   // basic configuration
-  int   config_send;            
   int   config_recv;
   int   config_savelocalaudio;
   float config_monitor;
@@ -116,11 +115,10 @@ private:
 
 
   WDL_PtrList<Local_Channel> m_locchannels;
-// per-channel encoding stuff
   // these are moving to local_channel
-  NJ_ENCODER *m_enc;
-  RemoteDownload *m_curwritefile;
-  Net_Message *m_enc_header_needsend;
+//  NJ_ENCODER *m_enc;
+ // RemoteDownload *m_curwritefile;
+  //Net_Message *m_enc_header_needsend;
 
   void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch);
 
@@ -221,20 +219,31 @@ public:
 
   int channel_idx;
 
-
-  int src_channel;
+  int src_channel; // 0 or 1
+  int src_nch;     // 1 or 2
+  int bitrate;
 
   float volume;
   float pan;
   bool muted;
 
-  int broadcasting;
+  //?
+  // mode flag. 0=silence, 1=broadcasting, 2=loop last
+  bool broadcasting; //takes effect next loop
 
-  WDL_String name;
+
+
+  // internal state
+  bool bcast_active;
   NJ_ENCODER *m_enc;
-  RemoteDownload *m_curwritefile;
+  int m_enc_nch,m_enc_bitrate_used;
+
   Net_Message *m_enc_header_needsend;
   
+  WDL_String name;
+  RemoteDownload m_curwritefile;
+
+  //DecodeState too, eventually
 };
 
 

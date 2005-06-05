@@ -51,7 +51,6 @@ NJClient::NJClient()
 
   m_status=-1;
 
-  config_send=1;
   config_recv=1;
   config_savelocalaudio=0;
   config_monitor=1.0f;
@@ -76,9 +75,6 @@ NJClient::NJClient()
   m_metronome_state=0;
   m_metronome_tmp=0;
   m_metronome_interval=0;
-  m_enc=0;
-  m_curwritefile=new RemoteDownload;
-  m_enc_header_needsend=0;
   InitializeCriticalSection(&m_users_cs);
   InitializeCriticalSection(&m_log_cs);
   InitializeCriticalSection(&m_misc_cs);
@@ -130,14 +126,6 @@ NJClient::~NJClient()
   delete m_netcon;
   m_netcon=0;
 
-  delete m_enc;
-  m_enc=0;
-
-  delete m_enc_header_needsend;
-  m_enc_header_needsend=0;
-  delete m_curwritefile;
-  m_curwritefile=0;
-
   delete waveWrite;
 
   if (m_logFile)
@@ -148,6 +136,9 @@ NJClient::~NJClient()
   m_remoteusers.Empty();
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
   m_downloads.Empty();
+  for (x = 0; x < m_locchannels.GetSize(); x ++) delete m_locchannels.Get(x);
+  m_locchannels.Empty();
+  
   DeleteCriticalSection(&m_users_cs);
   DeleteCriticalSection(&m_log_cs);
   DeleteCriticalSection(&m_misc_cs);
@@ -313,15 +304,14 @@ int NJClient::Run() // nonzero if sleep ok
           {
             if (ar.flag) // send our channel information
             {
-              // todo: have source channel config
-              if (config_send)
+              mpb_client_set_channel_info sci;
+              int x;
+              for (x = 0; x < m_locchannels.GetSize(); x ++)
               {
-                mpb_client_set_channel_info sci;
-
-                sci.build_add_rec("default channel",0,0,0);
-
-                m_netcon->Send(sci.build());
+                Local_Channel *ch=m_locchannels.Get(x);
+                sci.build_add_rec(ch->name.Get(),0,0,0);
               }
+              m_netcon->Send(sci.build());
               m_status=2;
             }
             else 
@@ -505,52 +495,55 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
 
 void NJClient::process_samples(float *buf, int len, int nch, int srate)
 {
-
   // encode my audio and send to server, if enabled
-  if (config_send && m_enc)
+  int u;
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
-    m_enc->Encode(buf,len,nch); // 1 if nch ==2 and we want a stereo mp3
-
-    int s;
-    while ((s=m_enc->outqueue.Available())>(m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+    Local_Channel *lc=m_locchannels.Get(u);
+    if (lc->m_enc && lc->bcast_active)
     {
-      if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
+      lc->m_enc->Encode(buf,len,nch); // 1 if nch ==2 and we want a stereo mp3
 
+      int s;
+      while ((s=lc->m_enc->outqueue.Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
       {
-        mpb_client_upload_interval_write wh;
-        memcpy(wh.guid,m_curwritefile->guid,sizeof(m_curwritefile->guid));
-        wh.flags=0;
-        wh.audio_data=m_enc->outqueue.Get();
-        wh.audio_data_len=s;
-        m_curwritefile->Write(wh.audio_data,wh.audio_data_len);
+        if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
-        if (m_enc_header_needsend)
         {
-          if (config_debug_level>1)
+          mpb_client_upload_interval_write wh;
+          memcpy(wh.guid,lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
+          wh.flags=0;
+          wh.audio_data=lc->m_enc->outqueue.Get();
+          wh.audio_data_len=s;
+          lc->m_curwritefile.Write(wh.audio_data,wh.audio_data_len);
+
+          if (lc->m_enc_header_needsend)
           {
-            mpb_client_upload_interval_begin dib;
-            dib.parse(m_enc_header_needsend);
-            printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
+            if (config_debug_level>1)
+            {
+              mpb_client_upload_interval_begin dib;
+              dib.parse(lc->m_enc_header_needsend);
+              printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
+            }
+            m_netcon->Send(lc->m_enc_header_needsend);
+            lc->m_enc_header_needsend=0;
           }
-          m_netcon->Send(m_enc_header_needsend);
-          m_enc_header_needsend=0;
+
+          if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
+
+          m_netcon->Send(wh.build());
         }
 
-        if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
-
-        m_netcon->Send(wh.build());
+        lc->m_enc->outqueue.Advance(s);
       }
-
-      m_enc->outqueue.Advance(s);
+      lc->m_enc->outqueue.Compact();
     }
-    m_enc->outqueue.Compact();
   }
 
   input_monitor_samples(buf,len,nch,srate);
 
   // mix in all active (subscribed) channels
   EnterCriticalSection(&m_users_cs);
-  int u;
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -681,70 +674,91 @@ void NJClient::on_new_interval(int nch, int srate)
 
   writeLog("new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
 
-  if (m_enc && config_send)
-  {
-    // finish any encoding
-    m_enc->Encode(NULL,0);
-
-    // send any final message, with the last one with a flag 
-    // saying "we're done"
-    do
-    {
-      mpb_client_upload_interval_write wh;
-      int l=m_enc->outqueue.Available();
-      if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
-
-      memcpy(wh.guid,m_curwritefile->guid,sizeof(wh.guid));
-      wh.audio_data=m_enc->outqueue.Get();
-      wh.audio_data_len=l;
-
-      m_curwritefile->Write(wh.audio_data,wh.audio_data_len);
-
-      m_enc->outqueue.Advance(l);
-      wh.flags=m_enc->outqueue.GetSize()>0 ? 0 : 1;
-
-      if (m_enc_header_needsend)
-      {
-        if (config_debug_level>1)
-        {
-          mpb_client_upload_interval_begin dib;
-          dib.parse(m_enc_header_needsend);
-          printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
-        }
-        m_netcon->Send(m_enc_header_needsend);
-        m_enc_header_needsend=0;
-      }
-
-
-      if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
-      m_netcon->Send(wh.build());
-    }
-    while (m_enc->outqueue.Available()>0);
-    m_enc->outqueue.Compact(); // free any memory left
-
-    //delete m_enc;
-  //  m_enc=0;
-    m_enc->reinit();
-  }
-  else if (config_send)
-  {
-    m_enc = new NJ_ENCODER(srate,1/*nch*/,NJ_ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
-  }
-
-
-  WDL_RNG_bytes(m_curwritefile->guid,sizeof(m_curwritefile->guid));
-
-  if (config_send)
-  {
-    char guidstr[64];
-    guidtostr(m_curwritefile->guid,guidstr);
-    writeLog(":%s\n",guidstr);
-  }
-
-  if (config_savelocalaudio) m_curwritefile->Open(this); //only save other peoples for now
-
-
   int u;
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
+  {
+    Local_Channel *lc=m_locchannels.Get(u);
+
+    if (lc->m_enc && lc->bcast_active)
+    {
+      // finish any encoding
+      lc->m_enc->Encode(NULL,0);
+
+      // send any final message, with the last one with a flag 
+      // saying "we're done"
+      do
+      {
+        mpb_client_upload_interval_write wh;
+        int l=lc->m_enc->outqueue.Available();
+        if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
+
+        memcpy(wh.guid,lc->m_curwritefile.guid,sizeof(wh.guid));
+        wh.audio_data=lc->m_enc->outqueue.Get();
+        wh.audio_data_len=l;
+
+        lc->m_curwritefile.Write(wh.audio_data,wh.audio_data_len);
+
+        lc->m_enc->outqueue.Advance(l);
+        wh.flags=lc->m_enc->outqueue.GetSize()>0 ? 0 : 1;
+
+        if (lc->m_enc_header_needsend)
+        {
+          if (config_debug_level>1)
+          {
+            mpb_client_upload_interval_begin dib;
+            dib.parse(lc->m_enc_header_needsend);
+            printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
+          }
+          m_netcon->Send(lc->m_enc_header_needsend);
+          lc->m_enc_header_needsend=0;
+        }
+
+        if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
+        m_netcon->Send(wh.build());
+      }
+      while (lc->m_enc->outqueue.Available()>0);
+      lc->m_enc->outqueue.Compact(); // free any memory left
+
+      //delete m_enc;
+    //  m_enc=0;
+      lc->m_enc->reinit();
+    }
+
+    if (lc->m_enc && lc->m_enc_nch != lc->src_nch || lc->bitrate != lc->m_enc_bitrate_used)
+    {
+      delete lc->m_enc;
+      lc->m_enc=0;
+    }
+
+    if (!!lc->broadcasting != !!lc->bcast_active || !lc->m_enc)
+    {
+      if (lc->broadcasting && !lc->m_enc) 
+      {
+        lc->m_enc = new NJ_ENCODER(srate,lc->m_enc_nch=lc->src_nch,lc->m_enc_bitrate_used = lc->bitrate); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+      }
+      lc->bcast_active = lc->broadcasting;
+    }
+
+    if (lc->bcast_active)
+    {
+      WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
+      char guidstr[64];
+      guidtostr(lc->m_curwritefile.guid,guidstr);
+      writeLog(":%s\n",guidstr);
+      if (config_savelocalaudio) lc->m_curwritefile.Open(this); //only save other peoples for now
+
+      mpb_client_upload_interval_begin cuib;
+      cuib.chidx=lc->channel_idx;
+      memcpy(cuib.guid,lc->m_curwritefile.guid,sizeof(cuib.guid));
+      cuib.fourcc=NJ_ENCODER_FMT_TYPE;
+      cuib.estsize=0;
+      delete lc->m_enc_header_needsend;
+      lc->m_enc_header_needsend=cuib.build();
+
+    }
+
+  }
+
   EnterCriticalSection(&m_users_cs);
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
@@ -811,17 +825,6 @@ void NJClient::on_new_interval(int nch, int srate)
     }
   }
   LeaveCriticalSection(&m_users_cs);
-
-
-  {
-    mpb_client_upload_interval_begin cuib;
-    cuib.chidx=0;
-    memcpy(cuib.guid,m_curwritefile->guid,sizeof(cuib.guid));
-    cuib.fourcc=NJ_ENCODER_FMT_TYPE;
-    cuib.estsize=0;
-    delete m_enc_header_needsend;
-    m_enc_header_needsend=cuib.build();
-  }
   
   //if (m_enc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
@@ -961,4 +964,19 @@ void RemoteDownload::Write(void *buf, int len)
     fwrite(buf,1,len,fp);
     fflush(fp);
   }
+}
+
+
+Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), src_nch(1), volume(1.0f), pan(0.0f), 
+                muted(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
+                bcast_active(false), m_enc_nch(0), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE)
+{
+}
+
+Local_Channel::~Local_Channel()
+{
+  delete m_enc;
+  m_enc=0;
+  delete m_enc_header_needsend;
+  m_enc_header_needsend=0;
 }
