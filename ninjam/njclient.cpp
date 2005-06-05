@@ -53,7 +53,6 @@ NJClient::NJClient()
 
   config_autosubscribe=1;
   config_savelocalaudio=0;
-  config_monitor=1.0f;
   config_metronome=0.5f;
   config_debug_level=0;
 
@@ -499,16 +498,46 @@ int NJClient::Run() // nonzero if sleep ok
 
 void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
 {
-  if (config_monitor < 0.00001f) // input monitoring
+  WDL_HeapBuf srcbuf;
+  int sbytes=len*sizeof(float)*nch;
+  srcbuf.Resize(sbytes);
+  memcpy(srcbuf.Get(),buf,sbytes);
+  memset(buf,0,sbytes);
+  int ch;
+  for (ch = 0; ch < m_locchannels.GetSize(); ch ++)
   {
-    memset(buf,0,len*sizeof(float)*nch);// silence
-  }
-  else
-  {
-    int x;
-    int l=len*nch;
-    for (x = 0; x < l; x ++)
-      buf[x] *= config_monitor;
+    Local_Channel *lc=m_locchannels.Get(ch);
+    if (!lc->muted)
+    {
+      float *src=(float *)srcbuf.Get();
+      float vol1=lc->volume;
+      float vol2=vol1;
+      if (nch == 2)
+      {
+        if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
+        else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
+      }
+
+      
+      if (nch == 2)
+      {
+        float *obuf=buf;
+        int x=len;
+        while (x--) 
+        {
+          obuf[0] += src[0] * vol1;
+          obuf[1] += src[1] * vol2;
+          obuf+=2;
+          src+=2;
+        }
+      }
+      else
+      {
+        float *obuf=buf;
+        int x=len;
+        while (x--) *obuf++ += *src++ * vol1;
+      }
+    }
   }
 }
 
