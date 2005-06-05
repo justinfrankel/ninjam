@@ -55,7 +55,7 @@ public:
   void AudioProc(float *buf, int len, int nch, int srate); // len is number of sample pairs or samples
 
 
-  // basic configuration
+  // basic configuration (these will actually go away soon)
   int   config_autosubscribe;
   int   config_savelocalaudio;
   float config_metronome;
