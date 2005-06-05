@@ -26,11 +26,14 @@ void audiostream_onover() { }
 
 void audiostream_onsamples(float *buf, int len, int nch) 
 { 
-  if (JesusonicAPI && myInst)
+  if (g_client->IsAudioRunning())
   {
-    _controlfp(_RC_CHOP,_MCW_RC);
-    JesusonicAPI->jesus_process_samples(myInst,(char*)buf,len*nch*sizeof(float));
-    JesusonicAPI->osc_run(myInst,(char*)buf,len*nch*sizeof(float));
+    if (JesusonicAPI && myInst)
+    {
+      _controlfp(_RC_CHOP,_MCW_RC);
+      JesusonicAPI->jesus_process_samples(myInst,(char*)buf,len*nch*sizeof(float));
+      JesusonicAPI->osc_run(myInst,(char*)buf,len*nch*sizeof(float));
+    }
   }
   g_client->AudioProc(buf,len,nch,g_audio->m_srate);
 }
@@ -79,7 +82,7 @@ int main(int argc, char **argv)
   char *wavfile=NULL;
   char *logfile=NULL;
   char *jesusdir=NULL;
-  int nosend=0;
+  int nosend=0,nostatus=0;
 
   float monitor=1.0;
   printf("Ninjam v0.002 command line client starting up...\n");
@@ -102,6 +105,10 @@ int main(int argc, char **argv)
       else if (!stricmp(argv[p],"-savelocal"))
       {
         g_client->config_savelocalaudio=1;
+      }
+      else if (!stricmp(argv[p],"-nostatus"))
+      {
+        nostatus=1;
       }
       else if (!stricmp(argv[p],"-monitor"))
       {
@@ -233,6 +240,8 @@ int main(int argc, char **argv)
     g_client->SetLogFile(logfile);
   }
 
+  int lastloopcnt=0;
+  int statuspos=0;
   while (g_client->GetStatus() >= 0 && !g_done)
   {
     if (g_client->Run()) 
@@ -244,6 +253,32 @@ int main(int argc, char **argv)
         DispatchMessage(&msg);
       }
       Sleep(1);
+      if (!nostatus)
+      {
+        int lc=g_client->GetLoopCount();
+        if (lastloopcnt != lc)
+        {
+          int l;
+          g_client->GetPosition(NULL,&l);
+          lastloopcnt = lc;
+
+          printf("\rEntering new interval (%d samples, %.2f bpm)%20s\n",l,g_client->GetActualBPM(),"");
+          printf("[%57s]\r","");
+          statuspos=0;
+        }
+        else
+        {
+          int l,p;
+          g_client->GetPosition(&p,&l);
+          p *= 60;
+          p/=l;
+          while (statuspos<p)
+          {
+            statuspos++;
+            printf("#");
+          }       
+        }
+      }
     }
 
   }

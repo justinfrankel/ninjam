@@ -51,6 +51,7 @@ public:
   // call Run() from your main (UI) thread
   int Run();// returns nonzero if sleep is OK
 
+  int IsAudioRunning() { return m_audio_enable; }
   // call AudioProc, (and only AudioProc) from your audio thread
   void AudioProc(float *buf, int len, int nch, int srate); // len is number of sample pairs or samples
 
@@ -71,9 +72,10 @@ public:
   char *GetUserName() { return m_user.Get(); }
   char *GetHostName() { return m_host.Get(); }
 
-  int GetBPM() { return m_active_bpm; }
+  float GetActualBPM() { return (float) (60.0*m_active_bpi*m_srate/(double)m_interval_length); }
   int GetBPI() { return m_active_bpi; }
   void GetPosition(int *pos, int *length);  // positions in samples
+  int GetLoopCount() { return m_loopcnt; }
 
   int GetNumUsers() { return m_remoteusers.GetSize(); }
   char *GetUserState(int idx, float *vol=0, float *pan=0, bool *mute=0);
@@ -112,10 +114,13 @@ private:
   int m_bpm,m_bpi;
   int m_beatinfo_updated;
   int m_audio_enable;
+  int m_srate;
 
+  int m_loopcnt;
   int m_active_bpm, m_active_bpi;
   int m_interval_length;
-  int m_interval_pos, m_metronome_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
+  int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
+  double m_metronome_pos;
 
 
   WDL_PtrList<Local_Channel> m_locchannels;

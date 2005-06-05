@@ -43,6 +43,8 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
+  m_loopcnt=0;
+  m_srate=48000;
 
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
@@ -70,7 +72,7 @@ NJClient::NJClient()
   m_active_bpi=32;
   m_interval_length=1000;
   m_interval_pos=-1;
-  m_metronome_pos=0;
+  m_metronome_pos=0.0;
   m_metronome_state=0;
   m_metronome_tmp=0;
   m_metronome_interval=0;
@@ -159,12 +161,13 @@ void NJClient::updateBPMinfo(int bpm, int bpi)
 void NJClient::GetPosition(int *pos, int *length)  // positions in samples
 { 
   if (length) *length=m_interval_length; 
-  if (pos && (*pos=m_interval_length)<0) *pos=0;
+  if (pos && (*pos=m_interval_pos)<0) *pos=0;
 }
 
 
 void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 {
+  m_srate=srate;
   if (!m_audio_enable) 
   {
     input_monitor_samples(buf,len,nch,srate);
@@ -205,7 +208,6 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
       // new buffer time
       on_new_interval(nch,srate);
 
-      m_metronome_pos=0;
       m_interval_pos=0;
       x=m_interval_length;
     }
@@ -332,7 +334,7 @@ int NJClient::Run() // nonzero if sleep ok
             updateBPMinfo(ccn.beats_minute,ccn.beats_interval);
             // todo: client callback for change
             // todo: reset audio state?
-            printf("Got info update from server, bpm=%d, bpi=%d\n",m_bpm,m_bpi);
+            //printf("Got info update from server, bpm=%d, bpi=%d\n",m_bpm,m_bpi);
             m_audio_enable=1;
           }
         }
@@ -381,7 +383,7 @@ int NJClient::Run() // nonzero if sleep ok
                   if (config_autosubscribe) // todo: autosubscribe option
                   {
                     theuser->submask |= 1<<cid;
-                    printf("autosubscribing to user %s channel %d...\n",un,cid);
+                    //printf("autosubscribing to user %s channel %d...\n",un,cid);
                     mpb_client_set_usermask su;
                     su.build_add_rec(un,theuser->submask);// subscribe to everything for now
                     m_netcon->Send(su.build());
@@ -485,7 +487,7 @@ int NJClient::Run() // nonzero if sleep ok
         }
       break;
       default:
-        printf("Got unknown message %02X\n",msg->get_type());
+        //printf("Got unknown message %02X\n",msg->get_type());
       break;
     }
 
@@ -626,25 +628,27 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
   // mix in (super shitty) metronome (fucko!!!!)
   {
     int metrolen=srate / 100;
-    double sc=12000.0/(double)srate;
+    double sc=6000.0/(double)srate;
     int x;
     int um=config_metronome>0.0001f;
     for (x = 0; x < len; x ++)
     {
-      if (m_metronome_pos <= 0)
+      if (m_metronome_pos <= 0.0)
       {
         m_metronome_state=1;
-        m_metronome_tmp=m_interval_pos+x<m_metronome_interval;
-        m_metronome_pos = m_metronome_interval;
+        m_metronome_tmp=(m_interval_pos+x)<m_metronome_interval;
+        m_metronome_pos += (double)m_metronome_interval;
       }
-      m_metronome_pos--;
+      m_metronome_pos-=1.0;
 
       if (m_metronome_state>0)
       {
         if (um)
         {
-          float val=(float) sin((double)m_metronome_state*sc)*config_metronome;
-          if (!m_metronome_tmp) val *= 0.25f;
+          float val=0.0f;
+          if (!m_metronome_tmp) val = (float) sin((double)m_metronome_state*sc*2.0)*config_metronome * 0.25f;
+          else val = (float) sin((double)m_metronome_state*sc)*config_metronome;
+
           if (nch == 1) buf[x]+=val;
           else
           {
@@ -721,9 +725,8 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 
 void NJClient::on_new_interval(int nch, int srate)
 {
-  printf("entered new interval (%d samples)\n",m_interval_length);
-
-  writeLog("new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
+  m_loopcnt++;
+  writeLog("new interval %s (%d,%d)\n",m_loopcnt,m_active_bpm,m_active_bpi);
 
   int u;
   EnterCriticalSection(&m_locchan_cs);
