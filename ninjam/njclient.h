@@ -38,7 +38,7 @@ class RemoteDownload;
 class RemoteUser;
 class RemoteUser_Channel;
 class Local_Channel;
-
+class DecodeState;
 
 class NJClient
 {
@@ -122,7 +122,7 @@ private:
   RemoteDownload *m_curwritefile;
   Net_Message *m_enc_header_needsend;
 
-  void mixInChannel(bool muted, float vol, float pan, RemoteUser_Channel *chan, float *buf, int len, int srate, int nch);
+  void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch);
 
   CRITICAL_SECTION m_users_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
@@ -130,6 +130,31 @@ private:
   WDL_PtrList<RemoteDownload> m_downloads;
 };
 
+
+class DecodeState
+{
+  public:
+    DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
+                                           decode_samplesout(0), resample_state(0.0)
+    { 
+      memset(decode_last_guid,0,sizeof(decode_last_guid));
+    }
+    ~DecodeState()
+    {
+      delete decode_codec;
+      decode_codec=0;
+      if (decode_fp) fclose(decode_fp);
+      decode_fp=0;
+    }
+
+    FILE *decode_fp;
+    NJ_DECODER *decode_codec;
+    int decode_samplesout;
+    int dump_samples;
+    unsigned char decode_last_guid[16];
+    double resample_state;
+
+};
 
 
 #define MAX_USER_CHANNELS 32
@@ -146,12 +171,7 @@ class RemoteUser_Channel
 
 
     // decode/mixer state, used by mixer
-    FILE *decode_fp;
-    NJ_DECODER *decode_codec;
-    int decode_samplesout;
-    int dump_samples;
-    unsigned char decode_last_guid[16];
-    double resample_state;
+    DecodeState ds;
 
 };
 

@@ -395,12 +395,12 @@ int NJClient::Run() // nonzero if sleep ok
                   theuser->chanpresentmask &= ~(1<<cid);
                   theuser->submask &= ~(1<<cid);
                   memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
-                  delete theuser->channels[cid].decode_codec;
-                  theuser->channels[cid].decode_codec=0;
-                  if (theuser->channels[cid].decode_fp)
+                  delete theuser->channels[cid].ds.decode_codec;
+                  theuser->channels[cid].ds.decode_codec=0;
+                  if (theuser->channels[cid].ds.decode_fp)
                   {
-                    fclose(theuser->channels[cid].decode_fp);
-                    theuser->channels[cid].decode_fp=0;
+                    fclose(theuser->channels[cid].ds.decode_fp);
+                    theuser->channels[cid].ds.decode_fp=0;
                   }
                 }
               }
@@ -559,7 +559,13 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
-      mixInChannel(user->muted || (user->mutedmask & (1<<ch)),user->volume,user->pan,&user->channels[ch],buf,len,srate,nch);
+      float lpan=user->pan+user->channels[ch].pan;
+      if (lpan<-1.0)lpan=-1.0;
+      else if (lpan>1.0)lpan=1.0;
+
+      mixInChannel(user->muted || (user->mutedmask & (1<<ch)),
+        user->volume*user->channels[ch].volume,lpan,
+        &user->channels[ch].ds,buf,len,srate,nch);
     }
   }
   LeaveCriticalSection(&m_users_cs);
@@ -610,7 +616,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
 }
 
-void NJClient::mixInChannel(bool muted, float vol, float pan, RemoteUser_Channel *chan, float *buf, int len, int srate, int nch)
+void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch)
 {
   if (chan->decode_codec && chan->decode_fp)
   {
@@ -630,16 +636,13 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, RemoteUser_Channel
     if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
     {
       float *sptr=(float *)chan->decode_codec->m_samples.Get();
-      float lpan=chan->pan+pan;
-      if (lpan<-1.0)lpan=-1.0;
-      else if (lpan>1.0)lpan=1.0;
 
       if (!muted) mixFloats(sptr+chan->dump_samples,
                 chan->decode_codec->GetSampleRate(),
                 chan->decode_codec->GetNumChannels(),
                 buf,
                 srate,nch,len,
-                chan->volume*vol,lpan,&chan->resample_state);
+                vol,pan,&chan->resample_state);
 
       // advance the queue
       chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
@@ -752,28 +755,28 @@ void NJClient::on_new_interval(int nch, int srate)
       RemoteUser_Channel *chan=&user->channels[ch];
       if ((user->submask & user->chanpresentmask) & (1<<ch))
       {
-        if (chan->decode_fp) 
+        if (chan->ds.decode_fp) 
         {
           /*
-          if (chan->decode_codec)
+          if (chan->ds.decode_codec)
           {
             int ab;
-            ab=fread(chan->decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->decode_fp);
+            ab=fread(chan->ds.decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->ds.decode_fp);
             if (ab)
             {
-              chan->decode_codec->DecodeWrote(ab);
+              chan->ds.decode_codec->DecodeWrote(ab);
             }
           }
           */
-          fclose(chan->decode_fp);
+          fclose(chan->ds.decode_fp);
         }
-        chan->decode_fp=0;
+        chan->ds.decode_fp=0;
         //if (chan->decode_codec) 
 //          printf("last samplesdec=%d\n",chan->decode_codec->m_samplesdec);
   //      printf("last samplesout=%d\n",chan->decode_samplesout);
-        chan->decode_samplesout=0;
+        chan->ds.decode_samplesout=0;
 
-        chan->dump_samples=0;
+        chan->ds.dump_samples=0;
 
         {
           char guidstr[64];
@@ -787,22 +790,22 @@ void NJClient::on_new_interval(int nch, int srate)
           //if (!memcmp(chan->decode_last_guid,zero_guid,sizeof(zero_guid))) // loop the first sample
 
 
-          memcpy(chan->decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
+          memcpy(chan->ds.decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
 
-          makeFilenameFromGuid(&s,chan->decode_last_guid);
-          chan->decode_fp=fopen(s.Get(),"rb");
-          if (chan->decode_fp)
+          makeFilenameFromGuid(&s,chan->ds.decode_last_guid);
+          chan->ds.decode_fp=fopen(s.Get(),"rb");
+          if (chan->ds.decode_fp)
           {
-            if (!chan->decode_codec)
-              chan->decode_codec= new NJ_DECODER;
-            else chan->decode_codec->Reset();
+            if (!chan->ds.decode_codec)
+              chan->ds.decode_codec= new NJ_DECODER;
+            else chan->ds.decode_codec->Reset();
             //chan->resample_state=0.0;
           }
         }
-        if (!chan->decode_fp)
+        if (!chan->ds.decode_fp)
         {
-          delete chan->decode_codec;
-          chan->decode_codec=0;
+          delete chan->ds.decode_codec;
+          chan->ds.decode_codec=0;
         }
       }
     }
@@ -880,12 +883,12 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 
       EnterCriticalSection(&m_users_cs);
       memset(p->cur_guid,0,sizeof(p->cur_guid));
-      delete p->decode_codec;
-      p->decode_codec=0;
-      if (p->decode_fp)
+      delete p->ds.decode_codec;
+      p->ds.decode_codec=0;
+      if (p->ds.decode_fp)
       {
-        fclose(p->decode_fp);
-        p->decode_fp=0;
+        fclose(p->ds.decode_fp);
+        p->ds.decode_fp=0;
       }
       LeaveCriticalSection(&m_users_cs);
      
@@ -916,19 +919,13 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), decode_fp(0), decode_codec(0), dump_samples(0),
-                                           decode_samplesout(0), resample_state(0.0)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f)
 {
-  memset(cur_guid,0,sizeof(cur_guid));
-  memset(decode_last_guid,0,sizeof(decode_last_guid));
+  memset(cur_guid,0,sizeof(cur_guid));  
 }
 
 RemoteUser_Channel::~RemoteUser_Channel()
 {
-  delete decode_codec;
-  decode_codec=0;
-  if (decode_fp) fclose(decode_fp);
-  decode_fp=0;
 }
 
 
