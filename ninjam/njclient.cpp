@@ -1,4 +1,6 @@
 #include <math.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include "njclient.h"
 #include "../mpb.h"
 #include "../WDL/pcmfmtcvt.h"
@@ -113,7 +115,7 @@ void NJClient::SetLogFile(char *name)
   {
     if (!strstr(name,"\\") && !strstr(name,"/") && !strstr(name,":"))
     {
-      WDL_String s(m_workdir);
+      WDL_String s(m_workdir.Get());
       s.Append(name);
       m_logFile=fopen(s.Get(),"a+t");
     }
@@ -729,7 +731,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 void NJClient::on_new_interval(int nch, int srate)
 {
   m_loopcnt++;
-  writeLog("new interval %s (%d,%d)\n",m_loopcnt,m_active_bpm,m_active_bpi);
+  writeLog("new interval %d (%.2f,%d)\n",m_loopcnt,GetActualBPM(),m_active_bpi);
 
   int u;
   EnterCriticalSection(&m_locchan_cs);

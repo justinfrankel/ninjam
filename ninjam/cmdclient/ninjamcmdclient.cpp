@@ -253,6 +253,28 @@ int main(int argc, char **argv)
         DispatchMessage(&msg);
       }
       Sleep(1);
+      if (0&&g_client->HasUserInfoChanged())
+      {
+        printf("\nUser, channel list:\n");
+        int us=0;
+        for(;;)
+        {
+          char *un=g_client->GetUserState(us);
+          if (!un) break;
+          printf(" %s\n",un);
+          int ch=0;
+          for (;;)
+          {
+            bool sub;
+            char *cn=g_client->GetUserChannelState(us,ch,&sub);
+            if (!cn) break;
+            printf("    %d: \"%s\" subscribed=%d\n",ch,cn,sub?1:0);
+            ch++;
+          }
+          us++;
+        }
+        if (!us) printf("  <no users>\n");
+      }
       if (!nostatus)
       {
         int lc=g_client->GetLoopCount();
