@@ -77,23 +77,42 @@ NJClient::NJClient()
   m_vorbisenc=0;
   m_curwritefile=new RemoteDownload;
   m_vorbisenc_header_needsend=0;
-  InitializeCriticalSection(&m_net_cs);
+  InitializeCriticalSection(&m_users_cs);
+  InitializeCriticalSection(&m_log_cs);
+  InitializeCriticalSection(&m_misc_cs);
   m_netcon=0;
 
 
 }
 
+void NJClient::writeLog(char *fmt, ...)
+{
+  if (m_logFile)
+  {
+    va_list ap;
+    va_start(ap,fmt);
+
+    EnterCriticalSection(&m_log_cs);
+    if (m_logFile) vfprintf(m_logFile,fmt,ap);
+    LeaveCriticalSection(&m_log_cs);
+
+    va_end(ap);
+
+  }
+
+
+}
 
 void NJClient::SetLogFile(char *name)
 {
-  EnterCriticalSection(&m_net_cs);
+  EnterCriticalSection(&m_log_cs);
   if (m_logFile) fclose(m_logFile);
   m_logFile=0;
   if (name && *name)
   {
     m_logFile=fopen(name,"a+t");
   }
-  LeaveCriticalSection(&m_net_cs);
+  LeaveCriticalSection(&m_log_cs);
 }
 
 
@@ -120,17 +139,19 @@ NJClient::~NJClient()
   m_remoteusers.Empty();
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
   m_downloads.Empty();
-  DeleteCriticalSection(&m_net_cs);
+  DeleteCriticalSection(&m_users_cs);
+  DeleteCriticalSection(&m_log_cs);
+  DeleteCriticalSection(&m_misc_cs);
 }
 
 
 void NJClient::updateBPMinfo(int bpm, int bpi)
 {
-  EnterCriticalSection(&m_net_cs);
+  EnterCriticalSection(&m_misc_cs);
   m_bpm=bpm;
   m_bpi=bpi;
   m_beatinfo_updated=1;
-  LeaveCriticalSection(&m_net_cs);
+  LeaveCriticalSection(&m_misc_cs);
 }
 
 
@@ -143,7 +164,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
   }
 
 
-  EnterCriticalSection(&m_net_cs);
+  EnterCriticalSection(&m_misc_cs);
   if (m_beatinfo_updated)
   {
     double v=(double)m_bpm*(1.0/60.0);
@@ -165,7 +186,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
     m_active_bpi=m_bpi;
     m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
   }
-  LeaveCriticalSection(&m_net_cs);
+  LeaveCriticalSection(&m_misc_cs);
 
 
   while (len > 0)
@@ -241,10 +262,8 @@ int NJClient::Run() // nonzero if sleep ok
     return 1;
   }
 
-  EnterCriticalSection(&m_net_cs);
   int s=0;
   Net_Message *msg=m_netcon->Run(&s);
-  LeaveCriticalSection(&m_net_cs);
   if (msg)
   {
     msg->addRef();
@@ -267,9 +286,7 @@ int NJClient::Run() // nonzero if sleep ok
             tmp.add(m_pass.Get(),strlen(m_pass.Get()));
             tmp.result(repl.passhash);               
 
-            EnterCriticalSection(&m_net_cs);
             m_netcon->Send(repl.build());
-            LeaveCriticalSection(&m_net_cs);
           }
         }
       break;
@@ -289,18 +306,14 @@ int NJClient::Run() // nonzero if sleep ok
 
                 sci.build_add_rec("default channel",0,0,0);
 
-                EnterCriticalSection(&m_net_cs);
                 m_netcon->Send(sci.build());
-                LeaveCriticalSection(&m_net_cs);
               }
               m_status=2;
             }
             else 
             {
               m_status = 1001;
-              EnterCriticalSection(&m_net_cs);
               m_netcon->Kill();
-              LeaveCriticalSection(&m_net_cs);
             }
           }
         }
@@ -332,6 +345,8 @@ int NJClient::Run() // nonzero if sleep ok
               if (!chn) chn="";
 
               int x;
+              EnterCriticalSection(&m_users_cs);
+
               RemoteUser *theuser;
               for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
               if (x == m_remoteusers.GetSize())
@@ -348,20 +363,17 @@ int NJClient::Run() // nonzero if sleep ok
                 if (a)
                 {
                   theuser->channels[cid].name.Set(chn);
-                  theuser->channels[cid].active=1;
+                  theuser->submask |= 1<<cid;
 
                   printf("subscribing to user...\n");
                   mpb_client_set_usermask su;
                   su.build_add_rec(un,~0);// subscribe to everything for now
-                  EnterCriticalSection(&m_net_cs);
                   m_netcon->Send(su.build());
-                  LeaveCriticalSection(&m_net_cs);
                 }
                 else
                 {
-                  EnterCriticalSection(&m_net_cs);
                   theuser->channels[cid].name.Set("");
-                  theuser->channels[cid].active=0;
+                  theuser->submask &= ~(1<<cid);
                   memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
                   delete theuser->channels[cid].decode_codec;
                   theuser->channels[cid].decode_codec=0;
@@ -370,9 +382,9 @@ int NJClient::Run() // nonzero if sleep ok
                     fclose(theuser->channels[cid].decode_fp);
                     theuser->channels[cid].decode_fp=0;
                   }
-                  LeaveCriticalSection(&m_net_cs);
                 }
               }
+              LeaveCriticalSection(&m_users_cs);
             }
           }
         }
@@ -492,7 +504,6 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         wh.audio_data_len=s;
         m_curwritefile->Write(wh.audio_data,wh.audio_data_len);
 
-        EnterCriticalSection(&m_net_cs);
         if (m_vorbisenc_header_needsend)
         {
           if (config_debug_level>1)
@@ -508,7 +519,6 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
 
         m_netcon->Send(wh.build());
-        LeaveCriticalSection(&m_net_cs);
       }
 
       m_vorbisenc->outqueue.Advance(s);
@@ -518,12 +528,17 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
   input_monitor_samples(buf,len,nch,srate);
 
-  // mix in all active channels
+  // mix in all active (subscribed) channels
+  EnterCriticalSection(&m_users_cs);
   int u;
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
     int ch;
+    if (!user || user->muted) continue;
+    float uservol=user->volume;
+    float userpan=user->pan;
+
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
       RemoteUser_Channel *chan=&user->channels[ch];
@@ -545,13 +560,16 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
         {
           float *sptr=(float *)chan->decode_codec->m_samples.Get();
+          float lpan=chan->pan+userpan;
+          if (lpan<-1.0)lpan=-1.0;
+          else if (lpan>1.0)lpan=1.0;
 
           if (!chan->muted) mixFloats(sptr+chan->dump_samples,
                     chan->decode_codec->GetSampleRate(),
                     chan->decode_codec->GetNumChannels(),
                     buf,
                     srate,nch,len,
-                    chan->volume,chan->pan,&chan->resample_state);
+                    chan->volume*uservol,lpan,&chan->resample_state);
 
           // advance the queue
           chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
@@ -583,6 +601,8 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       }
     }
   }
+  LeaveCriticalSection(&m_users_cs);
+
 
   // write out wave if necessary
 
@@ -634,13 +654,7 @@ void NJClient::on_new_interval(int nch, int srate)
 {
   printf("entered new interval (%d samples)\n",m_interval_length);
 
-  if (m_logFile)
-  {
-      EnterCriticalSection(&m_net_cs);
-      if (m_logFile)
-        fprintf(m_logFile,"new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
-      LeaveCriticalSection(&m_net_cs);
-  }
+  writeLog("new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
 
   if (m_vorbisenc && config_send)
   {
@@ -664,7 +678,6 @@ void NJClient::on_new_interval(int nch, int srate)
       m_vorbisenc->outqueue.Advance(l);
       wh.flags=m_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
 
-      EnterCriticalSection(&m_net_cs);
       if (m_vorbisenc_header_needsend)
       {
         if (config_debug_level>1)
@@ -680,7 +693,6 @@ void NJClient::on_new_interval(int nch, int srate)
 
       if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
       m_netcon->Send(wh.build());
-      LeaveCriticalSection(&m_net_cs);
     }
     while (m_vorbisenc->outqueue.Available()>0);
     m_vorbisenc->outqueue.Compact(); // free any memory left
@@ -697,22 +709,18 @@ void NJClient::on_new_interval(int nch, int srate)
 
   WDL_RNG_bytes(m_curwritefile->guid,sizeof(m_curwritefile->guid));
 
-  if (config_send && m_logFile)
+  if (config_send)
   {
-      EnterCriticalSection(&m_net_cs);
-      if (m_logFile)
-      {
-        char guidstr[64];
-        guidtostr(m_curwritefile->guid,guidstr);
-        fprintf(m_logFile,":%s\n",guidstr);
-      }
-      LeaveCriticalSection(&m_net_cs);
+    char guidstr[64];
+    guidtostr(m_curwritefile->guid,guidstr);
+    writeLog(":%s\n",guidstr);
   }
 
   if (config_savelocalaudio) m_curwritefile->Open(); //only save other peoples for now
 
 
   int u;
+  EnterCriticalSection(&m_users_cs);
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -720,7 +728,7 @@ void NJClient::on_new_interval(int nch, int srate)
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
       RemoteUser_Channel *chan=&user->channels[ch];
-      if (chan->active)
+      if (user->submask & (1<<ch))
       {
         if (chan->decode_fp) 
         {
@@ -745,18 +753,11 @@ void NJClient::on_new_interval(int nch, int srate)
 
         chan->dump_samples=0;
 
-        if (m_logFile)
         {
-            EnterCriticalSection(&m_net_cs);
-            if (m_logFile)
-            {
-              char guidstr[64];
-              guidtostr(chan->cur_guid,guidstr);
-              fprintf(m_logFile,"%s:%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
-            }
-            LeaveCriticalSection(&m_net_cs);
+          char guidstr[64];
+          guidtostr(chan->cur_guid,guidstr);
+          writeLog("%s:%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
         }
-
 
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
         {
@@ -784,6 +785,7 @@ void NJClient::on_new_interval(int nch, int srate)
       }
     }
   }
+  LeaveCriticalSection(&m_users_cs);
 
 
   {
@@ -802,8 +804,85 @@ void NJClient::on_new_interval(int nch, int srate)
 }
 
 
+char *NJClient::GetUserState(int idx, float *vol, float *pan, bool *mute)
+{
+  if (idx<0 || idx>=m_remoteusers.GetSize()) return NULL;
+  RemoteUser *p=m_remoteusers.Get(idx);
+  if (vol) *vol=p->volume;
+  if (pan) *pan=p->pan;
+  if (mute) *mute=p->muted;
+  return p->name.Get();
+}
 
-RemoteUser_Channel::RemoteUser_Channel() : active(0), volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0),
+void NJClient::SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
+{
+  if (idx<0 || idx>=m_remoteusers.GetSize()) return;
+  RemoteUser *p=m_remoteusers.Get(idx);
+  if (setvol) p->volume=vol;
+  if (setpan) p->pan=pan;
+  if (setmute) p->muted=mute;
+}
+
+char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute)
+{
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
+  RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
+  RemoteUser *user=m_remoteusers.Get(useridx);
+
+  if (sub) *sub=!!(user->submask & (1<<channelidx));
+  if (vol) *vol=p->volume;
+  if (pan) *pan=p->pan;
+  if (mute) *mute=p->muted;
+  
+  return p->name.Get();
+}
+
+
+void NJClient::SetUserChannelState(int useridx, int channelidx, 
+                                   bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
+{
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
+  RemoteUser *user=m_remoteusers.Get(useridx);
+  RemoteUser_Channel *p=user->channels + channelidx;
+
+  if (setsub && !!(user->submask&(1<<channelidx)) != sub) 
+  {
+    // toggle subscription
+    if (!sub)
+    {     
+      mpb_client_set_usermask su;
+      su.build_add_rec(user->name.Get(),(user->submask&=~(1<<channelidx)));
+      m_netcon->Send(su.build());
+
+      EnterCriticalSection(&m_users_cs);
+      memset(p->cur_guid,0,sizeof(p->cur_guid));
+      delete p->decode_codec;
+      p->decode_codec=0;
+      if (p->decode_fp)
+      {
+        fclose(p->decode_fp);
+        p->decode_fp=0;
+      }
+      LeaveCriticalSection(&m_users_cs);
+     
+    }
+    else
+    {
+      mpb_client_set_usermask su;
+      su.build_add_rec(user->name.Get(),(user->submask|=~(1<<channelidx)));
+      m_netcon->Send(su.build());
+    }
+
+  }
+  if (setvol) p->volume=vol;
+  if (setpan) p->pan=pan;
+  if (setmute) p->muted=mute;
+}
+
+
+
+
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0),
                                            decode_samplesout(0), resample_state(0.0)
 {
   memset(cur_guid,0,sizeof(cur_guid));
