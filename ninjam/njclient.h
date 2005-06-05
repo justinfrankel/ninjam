@@ -13,8 +13,6 @@
 #include "../WDL/wavwrite.h"
 
 #include "../netmsg.h"
-#include "../WDL/vorbisencdec.h"
-#include "../WDL/lameencdec.h"
 
 
 #if 1
@@ -24,13 +22,20 @@
 #define NJ_ENCODER_FMT_TYPE 'mp3 '
 
 #define NJ_DECODER LameDecoder
+#include "../WDL/lameencdec.h"
 
 #else
+
+// this currently has issues
+// specifically, codec issues, as well as having to make the bitrate default 
+// meaningful. we need to do an approximate bitrate->qval conversion
 #define NJ_ENCODER VorbisEncoder
 #define NJ_ENCODER_BITRATE -0.1f
 #define NJ_ENCODER_FMT_STRING "ogg"
 #define NJ_ENCODER_FMT_TYPE 'ogg '
 #define NJ_DECODER VorbisDecoder
+#include "../WDL/vorbisencdec.h"
+
 
 #endif
 
