@@ -28,12 +28,14 @@ void guidtostr(unsigned char *guid, char *str)
   for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
 }
 
-void makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
+void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
   guidtostr(guid,buf);
-  strcat(buf,"." ENCODER_FMT_STRING);
-  s->Set(buf);
+  strcat(buf,"." NJ_ENCODER_FMT_STRING);
+
+  s->Set(m_workdir.Get());
+  s->Append(buf);
 }
 
 
@@ -74,9 +76,9 @@ NJClient::NJClient()
   m_metronome_state=0;
   m_metronome_tmp=0;
   m_metronome_interval=0;
-  m_vorbisenc=0;
+  m_enc=0;
   m_curwritefile=new RemoteDownload;
-  m_vorbisenc_header_needsend=0;
+  m_enc_header_needsend=0;
   InitializeCriticalSection(&m_users_cs);
   InitializeCriticalSection(&m_log_cs);
   InitializeCriticalSection(&m_misc_cs);
@@ -110,7 +112,14 @@ void NJClient::SetLogFile(char *name)
   m_logFile=0;
   if (name && *name)
   {
-    m_logFile=fopen(name,"a+t");
+    if (!strstr(name,"\\") && !strstr(name,"/") && !strstr(name,":"))
+    {
+      WDL_String s(m_workdir);
+      s.Append(name);
+      m_logFile=fopen(s.Get(),"a+t");
+    }
+    else
+      m_logFile=fopen(name,"a+t");
   }
   LeaveCriticalSection(&m_log_cs);
 }
@@ -121,11 +130,11 @@ NJClient::~NJClient()
   delete m_netcon;
   m_netcon=0;
 
-  delete m_vorbisenc;
-  m_vorbisenc=0;
+  delete m_enc;
+  m_enc=0;
 
-  delete m_vorbisenc_header_needsend;
-  m_vorbisenc_header_needsend=0;
+  delete m_enc_header_needsend;
+  m_enc_header_needsend=0;
   delete m_curwritefile;
   m_curwritefile=0;
 
@@ -152,6 +161,13 @@ void NJClient::updateBPMinfo(int bpm, int bpi)
   m_bpi=bpi;
   m_beatinfo_updated=1;
   LeaveCriticalSection(&m_misc_cs);
+}
+
+
+void NJClient::GetPosition(int *pos, int *length)  // positions in samples
+{ 
+  if (length) *length=m_interval_length; 
+  if (pos && (*pos=m_interval_length)<0) *pos=0;
 }
 
 
@@ -295,11 +311,9 @@ int NJClient::Run() // nonzero if sleep ok
           mpb_server_auth_reply ar;
           if (!ar.parse(msg))
           {
-            printf("Got auth reply of %d\n",ar.flag);
-
-
             if (ar.flag) // send our channel information
             {
+              // todo: have source channel config
               if (config_send)
               {
                 mpb_client_set_channel_info sci;
@@ -324,6 +338,8 @@ int NJClient::Run() // nonzero if sleep ok
           if (!ccn.parse(msg))
           {
             updateBPMinfo(ccn.beats_minute,ccn.beats_interval);
+            // todo: client callback for change
+            // todo: reset audio state?
             printf("Got info update from server, bpm=%d, bpi=%d\n",m_bpm,m_bpi);
             m_audio_enable=1;
           }
@@ -358,11 +374,13 @@ int NJClient::Run() // nonzero if sleep ok
 
               printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
 
+              // todo: per-user autosubscribe option
               if (cid >= 0 && cid < MAX_USER_CHANNELS && config_recv)
               {
                 if (a)
                 {
                   theuser->channels[cid].name.Set(chn);
+                  theuser->chanpresentmask |= ~(1<<cid);
                   theuser->submask |= 1<<cid;
 
                   printf("subscribing to user...\n");
@@ -373,6 +391,7 @@ int NJClient::Run() // nonzero if sleep ok
                 else
                 {
                   theuser->channels[cid].name.Set("");
+                  theuser->chanpresentmask &= ~(1<<cid);
                   theuser->submask &= ~(1<<cid);
                   memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
                   delete theuser->channels[cid].decode_codec;
@@ -407,7 +426,7 @@ int NJClient::Run() // nonzero if sleep ok
                 if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                 RemoteDownload *ds=new RemoteDownload;
                 memcpy(ds->guid,dib.guid,sizeof(ds->guid));
-                ds->Open();
+                ds->Open(this);
              
                 m_downloads.Add(ds);
               }
@@ -487,12 +506,12 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 {
 
   // encode my audio and send to server, if enabled
-  if (config_send && m_vorbisenc)
+  if (config_send && m_enc)
   {
-    m_vorbisenc->Encode(buf,len);
+    m_enc->Encode(buf,len);
 
     int s;
-    while ((s=m_vorbisenc->outqueue.Available())>(m_vorbisenc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+    while ((s=m_enc->outqueue.Available())>(m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
     {
       if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
@@ -500,20 +519,20 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         mpb_client_upload_interval_write wh;
         memcpy(wh.guid,m_curwritefile->guid,sizeof(m_curwritefile->guid));
         wh.flags=0;
-        wh.audio_data=m_vorbisenc->outqueue.Get();
+        wh.audio_data=m_enc->outqueue.Get();
         wh.audio_data_len=s;
         m_curwritefile->Write(wh.audio_data,wh.audio_data_len);
 
-        if (m_vorbisenc_header_needsend)
+        if (m_enc_header_needsend)
         {
           if (config_debug_level>1)
           {
             mpb_client_upload_interval_begin dib;
-            dib.parse(m_vorbisenc_header_needsend);
+            dib.parse(m_enc_header_needsend);
             printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
           }
-          m_netcon->Send(m_vorbisenc_header_needsend);
-          m_vorbisenc_header_needsend=0;
+          m_netcon->Send(m_enc_header_needsend);
+          m_enc_header_needsend=0;
         }
 
         if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
@@ -521,9 +540,9 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         m_netcon->Send(wh.build());
       }
 
-      m_vorbisenc->outqueue.Advance(s);
+      m_enc->outqueue.Advance(s);
     }
-    m_vorbisenc->outqueue.Compact();
+    m_enc->outqueue.Compact();
   }
 
   input_monitor_samples(buf,len,nch,srate);
@@ -564,7 +583,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
           if (lpan<-1.0)lpan=-1.0;
           else if (lpan>1.0)lpan=1.0;
 
-          if (!chan->muted) mixFloats(sptr+chan->dump_samples,
+          if (!(user->mutedmask & (1<<ch))) mixFloats(sptr+chan->dump_samples,
                     chan->decode_codec->GetSampleRate(),
                     chan->decode_codec->GetNumChannels(),
                     buf,
@@ -656,54 +675,54 @@ void NJClient::on_new_interval(int nch, int srate)
 
   writeLog("new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
 
-  if (m_vorbisenc && config_send)
+  if (m_enc && config_send)
   {
     // finish any encoding
-    m_vorbisenc->Encode(NULL,0);
+    m_enc->Encode(NULL,0);
 
     // send any final message, with the last one with a flag 
     // saying "we're done"
     do
     {
       mpb_client_upload_interval_write wh;
-      int l=m_vorbisenc->outqueue.Available();
+      int l=m_enc->outqueue.Available();
       if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
 
       memcpy(wh.guid,m_curwritefile->guid,sizeof(wh.guid));
-      wh.audio_data=m_vorbisenc->outqueue.Get();
+      wh.audio_data=m_enc->outqueue.Get();
       wh.audio_data_len=l;
 
       m_curwritefile->Write(wh.audio_data,wh.audio_data_len);
 
-      m_vorbisenc->outqueue.Advance(l);
-      wh.flags=m_vorbisenc->outqueue.GetSize()>0 ? 0 : 1;
+      m_enc->outqueue.Advance(l);
+      wh.flags=m_enc->outqueue.GetSize()>0 ? 0 : 1;
 
-      if (m_vorbisenc_header_needsend)
+      if (m_enc_header_needsend)
       {
         if (config_debug_level>1)
         {
           mpb_client_upload_interval_begin dib;
-          dib.parse(m_vorbisenc_header_needsend);
+          dib.parse(m_enc_header_needsend);
           printf("SEND BLOCK HEADER %s\n",guidtostr_tmp(dib.guid));
         }
-        m_netcon->Send(m_vorbisenc_header_needsend);
-        m_vorbisenc_header_needsend=0;
+        m_netcon->Send(m_enc_header_needsend);
+        m_enc_header_needsend=0;
       }
 
 
       if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
       m_netcon->Send(wh.build());
     }
-    while (m_vorbisenc->outqueue.Available()>0);
-    m_vorbisenc->outqueue.Compact(); // free any memory left
+    while (m_enc->outqueue.Available()>0);
+    m_enc->outqueue.Compact(); // free any memory left
 
-    //delete m_vorbisenc;
-  //  m_vorbisenc=0;
-    m_vorbisenc->reinit();
+    //delete m_enc;
+  //  m_enc=0;
+    m_enc->reinit();
   }
   else if (config_send)
   {
-    m_vorbisenc = new ENCODER(srate,nch,ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+    m_enc = new NJ_ENCODER(srate,nch,NJ_ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
   }
 
 
@@ -716,7 +735,7 @@ void NJClient::on_new_interval(int nch, int srate)
     writeLog(":%s\n",guidstr);
   }
 
-  if (config_savelocalaudio) m_curwritefile->Open(); //only save other peoples for now
+  if (config_savelocalaudio) m_curwritefile->Open(this); //only save other peoples for now
 
 
   int u;
@@ -728,7 +747,7 @@ void NJClient::on_new_interval(int nch, int srate)
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
       RemoteUser_Channel *chan=&user->channels[ch];
-      if (user->submask & (1<<ch))
+      if ((user->submask & user->chanpresentmask) & (1<<ch))
       {
         if (chan->decode_fp) 
         {
@@ -772,7 +791,7 @@ void NJClient::on_new_interval(int nch, int srate)
           if (chan->decode_fp)
           {
             if (!chan->decode_codec)
-              chan->decode_codec= new DECODER;
+              chan->decode_codec= new NJ_DECODER;
             else chan->decode_codec->Reset();
             //chan->resample_state=0.0;
           }
@@ -792,13 +811,13 @@ void NJClient::on_new_interval(int nch, int srate)
     mpb_client_upload_interval_begin cuib;
     cuib.chidx=0;
     memcpy(cuib.guid,m_curwritefile->guid,sizeof(cuib.guid));
-    cuib.fourcc=ENCODER_FMT_TYPE;
+    cuib.fourcc=NJ_ENCODER_FMT_TYPE;
     cuib.estsize=0;
-    delete m_vorbisenc_header_needsend;
-    m_vorbisenc_header_needsend=cuib.build();
+    delete m_enc_header_needsend;
+    m_enc_header_needsend=cuib.build();
   }
   
-  //if (m_vorbisenc->isError()) printf("ERROR\n");
+  //if (m_enc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
 
 }
@@ -828,11 +847,12 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
+  if (!user->chanpresentmask & (1<<channelidx)) return 0;
 
   if (sub) *sub=!!(user->submask & (1<<channelidx));
   if (vol) *vol=p->volume;
   if (pan) *pan=p->pan;
-  if (mute) *mute=p->muted;
+  if (mute) *mute=!!(user->mutedmask & (1<<channelidx));
   
   return p->name.Get();
 }
@@ -844,6 +864,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
   RemoteUser *user=m_remoteusers.Get(useridx);
   RemoteUser_Channel *p=user->channels + channelidx;
+  if (!user->chanpresentmask & (1<<channelidx)) return;
 
   if (setsub && !!(user->submask&(1<<channelidx)) != sub) 
   {
@@ -876,13 +897,23 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   }
   if (setvol) p->volume=vol;
   if (setpan) p->pan=pan;
-  if (setmute) p->muted=mute;
+  if (setmute) 
+  {
+    if (mute)
+      user->mutedmask |= (1<<channelidx);
+    else
+      user->mutedmask &= ~(1<<channelidx);
+  }
+}
+
+void NJClient::SetWorkDir(char *path)
+{
+  m_workdir.Set(path);
+  if (path[0] && path[strlen(path)-1] != '/' && path[strlen(path)-1] != '\\') m_workdir.Append("\\");
 }
 
 
-
-
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), muted(false), decode_fp(0), decode_codec(0), dump_samples(0),
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), decode_fp(0), decode_codec(0), dump_samples(0),
                                            decode_samplesout(0), resample_state(0.0)
 {
   memset(cur_guid,0,sizeof(cur_guid));
@@ -915,11 +946,11 @@ void RemoteDownload::Close()
   fp=0;
 }
 
-void RemoteDownload::Open()
+void RemoteDownload::Open(NJClient *parent)
 {    
   Close();
   WDL_String s;
-  makeFilenameFromGuid(&s,guid);
+  parent->makeFilenameFromGuid(&s,guid);
   fp=fopen(s.Get(),"wb");
 }
 
