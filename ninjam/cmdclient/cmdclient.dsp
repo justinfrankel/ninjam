@@ -186,7 +186,7 @@ SOURCE=..\audioconfig.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\audiostream_win32.cpp
+SOURCE=..\audiostream_asio.cpp
 # End Source File
 # Begin Source File
 
@@ -348,6 +348,10 @@ SOURCE=..\..\WDL\wavwrite.h
 # End Group
 # Begin Source File
 
+SOURCE=..\audiostream_asio.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\mpb.h
 # End Source File
 # Begin Source File
@@ -359,10 +363,6 @@ SOURCE=..\netmsg.h
 SOURCE=..\njclient.h
 # End Source File
 # End Group
-# Begin Source File
-
-SOURCE=..\audiostream.h
-# End Source File
 # End Group
 # Begin Group "Resource Files"
 

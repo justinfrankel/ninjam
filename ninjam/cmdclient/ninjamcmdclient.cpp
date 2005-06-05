@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>
+#include <float.h>
 
-#include "../audiostream.h"
+#include "../audiostream_asio.h"
 #include "../njclient.h"
 
 #include "../../jesusonic/jesusonic_dll.h"
@@ -64,7 +65,8 @@ void usage()
     "  -debuglevel [0..2]\n"
     "  -writewav <filename.wav>\n"
     "  -writelog <filename.log>\n"
-    "  -audiostr 0:0,0:0,0\n");
+    "  -audiostr 0:0,0:0,0\n"
+    "  -jesusonic <path to jesusonic root dir>\n");
 
   exit(1);
 }
@@ -76,7 +78,10 @@ int main(int argc, char **argv)
   char *parmuser=NULL;
   char *wavfile=NULL;
   char *logfile=NULL;
+  char *jesusdir=NULL;
+  int nosend=0;
 
+  float monitor=1.0;
   printf("Ninjam v0.002 command line client starting up...\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
@@ -88,11 +93,11 @@ int main(int argc, char **argv)
     {
       if (!stricmp(argv[p],"-nosend"))
       {
-        g_client->config_send=0;
+        nosend=1;
       }
       else if (!stricmp(argv[p],"-norecv"))
       {
-        g_client->config_recv=0;
+        g_client->config_autosubscribe=0;
       }
       else if (!stricmp(argv[p],"-savelocal"))
       {
@@ -101,7 +106,7 @@ int main(int argc, char **argv)
       else if (!stricmp(argv[p],"-monitor"))
       {
         if (++p >= argc) usage();
-        g_client->config_monitor=(float)pow(2.0,atof(argv[p])/6.0);
+        monitor=(float)pow(2.0,atof(argv[p])/6.0);
       }
       else if (!stricmp(argv[p],"-metronome"))
       {
@@ -132,6 +137,11 @@ int main(int argc, char **argv)
       {
         if (++p >= argc) usage();
         logfile=argv[p];
+      }
+      else if (!stricmp(argv[p],"-jesusonic"))
+      {
+        if (++p >= argc) usage();
+        jesusdir=argv[p];
       }
       else usage();
     }
@@ -167,33 +177,44 @@ int main(int argc, char **argv)
 
 
   // jesusonic init
-  char rootdir[1024]="C:\\mhc\\jesusonic";
 
-  char dll[1024+32];
-  wsprintf(dll,"%s\\jesus.dll",rootdir);
-
-  hDllInst = LoadLibrary(dll);
-  if (hDllInst) 
+  WDL_String jesusonic_configfile;
+  if (jesusdir)
   {
-    *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
-    if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
-    {
-      myInst=JesusonicAPI->createInstance();
-      JesusonicAPI->set_rootdir(myInst,rootdir);
-      JesusonicAPI->set_opts(myInst,1,1,-1);
-      JesusonicAPI->set_status(myInst,"","");
-      JesusonicAPI->ui_init(myInst);
-      JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,g_audio->m_nch,33);
-      HWND h=JesusonicAPI->ui_wnd_create(myInst);
-      ShowWindow(h,SW_SHOWNA);
-      SetTimer(h,1,40,NULL);
+    jesusonic_configfile.Set(jesusdir);
+    jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
+    WDL_String dll;
+    dll.Set(jesusdir);
+    dll.Append("\\jesus.dll");
 
-      JesusonicAPI->preset_load(myInst,"cmdclient.jesusonicpreset");
+    hDllInst = LoadLibrary(dll.Get());
+    if (hDllInst) 
+    {
+      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
+      if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
+      {
+        myInst=JesusonicAPI->createInstance();
+        JesusonicAPI->set_rootdir(myInst,jesusdir);
+        JesusonicAPI->ui_init(myInst);
+        JesusonicAPI->set_opts(myInst,1,1,-1);
+        JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,g_audio->m_nch,33);
+        JesusonicAPI->set_status(myInst,"","ninjam embedded");
+        HWND h=JesusonicAPI->ui_wnd_create(myInst);
+        ShowWindow(h,SW_SHOWNA);
+        SetTimer(h,1,40,NULL);
+
+        JesusonicAPI->preset_load(myInst,jesusonic_configfile.Get());
+      }
     }
   }
 
   // end jesusonic init
 
+  if (!nosend)
+  {
+    g_client->SetLocalChannelInfo(0,"my gay channel",true,0,true,1,false,0,true,true);
+    g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+  }
 
 
 
@@ -243,7 +264,7 @@ int main(int argc, char **argv)
   ///// jesusonic stuff
   if (myInst) 
   {
-    JesusonicAPI->preset_save(myInst,"cmdclient.jesusonicpreset");
+    JesusonicAPI->preset_save(myInst,jesusonic_configfile.Get());
     JesusonicAPI->ui_wnd_destroy(myInst);
     JesusonicAPI->set_opts(myInst,-1,-1,1);
     //WaitForSingleObject(hUIThread,1000);
