@@ -15,7 +15,7 @@ jesusonicAPI *JesusonicAPI;
 HINSTANCE hDllInst;
 
 
-extern char *get_asio_configstr();
+extern char *get_asio_configstr(char *inifile, int wantdlg);
 audioStreamer *g_audio;
 NJClient *g_client;
 

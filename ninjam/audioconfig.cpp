@@ -18,9 +18,9 @@ struct
    {0,1}, //asio_input;
    {0,1}, //asio_output;
 };
-/*
-WDL_String m_inifile;
-int load_config()
+
+static WDL_String m_inifile;
+static int load_config()
 { 
   char *fn=m_inifile.Get();
   int *p=(int *)&configdata;
@@ -38,7 +38,7 @@ int load_config()
   return c;
 }
 
-void save_config()
+static void save_config()
 {
   char *fn=m_inifile.Get();
   int *p=(int *)&configdata;
@@ -53,8 +53,6 @@ void save_config()
     WritePrivateProfileString( "ninjam",n,buf,fn);
   }
 }
-
-  */
 
 
 #include "asiosys.h"
@@ -288,9 +286,16 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
 
 
-char *get_asio_configstr()
+char *get_asio_configstr(char *inifile, int wantdlg)
 {
-  DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
+  m_inifile.Set(inifile);
+  load_config();
+  if (wantdlg)
+  {
+    DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
+    save_config();
+  }
+
   static char tmpbuf[64];
     wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
       configdata.asio_input[0],
