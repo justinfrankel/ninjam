@@ -76,6 +76,7 @@ NJClient::NJClient()
   m_metronome_tmp=0;
   m_metronome_interval=0;
   InitializeCriticalSection(&m_users_cs);
+  InitializeCriticalSection(&m_locchan_cs);
   InitializeCriticalSection(&m_log_cs);
   InitializeCriticalSection(&m_misc_cs);
   m_netcon=0;
@@ -139,6 +140,7 @@ NJClient::~NJClient()
   for (x = 0; x < m_locchannels.GetSize(); x ++) delete m_locchannels.Get(x);
   m_locchannels.Empty();
   
+  DeleteCriticalSection(&m_locchan_cs);
   DeleteCriticalSection(&m_users_cs);
   DeleteCriticalSection(&m_log_cs);
   DeleteCriticalSection(&m_misc_cs);
@@ -258,6 +260,7 @@ int NJClient::Run() // nonzero if sleep ok
     if (m_status == 0 || m_status == 999) m_status=1000;
     else if (m_status != 1001)  // try reconnecting if this is a disconnect
     {
+      // todo: clear send queue too?
       m_status = 999;
       JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
       c->connect(m_host.Get(),NJ_PORT);
@@ -353,44 +356,60 @@ int NJClient::Run() // nonzero if sleep ok
               int x;
               EnterCriticalSection(&m_users_cs);
 
-              RemoteUser *theuser;
-              for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
-              if (x == m_remoteusers.GetSize())
-              {
-                theuser=new RemoteUser;
-                theuser->name.Set(un);
-                m_remoteusers.Add(theuser);
-              }
-
-              printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
-
               // todo: per-user autosubscribe option, or callback
               // todo: have volume/pan settings here go into defaults for the channel
-              if (cid >= 0 && cid < MAX_USER_CHANNELS && config_recv)
+              if (cid >= 0 && cid < MAX_USER_CHANNELS)
               {
+                RemoteUser *theuser;
+                for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
+
+               // printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
+
+
                 if (a)
                 {
+                  if (x == m_remoteusers.GetSize())
+                  {
+                    theuser=new RemoteUser;
+                    theuser->name.Set(un);
+                    m_remoteusers.Add(theuser);
+                  }
+
                   theuser->channels[cid].name.Set(chn);
                   theuser->chanpresentmask |= ~(1<<cid);
-                  theuser->submask |= 1<<cid;
 
-                  printf("subscribing to user...\n");
-                  mpb_client_set_usermask su;
-                  su.build_add_rec(un,~0);// subscribe to everything for now
-                  m_netcon->Send(su.build());
+
+                  if (config_recv) // todo: autosubscribe option
+                  {
+                    theuser->submask |= 1<<cid;
+                    printf("subscribing to user...\n");
+                    mpb_client_set_usermask su;
+                    su.build_add_rec(un,theuser->submask);// subscribe to everything for now
+                    m_netcon->Send(su.build());
+                  }
                 }
                 else
                 {
-                  theuser->channels[cid].name.Set("");
-                  theuser->chanpresentmask &= ~(1<<cid);
-                  theuser->submask &= ~(1<<cid);
-                  memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
-                  delete theuser->channels[cid].ds.decode_codec;
-                  theuser->channels[cid].ds.decode_codec=0;
-                  if (theuser->channels[cid].ds.decode_fp)
+                  if (x < m_remoteusers.GetSize())
                   {
-                    fclose(theuser->channels[cid].ds.decode_fp);
-                    theuser->channels[cid].ds.decode_fp=0;
+                    theuser->channels[cid].name.Set("");
+                    theuser->chanpresentmask &= ~(1<<cid);
+                    theuser->submask &= ~(1<<cid);
+                    memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
+                    delete theuser->channels[cid].ds.decode_codec;
+                    theuser->channels[cid].ds.decode_codec=0;
+                    if (theuser->channels[cid].ds.decode_fp)
+                    {
+                      fclose(theuser->channels[cid].ds.decode_fp);
+                      theuser->channels[cid].ds.decode_fp=0;
+                    }
+
+
+                    if (!theuser->chanpresentmask) // user no longer exists, it seems
+                    {
+                      delete theuser;
+                      m_remoteusers.Delete(x);
+                    }
                   }
                 }
               }
@@ -497,6 +516,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 {
   // encode my audio and send to server, if enabled
   int u;
+  EnterCriticalSection(&m_locchan_cs);
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
@@ -539,6 +559,8 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       lc->m_enc->outqueue.Compact();
     }
   }
+  LeaveCriticalSection(&m_locchan_cs);
+
 
   input_monitor_samples(buf,len,nch,srate);
 
@@ -675,6 +697,7 @@ void NJClient::on_new_interval(int nch, int srate)
   writeLog("new interval (%d,%d)\n",m_active_bpm,m_active_bpi);
 
   int u;
+  EnterCriticalSection(&m_locchan_cs);
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
@@ -756,8 +779,8 @@ void NJClient::on_new_interval(int nch, int srate)
       lc->m_enc_header_needsend=cuib.build();
 
     }
-
   }
+  LeaveCriticalSection(&m_locchan_cs);
 
   EnterCriticalSection(&m_users_cs);
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
@@ -913,6 +936,96 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
     else
       user->mutedmask &= ~(1<<channelidx);
   }
+}
+
+void NJClient::DeleteLocalChannel(int ch)
+{
+  EnterCriticalSection(&m_locchan_cs);
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x < m_locchannels.GetSize())
+  {
+    delete m_locchannels.Get(x);
+    m_locchannels.Delete(x);
+  }
+  LeaveCriticalSection(&m_locchan_cs);
+}
+
+void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setsrcnch, int srcnch, 
+                                   bool setbitrate, int bitrate, bool setbcast, bool broadcast)
+{  
+  EnterCriticalSection(&m_locchan_cs);
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize())
+  {
+    m_locchannels.Add(new Local_Channel);
+  }
+
+  Local_Channel *c=m_locchannels.Get(x);
+  if (name) c->name.Set(name);
+  if (setsrcch) c->src_channel=srcch;
+  if (setsrcnch) c->src_nch=srcnch;
+  if (setbitrate) c->bitrate=bitrate;
+  if (setbcast) c->broadcasting=broadcast;
+  LeaveCriticalSection(&m_locchan_cs);
+}
+
+char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *srcnch, int *bitrate, bool *broadcast)
+{
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize()) return 0;
+  Local_Channel *c=m_locchannels.Get(x);
+  if (srcch) *srcch=c->src_channel;
+  if (srcnch) *srcnch=c->src_nch;
+  if (bitrate) *bitrate=c->bitrate;
+  if (broadcast) *broadcast=c->broadcasting;
+
+  return c->name.Get();
+}
+
+void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
+{
+  EnterCriticalSection(&m_locchan_cs);
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize())
+  {
+    m_locchannels.Add(new Local_Channel);
+  }
+
+  Local_Channel *c=m_locchannels.Get(x);
+  if (setvol) c->volume=vol;
+  if (setpan) c->pan=pan;
+  if (setmute) c->muted=mute;
+  LeaveCriticalSection(&m_locchan_cs);
+}
+
+int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute)
+{
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize()) return -1;
+  Local_Channel *c=m_locchannels.Get(x);
+  if (vol) *vol=c->volume;
+  if (pan) *pan=c->pan;
+  if (mute) *mute=c->muted;
+  return 0;
+}
+
+
+
+void NJClient::NotifyServerOfChannelChange()
+{
+  int x;
+  mpb_client_set_channel_info sci;
+  for (x = 0; x < m_locchannels.GetSize(); x ++)
+  {
+    Local_Channel *ch=m_locchannels.Get(x);
+    sci.build_add_rec(ch->name.Get(),0,0,0);
+  }
+  m_netcon->Send(sci.build());
 }
 
 void NJClient::SetWorkDir(char *path)

@@ -82,7 +82,12 @@ public:
   char *GetUserChannelState(int useridx, int channelidx, bool *sub=0, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
 
-  // todo: get/set local channel settings
+  void DeleteLocalChannel(int ch);
+  void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setsrcnch, int srcnch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
+  char *GetLocalChannelInfo(int ch, int *srcch, int *srcnch, int *bitrate, bool *broadcast);
+  void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
+  int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute); // 0 on success
+  void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
 
   void SetLogFile(char *name=NULL);
 
@@ -115,14 +120,10 @@ private:
 
 
   WDL_PtrList<Local_Channel> m_locchannels;
-  // these are moving to local_channel
-//  NJ_ENCODER *m_enc;
- // RemoteDownload *m_curwritefile;
-  //Net_Message *m_enc_header_needsend;
 
   void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch);
 
-  CRITICAL_SECTION m_users_cs, m_log_cs, m_misc_cs;
+  CRITICAL_SECTION m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
   WDL_PtrList<RemoteUser> m_remoteusers;
   WDL_PtrList<RemoteDownload> m_downloads;
@@ -207,6 +208,7 @@ public:
 private:
   FILE *fp;
 };
+
 
 
 #define MAX_LOCAL_CHANNELS 2
