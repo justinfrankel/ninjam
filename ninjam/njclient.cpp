@@ -509,7 +509,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
   // encode my audio and send to server, if enabled
   if (config_send && m_enc)
   {
-    m_enc->Encode(buf,len);
+    m_enc->Encode(buf,len,nch); // 1 if nch ==2 and we want a stereo mp3
 
     int s;
     while ((s=m_enc->outqueue.Available())>(m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
@@ -723,7 +723,7 @@ void NJClient::on_new_interval(int nch, int srate)
   }
   else if (config_send)
   {
-    m_enc = new NJ_ENCODER(srate,nch,NJ_ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+    m_enc = new NJ_ENCODER(srate,1/*nch*/,NJ_ENCODER_BITRATE); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
   }
 
 

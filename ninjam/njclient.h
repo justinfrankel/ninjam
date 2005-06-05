@@ -19,7 +19,7 @@
 
 #if 1
 #define NJ_ENCODER LameEncoder
-#define NJ_ENCODER_BITRATE 96
+#define NJ_ENCODER_BITRATE 64
 #define NJ_ENCODER_FMT_STRING "mp3"
 #define NJ_ENCODER_FMT_TYPE 'mp3 '
 
