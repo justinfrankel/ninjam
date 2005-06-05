@@ -2,7 +2,7 @@
 #include <mmsystem.h>
 
 #include <math.h>
-#include "audiostream.h"
+#include "audiostream_asio.h"
 
 
 #include "../../WDL/pcmfmtcvt.h"
