@@ -374,7 +374,8 @@ int NJClient::Run() // nonzero if sleep ok
 
               printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
 
-              // todo: per-user autosubscribe option
+              // todo: per-user autosubscribe option, or callback
+              // todo: have volume/pan settings here go into defaults for the channel
               if (cid >= 0 && cid < MAX_USER_CHANNELS && config_recv)
               {
                 if (a)
