@@ -51,7 +51,7 @@ NJClient::NJClient()
 
   m_status=-1;
 
-  config_recv=1;
+  config_autosubscribe=1;
   config_savelocalaudio=0;
   config_monitor=1.0f;
   config_metronome=0.5f;
@@ -376,13 +376,13 @@ int NJClient::Run() // nonzero if sleep ok
                   }
 
                   theuser->channels[cid].name.Set(chn);
-                  theuser->chanpresentmask |= ~(1<<cid);
+                  theuser->chanpresentmask |= 1<<cid;
 
 
-                  if (config_recv) // todo: autosubscribe option
+                  if (config_autosubscribe) // todo: autosubscribe option
                   {
                     theuser->submask |= 1<<cid;
-                    printf("subscribing to user...\n");
+                    printf("autosubscribing to user %s channel %d...\n",un,cid);
                     mpb_client_set_usermask su;
                     su.build_add_rec(un,theuser->submask);// subscribe to everything for now
                     m_netcon->Send(su.build());
@@ -787,6 +787,7 @@ void NJClient::on_new_interval(int nch, int srate)
   {
     RemoteUser *user=m_remoteusers.Get(u);
     int ch;
+//    printf("submask=%d,cpm=%d\n",user->submask , user->chanpresentmask);
     for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
       RemoteUser_Channel *chan=&user->channels[ch];
@@ -879,7 +880,7 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
-  if (!user->chanpresentmask & (1<<channelidx)) return 0;
+  if (!(user->chanpresentmask & (1<<channelidx))) return 0;
 
   if (sub) *sub=!!(user->submask & (1<<channelidx));
   if (vol) *vol=p->volume;
@@ -896,7 +897,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
   RemoteUser *user=m_remoteusers.Get(useridx);
   RemoteUser_Channel *p=user->channels + channelidx;
-  if (!user->chanpresentmask & (1<<channelidx)) return;
+  if (!(user->chanpresentmask & (1<<channelidx))) return;
 
   if (setsub && !!(user->submask&(1<<channelidx)) != sub) 
   {

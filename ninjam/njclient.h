@@ -56,7 +56,7 @@ public:
 
 
   // basic configuration
-  int   config_recv;
+  int   config_autosubscribe;
   int   config_savelocalaudio;
   float config_monitor;
   float config_metronome;
