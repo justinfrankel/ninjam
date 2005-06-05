@@ -77,6 +77,7 @@ public:
   void GetPosition(int *pos, int *length);  // positions in samples
   int GetLoopCount() { return m_loopcnt; }
 
+  int HasUserInfoChanged() { if (m_userinfochange) { m_userinfochange=0; return 1; } return 0; }
   int GetNumUsers() { return m_remoteusers.GetSize(); }
   char *GetUserState(int idx, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
@@ -115,6 +116,7 @@ private:
   int m_beatinfo_updated;
   int m_audio_enable;
   int m_srate;
+  int m_userinfochange;
 
   int m_loopcnt;
   int m_active_bpm, m_active_bpi;

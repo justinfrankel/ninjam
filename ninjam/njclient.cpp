@@ -43,6 +43,7 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
+  m_userinfochange=0;
   m_loopcnt=0;
   m_srate=48000;
 
@@ -353,6 +354,8 @@ int NJClient::Run() // nonzero if sleep ok
             {
               if (!un) un="";
               if (!chn) chn="";
+
+              m_userinfochange=1;
 
               int x;
               EnterCriticalSection(&m_users_cs);
