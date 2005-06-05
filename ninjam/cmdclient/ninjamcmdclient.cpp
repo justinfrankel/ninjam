@@ -6,6 +6,14 @@
 #include "../audiostream.h"
 #include "../njclient.h"
 
+#include "../../jesusonic/jesusonic_dll.h"
+
+
+// jesusonic stuff
+void *myInst;
+jesusonicAPI *JesusonicAPI;  
+HINSTANCE hDllInst;
+
 
 extern char *get_asio_configstr();
 audioStreamer *g_audio;
@@ -17,6 +25,12 @@ void audiostream_onover() { }
 
 void audiostream_onsamples(float *buf, int len, int nch) 
 { 
+  if (JesusonicAPI && myInst)
+  {
+    _controlfp(_RC_CHOP,_MCW_RC);
+    JesusonicAPI->jesus_process_samples(myInst,(char*)buf,len*nch*sizeof(float));
+    JesusonicAPI->osc_run(myInst,(char*)buf,len*nch*sizeof(float));
+  }
   g_client->AudioProc(buf,len,nch,g_audio->m_srate);
 }
 
@@ -151,6 +165,39 @@ int main(int argc, char **argv)
 
   JNL::open_socketlib();
 
+
+  // jesusonic init
+  char rootdir[1024]="C:\\mhc\\jesusonic";
+
+  char dll[1024+32];
+  wsprintf(dll,"%s\\jesus.dll",rootdir);
+
+  hDllInst = LoadLibrary(dll);
+  if (hDllInst) 
+  {
+    *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
+    if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
+    {
+      myInst=JesusonicAPI->createInstance();
+      JesusonicAPI->set_rootdir(myInst,rootdir);
+      JesusonicAPI->set_opts(myInst,1,1,-1);
+      JesusonicAPI->set_status(myInst,"","");
+      JesusonicAPI->ui_init(myInst);
+      JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,g_audio->m_nch,33);
+      HWND h=JesusonicAPI->ui_wnd_create(myInst);
+      ShowWindow(h,SW_SHOWNA);
+      SetTimer(h,1,40,NULL);
+
+      JesusonicAPI->preset_load(myInst,"cmdclient.jesusonicpreset");
+    }
+  }
+
+  // end jesusonic init
+
+
+
+
+
   printf("Connecting to %s...\n",argv[1]);
   g_client->Connect(argv[1],parmuser,passbuf);
 
@@ -166,7 +213,17 @@ int main(int argc, char **argv)
 
   while (g_client->GetStatus() >= 0 && !g_done)
   {
-    if (g_client->Run()) Sleep(1);
+    if (g_client->Run()) 
+    {
+      MSG msg;
+      while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
+      {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+      Sleep(1);
+    }
+
   }
   printf("exiting on status %d\n",g_client->GetStatus());
 
@@ -181,6 +238,26 @@ int main(int argc, char **argv)
 
 
   delete g_client;
+
+
+  ///// jesusonic stuff
+  if (myInst) 
+  {
+    JesusonicAPI->preset_save(myInst,"cmdclient.jesusonicpreset");
+    JesusonicAPI->ui_wnd_destroy(myInst);
+    JesusonicAPI->set_opts(myInst,-1,-1,1);
+    //WaitForSingleObject(hUIThread,1000);
+    //CloseHandle(hUIThread);
+    JesusonicAPI->ui_quit(myInst);
+//    m_hwnd=0;
+
+    JesusonicAPI->destroyInstance(myInst);
+  }
+  if (hDllInst) FreeLibrary(hDllInst);
+  hDllInst=0;
+  JesusonicAPI=0;
+  myInst=0;
+
 
   JNL::close_socketlib();
   return 0;
