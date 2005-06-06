@@ -61,13 +61,14 @@ void usage()
     "Options:\n"
     "  -nosend\n"
     "  -norecv\n"
-    "  -savelocal\n"
+    "  -sessiondir <path>\n"
+    "  -nosavelocal\n"
     "  -user <username>\n"
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
-    "  -writewav <filename.wav>\n"
-    "  -writelog <filename.log>\n"
+    "  -nowritewav\n"
+    "  -nowritelog\n"
     "  -audiostr 0:0,0:0,0\n"
     "  -jesusonic <path to jesusonic root dir>\n");
 
@@ -79,15 +80,15 @@ int main(int argc, char **argv)
   signal(SIGINT,sigfunc);
 
   char *parmuser=NULL;
-  char *wavfile=NULL;
-  char *logfile=NULL;
   char *jesusdir=NULL;
-  int nosend=0,nostatus=0;
+  WDL_String sessiondir;
+  int nosend=0,nostatus=0, nowav=0, nolog=0;
 
   float monitor=1.0;
   printf("Ninjam v0.003 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
+  g_client->config_savelocalaudio=1;
 
   if (argc < 2) usage();
   {
@@ -102,9 +103,9 @@ int main(int argc, char **argv)
       {
         g_client->config_autosubscribe=0;
       }
-      else if (!stricmp(argv[p],"-savelocal"))
+      else if (!stricmp(argv[p],"-nosavelocal"))
       {
-        g_client->config_savelocalaudio=1;
+        g_client->config_savelocalaudio=0;
       }
       else if (!stricmp(argv[p],"-nostatus"))
       {
@@ -135,24 +136,29 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         parmuser=argv[p];
       }
-      else if (!stricmp(argv[p],"-writewav"))
+      else if (!stricmp(argv[p],"-nowritewav"))
       {
-        if (++p >= argc) usage();
-        wavfile=argv[p];
+        nowav++;
       }
-      else if (!stricmp(argv[p],"-writelog"))
+      else if (!stricmp(argv[p],"-nowritelog"))
       {
-        if (++p >= argc) usage();
-        logfile=argv[p];
+        nolog++;
       }
       else if (!stricmp(argv[p],"-jesusonic"))
       {
         if (++p >= argc) usage();
         jesusdir=argv[p];
       }
+      else if (!stricmp(argv[p],"-sessiondir"))
+      {
+        if (++p >= argc) usage();
+        sessiondir.Set(argv[p]);
+      }
       else usage();
     }
   }
+
+
   char passbuf[512]="gay";
   char userbuf[512];
   if (!parmuser)
@@ -231,13 +237,50 @@ int main(int argc, char **argv)
   g_client->Connect(argv[1],parmuser,passbuf);
 
 
-  if (wavfile)
+  if (!sessiondir.Get()[0])
   {
-    g_client->waveWrite = new WaveWriter(wavfile,16,g_audio->m_nch,g_audio->m_srate);
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    char buf[512];
+    
+    int cnt=0;
+    for (;;)
+    {
+      wsprintf(buf,"njsession_%02d%02d%02d_%02d%02d%02d_%d",st.wYear%100,st.wMonth,st.wDay,st.wHour,st.wMinute,st.wSecond,cnt);
+
+      if (CreateDirectory(buf,NULL)) break;
+
+      cnt++;
+    }
+    
+    if (cnt > 10)
+    {
+      printf("Error creating session directory\n");
+      buf[0]=0;
+    }
+      
+    sessiondir.Set(buf);
   }
-  if (logfile)
+  else
+    CreateDirectory(sessiondir.Get(),NULL);
+  if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
+    sessiondir.Append("\\");
+
+  g_client->SetWorkDir(sessiondir.Get());
+
+  if (!nowav)
   {
-    g_client->SetLogFile(logfile);
+    WDL_String wf;
+    wf.Set(sessiondir.Get());
+    wf.Append("output.wav");
+    g_client->waveWrite = new WaveWriter(wf.Get(),16,g_audio->m_nch,g_audio->m_srate);
+  }
+  if (!nolog)
+  {
+    WDL_String lf;
+    lf.Set(sessiondir.Get());
+    lf.Append("clipsort.log");
+    g_client->SetLogFile(lf.Get());
   }
 
   int lastloopcnt=0;
