@@ -858,7 +858,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 void NJClient::on_new_interval(int nch, int srate)
 {
   m_loopcnt++;
-  writeLog("interval %d: %.2fbpm %dbpi\n",m_loopcnt,GetActualBPM(),m_active_bpi);
+  writeLog("interval: %d %.2fbpm %dbpi\n",m_loopcnt,GetActualBPM(),m_active_bpi);
 
   int u;
   EnterCriticalSection(&m_locchan_cs);
@@ -914,7 +914,7 @@ void NJClient::on_new_interval(int nch, int srate)
         {
           char guidstr[64];
           guidtostr(chan->cur_guid,guidstr);
-          writeLog("user %s/%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
+          writeLog("user :%s '%s'/%d/'%s'\n",guidstr,user->name.Get(),ch,chan->name.Get());
         }
 
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
