@@ -545,7 +545,7 @@ int NJClient::Run() // nonzero if sleep ok
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
-            writeLog(":%s\n",guidstr);
+            writeLog("local:%s\n",guidstr);
             if (config_savelocalaudio) lc->m_curwritefile.Open(this); //only save other peoples for now
 
             mpb_client_upload_interval_begin cuib;
@@ -858,7 +858,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 void NJClient::on_new_interval(int nch, int srate)
 {
   m_loopcnt++;
-  writeLog("new interval %d (%.2f,%d)\n",m_loopcnt,GetActualBPM(),m_active_bpi);
+  writeLog("interval %d: %.2fbpm %dbpi\n",m_loopcnt,GetActualBPM(),m_active_bpi);
 
   int u;
   EnterCriticalSection(&m_locchan_cs);
@@ -914,7 +914,7 @@ void NJClient::on_new_interval(int nch, int srate)
         {
           char guidstr[64];
           guidtostr(chan->cur_guid,guidstr);
-          writeLog("%s:%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
+          writeLog("user %s/%s:%s\n",user->name.Get(),chan->name.Get(),guidstr);
         }
 
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
