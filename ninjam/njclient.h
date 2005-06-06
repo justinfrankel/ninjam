@@ -90,8 +90,8 @@ public:
   void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
 
   void DeleteLocalChannel(int ch);
-  void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setsrcnch, int srcnch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
-  char *GetLocalChannelInfo(int ch, int *srcch, int *srcnch, int *bitrate, bool *broadcast);
+  void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
+  char *GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast);
   void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
   int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute); // 0 on success
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
@@ -237,7 +237,6 @@ public:
   int channel_idx;
 
   int src_channel; // 0 or 1
-  int src_nch;     // 1 or 2
   int bitrate;
 
   float volume;
@@ -259,7 +258,7 @@ public:
   WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
   WDL_PtrList<WDL_HeapBuf> m_emptybufs;
   NJ_ENCODER *m_enc;
-  int m_enc_nch,m_enc_bitrate_used;
+  int m_enc_bitrate_used;
   Net_Message *m_enc_header_needsend;
   
   WDL_String name;

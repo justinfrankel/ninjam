@@ -513,7 +513,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = new NJ_ENCODER(m_srate,lc->m_enc_nch=lc->src_nch,lc->m_enc_bitrate_used = lc->bitrate); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+          lc->m_enc = new NJ_ENCODER(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
         }
 
         if (lc->m_need_header)
@@ -625,7 +625,7 @@ int NJClient::Run() // nonzero if sleep ok
           lc->m_enc->reinit();
         }
 
-        if (lc->m_enc && lc->m_enc_nch != lc->src_nch || lc->bitrate != lc->m_enc_bitrate_used)
+        if (lc->m_enc && lc->bitrate != lc->m_enc_bitrate_used)
         {
           delete lc->m_enc;
           lc->m_enc=0;
@@ -697,7 +697,8 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     if (lc->bcast_active) 
     {
       // hackish, for stereo
-      lc->AddBlock(buf+(lc->src_channel?1:0),lc->m_enc_nch*len,lc->m_enc_nch==2?1:nch);
+
+      lc->AddBlock(buf+(lc->src_channel?1:0),len,nch);
     }
   }
   LeaveCriticalSection(&m_locchan_cs);
@@ -1025,7 +1026,7 @@ void NJClient::DeleteLocalChannel(int ch)
   LeaveCriticalSection(&m_locchan_cs);
 }
 
-void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setsrcnch, int srcnch, 
+void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
                                    bool setbitrate, int bitrate, bool setbcast, bool broadcast)
 {  
   EnterCriticalSection(&m_locchan_cs);
@@ -1039,20 +1040,18 @@ void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
   Local_Channel *c=m_locchannels.Get(x);
   if (name) c->name.Set(name);
   if (setsrcch) c->src_channel=srcch;
-  if (setsrcnch) c->src_nch=srcnch;
   if (setbitrate) c->bitrate=bitrate;
   if (setbcast) c->broadcasting=broadcast;
   LeaveCriticalSection(&m_locchan_cs);
 }
 
-char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *srcnch, int *bitrate, bool *broadcast)
+char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast)
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x == m_locchannels.GetSize()) return 0;
   Local_Channel *c=m_locchannels.Get(x);
   if (srcch) *srcch=c->src_channel;
-  if (srcnch) *srcnch=c->src_nch;
   if (bitrate) *bitrate=c->bitrate;
   if (broadcast) *broadcast=c->broadcasting;
 
@@ -1154,9 +1153,9 @@ void RemoteDownload::Write(void *buf, int len)
 }
 
 
-Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), src_nch(1), volume(1.0f), pan(0.0f), 
+Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
                 muted(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
-                bcast_active(false), m_enc_nch(0), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true)
+                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true)
 {
   InitializeCriticalSection(&m_cs);
 }

@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 
   if (!nosend)
   {
-    g_client->SetLocalChannelInfo(0,"my gay channel",true,0,true,1,false,0,true,true);
+    g_client->SetLocalChannelInfo(0,"my gay channel",true,0,false,0,true,true);
     g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
   }
 
