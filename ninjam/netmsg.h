@@ -54,9 +54,6 @@ class Net_Connection
   public:
     Net_Connection() : m_con(0), m_msgsendpos(-1), m_recvstate(0),m_error(0),m_recvmsg(0) 
     { 
-#ifdef _WIN32
-      InitializeCriticalSection(&m_cs);
-#endif
     }
     ~Net_Connection();
 
@@ -80,9 +77,6 @@ class Net_Connection
     JNL_Connection *m_con;
     WDL_Queue m_sendq;
 
-#ifdef _WIN32
-    CRITICAL_SECTION m_cs;
-#endif
 
 };
 
