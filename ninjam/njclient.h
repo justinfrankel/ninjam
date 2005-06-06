@@ -12,7 +12,7 @@
 
 #include "../WDL/wavwrite.h"
 
-#include "../netmsg.h"
+#include "netmsg.h"
 
 
 #if 0
