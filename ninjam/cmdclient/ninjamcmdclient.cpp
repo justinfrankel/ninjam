@@ -85,7 +85,7 @@ int main(int argc, char **argv)
   int nosend=0,nostatus=0;
 
   float monitor=1.0;
-  printf("Ninjam v0.002 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
+  printf("Ninjam v0.003 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
 
