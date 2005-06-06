@@ -169,10 +169,6 @@ SOURCE=..\..\WDL\jnetlib\util.h
 # End Group
 # Begin Source File
 
-SOURCE=..\..\WDL\lameencdec.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\WDL\rng.cpp
 # End Source File
 # Begin Source File
@@ -308,10 +304,6 @@ SOURCE=..\..\WDL\Timing.h
 # Begin Source File
 
 SOURCE=..\..\WDL\heapbuf.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\WDL\lameencdec.h
 # End Source File
 # Begin Source File
 
