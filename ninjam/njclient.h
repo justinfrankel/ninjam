@@ -52,6 +52,7 @@ public:
   ~NJClient();
 
   void Connect(char *host, char *user, char *pass);
+  void Disconnect();
 
   // call Run() from your main (UI) thread
   int Run();// returns nonzero if sleep is OK

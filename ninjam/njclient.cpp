@@ -228,6 +228,27 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 }
 
 
+void NJClient::Disconnect()
+{
+  m_host.Set("");
+  m_user.Set("");
+  m_pass.Set("");
+  delete m_netcon;
+  m_netcon=0;
+  m_status=-1;
+
+  int x; // all channels go away
+  for (x=0;x<m_remoteusers.GetSize(); x++)
+  {
+    //m_remoteusers.Get(x)->chanpresentmask=0;
+    m_remoteusers.Get(x)->submask=0;
+  }
+  for (x=0;x<m_locchannels.GetSize(); x++)
+  {
+    //m_locchannels.Get(x)->
+  }
+}
+
 void NJClient::Connect(char *host, char *user, char *pass)
 {
   m_host.Set(host);
