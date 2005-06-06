@@ -20,6 +20,7 @@ int main(int argc, char **argv)
   WDL_RNG_addentropy(&v,sizeof(v));
 
   printf("Ninjam v0.001 server starting up...\n");
+  printf("Copyright (C) 2005, Cockos, Inc.\n");
   JNL::open_socketlib();
 
 
