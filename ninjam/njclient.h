@@ -230,6 +230,10 @@ public:
   Local_Channel();
   ~Local_Channel();
 
+  void AddBlock(float *samples, int len, int spacing);
+  int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
+  void DisposeBlock(WDL_HeapBuf *b);
+
   int channel_idx;
 
   int src_channel; // 0 or 1
@@ -248,9 +252,14 @@ public:
 
   // internal state
   bool bcast_active;
+
+
+  CRITICAL_SECTION m_cs;
+  bool m_need_header;
+  WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
+  WDL_PtrList<WDL_HeapBuf> m_emptybufs;
   NJ_ENCODER *m_enc;
   int m_enc_nch,m_enc_bitrate_used;
-
   Net_Message *m_enc_header_needsend;
   
   WDL_String name;
