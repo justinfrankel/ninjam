@@ -15,7 +15,7 @@
 #include "../netmsg.h"
 
 
-#if 1
+#if 0
 #define NJ_ENCODER LameEncoder
 #define NJ_ENCODER_BITRATE 64
 #define NJ_ENCODER_FMT_STRING "mp3"
@@ -30,7 +30,7 @@
 // specifically, codec issues, as well as having to make the bitrate default 
 // meaningful. we need to do an approximate bitrate->qval conversion
 #define NJ_ENCODER VorbisEncoder
-#define NJ_ENCODER_BITRATE -0.1f
+#define NJ_ENCODER_BITRATE 64
 #define NJ_ENCODER_FMT_STRING "ogg"
 #define NJ_ENCODER_FMT_TYPE 'ogg '
 #define NJ_DECODER VorbisDecoder

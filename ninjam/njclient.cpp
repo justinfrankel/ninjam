@@ -194,7 +194,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 
     m_beatinfo_updated=0;
     m_interval_length = (int)v;
-    m_interval_length-=m_interval_length%1152;//hack
+    //m_interval_length-=m_interval_length%1152;//hack
     m_interval_pos=-1;
     m_active_bpm=m_bpm;
     m_active_bpi=m_bpi;
