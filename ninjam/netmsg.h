@@ -65,6 +65,7 @@ class Net_Connection
     Net_Message *Run(int *wantsleep=0);
     void Send(Net_Message *msg);
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
+    JNL_Connection *GetConnection() { return m_con; }
 
     void Kill();
 
