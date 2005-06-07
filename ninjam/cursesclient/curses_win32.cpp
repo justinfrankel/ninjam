@@ -10,7 +10,7 @@
 #include <conio.h>
 #include <stdio.h>
 
-#include "jesusonic.h"
+#include "cursesclientinst.h"
 
 #define WIN32_CONSOLE_KBQUEUE
 //#define WIN32_CONSOLE_RUNUI
@@ -21,7 +21,7 @@
   #endif
 #endif
 
-static void m_InvalidateArea(jesusonicInstance *inst, int sx, int sy, int ex, int ey)
+static void m_InvalidateArea(ninjamCursesClientInstance *inst, int sx, int sy, int ex, int ey)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -33,7 +33,7 @@ static void m_InvalidateArea(jesusonicInstance *inst, int sx, int sy, int ex, in
   if (ctx->m_hwnd) InvalidateRect(ctx->m_hwnd,&r,FALSE);
 }
 
-void __addnstr(jesusonicInstance *inst, char *str,int n)
+void __addnstr(ninjamCursesClientInstance *inst, char *str,int n)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -56,7 +56,7 @@ void __addnstr(jesusonicInstance *inst, char *str,int n)
   m_InvalidateArea(inst,sx,sy,sy < ctx->m_cursor_y ? ctx->cols : ctx->m_cursor_x+1,ctx->m_cursor_y+1);
 }
 
-void __clrtoeol(jesusonicInstance *inst)
+void __clrtoeol(ninjamCursesClientInstance *inst)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -73,7 +73,7 @@ void __clrtoeol(jesusonicInstance *inst)
   m_InvalidateArea(inst,sx,ctx->m_cursor_y,ctx->cols,ctx->m_cursor_y+1);
 }
 
-void __curses_erase(jesusonicInstance *inst)
+void __curses_erase(ninjamCursesClientInstance *inst)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -85,7 +85,7 @@ void __curses_erase(jesusonicInstance *inst)
   m_InvalidateArea(inst,0,0,ctx->cols,ctx->lines);
 }
 
-void __move(jesusonicInstance *inst, int x, int y, int noupdest)
+void __move(ninjamCursesClientInstance *inst, int x, int y, int noupdest)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -187,15 +187,15 @@ static void m_reinit_framebuffer(win32CursesCtx *ctx)
 
 static LRESULT CALLBACK m_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 {
-  jesusonicInstance *cti=0;
+  ninjamCursesClientInstance *cti=0;
   win32CursesCtx *ctx=0;
   if (uMsg == WM_CREATE)
   {
     CREATESTRUCT *cs=(CREATESTRUCT*)lParam;
-    cti = (jesusonicInstance *)cs->lpCreateParams;
+    cti = (ninjamCursesClientInstance *)cs->lpCreateParams;
     SetWindowLong(hwnd,GWL_USERDATA, (long)cti);
   }
-  else cti = (jesusonicInstance *)GetWindowLong(hwnd,GWL_USERDATA);
+  else cti = (ninjamCursesClientInstance *)GetWindowLong(hwnd,GWL_USERDATA);
 
   if (cti) ctx=&cti->cursesCtx;
 
@@ -244,7 +244,7 @@ static LRESULT CALLBACK m_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
       if (!ctx->m_intimer)
       {
         ctx->m_intimer=1;
-        cti->ui_run(1);
+        cti->Run();
         ctx->m_intimer=0;
       }
     }
@@ -352,12 +352,12 @@ static LRESULT CALLBACK m_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
 static int m_wndregcnt;
 
 
-void deinit_win32_window(jesusonicInstance *inst)
+void deinit_win32_window(ninjamCursesClientInstance *inst)
 {
   __endwin(inst);
 }
 
-HWND init_win32_window(jesusonicInstance *inst)
+HWND init_win32_window(ninjamCursesClientInstance *inst)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -381,25 +381,25 @@ HWND init_win32_window(jesusonicInstance *inst)
   {
     wc.hIcon = LoadIcon(GetModuleHandle(NULL),MAKEINTRESOURCE(101));//if we have a linked in icon, use it
   }
-  if (!wc.hIcon) wc.hIcon = (HICON) LoadImage(NULL,"jesusonic.ico",IMAGE_ICON,0,0,LR_LOADFROMFILE);
+  if (!wc.hIcon) wc.hIcon = (HICON) LoadImage(NULL,"cursesclient.ico",IMAGE_ICON,0,0,LR_LOADFROMFILE);
 	wc.hCursor = LoadCursor(NULL,IDC_ARROW);
-	wc.lpszClassName = "Jesusonic";
+	wc.lpszClassName = "NinjamCursesClient";
 
   if (!m_wndregcnt++)
   {
 	  if (!RegisterClass(&wc))
     {
-      MessageBox(NULL,"Error registering window class!","Jesusonic Error",MB_OK);
+      MessageBox(NULL,"Error registering window class!","Ninjam Error",MB_OK);
     }
   }
 
-	HWND h=CreateWindowEx(0,wc.lpszClassName, "Jesusonic",WS_CAPTION|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|WS_SIZEBOX|WS_SYSMENU,
+	HWND h=CreateWindowEx(0,wc.lpszClassName, "Ninjam Curses Client",WS_CAPTION|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|WS_SIZEBOX|WS_SYSMENU,
 					CW_USEDEFAULT,CW_USEDEFAULT,640,480,
 					NULL, NULL,wc.hInstance,(void *)inst);
 
   if (!h)
   {
-    MessageBox(NULL,"Error creating window","Jesusonic Error",MB_OK);
+    MessageBox(NULL,"Error creating window","Ninjam Error",MB_OK);
   }
   else
   {
@@ -450,7 +450,7 @@ HWND init_win32_window(jesusonicInstance *inst)
 
 
 
-void __initscr(jesusonicInstance *inst, int flags)
+void __initscr(ninjamCursesClientInstance *inst, int flags)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
   __init_pair(ctx,0,RGB(192,192,192),RGB(0,0,0));
@@ -470,7 +470,7 @@ void __initscr(jesusonicInstance *inst, int flags)
   ShowWindow(h,SW_SHOW);
 }
 
-void __endwin(jesusonicInstance *inst)
+void __endwin(ninjamCursesClientInstance *inst)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 
@@ -484,13 +484,13 @@ void __endwin(jesusonicInstance *inst)
   {
     if (!--m_wndregcnt)
     {
-      UnregisterClass("Jesusonic",GetModuleHandle(NULL));
+      UnregisterClass("NinjamCursesClient",GetModuleHandle(NULL));
     }
   }
 }
 
 
-int curses_getch(jesusonicInstance *inst)
+int curses_getch(ninjamCursesClientInstance *inst)
 {
   win32CursesCtx *ctx=&inst->cursesCtx;
 

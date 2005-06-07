@@ -7,7 +7,9 @@
 
 #include <windows.h>
 
-#include "queue.h"
+#include "../../WDL/queue.h"
+
+class ninjamCursesClientInstance;
 
 
 #ifndef CURSES_INSTANCE
@@ -39,19 +41,18 @@
 
 
 
-class jesusonicInstance;
-void __addnstr(jesusonicInstance *inst, char *str,int n);
-void __move(jesusonicInstance *inst, int x, int y, int noupdest);
-static inline void __addch(jesusonicInstance *inst, char c) { __addnstr(inst,&c,1); }
-static inline void __mvaddnstr(jesusonicInstance *inst, int x, int y, char *str, int n) { __move(inst,x,y,1); __addnstr(inst,str,n); }
+void __addnstr(ninjamCursesClientInstance *inst, char *str,int n);
+void __move(ninjamCursesClientInstance *inst, int x, int y, int noupdest);
+static inline void __addch(ninjamCursesClientInstance *inst, char c) { __addnstr(inst,&c,1); }
+static inline void __mvaddnstr(ninjamCursesClientInstance *inst, int x, int y, char *str, int n) { __move(inst,x,y,1); __addnstr(inst,str,n); }
 
 
-void __clrtoeol(jesusonicInstance *inst);
-void __initscr(jesusonicInstance *inst, int flags);
-void __endwin(jesusonicInstance *inst);
-void __curses_erase(jesusonicInstance *inst);
+void __clrtoeol(ninjamCursesClientInstance *inst);
+void __initscr(ninjamCursesClientInstance *inst, int flags);
+void __endwin(ninjamCursesClientInstance *inst);
+void __curses_erase(ninjamCursesClientInstance *inst);
 
-int curses_getch(jesusonicInstance *inst);
+int curses_getch(ninjamCursesClientInstance *inst);
 
 #define wrefresh(x)
 #define cbreak()
