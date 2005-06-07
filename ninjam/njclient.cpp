@@ -135,7 +135,10 @@ NJClient::~NJClient()
   delete waveWrite;
 
   if (m_logFile)
+  {
+    writeLog("end\n");
     fclose(m_logFile);
+  }
 
   int x;
   for (x = 0; x < m_remoteusers.GetSize(); x ++) delete m_remoteusers.Get(x);
@@ -546,7 +549,7 @@ int NJClient::Run() // nonzero if sleep ok
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
-            writeLog("local:%s\n",guidstr);
+            writeLog("local:%s:%d\n",guidstr,lc->channel_idx);
             if (config_savelocalaudio) lc->m_curwritefile.Open(this); //only save other peoples for now
 
             mpb_client_upload_interval_begin cuib;
