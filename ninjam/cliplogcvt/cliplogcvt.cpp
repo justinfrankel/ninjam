@@ -5,9 +5,11 @@
 
 class UserChannelValueRec
 {
+public:
+  int isloc;
   WDL_String user;
   int chidx;
-  WDL_String guid;
+  WDL_String guidstr;
   
 };
 
@@ -44,6 +46,7 @@ int main(int argc, char **argv)
     if (!buf[0]) break;
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
     if (!buf[0]) continue;
+    int finish_interval=0;
 
     if (!strnicmp(buf,"interval:",9))
     {
@@ -70,13 +73,99 @@ int main(int argc, char **argv)
       m_cur_bpi=bpi;
       m_cur_bpm=bpm;
       m_cur_idx=idx;
+      finish_interval=1;
     }
+    else if (!strnicmp(buf,"end",3))
+      finish_interval=1;
     else if (!strnicmp(buf,"local:",6))
     {
-      
-      
+      UserChannelValueRec *p=new UserChannelValueRec;
+      p->isloc=1;
+      p->chidx=0;
+      char guidtmp[64];
+      if (sscanf(buf,"local:%32s:%d",guidtmp,&p->chidx) < 1)
+      {
+        printf("Error parsing local line\n");
+        return -2;
+      }
+      p->guidstr.Set(guidtmp);
+      //printf("Got local guid %s\n",guidtmp);
+      curintrecs.Add(p);     
+    }
+    else if (!strnicmp(buf,"user :",6))
+    {
+      char guidtmp[64];
+      char username[64],channelname[64];
+      int chidx;
+      if (sscanf(buf,"user :%32s",guidtmp) != 1)
+      {
+        printf("Error parsing user guid\n");
+        return -2;
+      }
+      char *op=username;
+      char *p=buf+6+32;
+      while (*p && *p != '\'') p++;
+      if (*p)
+      {
+        p++;
+        while (*p && *p != '\'') 
+        {
+          *op++=*p++;
+        }
+        if (*p)
+        {
+          *op=0;
+          p++;
+          if (*p != '/') *p=0;
+          else
+          {
+            chidx=atoi(++p);
+            if (*p)
+            {
+              op=channelname;
+              while (*p && *p != '\'') p++;
+              if (*p)
+              {
+                p++;
+                while (*p && *p != '\'') 
+                {
+                  *op++=*p++;
+                }
+                if (*p)
+                {
+                  *op=0;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (!*p)
+      {
+        printf("Error parsing username/channel/etc\n");
+        return -2;
+      }
+      printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
+
+      UserChannelValueRec *ucvr=new UserChannelValueRec;
+      ucvr->isloc=0;
+      ucvr->user.Set(username);
+      ucvr->chidx=chidx;
+      ucvr->guidstr.Set(guidtmp);
+      curintrecs.Add(ucvr);     
     }
 
+
+    if (finish_interval && curintrecs.GetSize())
+    {
+      int x;
+      for (x = 0; x < curintrecs.GetSize(); x ++)
+      {
+        delete curintrecs.Get(x);
+      }
+      
+      curintrecs.Empty();
+    }
 
   }
 
