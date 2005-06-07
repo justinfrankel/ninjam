@@ -59,11 +59,10 @@ void usage()
 
   printf("Usage: ninjam hostname [options]\n"
     "Options:\n"
-    "  -nosend\n"
+    "  -localchannels [0..2]\n"
     "  -norecv\n"
     "  -sessiondir <path>\n"
-    "  -nosavelocal\n"
-    "  -savelocalwavs\n"
+    "  -nosavelocal | -savelocalwavs\n"
     "  -user <username>\n"
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
@@ -83,7 +82,7 @@ int main(int argc, char **argv)
   char *parmuser=NULL;
   char *jesusdir=NULL;
   WDL_String sessiondir;
-  int nosend=0,nostatus=0, nowav=0, nolog=0;
+  int localchannels=1,nostatus=0, nowav=0, nolog=0;
 
   float monitor=1.0;
   printf("Ninjam v0.003 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
@@ -96,9 +95,15 @@ int main(int argc, char **argv)
     int p;
     for (p = 2; p < argc; p++)
     {
-      if (!stricmp(argv[p],"-nosend"))
+      if (!stricmp(argv[p],"-localchannels"))
       {
-        nosend=1;
+        if (++p >= argc) usage();
+        localchannels=atoi(argv[p]);
+        if (localchannels < 0 || localchannels > 2)
+        {
+          printf("Error: -localchannels must have parameter [0..2]\n");
+          return 1;
+        }
       }
       else if (!stricmp(argv[p],"-savelocalwavs"))
       {
@@ -229,10 +234,17 @@ int main(int argc, char **argv)
 
   // end jesusonic init
 
-  if (!nosend)
+  if (localchannels>0)
   {
-    g_client->SetLocalChannelInfo(0,"my gay channel",true,0,false,0,true,true);
+    g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
     g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+
+    if (localchannels>1)
+    {
+      g_client->SetLocalChannelInfo(0,"channel1",true,1,false,0,true,true);
+      g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+    }
+
   }
 
 
