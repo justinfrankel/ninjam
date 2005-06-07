@@ -64,6 +64,7 @@ void usage()
     "  -sessiondir <path>\n"
     "  -nosavelocal | -savelocalwavs\n"
     "  -user <username>\n"
+    "  -pass <password>\n"
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
@@ -80,6 +81,7 @@ int main(int argc, char **argv)
   signal(SIGINT,sigfunc);
 
   char *parmuser=NULL;
+  char *parmpass=NULL;
   char *jesusdir=NULL;
   WDL_String sessiondir;
   int localchannels=1,nostatus=0, nowav=0, nolog=0;
@@ -146,6 +148,11 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         parmuser=argv[p];
       }
+      else if (!stricmp(argv[p],"-pass"))
+      {
+        if (++p >= argc) usage();
+        parmpass=argv[p];
+      }
       else if (!stricmp(argv[p],"-nowritewav"))
       {
         nowav++;
@@ -169,13 +176,22 @@ int main(int argc, char **argv)
   }
 
 
-  char passbuf[512]="gay";
-  char userbuf[512];
+  char passbuf[512]="";
+  char userbuf[512]="";
   if (!parmuser)
   {
     parmuser=userbuf;
     printf("Enter username: ");
     gets(userbuf);
+  }
+  if (!parmpass)
+  {
+    parmpass=passbuf;
+    if (strcmp(parmuser,"anonymous"))
+    {
+      printf("Enter password: ");
+      gets(passbuf);
+    }
   }
 
   {
@@ -251,7 +267,7 @@ int main(int argc, char **argv)
 
 
   printf("Connecting to %s...\n",argv[1]);
-  g_client->Connect(argv[1],parmuser,passbuf);
+  g_client->Connect(argv[1],parmuser,parmpass);
 
 
   if (!sessiondir.Get()[0])
