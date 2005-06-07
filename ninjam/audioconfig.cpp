@@ -55,9 +55,9 @@ static void save_config()
 }
 
 
-#include "asiosys.h"
-#include "asio.h"
-#include "asiodrivers.h"
+#include "asio/asiosys.h"
+#include "asio/asio.h"
+#include "asio/asiodrivers.h"
 
 extern AsioDrivers* asioDrivers;
 

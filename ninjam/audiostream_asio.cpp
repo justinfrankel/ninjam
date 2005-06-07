@@ -40,9 +40,9 @@ static void myPrintf(char *s, ...)
 
 //////////////////////////////
 /// ASIO
-#include "asiosys.h"
-#include "asio.h"
-#include "asiodrivers.h"
+#include "asio/asiosys.h"
+#include "asio/asio.h"
+#include "asio/asiodrivers.h"
 
 // GCC only: #include "iasiothiscallresolver.h"
 
