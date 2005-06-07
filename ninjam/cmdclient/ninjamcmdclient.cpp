@@ -63,6 +63,7 @@ void usage()
     "  -norecv\n"
     "  -sessiondir <path>\n"
     "  -nosavelocal\n"
+    "  -savelocalwavs\n"
     "  -user <username>\n"
     "  -monitor <level in dB>\n"
     "  -metronome <level in dB>\n"
@@ -98,6 +99,10 @@ int main(int argc, char **argv)
       if (!stricmp(argv[p],"-nosend"))
       {
         nosend=1;
+      }
+      else if (!stricmp(argv[p],"-savelocalwavs"))
+      {
+        g_client->config_savelocalaudio=2;     
       }
       else if (!stricmp(argv[p],"-norecv"))
       {
@@ -273,7 +278,7 @@ int main(int argc, char **argv)
     WDL_String wf;
     wf.Set(sessiondir.Get());
     wf.Append("output.wav");
-    g_client->waveWrite = new WaveWriter(wf.Get(),16,g_audio->m_nch,g_audio->m_srate);
+    g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_nch,g_audio->m_srate);
   }
   if (!nolog)
   {
