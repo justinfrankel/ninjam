@@ -262,8 +262,17 @@ void NJClient::Connect(char *host, char *user, char *pass)
 
   delete m_netcon;
 
+  WDL_String tmp(m_host.Get());
+  int port=NJ_PORT;
+  char *p=strstr(tmp.Get(),":");
+  if (p)
+  {
+    *p=0;
+    port=atoi(++p);
+    if (!port) port=NJ_PORT;
+  }
   JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
-  c->connect(host,NJ_PORT);
+  c->connect(tmp.Get(),port);
   m_netcon = new Net_Connection;
   m_netcon->attach(c);
 
@@ -293,7 +302,18 @@ int NJClient::Run() // nonzero if sleep ok
       // todo: clear send queue too?
       m_status = 999;
       JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
-      c->connect(m_host.Get(),NJ_PORT);
+
+      WDL_String tmp(m_host.Get());
+      int port=NJ_PORT;
+      char *p=strstr(tmp.Get(),":");
+      if (p)
+      {
+        *p=0;
+        port=atoi(++p);
+        if (!port) port=NJ_PORT;
+      }
+
+      c->connect(tmp.Get(),port);
       delete m_netcon;
       m_netcon = new Net_Connection;
       m_netcon->attach(c);

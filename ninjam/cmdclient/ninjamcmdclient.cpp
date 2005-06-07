@@ -87,7 +87,7 @@ int main(int argc, char **argv)
   int localchannels=1,nostatus=0, nowav=0, nolog=0;
 
   float monitor=1.0;
-  printf("Ninjam v0.003 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
+  printf("Ninjam v0.004 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
