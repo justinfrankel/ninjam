@@ -241,8 +241,8 @@ int main(int argc, char **argv)
 
     if (localchannels>1)
     {
-      g_client->SetLocalChannelInfo(0,"channel1",true,1,false,0,true,true);
-      g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+      g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,true);
+      g_client->SetLocalChannelMonitoring(1,true,monitor,false,0.0,false,false);
     }
 
   }
