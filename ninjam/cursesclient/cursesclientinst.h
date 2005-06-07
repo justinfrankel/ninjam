@@ -10,6 +10,7 @@
 class ninjamCursesClientInstance
 {
 public:
+  ninjamCursesClientInstance() { memset(&cursesCtx,0,sizeof(cursesCtx)); }
 
   void Run();
   win32CursesCtx cursesCtx;

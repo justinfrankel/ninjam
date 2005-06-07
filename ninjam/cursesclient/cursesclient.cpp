@@ -1,3 +1,5 @@
+#define CURSES_INSTANCE (&m_cursinst)
+
 #include <windows.h>
 #include <stdio.h>
 #include <math.h>
@@ -9,12 +11,16 @@
 
 #include "../../jesusonic/jesusonic_dll.h"
 
+#include "curses.h"
 #include "cursesclientinst.h"
 
 void ninjamCursesClientInstance::Run()
 {
 }
 
+
+ninjamCursesClientInstance m_cursinst;
+int color_map[8];
 
 // jesusonic stuff
 void *myInst;
@@ -321,6 +327,81 @@ int main(int argc, char **argv)
     lf.Append("clipsort.log");
     g_client->SetLogFile(lf.Get());
   }
+
+
+
+	// go into leet curses mode now
+#ifdef _WIN32
+	initscr(0);
+#else
+	initscr();
+#endif
+	cbreak();
+	noecho();
+	nonl();
+	intrflush(stdscr,FALSE);
+	keypad(stdscr,TRUE);
+	nodelay(stdscr,TRUE);
+	raw(); // disable ctrl+C etc. no way to kill if allow quit isn't defined, yay.
+
+#ifndef _WIN32
+	ESCDELAY=0; // dont wait--at least on the console this seems to work.
+#endif
+
+	if (has_colors()) // we don't use color yet, but we could
+	{
+		start_color();
+		init_pair(1, COLOR_WHITE, COLOR_BLUE); // normal status lines
+		init_pair(2, COLOR_BLACK, COLOR_CYAN); // value
+
+#ifdef COLOR_BLUE_DIM
+		init_pair(3, COLOR_WHITE, COLOR_BLUE_DIM); // alternating shit for the effect view
+		init_pair(4, COLOR_WHITE, COLOR_RED_DIM);
+#else
+
+#if 0 // ok this aint gonna do shit for us :(
+		if (can_change_color() && init_color(COLOR_YELLOW,0,0,150) && init_color(COLOR_MAGENTA,150,0,0))
+		{
+			init_pair(3, COLOR_WHITE, COLOR_YELLOW); // alternating shit for the effect view
+			init_pair(4, COLOR_WHITE, COLOR_MAGENTA);
+		}
+		else
+#endif
+
+
+#ifdef VGA_CONSOLE
+		char *term=getenv("TERM");
+		if (term && !strcmp(term,"linux") && !ioperm(0x3C8,2,1))
+		{
+			init_pair(3, COLOR_WHITE, COLOR_YELLOW); // alternating shit for the effect view
+			init_pair(4, COLOR_WHITE, COLOR_MAGENTA);
+			set_pal(6,0,0,15);
+			set_pal(5,15,0,0);
+		}
+		else
+#endif
+		{
+			init_pair(3, COLOR_WHITE, COLOR_BLUE); // alternating shit for the effect view
+			init_pair(4, COLOR_WHITE, COLOR_RED);
+		}
+#endif
+		init_pair(5, COLOR_BLACK, COLOR_WHITE);
+		init_pair(6, COLOR_WHITE, COLOR_RED);
+		int x;
+		for (x = 1; x < 8; x ++)
+			color_map[x]=COLOR_PAIR(x);
+
+	}
+#ifndef _WIN32
+	else
+	{
+//		color_map[1]=A_BOLD;
+		color_map[2]=A_STANDOUT;
+		color_map[5]=A_STANDOUT;
+	}
+#endif
+
+	refresh();
 
   int lastloopcnt=0;
   int statuspos=0;
