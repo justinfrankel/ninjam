@@ -77,10 +77,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         shatmp.add(username,strlen(username));
         shatmp.add(":",1);
 
-        char pass[512];
+        char *pass=NULL;
         int anon=0;
 
-        if (group->GetUserPass && group->GetUserPass(group,username,pass,sizeof(pass),&anon))
+        if (group->GetUserPass && (pass=group->GetUserPass(group,username,&anon)))
         {
           if (anon)
           {

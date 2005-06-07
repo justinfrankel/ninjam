@@ -182,6 +182,10 @@ SOURCE=.\usercon.cpp
 # PROP Default_Filter ""
 # Begin Source File
 
+SOURCE=..\..\WDL\lineparse.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\mpb.h
 # End Source File
 # Begin Source File
