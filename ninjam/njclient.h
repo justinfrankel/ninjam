@@ -70,6 +70,8 @@ public:
   int   config_debug_level; 
 
 
+  float output_peaklevel;
+
   enum { NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT, NJC_STATUS_RECONNECTING};
   int GetStatus();
 
@@ -88,12 +90,15 @@ public:
   int GetNumUsers() { return m_remoteusers.GetSize(); }
   char *GetUserState(int idx, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
+
+  float GetUserChannelPeak(int useridx, int channelidx);
   char *GetUserChannelState(int useridx, int channelidx, bool *sub=0, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
   int EnumUserChannels(int useridx, int i); // returns <0 if out of channels. start with i=0, and go upwards
 
   void DeleteLocalChannel(int ch);
   int EnumLocalChannels(int i);
+  float GetLocalChannelPeak(int ch);
   void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
   char *GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast);
   void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
@@ -149,7 +154,7 @@ class DecodeState
 {
   public:
     DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
-                                           decode_samplesout(0), resample_state(0.0)
+                                           decode_samplesout(0), resample_state(0.0), decode_peak_vol(0.0)
     { 
       memset(decode_last_guid,0,sizeof(decode_last_guid));
     }
@@ -160,6 +165,8 @@ class DecodeState
       if (decode_fp) fclose(decode_fp);
       decode_fp=0;
     }
+
+    double decode_peak_vol;
 
     FILE *decode_fp;
     NJ_DECODER *decode_codec;
@@ -257,6 +264,7 @@ public:
   bool bcast_active;
 
 
+  double decode_peak_vol;
   CRITICAL_SECTION m_cs;
   bool m_need_header;
   WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces

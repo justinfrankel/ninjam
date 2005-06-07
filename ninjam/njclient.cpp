@@ -717,6 +717,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
   for (ch = 0; ch < m_locchannels.GetSize(); ch ++)
   {
     Local_Channel *lc=m_locchannels.Get(ch);
+
     if (!lc->muted)
     {
       float *src=(float *)srcbuf.Get();
@@ -733,21 +734,42 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
       
       if (nch == 2)
       {
+        float maxf=(float) (lc->decode_peak_vol*0.99);
         float *obuf=buf;
         int x=len;
         while (x--) 
         {
-          obuf[0] += src[0] * vol1;
-          obuf[1] += src[0] * vol2;
+          float f=src[0] * vol1;
+
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+
+          obuf[0] += f;
+
+          f=src[0]*vol2;
+
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+
+          obuf[1] += f;
           obuf+=2;
           src+=2;
         }
+        lc->decode_peak_vol=maxf;
       }
       else
       {
+        float maxf=(float) (lc->decode_peak_vol*0.99);
         float *obuf=buf;
         int x=len;
-        while (x--) *obuf++ += *src++ * vol1;
+        while (x--) 
+        {
+          float f=*src++ * vol1;
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+          *obuf++ += f;
+        }
+        lc->decode_peak_vol=maxf;
       }
     }
   }
@@ -804,14 +826,18 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
 
   // apply master volume, then
-  if (config_mastervolume < 1.0f || config_mastervolume > 1.0f) 
   {
     int x=len*nch;
     float *ptr=buf;
+    float maxf=output_peaklevel*0.99f;
+
     while (x--)
     {
-      *ptr++ *= config_mastervolume;
+      float f = *ptr++ *= config_mastervolume;
+      if (f > maxf) maxf=f;
+      else if (f < -maxf) maxf=-f;
     }
+    output_peaklevel=maxf;
   }
 
   // mix in (super shitty) metronome (fucko!!!!)
@@ -879,6 +905,20 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
     {
       float *sptr=(float *)chan->decode_codec->m_samples.Get();
+
+      // process VU meter, yay for powerful CPUs
+      {
+        float *p=sptr;
+        int l=len*chan->decode_codec->GetNumChannels();
+        float maxf=(float) (chan->decode_peak_vol*0.99);
+        while (l--)
+        {
+          float f=*p++;
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+        }
+        chan->decode_peak_vol=maxf;
+      }
 
       if (!muted) mixFloats(sptr+chan->dump_samples,
                 chan->decode_codec->GetSampleRate(),
@@ -1110,6 +1150,25 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   }
 }
 
+float NJClient::GetUserChannelPeak(int useridx, int channelidx)
+{
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return 0.0f;
+  RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
+  RemoteUser *user=m_remoteusers.Get(useridx);
+  if (!(user->chanpresentmask & (1<<channelidx))) return 0.0f;
+
+  return (float)p->ds.decode_peak_vol;
+}
+
+float NJClient::GetLocalChannelPeak(int ch)
+{
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize()) return 0.0f;
+  Local_Channel *c=m_locchannels.Get(x);
+  return (float)c->decode_peak_vol;
+}
+
 void NJClient::DeleteLocalChannel(int ch)
 {
   EnterCriticalSection(&m_locchan_cs);
@@ -1261,7 +1320,8 @@ void RemoteDownload::Write(void *buf, int len)
 
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
                 muted(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
-                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL)
+                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
+                decode_peak_vol(0.0)
 {
   InitializeCriticalSection(&m_cs);
 }
