@@ -65,7 +65,8 @@ public:
   // basic configuration (these will actually go away soon)
   int   config_autosubscribe;
   int   config_savelocalaudio;
-  float config_metronome;
+  float config_metronome; // volume of metronome
+  float config_mastervolume; // master volume
   int   config_debug_level; 
 
 

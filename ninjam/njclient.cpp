@@ -60,6 +60,7 @@ NJClient::NJClient()
   config_savelocalaudio=0;
   config_metronome=0.5f;
   config_debug_level=0;
+  config_mastervolume=1.0f;
 
 
   waveWrite=0;
@@ -756,6 +757,17 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     waveWrite->WriteFloats(buf,len*nch);
   }
 
+
+  // apply master volume, then
+  if (config_mastervolume < 1.0f || config_mastervolume > 1.0f) 
+  {
+    int x=len*nch;
+    float *ptr=buf;
+    while (x--)
+    {
+      *ptr++ *= config_mastervolume;
+    }
+  }
 
   // mix in (super shitty) metronome (fucko!!!!)
   {
