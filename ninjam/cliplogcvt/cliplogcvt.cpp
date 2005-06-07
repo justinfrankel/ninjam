@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
+#include "../../WDL/lineparse.h"
 
 class UserChannelValueRec
 {
@@ -98,130 +99,120 @@ int main(int argc, char **argv)
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
     if (!buf[0]) continue;
 
-    if (!strnicmp(buf,"interval: ",10))
-    {
-      int idx=0;
-      double bpm=0.0;
-      int bpi=0;
-      char *p=buf+10;
-      idx=atoi(p);
-      while (*p && *p != ' ') p++;
-      while (*p == ' ') p++;
-      bpm=atof(p);
-      while (*p && *p != ' ') p++;
-      while (*p == ' ') p++;
-      bpi=atoi(p);
+    LineParser lp(0);
 
-      if (idx != m_cur_idx+1)
-      {
-        printf("Error: interval %d out of sync, expected %d\n",idx,m_cur_idx);
-        return -2;
-      }
-      if ((m_cur_bpi >= 0 && m_cur_bpi != bpi) ||
-          (m_cur_bpm >= 0 && m_cur_bpm != bpm))
-      {
-        printf("BPI/BPM changed from %d/%.2f to %d/%.2f\n",m_cur_bpi,m_cur_bpm,bpi,bpm);
-        return -2;
-      }
+    int res=lp.parse(buf);
 
-      m_cur_bpi=bpi;
-      m_cur_bpm=bpm;
-      m_cur_idx=idx;
-    }
-    else if (!strnicmp(buf,"local:",6))
+    if (res)
     {
-      UserChannelValueRec *p=new UserChannelValueRec;
-      int chidx=0;
-      p->position=m_cur_idx;
-      char guidtmp[64];
-      if (sscanf(buf,"local:%32s:%d",guidtmp,&chidx) < 1)
-      {
-        printf("Error parsing local line\n");
-        return -2;
-      }
-      p->guidstr.Set(guidtmp);
-      //printf("Got local guid %s\n",guidtmp);
-      localrecs[chidx&31].items.Add(p);
-      
+      printf("Error parsing log line!\n");
+      return -1;
     }
-    else if (!strnicmp(buf,"user :",6))
+    else
     {
-      char guidtmp[64];
-      char username[64],channelname[64];
-      int chidx;
-      if (sscanf(buf,"user :%32s",guidtmp) != 1)
+      if (lp.getnumtokens()>0)
       {
-        printf("Error parsing user guid\n");
-        return -2;
-      }
-      char *op=username;
-      char *p=buf+6+32;
-      while (*p && *p != '\'') p++;
-      if (*p)
-      {
-        p++;
-        while (*p && *p != '\'') 
+        int w=lp.gettoken_enum(0,"interval\0local\0user\0end\0");
+        if (w < 0)
         {
-          *op++=*p++;
+          printf("unknown token %s\n",lp.gettoken_str(0));
+          return -1;
         }
-        if (*p)
+        switch (w)
         {
-          *op=0;
-          p++;
-          if (*p != '/') *p=0;
-          else
-          {
-            chidx=atoi(++p);
-            if (*p)
+          case 0: // interval
             {
-              op=channelname;
-              while (*p && *p != '\'') p++;
-              if (*p)
+              if (lp.getnumtokens() != 4)
               {
-                p++;
-                while (*p && *p != '\'') 
+                printf("interval line has wrong number of tokens\n");
+                return -2;
+              }
+
+              int idx=0;
+              double bpm=0.0;
+              int bpi=0;
+              idx=lp.gettoken_int(1);
+              bpm=lp.gettoken_float(2);
+              bpi=lp.gettoken_int(3);
+
+              if (idx != m_cur_idx+1)
+              {
+                printf("Error: interval %d out of sync, expected %d\n",idx,m_cur_idx);
+                return -2;
+              }
+              if ((m_cur_bpi >= 0 && m_cur_bpi != bpi) ||
+                  (m_cur_bpm >= 0 && m_cur_bpm != bpm))
+              {
+                printf("BPI/BPM changed from %d/%.2f to %d/%.2f\n",m_cur_bpi,m_cur_bpm,bpi,bpm);
+                return -2;
+              }
+
+              m_cur_bpi=bpi;
+              m_cur_bpm=bpm;
+              m_cur_idx=idx;
+            }
+          break;
+          case 1: // local
+            {
+              if (lp.getnumtokens() != 3)
+              {
+                printf("local line has wrong number of tokens\n");
+                return -2;
+              }
+              UserChannelValueRec *p=new UserChannelValueRec;
+              p->position=m_cur_idx;
+              p->guidstr.Set(lp.gettoken_str(1));
+              localrecs[(lp.gettoken_int(2))&31].items.Add(p);
+            }
+          break;
+          case 2: // user
+            {
+              if (lp.getnumtokens() != 5)
+              {
+                printf("user line has wrong number of tokens\n");
+                return -2;
+              }
+
+              char *guidtmp=lp.gettoken_str(1);
+              char *username=lp.gettoken_str(2);
+              int chidx=lp.gettoken_int(3);
+              char *channelname=lp.gettoken_str(4);
+
+              printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
+
+              UserChannelValueRec *ucvr=new UserChannelValueRec;
+              ucvr->guidstr.Set(guidtmp);
+              ucvr->position=m_cur_idx;
+
+              int x;
+              for (x = 0; x < curintrecs.GetSize(); x ++)
+              {
+                if (!stricmp(curintrecs.Get(x)->user.Get(),username) && curintrecs.Get(x)->chidx == chidx)
                 {
-                  *op++=*p++;
-                }
-                if (*p)
-                {
-                  *op=0;
+                  break;
                 }
               }
+              if (x == curintrecs.GetSize())
+              {
+                // add the rec
+                UserChannelList *t=new UserChannelList;
+                t->user.Set(username);
+                t->chidx=chidx;
+
+                curintrecs.Add(t);
+              }
+              curintrecs.Get(x)->items.Add(ucvr);
+              // add this record to it
             }
-          }
-        }
-      }
-      if (!*p)
-      {
-        printf("Error parsing username/channel/etc\n");
-        return -2;
-      }
-      printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
 
-      UserChannelValueRec *ucvr=new UserChannelValueRec;
-      ucvr->guidstr.Set(guidtmp);
-      ucvr->position=m_cur_idx;
-
-      int x;
-      for (x = 0; x < curintrecs.GetSize(); x ++)
-      {
-        if (!stricmp(curintrecs.Get(x)->user.Get(),username) && curintrecs.Get(x)->chidx == chidx)
-        {
+          break;
+          case 3: // end
           break;
         }
-      }
-      if (x == curintrecs.GetSize())
-      {
-        // add the rec
-        UserChannelList *t=new UserChannelList;
-        t->user.Set(username);
-        t->chidx=chidx;
 
-        curintrecs.Add(t);
+
+
       }
-      curintrecs.Get(x)->items.Add(ucvr);
-      // add this record to it
     }
 
   }
