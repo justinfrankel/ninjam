@@ -22,8 +22,12 @@ class UserChannelList
 };
 
 
-void WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
+int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
 {
+  char *p=name;
+  while (*p && *p == '0') p++;
+  if (!*p) return 0; // empty name
+
   fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
     
   fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tTRUE;\tFALSE;\tAUDIO;\t");
@@ -32,6 +36,8 @@ void WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
 
   fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t2;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
     (double)len);
+
+  return 1;
 }
 
 int main(int argc, char **argv)
@@ -68,16 +74,20 @@ int main(int argc, char **argv)
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
     if (!buf[0]) continue;
 
-    if (!strnicmp(buf,"interval:",9))
+    if (!strnicmp(buf,"interval: ",10))
     {
       int idx=0;
       double bpm=0.0;
       int bpi=0;
-      if (sscanf(buf,"interval: %d %fbpm %dbpi",&idx,&bpm,&bpi) != 3)
-      {
-        printf("Error parsing interval line\n");
-        return -2;
-      }
+      char *p=buf+10;
+      idx=atoi(p);
+      while (*p && *p != ' ') p++;
+      while (*p == ' ') p++;
+      bpm=atof(p);
+      while (*p && *p != ' ') p++;
+      while (*p == ' ') p++;
+      bpi=atoi(p);
+
       if (idx != m_cur_idx+1)
       {
         printf("Error: interval %d out of sync, expected %d\n",idx,m_cur_idx);
@@ -206,12 +216,33 @@ int main(int argc, char **argv)
     "\"ID\";\"Track\";\"StartTime\";\"Length\";\"PlayRate\";\"Locked\";\"Normalized\";\"StretchMethod\";\"Looped\";\"OnRuler\";\"MediaType\";\"FileName\";\"Stream\";\"StreamStart\";\"StreamLength\";\"FadeTimeIn\";\"FadeTimeOut\";\"SustainGain\";\"CurveIn\";\"GainIn\";\"CurveOut\";\"GainOut\";\"Layer\";\"Color\";\"CurveInR\";\"CurveOutR\"\n");
 
 
-  int id=0;
-  int track_id=0'
+  int id=1;
+  int track_id=0;
   int x;
+  int len=(int) ((double)m_cur_bpi * 60000.0 / m_cur_bpm);
   for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
   {
+    int y;
 
+    for (y = 0; y < localrecs[x].items.GetSize(); y ++)
+    {
+      int pos=(localrecs[x].items.Get(y)->position-1) * len;
+      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, pos, len)) id++;
+    }
+    if (y)  track_id++;
+
+  }
+  for (x= 0; x < curintrecs.GetSize(); x ++)
+  {
+    int y;
+
+    for (y = 0; y < curintrecs.Get(x)->items.GetSize(); y ++)
+    {
+      int pos=(curintrecs.Get(x)->items.Get(y)->position-1) * len;
+      printf("Writing record, pos=%d, len=%d\n",pos,len);
+      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, pos, len)) id++;
+    }
+    if (y)  track_id++;
 
   }
 
