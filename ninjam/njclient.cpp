@@ -59,6 +59,7 @@ NJClient::NJClient()
   config_autosubscribe=1;
   config_savelocalaudio=0;
   config_metronome=0.5f;
+  config_metronome_pan=0.0f;
   config_debug_level=0;
   config_mastervolume=1.0f;
 
@@ -699,6 +700,8 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
     if (!lc->muted)
     {
       float *src=(float *)srcbuf.Get();
+      if (nch > 1 && lc->src_channel) src++; // right channel
+
       float vol1=lc->volume;
       float vol2=vol1;
       if (nch == 2)
@@ -715,7 +718,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
         while (x--) 
         {
           obuf[0] += src[0] * vol1;
-          obuf[1] += src[1] * vol2;
+          obuf[1] += src[0] * vol2;
           obuf+=2;
           src+=2;
         }
@@ -797,6 +800,12 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     double sc=6000.0/(double)srate;
     int x;
     int um=config_metronome>0.0001f;
+    double vol1=config_metronome,vol2=config_metronome;
+    if (nch > 1)
+    {
+        if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
+        else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
+    }
     for (x = 0; x < len; x ++)
     {
       if (m_metronome_pos <= 0.0)
@@ -811,15 +820,15 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       {
         if (um)
         {
-          float val=0.0f;
-          if (!m_metronome_tmp) val = (float) sin((double)m_metronome_state*sc*2.0)*config_metronome * 0.25f;
-          else val = (float) sin((double)m_metronome_state*sc)*config_metronome;
+          double val=0.0;
+          if (!m_metronome_tmp) val = sin((double)m_metronome_state*sc*2.0) * 0.25;
+          else val = sin((double)m_metronome_state*sc);
 
-          if (nch == 1) buf[x]+=val;
+          if (nch == 1) buf[x]+=(float)(val*vol1);
           else
           {
-            buf[x+x]+=val;
-            buf[x+x+1]+=val;
+            buf[x+x]+=(float)(val*vol1);
+            buf[x+x+1]+=(float)(val*vol2);
           }
         }
         if (++m_metronome_state >= metrolen) m_metronome_state=0;
@@ -1093,6 +1102,7 @@ void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
   }
 
   Local_Channel *c=m_locchannels.Get(x);
+  c->channel_idx=ch;
   if (name) c->name.Set(name);
   if (setsrcch) c->src_channel=srcch;
   if (setbitrate) c->bitrate=bitrate;
@@ -1124,6 +1134,7 @@ void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool se
   }
 
   Local_Channel *c=m_locchannels.Get(x);
+  c->channel_idx=ch;
   if (setvol) c->volume=vol;
   if (setpan) c->pan=pan;
   if (setmute) c->muted=mute;

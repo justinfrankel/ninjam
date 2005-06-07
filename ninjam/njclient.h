@@ -65,7 +65,7 @@ public:
   // basic configuration (these will actually go away soon)
   int   config_autosubscribe;
   int   config_savelocalaudio; // set 1 to save compressed files, set to 2 to save .wav files as well
-  float config_metronome; // volume of metronome
+  float config_metronome,config_metronome_pan; // volume of metronome
   float config_mastervolume; // master volume
   int   config_debug_level; 
 
