@@ -67,6 +67,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
 int main(int argc, char **argv)
 {
   printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
+  printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (argc != 2)
   {
     printf("Usage: clipoutcvt session_directory\n");
