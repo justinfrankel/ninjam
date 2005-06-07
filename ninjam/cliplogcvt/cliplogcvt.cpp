@@ -30,11 +30,11 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
 
   fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
     
-  fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tTRUE;\tFALSE;\tAUDIO;\t");
+  fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
 
   fprintf(fp,"\"%s.ogg\";\t",name);
 
-  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t2;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
+  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
     (double)len);
 
   return 1;
@@ -42,6 +42,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
 
 int main(int argc, char **argv)
 {
+  printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
   if (argc != 2)
   {
     printf("Usage: clipoutcvt session_directory\n");
