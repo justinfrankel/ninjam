@@ -68,35 +68,59 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         return -1;
       }
 
+      char *username=authrep.username;
+      char usernametmp[512];
+
       {
         WDL_SHA1 shatmp;
         shatmp.add(m_challenge,sizeof(m_challenge));
-        shatmp.add(authrep.username,strlen(authrep.username));
+        shatmp.add(username,strlen(username));
         shatmp.add(":",1);
-        shatmp.add("gay",3); // fucko: pass
 
-        char buf[WDL_SHA1SIZE];
-        shatmp.result(buf);
+        char pass[512];
+        int anon=0;
 
-        if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
+        if (group->GetUserPass && group->GetUserPass(group,username,pass,sizeof(pass),&anon))
+        {
+          if (anon)
+          {
+            JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
+            username=usernametmp;
+
+          }
+          else
+          {
+            shatmp.add(pass,strlen(pass));
+            char buf[WDL_SHA1SIZE];
+            shatmp.result(buf);
+            if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
+            {
+              m_netcon.Kill();
+              msg->releaseRef();
+              return -1;
+            }
+
+          }
+        }
+        else
         {
           m_netcon.Kill();
           msg->releaseRef();
           return -1;
         }
 
-        printf("Got user: %s\n",authrep.username);
+        printf("Got user: %s\n",username);
       }
 
 
-      m_username.Set(authrep.username);
+      m_username.Set(username);
       // disconnect any user by the same name
       {
         int user;
         for (user = 0; user < group->m_users.GetSize(); user++)
         {
           User_Connection *u=group->m_users.Get(user);
-          if (u != this && !strcmp(u->m_username.Get(),authrep.username))
+          if (u != this && !strcmp(u->m_username.Get(),username))
           {
             delete u;
             group->m_users.Delete(user);
@@ -414,6 +438,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
 User_Group::User_Group() : m_last_bpm(120), m_last_bpi(32)
 {
+  GetUserPass=0;
 }
 
 User_Group::~User_Group()
