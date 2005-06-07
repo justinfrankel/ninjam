@@ -233,6 +233,7 @@ int main(int argc, char **argv)
           if (needprompt>1) printf("\nKeys:\n"
                "  [S]how user table\n"
                "  [R]eload config file\n"
+               "  [K]ill user\n"
                "  [Q]uit server\n");
           printf(": ");
           needprompt=0;
@@ -254,6 +255,34 @@ int main(int argc, char **argv)
             {
               esc_state++;
               printf("Q pressed -- hit Y to exit, any other key to continue\n");
+              needprompt=1;
+            }
+          }
+          else if (c == 'K')
+          {
+            printf("(be quick, server is paused while you type!!!)\nKill username: ");
+            char buf[512];
+            fgets(buf,sizeof(buf),stdin);
+            if (buf[0] && buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
+            if (buf[0])
+            {
+              int x;
+              int killcnt=0;
+              for (x = 0; x < m_group->m_users.GetSize(); x ++)
+              {
+                User_Connection *c=m_group->m_users.Get(x);
+                if (!strcmp(c->m_username.Get(),buf))
+                {
+                  char str[512];
+                  JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
+                  printf("Killing user %s on %s\n",c->m_username.Get(),str);
+                  killcnt++;
+                }
+              }
+              if (!killcnt)
+              {
+                printf("User %s not found!\n",buf);
+              }
               needprompt=1;
             }
           }
