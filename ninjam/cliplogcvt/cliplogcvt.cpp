@@ -6,18 +6,39 @@
 class UserChannelValueRec
 {
 public:
-  int isloc;
-  WDL_String user;
-  int chidx;
+  int position;
   WDL_String guidstr;
   
 };
 
+class UserChannelList
+{
+  public:
+
+   WDL_String user;
+   int chidx;
+
+   WDL_PtrList<UserChannelValueRec> items;
+};
+
+
+void WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
+{
+  fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
+    
+  fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tTRUE;\tFALSE;\tAUDIO;\t");
+
+  fprintf(fp,"\"%s.ogg\";\t",name);
+
+  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t2;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
+    (double)len);
+}
+
 int main(int argc, char **argv)
 {
-  if (argc != 2 && argc != 3)
+  if (argc != 2)
   {
-    printf("Usage: clipoutcvt session_directory [output_directory]\n");
+    printf("Usage: clipoutcvt session_directory\n");
     return 1;
   }
   WDL_String logfn(argv[1]);
@@ -28,14 +49,14 @@ int main(int argc, char **argv)
     printf("Error opening logfile\n");
     return -1;
   }
-  WDL_String outpath(argv[argc>2?2:1]);
-  CreateDirectory(outpath.Get(),NULL);
 
   int m_cur_idx=0;
   double m_cur_bpm=-1.0;
   int m_cur_bpi=-1;
 
-  WDL_PtrList<UserChannelValueRec> curintrecs;
+  UserChannelList localrecs[32];
+  WDL_PtrList<UserChannelList> curintrecs;
+  
 
   // go through the log file
   for (;;)
@@ -46,7 +67,6 @@ int main(int argc, char **argv)
     if (!buf[0]) break;
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
     if (!buf[0]) continue;
-    int finish_interval=0;
 
     if (!strnicmp(buf,"interval:",9))
     {
@@ -73,24 +93,22 @@ int main(int argc, char **argv)
       m_cur_bpi=bpi;
       m_cur_bpm=bpm;
       m_cur_idx=idx;
-      finish_interval=1;
     }
-    else if (!strnicmp(buf,"end",3))
-      finish_interval=1;
     else if (!strnicmp(buf,"local:",6))
     {
       UserChannelValueRec *p=new UserChannelValueRec;
-      p->isloc=1;
-      p->chidx=0;
+      int chidx=0;
+      p->position=m_cur_idx;
       char guidtmp[64];
-      if (sscanf(buf,"local:%32s:%d",guidtmp,&p->chidx) < 1)
+      if (sscanf(buf,"local:%32s:%d",guidtmp,&chidx) < 1)
       {
         printf("Error parsing local line\n");
         return -2;
       }
       p->guidstr.Set(guidtmp);
       //printf("Got local guid %s\n",guidtmp);
-      curintrecs.Add(p);     
+      localrecs[chidx&31].items.Add(p);
+      
     }
     else if (!strnicmp(buf,"user :",6))
     {
@@ -148,26 +166,59 @@ int main(int argc, char **argv)
       printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
 
       UserChannelValueRec *ucvr=new UserChannelValueRec;
-      ucvr->isloc=0;
-      ucvr->user.Set(username);
-      ucvr->chidx=chidx;
       ucvr->guidstr.Set(guidtmp);
-      curintrecs.Add(ucvr);     
-    }
+      ucvr->position=m_cur_idx;
 
-
-    if (finish_interval && curintrecs.GetSize())
-    {
       int x;
       for (x = 0; x < curintrecs.GetSize(); x ++)
       {
-        delete curintrecs.Get(x);
+        if (!stricmp(curintrecs.Get(x)->user.Get(),username) && curintrecs.Get(x)->chidx == chidx)
+        {
+          break;
+        }
       }
-      
-      curintrecs.Empty();
+      if (x == curintrecs.GetSize())
+      {
+        // add the rec
+        UserChannelList *t=new UserChannelList;
+        t->user.Set(username);
+        t->chidx=chidx;
+
+        curintrecs.Add(t);
+      }
+      curintrecs.Get(x)->items.Add(ucvr);
+      // add this record to it
     }
 
   }
+  fclose(logfile);
+
+  printf("Done analyzing log, building output...\n");
+  WDL_String outfn(argv[1]);
+  outfn.Append("\\clipsort.txt");
+  FILE *outfile=fopen(outfn.Get(),"wt");
+  if (!outfile)
+  {
+    printf("Error opening outfile\n");
+    return -1;
+  }
+  fprintf(outfile,"%s", 
+    "\"ID\";\"Track\";\"StartTime\";\"Length\";\"PlayRate\";\"Locked\";\"Normalized\";\"StretchMethod\";\"Looped\";\"OnRuler\";\"MediaType\";\"FileName\";\"Stream\";\"StreamStart\";\"StreamLength\";\"FadeTimeIn\";\"FadeTimeOut\";\"SustainGain\";\"CurveIn\";\"GainIn\";\"CurveOut\";\"GainOut\";\"Layer\";\"Color\";\"CurveInR\";\"CurveOutR\"\n");
+
+
+  int id=0;
+  int track_id=0'
+  int x;
+  for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
+  {
+
+
+  }
+
+
+
+
+  fclose(outfile);
 
 
   return 0;
