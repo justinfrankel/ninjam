@@ -550,7 +550,22 @@ int NJClient::Run() // nonzero if sleep ok
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
             writeLog("local:%s:%d\n",guidstr,lc->channel_idx);
-            if (config_savelocalaudio) lc->m_curwritefile.Open(this); //only save other peoples for now
+            if (config_savelocalaudio) 
+            {
+              lc->m_curwritefile.Open(this); //only save other peoples for now
+              if (lc->m_wavewritefile) delete lc->m_wavewritefile;
+              lc->m_wavewritefile=0;
+              if (config_savelocalaudio>1)
+              {
+                WDL_String fn;
+
+                fn.Set(m_workdir.Get());
+                fn.Append(guidstr);
+                fn.Append(".wav");
+
+                lc->m_wavewritefile=new WaveWriter(fn.Get(),24,1,m_srate);
+              }
+            }
 
             mpb_client_upload_interval_begin cuib;
             cuib.chidx=lc->channel_idx;
@@ -565,6 +580,10 @@ int NJClient::Run() // nonzero if sleep ok
 
         if (lc->m_enc)
         {
+          if (lc->m_wavewritefile)
+          {
+            lc->m_wavewritefile->WriteFloats((float*)p->Get(),p->GetSize()/sizeof(float));
+          }
           lc->m_enc->Encode((float*)p->Get(),p->GetSize()/sizeof(float),1);
 
           int s;
@@ -1191,7 +1210,7 @@ void RemoteDownload::Write(void *buf, int len)
 
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
                 muted(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
-                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true)
+                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL)
 {
   InitializeCriticalSection(&m_cs);
 }
@@ -1274,4 +1293,8 @@ Local_Channel::~Local_Channel()
   }
   m_samplequeue.Advance(m_samplequeue.Available());
   m_samplequeue.Compact();
+
+  delete m_wavewritefile;
+  m_wavewritefile=0;
+
 }
