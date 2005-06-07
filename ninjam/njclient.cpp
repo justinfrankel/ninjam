@@ -1033,6 +1033,19 @@ void NJClient::SetUserState(int idx, bool setvol, float vol, bool setpan, float 
   if (setmute) p->muted=mute;
 }
 
+int NJClient::EnumUserChannels(int useridx, int i)
+{
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()||i<0||i>=MAX_USER_CHANNELS) return -1;
+  RemoteUser *user=m_remoteusers.Get(useridx);
+
+  int x;
+  for (x = 0; x < 32; x ++)
+  {
+    if ((user->chanpresentmask & (1<<x)) && !i--) return x;
+  }
+  return -1;
+}
+
 char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
@@ -1142,6 +1155,13 @@ char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broa
 
   return c->name.Get();
 }
+
+int NJClient::EnumLocalChannels(int i)
+{
+  if (i<0||i>=m_locchannels.GetSize()) return -1;
+  return m_locchannels.Get(i)->channel_idx;
+}
+
 
 void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
 {

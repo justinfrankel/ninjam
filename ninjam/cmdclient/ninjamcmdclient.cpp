@@ -338,10 +338,13 @@ int main(int argc, char **argv)
           char *un=g_client->GetUserState(us);
           if (!un) break;
           printf(" %s\n",un);
-          int ch=0;
-          for (;;)
+          int i;
+          for (i=0;;i++)
           {
             bool sub;
+            int ch=g_client->EnumUserChannels(us,i++);
+            if (ch<0) break;
+
             char *cn=g_client->GetUserChannelState(us,ch,&sub);
             if (!cn) break;
             printf("    %d: \"%s\" subscribed=%d\n",ch,cn,sub?1:0);
