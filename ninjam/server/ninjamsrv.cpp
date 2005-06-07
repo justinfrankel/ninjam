@@ -33,10 +33,12 @@ static char *myGetUserPass(User_Group *group, char *username, int *isanon)
 {
   if (!strcmp(username,"anonymous"))
   {
+    printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     *isanon=1;
     return g_config_allowanonymous?"":NULL;
   }
   int x;
+  printf("got login request for '%s'\n",username);
   for (x = 0; x < g_userlist.GetSize(); x ++)
   {
     if (!strcmp(username,g_userlist.Get(x)->name.Get()))
@@ -184,7 +186,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  printf("Ninjam v0.001 server starting up...\n");
+  printf("Ninjam v0.002 server starting up...\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (ReadConfig(argv[1]))
   {
@@ -283,8 +285,9 @@ int main(int argc, char **argv)
               {
                 printf("User %s not found!\n",buf);
               }
-              needprompt=1;
             }
+            else printf("Kill aborted with no input\n");
+            needprompt=1;
           }
           else if (c == 'S')
           {
@@ -316,6 +319,7 @@ int main(int argc, char **argv)
             }
             needprompt=1;
           }
+          else needprompt=2;
          
 
         }
