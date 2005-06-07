@@ -22,11 +22,34 @@ class UserChannelList
 };
 
 
-int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len)
+int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, char *path)
 {
   char *p=name;
   while (*p && *p == '0') p++;
   if (!*p) return 0; // empty name
+
+  char *exts[]={".wav",".ogg"};
+  WDL_String fnfind;
+  int x;
+  for (x = 0; x < sizeof(exts)/sizeof(exts[0]); x ++)
+  {
+    fnfind.Set(path);
+    fnfind.Append("\\");
+    fnfind.Append(name);
+    fnfind.Append(exts[x]);
+
+    FILE *tmp=fopen(fnfind.Get(),"rb");
+    if (tmp) 
+    {
+      fclose(tmp);
+      break;
+    }
+  }
+  if (x == sizeof(exts)/sizeof(exts[0]))
+  {
+    printf("Error resolving guid %s\n",name);
+    return 0;
+  }
 
   fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
     
@@ -228,7 +251,7 @@ int main(int argc, char **argv)
     for (y = 0; y < localrecs[x].items.GetSize(); y ++)
     {
       int pos=(localrecs[x].items.Get(y)->position-1) * len;
-      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, pos, len)) id++;
+      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, pos, len,argv[1])) id++;
     }
     if (y)  track_id++;
 
@@ -240,12 +263,12 @@ int main(int argc, char **argv)
     for (y = 0; y < curintrecs.Get(x)->items.GetSize(); y ++)
     {
       int pos=(curintrecs.Get(x)->items.Get(y)->position-1) * len;
-      printf("Writing record, pos=%d, len=%d\n",pos,len);
-      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, pos, len)) id++;
+      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, pos, len,argv[1])) id++;
     }
     if (y)  track_id++;
 
   }
+  printf("wrote %d records, %d tracks\n",id-1,track_id);
 
 
 
