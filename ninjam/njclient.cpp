@@ -183,36 +183,34 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
   }
 
 
-  EnterCriticalSection(&m_misc_cs);
-  if (m_beatinfo_updated)
-  {
-    double v=(double)m_bpm*(1.0/60.0);
-    // beats per second
-
-    // (beats/interval) / (beats/sec)
-    v = (double) m_bpi / v;
-
-    // seconds/interval
-
-    // samples/interval
-    v *= (double) srate;
-
-    m_beatinfo_updated=0;
-    m_interval_length = (int)v;
-    //m_interval_length-=m_interval_length%1152;//hack
-    m_interval_pos=-1;
-    m_active_bpm=m_bpm;
-    m_active_bpi=m_bpi;
-    m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
-  }
-  LeaveCriticalSection(&m_misc_cs);
-
-
   while (len > 0)
   {
     int x=m_interval_length-m_interval_pos;
     if (!x || m_interval_pos < 0)
     {
+      EnterCriticalSection(&m_misc_cs);
+      if (m_beatinfo_updated)
+      {
+        double v=(double)m_bpm*(1.0/60.0);
+        // beats per second
+
+        // (beats/interval) / (beats/sec)
+        v = (double) m_bpi / v;
+
+        // seconds/interval
+
+        // samples/interval
+        v *= (double) srate;
+
+        m_beatinfo_updated=0;
+        m_interval_length = (int)v;
+        //m_interval_length-=m_interval_length%1152;//hack
+        m_active_bpm=m_bpm;
+        m_active_bpi=m_bpi;
+        m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
+      }
+      LeaveCriticalSection(&m_misc_cs);
+
       // new buffer time
       on_new_interval(nch,srate);
 
@@ -965,6 +963,8 @@ void NJClient::on_new_interval(int nch, int srate)
 {
   m_loopcnt++;
   writeLog("interval %d %.2f %d\n",m_loopcnt,GetActualBPM(),m_active_bpi);
+
+  m_metronome_pos=0.0;
 
   int u;
   EnterCriticalSection(&m_locchan_cs);
