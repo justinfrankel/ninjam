@@ -243,19 +243,58 @@ void showmainview(bool action=false)
         g_ui_state=1;        
         g_ui_voltweakstate_channel=a;
       }
-      else // vu, do nothing
+      else if (g_sel_x >= 5)
       {
+        g_client->DeleteLocalChannel(a);
+        g_client->NotifyServerOfChannelChange();
+        x--;
+        action=0;
+        continue;
+        // delete
       }
     }
 
 
     char volstr[256];
     mkvolpanstr(volstr,vol,pan);
-    sprintf(linebuf,"  name[%s] active[%c] source[%d] mute[%c] vol[%s] vu[%2.1fdB]",name,bc?'X':' ',sch,mute?'X':' ',volstr,VAL2DB(g_client->GetLocalChannelPeak(a)));
+    sprintf(linebuf,"  [%s] [%c]active [%d]source [%c]mute [%s] [delete] <%2.1fdB>",name,bc?'X':' ',sch,mute?'X':' ',volstr,VAL2DB(g_client->GetLocalChannelPeak(a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
                                COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+  }
+  if (ypos < LINES-3)
+  {
+    if (action && g_sel_y == selpos)
+    {
+      int x;
+      for (x = 0; x < MAX_LOCAL_CHANNELS; x ++)
+      {
+        if (!g_client->GetLocalChannelInfo(x,NULL,NULL,NULL)) break;
+      }
+      if (x < MAX_LOCAL_CHANNELS)
+      {
+        g_client->SetLocalChannelInfo(x,"channel",true,0,false,0,true,false);
+        g_client->NotifyServerOfChannelChange();
+
+        char volstr[256];
+        mkvolpanstr(volstr,0.0f,0.0f);
+        sprintf(linebuf,"  [channel] [ ]active [0]source [ ]mute [%s] [delete]",volstr);
+
+        g_sel_y++;
+
+        highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
+                                   COLORMAP(0)|A_BOLD,COLORMAP(0),
+                                   COLORMAP(5),COLORMAP(5),-1);
+
+      }
+    }
+    if (ypos < LINES-3)
+    {
+      highlightoutline(ypos++,"  [new channel]",COLORMAP(0),COLORMAP(0),
+                                 COLORMAP(0)|A_BOLD,COLORMAP(0),
+                                 COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+    }
   }
   if (ypos < LINES-3)
   {
@@ -313,21 +352,17 @@ void showmainview(bool action=false)
         // toggle mute
         g_client->SetUserChannelState(user,a,false,false,false,0.0f,false,0.0f,true,mute=!mute);
       }
-      else if (g_sel_x == 2)
+      else if (g_sel_x >= 2)
       {
-        // volume, ack
+        // volume
         g_ui_state=1;
         g_ui_voltweakstate_channel=1024+64*user+a;
-      }
-      else if (g_sel_x >= 3)
-      {
-        // do nothing
       }
     }
 
     char volstr[256];
     mkvolpanstr(volstr,vol,pan);
-    sprintf(linebuf,"  \"%s\" subscribe[%c] mute[%c] vol[%s] vu[%2.1fdB]",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
+    sprintf(linebuf,"  \"%s\" [%c]subscribe [%c]mute [%s] <%2.1fdB>",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
@@ -563,8 +598,6 @@ int main(int argc, char **argv)
 
   g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
   g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false);
-  g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,false);
-  g_client->SetLocalChannelMonitoring(1,false,0.0f,false,0.0,false,false);
 
   
 
