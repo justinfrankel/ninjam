@@ -62,6 +62,7 @@ NJClient::NJClient()
   config_metronome_pan=0.0f;
   config_debug_level=0;
   config_mastervolume=1.0f;
+  config_masterpan=0.0f;
 
 
   waveWrite=0;
@@ -826,15 +827,36 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
   // apply master volume, then
   {
-    int x=len*nch;
+    int x=len;
     float *ptr=buf;
     float maxf=output_peaklevel*0.99f;
 
-    while (x--)
+    if (nch == 2)
     {
-      float f = *ptr++ *= config_mastervolume;
-      if (f > maxf) maxf=f;
-      else if (f < -maxf) maxf=-f;
+      float vol1=config_mastervolume;
+      float vol2=vol1;
+      if (config_masterpan > 0.0f) vol1 *= 1.0f-config_masterpan;
+      else if (config_masterpan< 0.0f) vol2 *= 1.0f+config_masterpan;
+
+      while (x--)
+      {
+        float f = *ptr++ *= vol1;
+        if (f > maxf) maxf=f;
+        else if (f < -maxf) maxf=-f;
+
+        f = *ptr++ *= vol2;
+        if (f > maxf) maxf=f;
+        else if (f < -maxf) maxf=-f;
+      }
+    }
+    else
+    {
+      while (x--)
+      {
+        float f = *ptr++ *= config_mastervolume;
+        if (f > maxf) maxf=f;
+        else if (f < -maxf) maxf=-f;
+      }
     }
     output_peaklevel=maxf;
   }
