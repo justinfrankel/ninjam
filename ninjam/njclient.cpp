@@ -60,9 +60,11 @@ NJClient::NJClient()
   config_savelocalaudio=0;
   config_metronome=0.5f;
   config_metronome_pan=0.0f;
+  config_metronome_mute=false;
   config_debug_level=0;
   config_mastervolume=1.0f;
   config_masterpan=0.0f;
+  config_mastermute=false;
 
 
   waveWrite=0;
@@ -843,7 +845,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
     if (nch == 2)
     {
-      float vol1=config_mastervolume;
+      float vol1=config_mastermute?0.0f:config_mastervolume;
       float vol2=vol1;
       if (config_masterpan > 0.0f) vol1 *= 1.0f-config_masterpan;
       else if (config_masterpan< 0.0f) vol2 *= 1.0f+config_masterpan;
@@ -861,9 +863,10 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     }
     else
     {
+      float vol1=config_mastermute?0.0f:config_mastervolume;
       while (x--)
       {
-        float f = *ptr++ *= config_mastervolume;
+        float f = *ptr++ *= vol1;
         if (f > maxf) maxf=f;
         else if (f < -maxf) maxf=-f;
       }
@@ -877,7 +880,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     double sc=6000.0/(double)srate;
     int x;
     int um=config_metronome>0.0001f;
-    double vol1=config_metronome,vol2=config_metronome;
+    double vol1=config_metronome_mute?0.0:config_metronome,vol2=vol1;
     if (nch > 1)
     {
         if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;

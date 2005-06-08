@@ -799,6 +799,7 @@ int main(int argc, char **argv)
                 {
                   pan += a == KEY_LEFT ? -0.01f : 0.01f;
                   if (pan > 1.0f) pan=1.0f;
+                  else if (pan < -1.0f) pan=-1.0f;
                   if (g_ui_voltweakstate_channel == -2) g_client->config_masterpan=pan;
                   else if (g_ui_voltweakstate_channel == -1) g_client->config_metronome_pan=pan;
                   else if (g_ui_voltweakstate_channel>=1024)
@@ -829,6 +830,7 @@ int main(int argc, char **argv)
                   if (a == KEY_DOWN || a == KEY_NPAGE) sc=-sc;
                   vol += sc;
                   if (vol > 20.0f) vol=20.0f;
+                  else if (vol < -120.0f) vol=-120.0f;
                   vol=(float) DB2VAL(vol);
                   if (g_ui_voltweakstate_channel == -2) g_client->config_mastervolume=vol;
                   else if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
