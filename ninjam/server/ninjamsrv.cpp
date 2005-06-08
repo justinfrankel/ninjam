@@ -262,6 +262,7 @@ int main(int argc, char **argv)
 
       if (m_group->Run()) 
       {
+#ifdef _WIN32
         if (needprompt)
         {
           if (needprompt>1) printf("\nKeys:\n"
@@ -272,7 +273,6 @@ int main(int argc, char **argv)
           printf(": ");
           needprompt=0;
         }
-#ifdef _WIN32
         if (kbhit())
         {
           int c=toupper(getch());
