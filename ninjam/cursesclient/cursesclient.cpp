@@ -14,6 +14,11 @@
 #include "curses.h"
 #include "cursesclientinst.h"
 
+#ifdef _WIN32
+#define getch() curses_getch(CURSES_INSTANCE)
+#define erase() curses_erase(CURSES_INSTANCE)
+#endif
+
 void ninjamCursesClientInstance::Run()
 {
 }
@@ -21,7 +26,10 @@ void ninjamCursesClientInstance::Run()
 
 ninjamCursesClientInstance m_cursinst;
 int color_map[8];
+int g_done=0;
 
+#define VAL2DB(x) (log10(x)*g_ilog2x6)
+double g_ilog2x6;
 // jesusonic stuff
 void *myInst;
 jesusonicAPI *JesusonicAPI;  
@@ -51,13 +59,249 @@ void audiostream_onsamples(float *buf, int len, int nch)
 }
 
 
+int g_sel_x, g_sel_y;
+
+#define COLORMAP(x) color_map[x]
+
+void mkvolpanstr(char *str, double vol, double pan)
+{
+    sprintf(str,"%2.1fdB ",VAL2DB(vol));   
+    if (fabs(pan) < 0.0001) strcat(str,"center");
+    else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
+}
+
+
+// highlights shit in []
+void highlightoutline(int line, char *str, int attrnorm, int bknorm, int attrhi, int bkhi, int attrsel, int bksel, int whl)
+{
+  int state=0;
+  int l=COLS-1;
+  int lcol=0;
+  move(line,0);
+	attrset(attrnorm);
+	bkgdset(bknorm);
+
+  while (*str && l-- > 0)
+  {
+    if (*str == ']')
+    {
+      if (state)
+      {
+	      attrset(attrnorm);
+    	  bkgdset(bknorm);
+        state=0;
+      }
+    }
+    addch(*str);
+    if (*str == '[')
+    {
+      if (whl > 0)
+      {
+        char *tmp=strstr(str,"]");
+        if (tmp && !strstr(tmp,"[")) 
+        {
+          whl=0;
+          g_sel_x=lcol;
+        }
+      }
+      if (!state)
+      {
+        lcol++;
+        if (!whl--)
+        {
+          attrset(attrsel);
+          bkgdset(bksel);
+        }
+        else
+        {
+          attrset(attrhi);
+          bkgdset(bkhi);
+        }
+        state=1;
+      }
+    }
+    str++;
+
+  }
+  if (state)
+  {
+	  attrset(attrnorm);
+	  bkgdset(bknorm);
+  }
+
+}
+
+void showmainview(bool action=false)
+{
+  int selpos=0;
+  erase();
+	bkgdset(COLORMAP(6));
+	attrset(COLORMAP(6));
+	mvaddstr(0,0,"LOCAL");
+  clrtoeol();
+	bkgdset(COLORMAP(0));
+	attrset(COLORMAP(0));
+  char linebuf[1024];
+  int linemax=LINES-2;
+  {
+
+    sprintf(linebuf,"  metronome: vol[");
+    mkvolpanstr(linebuf+strlen(linebuf),g_client->config_metronome,g_client->config_metronome_pan);
+
+    strcat(linebuf,"]");
+
+    highlightoutline(1,linebuf,COLORMAP(0),COLORMAP(0),
+                               COLORMAP(0)|A_BOLD,COLORMAP(0),
+                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+//	  mvaddnstr(1,0,linebuf,COLS-1);
+  }
+  int x;
+  int ypos=2;
+  for (x=0;ypos < linemax;x++)
+  {
+    int a=g_client->EnumLocalChannels(x);
+    if (a<0) break;
+    int sch;
+    bool bc,mute;
+    float vol,pan;
+    char *name=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
+    g_client->GetLocalChannelMonitoring(a,&vol,&pan,&mute);
+
+    if (action && g_sel_y == selpos)
+    {
+      if (g_sel_x == 0)
+      {
+      }
+      else if (g_sel_x == 1)
+      {
+        // toggle active
+        g_client->SetLocalChannelInfo(a,NULL,false,0,false,0,true,bc=!bc);
+      }
+      else if (g_sel_x == 2)
+      {
+        // source, ack
+      }
+      else if (g_sel_x == 3)
+      {
+        // mute
+        g_client->SetLocalChannelMonitoring(a,false,0.0f,false,0.0f,true,mute=!mute);
+      }
+      else if (g_sel_x == 4)
+      {
+        //volume
+      }
+      else // vu, do nothing
+      {
+      }
+    }
+
+
+    char volstr[256];
+    mkvolpanstr(volstr,vol,pan);
+    sprintf(linebuf,"  [%s] active[%c] source[%d] mute[%c] vol[%s] vu[%2.1fdB]",name,bc?'X':' ',sch,mute?'X':' ',volstr,VAL2DB(g_client->GetLocalChannelPeak(a)));
+
+    highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
+                               COLORMAP(0)|A_BOLD,COLORMAP(0),
+                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+  }
+  if (ypos < LINES-3)
+  {
+	  bkgdset(COLORMAP(6));
+	  attrset(COLORMAP(6));
+	  mvaddnstr(ypos++,0,"REMOTE",COLS-1);
+    clrtoeol();
+	  bkgdset(COLORMAP(0));
+	  attrset(COLORMAP(0));
+  }
+  int user=0;
+  x=0;
+  while (ypos < linemax)
+  {
+    if (!x) // show user info
+    {
+      char *name=g_client->GetUserState(user);
+      if (!name) break;
+
+	    bkgdset(COLORMAP(4));
+	    attrset(COLORMAP(4));
+	    mvaddnstr(ypos++,0,name,COLS-1);
+
+      clrtoeol();
+	    bkgdset(COLORMAP(0));
+	    attrset(COLORMAP(0));
+      
+    }
+
+    if (ypos >= linemax) break;
+
+    int a=g_client->EnumUserChannels(user,x);
+    if (a < 0)
+    {
+      x=0;
+      user++;
+      continue;
+    }
+
+    float vol,pan;
+    bool sub,mute;
+    char *name=g_client->GetUserChannelState(user,a,&sub,&vol,&pan,&mute);
+    // show channel info
+
+
+    if (action && g_sel_y == selpos)
+    {
+      if (g_sel_x == 0)
+      {
+        // toggle subscribe
+        g_client->SetUserChannelState(user,a,true,sub=!sub,false,0.0f,false,0.0f,false,false);
+      }
+      else if (g_sel_x == 1)
+      {
+        // toggle mute
+        g_client->SetUserChannelState(user,a,false,false,false,0.0f,false,0.0f,true,mute=!mute);
+      }
+      else if (g_sel_x == 2)
+      {
+        // volume, ack
+      }
+      else if (g_sel_x >= 3)
+      {
+        // do nothing
+      }
+    }
+
+    char volstr[256];
+    mkvolpanstr(volstr,vol,pan);
+    sprintf(linebuf,"  \"%s\" sub[%c] mute[%c] vol[%s] vu[%2.1fdB]",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
+
+    highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
+                               COLORMAP(0)|A_BOLD,COLORMAP(0),
+                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+
+    x++;
+
+    
+  }
+  if (g_sel_y > selpos) g_sel_y=selpos;
+
+
+  ypos=LINES-1;
+  sprintf(linebuf,"[quit ninjam] : %s : %.1f bpm %d bpi : %d Hz %dch %dbps%s",
+    g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_nch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
+  highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),g_sel_y != selpos ? -1 : g_sel_x);
+  attrset(COLORMAP(1));
+  bkgdset(COLORMAP(1));
+  clrtoeol();
+  if (action && g_sel_y == selpos)
+  {
+    g_done++;
+  }
+
+
+}
 
 
 
-
-
-
-int g_done=0;
 
 void sigfunc(int sig)
 {
@@ -90,6 +334,7 @@ void usage()
 
 int main(int argc, char **argv)
 {
+  g_ilog2x6 = 6.0/log10(2.0);
   signal(SIGINT,sigfunc);
 
   char *parmuser=NULL;
@@ -401,10 +646,10 @@ int main(int argc, char **argv)
 	}
 #endif
 
+  showmainview();
 	refresh();
 
-  int lastloopcnt=0;
-  int statuspos=0;
+  int refreshrate=900;
   while (g_client->GetStatus() >= 0 && !g_done)
   {
     if (g_client->Run()) 
@@ -416,60 +661,61 @@ int main(int argc, char **argv)
         DispatchMessage(&msg);
       }
       Sleep(1);
-      if (g_client->HasUserInfoChanged())
-      {
-        printf("\nUser, channel list:\n");
-        int us=0;
-        for(;;)
-        {
-          char *un=g_client->GetUserState(us);
-          if (!un) break;
-          printf(" %s\n",un);
-          int i;
-          for (i=0;;i++)
-          {
-            bool sub;
-            int ch=g_client->EnumUserChannels(us,i++);
-            if (ch<0) break;
 
-            char *cn=g_client->GetUserChannelState(us,ch,&sub);
-            if (!cn) break;
-            printf("    %d: \"%s\" subscribed=%d\n",ch,cn,sub?1:0);
-            ch++;
-          }
-          us++;
+      int a=getch();
+      if (a!=ERR)
+      {
+        switch (a)
+        {
+          case KEY_LEFT:
+            if (g_sel_x > 0)
+            {
+              g_sel_x--;
+              refreshrate=0;
+            }
+          break;
+          case KEY_RIGHT:
+            {
+              g_sel_x++;
+              refreshrate=0;
+            }
+          break;
+          case KEY_UP:
+            if (g_sel_y > 0) 
+            {
+              g_sel_y--;
+              refreshrate=0;
+            }
+          break;
+          case KEY_DOWN:
+            {
+              g_sel_y++;
+              refreshrate=0;
+            }
+          break;
+          case '\r':
+            {
+              showmainview(true);
+            }
+          break;
         }
-        if (!us) printf("  <no users>\n");
       }
-      if (!nostatus)
-      {
-        int lc=g_client->GetLoopCount();
-        if (lastloopcnt != lc)
-        {
-          int l;
-          g_client->GetPosition(NULL,&l);
-          lastloopcnt = lc;
 
-          printf("\rEntering interval %d (%d samples, %.2f bpm)%20s\n",lc, l,g_client->GetActualBPM(),"");
-          printf("[%28s|%29s]\r[","","");
-          statuspos=0;
-        }
-        else
-        {
-          int l,p;
-          g_client->GetPosition(&p,&l);
-          p *= 60;
-          p/=l;
-          while (statuspos<p)
-          {
-            statuspos++;
-            printf("#");
-          }       
-        }
+      if (g_client->HasUserInfoChanged()||!refreshrate--)
+      {
+        refreshrate=900;
+        showmainview();
       }
     }
 
   }
+
+	erase();
+	refresh();
+
+	// shut down curses
+	endwin();
+
   printf("exiting on status %d\n",g_client->GetStatus());
 
 
