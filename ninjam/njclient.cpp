@@ -553,7 +553,17 @@ int NJClient::Run() // nonzero if sleep ok
     if (!lc->GetBlock(&p))
     {
       s=0;
-      if (p)
+      if ((int)p == -1)
+      {
+        mpb_client_upload_interval_begin cuib;
+        cuib.chidx=lc->channel_idx;
+        memset(cuib.guid,0,sizeof(cuib.guid));
+        memset(lc->m_curwritefile.guid,0,sizeof(lc->m_curwritefile.guid));
+        cuib.fourcc=0;
+        cuib.estsize=0;
+        m_netcon->Send(cuib.build());
+      }
+      else if (p)
       {
         // encode data
         if (!lc->m_enc)
@@ -1001,7 +1011,14 @@ void NJClient::on_new_interval(int nch, int srate)
       lc->AddBlock(NULL,0,1);
     }
 
+    int wasact=lc->bcast_active;
+
     lc->bcast_active = lc->broadcasting;
+
+    if (wasact && !lc->bcast_active)
+    {
+      lc->AddBlock(NULL,-1,1);
+    }
 
   }
   LeaveCriticalSection(&m_locchan_cs);
@@ -1371,7 +1388,7 @@ int Local_Channel::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none a
 void Local_Channel::DisposeBlock(WDL_HeapBuf *b)
 {
   EnterCriticalSection(&m_cs);
-  if (b) m_emptybufs.Add(b);
+  if (b && (int)b != -1) m_emptybufs.Add(b);
   LeaveCriticalSection(&m_cs);
 }
 
@@ -1390,10 +1407,7 @@ void Local_Channel::AddBlock(float *samples, int len, int spacing)
     }
     LeaveCriticalSection(&m_cs);
     if (!mybuf) mybuf=new WDL_HeapBuf;
-  }
 
-  if (mybuf)
-  {
     mybuf->Resize(len*sizeof(float));
     float *o=(float *)mybuf->Get();
     while (len--)
@@ -1402,7 +1416,7 @@ void Local_Channel::AddBlock(float *samples, int len, int spacing)
       samples+=spacing;
     }
   }
-
+  else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 
   EnterCriticalSection(&m_cs);
   m_samplequeue.Add(&mybuf,sizeof(mybuf));
@@ -1425,7 +1439,7 @@ Local_Channel::~Local_Channel()
   WDL_HeapBuf **bufs=(WDL_HeapBuf **)m_samplequeue.Get();
   if (bufs) while (l--)
   {
-    delete *bufs;
+    if ((int)*bufs != 0 && (int)*bufs != -1) delete *bufs;
     bufs++;
   }
   m_samplequeue.Advance(m_samplequeue.Available());
