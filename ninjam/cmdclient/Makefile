@@ -5,7 +5,7 @@
 OPTFLAGS =  -O2
 
 ifdef MAC
-OPTFLAGS += -D_MAC -fast
+OPTFLAGS += -D_MAC -mcpu=7450
 else
 OPTFLAGS += -malign-double 
 endif
@@ -39,4 +39,4 @@ CXXFLAGS = $(CFLAGS)
 default: cmdclient
 
 cmdclient: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o cmdclient $(OBJS) -lpthread -L.. -lvorbisenc -lvorbis -logg -lncurses -framework coreaudio
+	$(CXX) $(CXXFLAGS) -o cmdclient $(OBJS) -lpthread -L.. -lvorbis -lvorbisenc -logg -lncurses -framework coreaudio
