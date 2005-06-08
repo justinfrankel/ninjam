@@ -39,4 +39,4 @@ CXXFLAGS = $(CFLAGS)
 default: cmdclient
 
 cmdclient: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o cmdclient $(OBJS) -lpthread -L.. -lvorbisenc -lvorbis -logg
+	$(CXX) $(CXXFLAGS) -o cmdclient $(OBJS) -lpthread -L.. -lvorbisenc -lvorbis -logg -lncurses -framework coreaudio

@@ -317,10 +317,10 @@ int main(int argc, char **argv)
 
   if (!sessiondir.Get()[0])
   {
+    char buf[512];
 #ifdef _WIN32
     SYSTEMTIME st;
     GetLocalTime(&st);
-    char buf[512];
     
     int cnt=0;
     for (;;)
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
     {
       sprintf(buf,"njsession_%d_%d",time(NULL),cnt);
 
-      if (!mkdir(buf)) break;
+      if (!mkdir(buf,0)) break;
 
       cnt++;
     }
@@ -355,7 +355,7 @@ int main(int argc, char **argv)
 #ifdef _WIN32
     CreateDirectory(sessiondir.Get(),NULL);
 #else
-    mkdir(sessiondir.Get(),NULL);
+    mkdir(sessiondir.Get(),0);
 #endif
   if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
 #ifdef _WIN32
