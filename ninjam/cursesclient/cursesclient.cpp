@@ -27,8 +27,11 @@ void ninjamCursesClientInstance::Run()
 ninjamCursesClientInstance m_cursinst;
 int color_map[8];
 int g_done=0;
+int g_ui_state=0;
+int g_ui_voltweakstate_channel;
 
 #define VAL2DB(x) (log10(x)*g_ilog2x6)
+#define DB2VAL(x) (pow(2.0,(x)/6.0))
 double g_ilog2x6;
 // jesusonic stuff
 void *myInst;
@@ -131,6 +134,31 @@ void highlightoutline(int line, char *str, int attrnorm, int bknorm, int attrhi,
 
 }
 
+
+void drawstatusbar()
+{
+  if (g_ui_state) return;
+  int l,p;
+  g_client->GetPosition(&p,&l);
+  if (!l) return;
+
+	bkgdset(COLORMAP(6));
+	attrset(COLORMAP(6));
+
+  move(LINES-2,0);
+  p*=(COLS);
+  p/=l;
+  int x;
+  for (x = 0; x < COLS; x ++) addch(x <= p ? '#' : ' ');
+
+	mvaddstr(0,0,"LOCAL");
+
+	bkgdset(COLORMAP(0));
+	attrset(COLORMAP(0));
+
+
+}
+
 void showmainview(bool action=false)
 {
   int selpos=0;
@@ -144,7 +172,11 @@ void showmainview(bool action=false)
   char linebuf[1024];
   int linemax=LINES-2;
   {
-
+    if (action && g_sel_y == selpos)
+    {
+        g_ui_state=1;        
+        g_ui_voltweakstate_channel=-1;
+    }
     sprintf(linebuf,"  metronome: vol[");
     mkvolpanstr(linebuf+strlen(linebuf),g_client->config_metronome,g_client->config_metronome_pan);
 
@@ -189,6 +221,8 @@ void showmainview(bool action=false)
       else if (g_sel_x == 4)
       {
         //volume
+        g_ui_state=1;        
+        g_ui_voltweakstate_channel=a;
       }
       else // vu, do nothing
       {
@@ -263,6 +297,8 @@ void showmainview(bool action=false)
       else if (g_sel_x == 2)
       {
         // volume, ack
+        g_ui_state=1;
+        g_ui_voltweakstate_channel=1024+64*user+a;
       }
       else if (g_sel_x >= 3)
       {
@@ -272,7 +308,7 @@ void showmainview(bool action=false)
 
     char volstr[256];
     mkvolpanstr(volstr,vol,pan);
-    sprintf(linebuf,"  \"%s\" sub[%c] mute[%c] vol[%s] vu[%2.1fdB]",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
+    sprintf(linebuf,"  \"%s\" subscribe[%c] mute[%c] vol[%s] vu[%2.1fdB]",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
@@ -283,6 +319,18 @@ void showmainview(bool action=false)
     
   }
   if (g_sel_y > selpos) g_sel_y=selpos;
+
+
+  if (g_ui_state==1)
+  {
+	  bkgdset(COLORMAP(2));
+	  attrset(COLORMAP(2));
+	  mvaddnstr(LINES-2,0,"USE UP AND DOWN FOR VOLUME, LEFT AND RIGHT FOR PANNING, ENTER WHEN DONE",COLS-1);
+    clrtoeol();
+	  bkgdset(COLORMAP(0));
+	  attrset(COLORMAP(0));
+  }
+  drawstatusbar();
 
 
   ypos=LINES-1;
@@ -315,14 +363,11 @@ void usage()
 
   printf("Usage: ninjam hostname [options]\n"
     "Options:\n"
-    "  -localchannels [0..2]\n"
     "  -norecv\n"
     "  -sessiondir <path>\n"
     "  -nosavelocal | -savelocalwavs\n"
     "  -user <username>\n"
     "  -pass <password>\n"
-    "  -monitor <level in dB>\n"
-    "  -metronome <level in dB>\n"
     "  -debuglevel [0..2]\n"
     "  -nowritewav\n"
     "  -nowritelog\n"
@@ -341,9 +386,8 @@ int main(int argc, char **argv)
   char *parmpass=NULL;
   char *jesusdir=NULL;
   WDL_String sessiondir;
-  int localchannels=1,nostatus=0, nowav=0, nolog=0;
+  int nolog=0,nowav=0;
 
-  float monitor=1.0;
   printf("Ninjam v0.004 command line test client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
@@ -354,17 +398,7 @@ int main(int argc, char **argv)
     int p;
     for (p = 2; p < argc; p++)
     {
-      if (!stricmp(argv[p],"-localchannels"))
-      {
-        if (++p >= argc) usage();
-        localchannels=atoi(argv[p]);
-        if (localchannels < 0 || localchannels > 2)
-        {
-          printf("Error: -localchannels must have parameter [0..2]\n");
-          return 1;
-        }
-      }
-      else if (!stricmp(argv[p],"-savelocalwavs"))
+      if (!stricmp(argv[p],"-savelocalwavs"))
       {
         g_client->config_savelocalaudio=2;     
       }
@@ -375,20 +409,6 @@ int main(int argc, char **argv)
       else if (!stricmp(argv[p],"-nosavelocal"))
       {
         g_client->config_savelocalaudio=0;
-      }
-      else if (!stricmp(argv[p],"-nostatus"))
-      {
-        nostatus=1;
-      }
-      else if (!stricmp(argv[p],"-monitor"))
-      {
-        if (++p >= argc) usage();
-        monitor=(float)pow(2.0,atof(argv[p])/6.0);
-      }
-      else if (!stricmp(argv[p],"-metronome"))
-      {
-        if (++p >= argc) usage();
-        g_client->config_metronome=(float)pow(2.0,atof(argv[p])/6.0);
       }
       else if (!stricmp(argv[p],"-debuglevel"))
       {
@@ -507,19 +527,12 @@ int main(int argc, char **argv)
 
   // end jesusonic init
 
-  if (localchannels>0)
-  {
-    g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
-    g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+  g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
+  g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false);
+  g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,false);
+  g_client->SetLocalChannelMonitoring(1,false,0.0f,false,0.0,false,false);
 
-    if (localchannels>1)
-    {
-      g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,true);
-      g_client->SetLocalChannelMonitoring(1,true,monitor,false,0.0,false,false);
-    }
-
-  }
-
+  
 
 
 
@@ -665,7 +678,7 @@ int main(int argc, char **argv)
       int a=getch();
       if (a!=ERR)
       {
-        switch (a)
+        if (!g_ui_state) switch (a)
         {
           case KEY_LEFT:
             if (g_sel_x > 0)
@@ -699,13 +712,118 @@ int main(int argc, char **argv)
             }
           break;
         }
+        else if (g_ui_state == 1)
+        {
+          switch (a)
+          {
+            case KEY_LEFT:
+              {
+                float pan;
+
+                int ok=0;
+                if (g_ui_voltweakstate_channel <0) { pan=(float)g_client->config_metronome_pan; ok=1; }
+                else if (g_ui_voltweakstate_channel >= 1024) 
+                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,NULL,&pan,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,NULL,&pan,NULL);
+
+                if (ok)
+                {
+                  pan -= 0.01f;
+                  if (pan < -1.0f) pan=-1.0f;
+                  if (g_ui_voltweakstate_channel == -1) g_client->config_metronome_pan=pan;
+                  else if (g_ui_voltweakstate_channel>=1024)
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,false,0.0f,true,pan,false,false);
+                  else
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,false,0.0f,true,pan,false,false);
+                  showmainview();
+                }
+              }
+            break;
+            case KEY_RIGHT:
+              {
+                float pan;
+                int ok=0;
+                if (g_ui_voltweakstate_channel <0) { pan=(float)g_client->config_metronome_pan; ok=1; }
+                else if (g_ui_voltweakstate_channel >= 1024) 
+                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,NULL,&pan,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,NULL,&pan,NULL);
+
+                if (ok)
+                {
+                  pan += 0.01f;
+                  if (pan > 1.0f) pan=1.0f;
+                  if (g_ui_voltweakstate_channel == -1) g_client->config_metronome_pan=pan;
+                  else if (g_ui_voltweakstate_channel>=1024)
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,false,0.0f,true,pan,false,false);
+                  else
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,false,0.0f,true,pan,false,false);
+                  showmainview();
+                }
+              }
+            break;
+            case KEY_UP:
+              {
+                float vol;
+                int ok=0;
+                if (g_ui_voltweakstate_channel <0) { vol=(float)g_client->config_metronome; ok=1; }
+                else if (g_ui_voltweakstate_channel >= 1024) 
+                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,&vol,NULL,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,&vol,NULL,NULL);
+
+                if (ok)
+                {
+                  vol=(float) VAL2DB(vol);
+                  vol += 0.5f;
+                  if (vol > 20.0f) vol=20.0f;
+                  vol=(float) DB2VAL(vol);
+                  if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
+                  else if (g_ui_voltweakstate_channel>=1024)
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,true,vol,false,0.0f,false,false);
+                  else
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,true,vol,false,0.0f,false,false);
+                  showmainview();
+                }
+              }
+            break;
+            case KEY_DOWN:
+              {
+                float vol;
+                int ok=0;
+                if (g_ui_voltweakstate_channel <0) { vol=(float)g_client->config_metronome; ok=1; }
+                else if (g_ui_voltweakstate_channel >= 1024) 
+                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,&vol,NULL,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,&vol,NULL,NULL);
+                if (ok)
+                {
+                  vol=(float) VAL2DB(vol);
+                  vol -= 0.5f;
+                  if (vol < -120.0f) vol=-120.0f;
+                  vol=(float) DB2VAL(vol);
+                  if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
+                  else if (g_ui_voltweakstate_channel>=1024)
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,true,vol,false,0.0f,false,false);
+                  else
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,true,vol,false,0.0f,false,false);
+                  showmainview();
+                }
+              }
+            break;
+            case 27: case '\r':
+              {
+                g_ui_state=0;
+                showmainview();
+              }
+            break;
+          }
+        }
       }
 
-      if (g_client->HasUserInfoChanged()||!refreshrate--)
+      if (!g_ui_state && (g_client->HasUserInfoChanged()||!refreshrate--))
       {
         refreshrate=900;
         showmainview();
       }
+      drawstatusbar();
     }
 
   }
