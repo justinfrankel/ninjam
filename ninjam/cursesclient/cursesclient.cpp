@@ -14,6 +14,9 @@
 #include "curses.h"
 #include "cursesclientinst.h"
 
+
+
+#define VALIDATE_TEXT_CHAR(thischar) ((isspace(thischar) || isgraph(thischar)) && (thischar) < 256)
 #ifdef _WIN32
 #define getch() curses_getch(CURSES_INSTANCE)
 #define erase() curses_erase(CURSES_INSTANCE)
@@ -28,11 +31,18 @@ ninjamCursesClientInstance m_cursinst;
 int color_map[8];
 int g_done=0;
 int g_ui_state=0;
+int g_ui_locrename_ch;
 int g_ui_voltweakstate_channel;
+char m_lineinput_str[120];
 
-#define VAL2DB(x) (log10(x)*g_ilog2x6)
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
 double g_ilog2x6;
+double VAL2DB(double x)
+{
+  double v=(log10(x)*g_ilog2x6);
+  if (v < -120.0) v=-120.0;
+  return v;
+}
+#define DB2VAL(x) (pow(2.0,(x)/6.0))
 // jesusonic stuff
 void *myInst;
 jesusonicAPI *JesusonicAPI;  
@@ -68,7 +78,9 @@ int g_sel_x, g_sel_y;
 
 void mkvolpanstr(char *str, double vol, double pan)
 {
-    sprintf(str,"%2.1fdB ",VAL2DB(vol));   
+  double v=VAL2DB(vol);
+  if (vol < 0.0000001 || v < -120.0) v=-120.0;
+    sprintf(str,"%2.1fdB ",v);   
     if (fabs(pan) < 0.0001) strcat(str,"center");
     else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
 }
@@ -151,11 +163,10 @@ void drawstatusbar()
   int x;
   for (x = 0; x < COLS; x ++) addch(x <= p ? '#' : ' ');
 
-	mvaddstr(0,0,"LOCAL");
-
 	bkgdset(COLORMAP(0));
 	attrset(COLORMAP(0));
 
+  move(LINES-1,0);
 
 }
 
@@ -203,15 +214,21 @@ void showmainview(bool action=false)
     {
       if (g_sel_x == 0)
       {
+        g_ui_state=2;
+        g_ui_locrename_ch=a;
+        strncpy(m_lineinput_str,name,sizeof(m_lineinput_str)-1);
       }
       else if (g_sel_x == 1)
       {
         // toggle active
         g_client->SetLocalChannelInfo(a,NULL,false,0,false,0,true,bc=!bc);
+        g_client->NotifyServerOfChannelChange();
       }
       else if (g_sel_x == 2)
       {
-        // source, ack
+        g_ui_state=3;
+        g_ui_locrename_ch=a;
+        m_lineinput_str[0]  =0;
       }
       else if (g_sel_x == 3)
       {
@@ -232,7 +249,7 @@ void showmainview(bool action=false)
 
     char volstr[256];
     mkvolpanstr(volstr,vol,pan);
-    sprintf(linebuf,"  [%s] active[%c] source[%d] mute[%c] vol[%s] vu[%2.1fdB]",name,bc?'X':' ',sch,mute?'X':' ',volstr,VAL2DB(g_client->GetLocalChannelPeak(a)));
+    sprintf(linebuf,"  name[%s] active[%c] source[%d] mute[%c] vol[%s] vu[%2.1fdB]",name,bc?'X':' ',sch,mute?'X':' ',volstr,VAL2DB(g_client->GetLocalChannelPeak(a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
@@ -330,11 +347,11 @@ void showmainview(bool action=false)
 	  bkgdset(COLORMAP(0));
 	  attrset(COLORMAP(0));
   }
-  drawstatusbar();
+  else drawstatusbar();
 
 
   ypos=LINES-1;
-  sprintf(linebuf,"[quit ninjam] : %s : %.1f bpm %d bpi : %d Hz %dch %dbps%s",
+  sprintf(linebuf,"[quit ninjam] : %s : %.1f bpm %d bpi : %dHz %dch %dbps%s",
     g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_nch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
   highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),g_sel_y != selpos ? -1 : g_sel_x);
   attrset(COLORMAP(1));
@@ -345,6 +362,21 @@ void showmainview(bool action=false)
     g_done++;
   }
 
+  if (g_ui_state == 2 || g_ui_state == 3)
+  {
+	  bkgdset(COLORMAP(2));
+	  attrset(COLORMAP(2));
+    char *p1=g_ui_state == 2 ? "RENAME CHANNEL:" : "SELECT SOURCE CHANNEL (0 or 1): ";
+	  mvaddnstr(LINES-2,0,p1,COLS-1);
+	  bkgdset(COLORMAP(0));
+	  attrset(COLORMAP(0));
+
+    if ((int)strlen(p1) < COLS-2) { addch(' '); addnstr(m_lineinput_str,COLS-2-strlen(p1)); }
+
+    clrtoeol();
+  }
+  else
+    move(LINES-1,0);
 
 }
 
@@ -662,7 +694,7 @@ int main(int argc, char **argv)
   showmainview();
 	refresh();
 
-  int refreshrate=900;
+  DWORD nextupd=GetTickCount()+250;
   while (g_client->GetStatus() >= 0 && !g_done)
   {
     if (g_client->Run()) 
@@ -684,29 +716,29 @@ int main(int argc, char **argv)
             if (g_sel_x > 0)
             {
               g_sel_x--;
-              refreshrate=0;
+              showmainview();
             }
           break;
           case KEY_RIGHT:
             {
               g_sel_x++;
-              refreshrate=0;
+              showmainview();
             }
           break;
           case KEY_UP:
             if (g_sel_y > 0) 
             {
               g_sel_y--;
-              refreshrate=0;
+              showmainview();
             }
           break;
           case KEY_DOWN:
             {
               g_sel_y++;
-              refreshrate=0;
+              showmainview();
             }
           break;
-          case '\r':
+          case '\r': case ' ':
             {
               showmainview(true);
             }
@@ -761,6 +793,7 @@ int main(int argc, char **argv)
                 }
               }
             break;
+            case KEY_PPAGE:
             case KEY_UP:
               {
                 float vol;
@@ -773,7 +806,7 @@ int main(int argc, char **argv)
                 if (ok)
                 {
                   vol=(float) VAL2DB(vol);
-                  vol += 0.5f;
+                  vol += a == KEY_PPAGE ? 4.0f : 0.5f;
                   if (vol > 20.0f) vol=20.0f;
                   vol=(float) DB2VAL(vol);
                   if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
@@ -785,6 +818,7 @@ int main(int argc, char **argv)
                 }
               }
             break;
+            case KEY_NPAGE:
             case KEY_DOWN:
               {
                 float vol;
@@ -796,7 +830,7 @@ int main(int argc, char **argv)
                 if (ok)
                 {
                   vol=(float) VAL2DB(vol);
-                  vol -= 0.5f;
+                  vol -= a == KEY_NPAGE ? 4.0f : 0.5f;
                   if (vol < -120.0f) vol=-120.0f;
                   vol=(float) DB2VAL(vol);
                   if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
@@ -816,14 +850,57 @@ int main(int argc, char **argv)
             break;
           }
         }
+        else if (g_ui_state == 2 || g_ui_state == 3)
+        {
+          switch (a)
+          {
+            case '\r':
+              if (m_lineinput_str[0])
+              {
+                if (g_ui_state == 2)
+                {
+                  g_client->SetLocalChannelInfo(g_ui_locrename_ch,m_lineinput_str,false,0,false,0,false,false);
+                }
+                else if (g_ui_state == 3)
+                {
+                  int ch= atoi(m_lineinput_str);
+                  if (ch < 0) ch=0;
+                  else if (ch > 1) ch=1;
+                  g_client->SetLocalChannelInfo(g_ui_locrename_ch,NULL,true,ch,false,0,false,false);
+                }
+                g_client->NotifyServerOfChannelChange();
+              }
+              g_ui_state=0;
+              showmainview();
+            break;
+            case 27:
+              {
+                g_ui_state=0;
+                showmainview();
+              }
+            break;
+					  case KEY_BACKSPACE: 
+              if (m_lineinput_str[0]) m_lineinput_str[strlen(m_lineinput_str)-1]=0; 
+              showmainview();
+					  break;
+            default:
+              if (VALIDATE_TEXT_CHAR(a) && (g_ui_state == 2 || (a >= '0' && a <= '1'))) //fucko: 9 once we have > 2ch
+						  { 
+							  int l=strlen(m_lineinput_str); 
+							  if (l < (int)sizeof(m_lineinput_str)-1) { m_lineinput_str[l]=a; m_lineinput_str[l+1]=0; }
+                showmainview();
+						  } 
+            break;
+          }
+        }
       }
 
-      if (!g_ui_state && (g_client->HasUserInfoChanged()||!refreshrate--))
+      if (g_ui_state < 2 && (g_client->HasUserInfoChanged()||GetTickCount()>=nextupd ))
       {
-        refreshrate=900;
+        nextupd=GetTickCount()+1000;
         showmainview();
       }
-      drawstatusbar();
+      else drawstatusbar();
     }
 
   }
