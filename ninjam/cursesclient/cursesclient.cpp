@@ -185,15 +185,29 @@ void showmainview(bool action=false)
   {
     if (action && g_sel_y == selpos)
     {
+      if (g_sel_x == 1 || g_sel_x == 3)
+      {
         g_ui_state=1;        
-        g_ui_voltweakstate_channel=g_sel_x == 0 ? -2 : -1;
+        g_ui_voltweakstate_channel=g_sel_x == 1 ? -2 : -1;
+      }
+      else
+      {
+        if (g_sel_x == 0)
+        {
+          g_client->config_mastermute=!g_client->config_mastermute;
+        }
+        else
+        {
+          g_client->config_metronome_mute=!g_client->config_metronome_mute;
+        }
+      }
     }
-    sprintf(linebuf,"  master[");
+    sprintf(linebuf,"  master: [%c]mute [",g_client->config_mastermute?'X':' ');
     mkvolpanstr(linebuf+strlen(linebuf),g_client->config_mastervolume,g_client->config_masterpan);
 
-    strcat(linebuf,"] metronome[");
+    sprintf(linebuf+strlen(linebuf),"]    |    metronome: [%c]mute [",g_client->config_metronome_mute?'X':' ');
     mkvolpanstr(linebuf+strlen(linebuf),g_client->config_metronome,g_client->config_metronome_pan);
-    strcat(linebuf,"]");
+    sprintf(linebuf+strlen(linebuf),"]");
 
     highlightoutline(1,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
@@ -458,7 +472,7 @@ int main(int argc, char **argv)
   WDL_String sessiondir;
   int nolog=0,nowav=0;
 
-  printf("Ninjam v0.006 curses client, Copyright (C) 2004-2005 Cockos, Inc.\n");
+  printf("Ninjam v0.007 curses client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
