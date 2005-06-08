@@ -337,7 +337,7 @@ int main(int argc, char **argv)
     {
       sprintf(buf,"njsession_%d_%d",time(NULL),cnt);
 
-      if (!mkdir(buf,0)) break;
+      if (!mkdir(buf,0700)) break;
 
       cnt++;
     }
@@ -355,7 +355,7 @@ int main(int argc, char **argv)
 #ifdef _WIN32
     CreateDirectory(sessiondir.Get(),NULL);
 #else
-    mkdir(sessiondir.Get(),0);
+    mkdir(sessiondir.Get(),0700);
 #endif
   if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
 #ifdef _WIN32
