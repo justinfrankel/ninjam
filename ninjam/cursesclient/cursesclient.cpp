@@ -197,6 +197,9 @@ void drawstatusbar()
 void showmainview(bool action=false)
 {
   int selpos=0;
+	bkgdset(COLORMAP(0));
+	attrset(COLORMAP(0));
+
   erase();
 	bkgdset(COLORMAP(1));
 	attrset(COLORMAP(1));
@@ -998,7 +1001,7 @@ time(NULL) >= nextupd
 #ifdef _WIN32
         nextupd=GetTickCount()+1000;
 #else
-        nextupd=time(NULL);
+        nextupd=time(NULL)+1;
 #endif
         showmainview();
       }
