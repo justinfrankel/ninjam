@@ -186,7 +186,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  printf("Ninjam v0.002 server starting up...\n");
+  printf("Ninjam v0.003 server starting up...\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (ReadConfig(argv[1]))
   {
