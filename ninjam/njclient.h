@@ -1,7 +1,12 @@
 #ifndef _NJCLIENT_H_
 #define _NJCLIENT_H_
 
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <stdlib.h>
+#include <memory.h>
+#endif
 #include <stdio.h>
 #include <time.h>
 #include "../WDL/string.h"

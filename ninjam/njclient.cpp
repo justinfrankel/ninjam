@@ -49,10 +49,15 @@ NJClient::NJClient()
   m_loopcnt=0;
   m_srate=48000;
 
+#ifdef _WIN32
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
   v=(DWORD)time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
+#else
+  time_t v=time(NULL);
+  WDL_RNG_addentropy(&v,sizeof(v));
+#endif
 
   m_status=-1;
 
@@ -973,7 +978,9 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 
       char buf[512];
       sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
+#ifdef _WIN32
       OutputDebugString(buf);
+#endif
       }
 
       chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
