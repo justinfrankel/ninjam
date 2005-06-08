@@ -37,7 +37,7 @@ public:
 class User_TransferState
 {
 public:
-  User_TransferState() : fp(0), bytes_sofar(0), bytes_estimated(0), fourcc(0)
+  User_TransferState() : fourcc(0), bytes_estimated(0), bytes_sofar(0), fp(0)
   { 
     time(&last_acttime);
     memset(guid,0,sizeof(guid));

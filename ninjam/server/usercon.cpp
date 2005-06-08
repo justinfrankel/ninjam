@@ -1,4 +1,9 @@
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 #include "usercon.h"
 #include "../mpb.h"
@@ -9,7 +14,7 @@
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_Connection *con) : m_clientcaps(0), m_auth_state(0)
+User_Connection::User_Connection(JNL_Connection *con) : m_auth_state(0), m_clientcaps(0)
 {
   m_netcon.attach(con);
 
@@ -362,7 +367,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             msg->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE); // we rely on the fact that the upload/download write messages are identical
                                                                    // though we may need to update this at a later date if we change things.
 
-            char *myusername=m_username.Get();
             int user,x;
 
 
@@ -491,7 +495,6 @@ int User_Group::Run()
             int mfmt_changes=0;
 
             int whichch=0;
-            char *chnp=0;
             while (whichch < MAX_USER_CHANNELS)
             {
               p->m_channels[whichch].name.Set("");
