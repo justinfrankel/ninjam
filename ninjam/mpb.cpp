@@ -556,7 +556,6 @@ int mpb_client_set_usermask::parse_get_rec(int offs, char **username, unsigned i
 int mpb_client_set_channel_info::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_SET_CHANNEL_INFO) return -1;
-  if (msg->get_size() < 2) return 1;
 
   m_intmsg = msg;
 
@@ -621,8 +620,8 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, short *v
 {
   if (!m_intmsg) return 0;
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  if (!p || m_intmsg->get_size() <= 2) return 0;
   int len=m_intmsg->get_size()-offs;
-  if (!p) return 0;
 
   mpisize=(int)p[0] | (((int)p[1])<<8);
   if (len < mpisize) return 0;
