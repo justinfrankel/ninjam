@@ -458,7 +458,7 @@ int main(int argc, char **argv)
   WDL_String sessiondir;
   int nolog=0,nowav=0;
 
-  printf("Ninjam v0.005 curses client, Copyright (C) 2004-2005 Cockos, Inc.\n");
+  printf("Ninjam v0.006 curses client, Copyright (C) 2004-2005 Cockos, Inc.\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
