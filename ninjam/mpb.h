@@ -164,7 +164,7 @@ class mpb_client_set_usermask
 class mpb_client_set_channel_info
 {
   public:
-    mpb_client_set_channel_info() : m_intmsg(0), mpisize(4) { }
+    mpb_client_set_channel_info() : mpisize(4), m_intmsg(0) { }
     ~mpb_client_set_channel_info() { }
 
     int parse(Net_Message *msg); // return 0 on success

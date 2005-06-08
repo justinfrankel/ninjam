@@ -1,4 +1,9 @@
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <stdlib.h>
+#include <memory.h>
+#endif
 
 #include "mpb.h"
 
@@ -394,7 +399,7 @@ Net_Message *mpb_server_download_interval_write::build()
 int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER) return -1;
-  if (msg->get_size() < sizeof(passhash)+1) return 1;
+  if (msg->get_size() < (int)sizeof(passhash)+1) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
   int len=msg->get_size();

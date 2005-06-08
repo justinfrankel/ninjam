@@ -42,9 +42,9 @@ class Net_Message
 		void releaseRef() { if (--m_refcnt < 1) delete this; }
 
 	private:
-    int m_parsepos;
-		int m_type;
+    		int m_parsepos;
 		int m_refcnt;
+		int m_type;
 		WDL_HeapBuf m_hb;
 };
 
@@ -52,7 +52,7 @@ class Net_Message
 class Net_Connection
 {
   public:
-    Net_Connection() : m_con(0), m_msgsendpos(-1), m_recvstate(0),m_error(0),m_recvmsg(0) 
+    Net_Connection() : m_error(0),m_msgsendpos(-1), m_recvstate(0),m_recvmsg(0),m_con(0)
     { 
     }
     ~Net_Connection();

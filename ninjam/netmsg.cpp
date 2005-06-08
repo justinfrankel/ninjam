@@ -1,4 +1,9 @@
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <stdlib.h>
+#include <memory.h>
+#endif
 
 #include "netmsg.h"
 
