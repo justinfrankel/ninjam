@@ -207,6 +207,10 @@ SOURCE=..\mpb.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\WDL\mutex.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\netmsg.h
 # End Source File
 # End Group
