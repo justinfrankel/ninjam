@@ -56,7 +56,7 @@ OSStatus caIOproc(AudioDeviceID dev,
            		*fout++=fin[inchtab[1]];
 	          	fin+=in_nch;
         	}
-        	audiostream_onsamples(ca_tmpbuf,needsize,in_nch);
+        	audiostream_onsamples(ca_tmpbuf,c,in_nch);
 		fin=(float *)ca_tmpbuf;
 		fout=(float *)out;
 		for (x = 0; x < c; x ++)
@@ -100,7 +100,7 @@ OSStatus caInproc(AudioDeviceID dev,
            		*fout++=fin[inchtab[1]];
 	          	fin+=in_nch;
         	}
-        	audiostream_onsamples(ca_tmpbuf,needsize,in_nch);
+        	audiostream_onsamples(ca_tmpbuf,c,in_nch);
 
 		pthread_mutex_lock(&m_mutex);
 		
