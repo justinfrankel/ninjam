@@ -1137,7 +1137,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
     else
     {
       mpb_client_set_usermask su;
-      su.build_add_rec(user->name.Get(),(user->submask|=~(1<<channelidx)));
+      su.build_add_rec(user->name.Get(),(user->submask|=(1<<channelidx)));
       m_netcon->Send(su.build());
     }
 
