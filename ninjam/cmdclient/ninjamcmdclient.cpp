@@ -1,22 +1,36 @@
+
+#ifdef _WIN32
 #include <windows.h>
+#include "../audiostream_asio.h"
+#else
+#include <stdlib.h>
+#include <memory.h>
+#include "../audiostream_mac.h"
+#endif
+
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>
 #include <float.h>
 
-#include "../audiostream_asio.h"
 #include "../njclient.h"
 
+#ifdef _WIN32
 #include "../../jesusonic/jesusonic_dll.h"
+#endif
 
 
 // jesusonic stuff
+#ifdef _WIN32
 void *myInst;
 jesusonicAPI *JesusonicAPI;  
 HINSTANCE hDllInst;
+#endif
 
 
+#ifdef _WIN32
 extern char *get_asio_configstr(char *inifile, int wantdlg);
+#endif
 audioStreamer *g_audio;
 NJClient *g_client;
 
@@ -26,6 +40,7 @@ void audiostream_onover() { }
 
 void audiostream_onsamples(float *buf, int len, int nch) 
 { 
+#ifdef _WIN32
   if (g_client->IsAudioRunning())
   {
     if (JesusonicAPI && myInst)
@@ -35,6 +50,7 @@ void audiostream_onsamples(float *buf, int len, int nch)
       JesusonicAPI->osc_run(myInst,(char*)buf,len*nch*sizeof(float));
     }
   }
+#endif
   g_client->AudioProc(buf,len,nch,g_audio->m_srate);
 }
 
@@ -71,7 +87,10 @@ void usage()
     "  -nowritewav\n"
     "  -nowritelog\n"
     "  -audiostr 0:0,0:0,0\n"
-    "  -jesusonic <path to jesusonic root dir>\n");
+#ifdef _WIN32
+    "  -jesusonic <path to jesusonic root dir>\n"
+#endif
+);
 
   exit(1);
 }
@@ -82,7 +101,9 @@ int main(int argc, char **argv)
 
   char *parmuser=NULL;
   char *parmpass=NULL;
+#ifdef _WIN32
   char *jesusdir=NULL;
+#endif
   WDL_String sessiondir;
   int localchannels=1,nostatus=0, nowav=0, nolog=0;
 
@@ -161,11 +182,13 @@ int main(int argc, char **argv)
       {
         nolog++;
       }
+#ifdef _WIN32
       else if (!stricmp(argv[p],"-jesusonic"))
       {
         if (++p >= argc) usage();
         jesusdir=argv[p];
       }
+#endif
       else if (!stricmp(argv[p],"-sessiondir"))
       {
         if (++p >= argc) usage();
@@ -194,6 +217,7 @@ int main(int argc, char **argv)
     }
   }
 
+#ifdef _WIN32
   {
     audioStreamer_ASIO *audio;
     char *dev_name_in;
@@ -211,12 +235,32 @@ int main(int argc, char **argv)
       audio->m_srate, audio->m_nch, audio->m_bps);
     g_audio=audio;
   }
+#else
+  {
+    audioStreamer_CoreAudio *audio;
+    char *dev_name_in;
+    
+    dev_name_in=audioconfigstr;
+    audio=new audioStreamer_CoreAudio;
+
+    int nbufs=2,bufsize=4096;
+    if (audio->Open(&dev_name_in,48000,2,16,&nbufs,&bufsize))
+    {
+      printf("Error opening audio!\n");
+      return 0;
+    }
+    printf("Opened %s (%dHz %dch %dbps)\n",dev_name_in,
+      audio->m_srate, audio->m_nch, audio->m_bps);
+    g_audio=audio;
+  }
+#endif
 
   JNL::open_socketlib();
 
 
   // jesusonic init
 
+#ifdef _WIN32
   WDL_String jesusonic_configfile;
   if (jesusdir)
   {
@@ -247,6 +291,7 @@ int main(int argc, char **argv)
       }
     }
   }
+#endif
 
   // end jesusonic init
 
@@ -272,6 +317,7 @@ int main(int argc, char **argv)
 
   if (!sessiondir.Get()[0])
   {
+#ifdef _WIN32
     SYSTEMTIME st;
     GetLocalTime(&st);
     char buf[512];
@@ -285,6 +331,17 @@ int main(int argc, char **argv)
 
       cnt++;
     }
+#else
+    int cnt=0;
+    for (;;)
+    {
+      sprintf(buf,"njsession_%d_%d",time(NULL),cnt);
+
+      if (!mkdir(buf)) break;
+
+      cnt++;
+    }
+#endif
     
     if (cnt > 10)
     {
@@ -295,9 +352,17 @@ int main(int argc, char **argv)
     sessiondir.Set(buf);
   }
   else
+#ifdef _WIN32
     CreateDirectory(sessiondir.Get(),NULL);
+#else
+    mkdir(sessiondir.Get(),NULL);
+#endif
   if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
+#ifdef _WIN32
     sessiondir.Append("\\");
+#else
+    sessiondir.Append("/");
+#endif
 
   g_client->SetWorkDir(sessiondir.Get());
 
@@ -322,6 +387,7 @@ int main(int argc, char **argv)
   {
     if (g_client->Run()) 
     {
+#ifdef _WIN32
       MSG msg;
       while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
       {
@@ -329,6 +395,10 @@ int main(int argc, char **argv)
         DispatchMessage(&msg);
       }
       Sleep(1);
+#else
+	struct timespec ts={0,1000*1000};
+	nanosleep(&ts,NULL);
+#endif
       if (g_client->HasUserInfoChanged())
       {
         printf("\nUser, channel list:\n");
@@ -399,6 +469,7 @@ int main(int argc, char **argv)
 
 
   ///// jesusonic stuff
+#ifdef _WIN32
   if (myInst) 
   {
     JesusonicAPI->preset_save(myInst,jesusonic_configfile.Get());
@@ -415,6 +486,7 @@ int main(int argc, char **argv)
   hDllInst=0;
   JesusonicAPI=0;
   myInst=0;
+#endif
 
 
   JNL::close_socketlib();

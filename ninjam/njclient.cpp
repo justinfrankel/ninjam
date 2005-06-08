@@ -1313,7 +1313,12 @@ void NJClient::NotifyServerOfChannelChange()
 void NJClient::SetWorkDir(char *path)
 {
   m_workdir.Set(path);
-  if (path[0] && path[strlen(path)-1] != '/' && path[strlen(path)-1] != '\\') m_workdir.Append("\\");
+  if (path[0] && path[strlen(path)-1] != '/' && path[strlen(path)-1] != '\\') 
+#ifdef _WIN32
+	m_workdir.Append("\\");
+#else
+	m_workdir.Append("/");
+#endif
 }
 
 
