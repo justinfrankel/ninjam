@@ -130,7 +130,7 @@ static int ReadConfig(char *configfile)
     buf[0]=0;
     fgets(buf,sizeof(buf),fp);
     linecnt++;
-    if (!buf[0] || feof(fp)) break;
+    if (!buf[0]) break;
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
     LineParser lp(comment_state);
