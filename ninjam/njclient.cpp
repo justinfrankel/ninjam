@@ -770,6 +770,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
         lc->decode_peak_vol=maxf;
       }
     }
+    else lc->decode_peak_vol=0.0;
   }
 }
 
