@@ -447,16 +447,16 @@ void usage()
 
   printf("Usage: ninjam hostname [options]\n"
     "Options:\n"
-    "  -norecv\n"
-    "  -sessiondir <path>\n"
-    "  -nosavelocal | -savelocalwavs\n"
     "  -user <username>\n"
     "  -pass <password>\n"
+    "  -audiostr dev:in1,in2:out1,out2 | -audiostr \"\"\n"
+    "  -jesusonic <path to jesusonic root dir>\n"
+
+    "  -sessiondir <path>\n"
     "  -debuglevel [0..2]\n"
+    "  -nosavelocal | -savelocalwavs\n"
     "  -nowritewav\n"
-    "  -nowritelog\n"
-    "  -audiostr 0:0,0:0,0\n"
-    "  -jesusonic <path to jesusonic root dir>\n");
+    "  -nowritelog\n");
 
   exit(1);
 }
@@ -485,10 +485,6 @@ int main(int argc, char **argv)
       if (!stricmp(argv[p],"-savelocalwavs"))
       {
         g_client->config_savelocalaudio=2;     
-      }
-      else if (!stricmp(argv[p],"-norecv"))
-      {
-        g_client->config_autosubscribe=0;
       }
       else if (!stricmp(argv[p],"-nosavelocal"))
       {
@@ -559,7 +555,7 @@ int main(int argc, char **argv)
     audioStreamer_ASIO *audio;
     char *dev_name_in;
     
-    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",1);
+    dev_name_in=audioconfigstr&&*audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",audioconfigstr?0:1);
     audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;

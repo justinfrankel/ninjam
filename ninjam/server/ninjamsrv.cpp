@@ -366,6 +366,7 @@ int main(int argc, char **argv)
       delete m_listener;
       m_listener = new JNL_Listen(g_config_port);
       m_group->SetConfig(g_config_bpi,g_config_bpm);
+      g_reloadconfig=0;
     }
 #endif
   
