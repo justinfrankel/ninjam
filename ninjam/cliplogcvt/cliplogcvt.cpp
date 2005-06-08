@@ -8,6 +8,7 @@ class UserChannelValueRec
 {
 public:
   int position;
+  int length;
   WDL_String guidstr;
   
 };
@@ -42,8 +43,10 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
     FILE *tmp=fopen(fnfind.Get(),"rb");
     if (tmp) 
     {
+      fseek(tmp,0,SEEK_END);
+      int l=ftell(fp);
       fclose(tmp);
-      break;
+      if (l) break;
     }
   }
   if (x == sizeof(exts)/sizeof(exts[0]))
@@ -82,9 +85,11 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  int m_cur_idx=0;
   double m_cur_bpm=-1.0;
   int m_cur_bpi=-1;
+  
+  double m_cur_position=0.0;
+  double m_cur_lenblock=0.0;
 
   UserChannelList localrecs[32];
   WDL_PtrList<UserChannelList> curintrecs;
@@ -129,6 +134,8 @@ int main(int argc, char **argv)
                 return -2;
               }
 
+              m_cur_position+=m_cur_lenblock;
+
               int idx=0;
               double bpm=0.0;
               int bpi=0;
@@ -136,21 +143,17 @@ int main(int argc, char **argv)
               bpm=lp.gettoken_float(2);
               bpi=lp.gettoken_int(3);
 
-              if (idx != m_cur_idx+1)
-              {
-                printf("Error: interval %d out of sync, expected %d\n",idx,m_cur_idx);
-                return -2;
-              }
               if ((m_cur_bpi >= 0 && m_cur_bpi != bpi) ||
                   (m_cur_bpm >= 0 && m_cur_bpm != bpm))
               {
                 printf("BPI/BPM changed from %d/%.2f to %d/%.2f\n",m_cur_bpi,m_cur_bpm,bpi,bpm);
-                return -2;
               }
 
               m_cur_bpi=bpi;
               m_cur_bpm=bpm;
-              m_cur_idx=idx;
+
+              m_cur_lenblock=((double)m_cur_bpi * 60000.0 / m_cur_bpm);
+
             }
           break;
           case 1: // local
@@ -161,7 +164,8 @@ int main(int argc, char **argv)
                 return -2;
               }
               UserChannelValueRec *p=new UserChannelValueRec;
-              p->position=m_cur_idx;
+              p->position=(int) m_cur_position;
+              p->length=(int) m_cur_lenblock;
               p->guidstr.Set(lp.gettoken_str(1));
               localrecs[(lp.gettoken_int(2))&31].items.Add(p);
             }
@@ -179,11 +183,12 @@ int main(int argc, char **argv)
               int chidx=lp.gettoken_int(3);
               char *channelname=lp.gettoken_str(4);
 
-              printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
+              //printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
 
               UserChannelValueRec *ucvr=new UserChannelValueRec;
               ucvr->guidstr.Set(guidtmp);
-              ucvr->position=m_cur_idx;
+              ucvr->position=(int) m_cur_position;
+              ucvr->length=(int) m_cur_lenblock;
 
               int x;
               for (x = 0; x < curintrecs.GetSize(); x ++)
@@ -235,15 +240,13 @@ int main(int argc, char **argv)
   int id=1;
   int track_id=0;
   int x;
-  int len=(int) ((double)m_cur_bpi * 60000.0 / m_cur_bpm);
   for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
   {
     int y;
 
     for (y = 0; y < localrecs[x].items.GetSize(); y ++)
     {
-      int pos=(localrecs[x].items.Get(y)->position-1) * len;
-      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, pos, len,argv[1])) id++;
+      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, localrecs[x].items.Get(y)->position, localrecs[x].items.Get(y)->length ,argv[1])) id++;
     }
     if (y)  track_id++;
 
@@ -254,8 +257,7 @@ int main(int argc, char **argv)
 
     for (y = 0; y < curintrecs.Get(x)->items.GetSize(); y ++)
     {
-      int pos=(curintrecs.Get(x)->items.Get(y)->position-1) * len;
-      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, pos, len,argv[1])) id++;
+      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, curintrecs.Get(x)->items.Get(y)->position, curintrecs.Get(x)->items.Get(y)->length,argv[1])) id++;
     }
     if (y)  track_id++;
 
