@@ -281,11 +281,12 @@ void showmainview(bool action=false)
         mkvolpanstr(volstr,0.0f,0.0f);
         sprintf(linebuf,"  [channel] [ ]active [0]source [ ]mute [%s] [delete]",volstr);
 
-        g_sel_y++;
+        action=false;
+        selpos++;
 
         highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                    COLORMAP(0)|A_BOLD,COLORMAP(0),
-                                   COLORMAP(5),COLORMAP(5),-1);
+                                   COLORMAP(5),COLORMAP(5),g_sel_x);
 
       }
     }
