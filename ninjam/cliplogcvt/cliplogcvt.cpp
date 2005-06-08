@@ -46,7 +46,19 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
       fseek(tmp,0,SEEK_END);
       int l=ftell(fp);
       fclose(tmp);
-      if (l) break;
+      if (l) 
+      {
+#if 0
+        char buf[4096];
+        char *p;
+        if (GetFullPathName(fnfind.Get(),sizeof(buf),buf,&p))
+        {
+          fnfind.Set(buf);
+        }
+#endif
+        
+        break;
+      }
     }
   }
   if (x == sizeof(exts)/sizeof(exts[0]))
@@ -59,7 +71,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
     
   fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
 
-  fprintf(fp,"\"%s.ogg\";\t",name);
+  fprintf(fp,"\"%s\";\t",fnfind.Get());
 
   fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
     (double)len);
@@ -71,11 +83,16 @@ int main(int argc, char **argv)
 {
   printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
-  if (argc != 2)
+  if (argc <  2)
   {
-    printf("Usage: clipoutcvt session_directory\n");
+    printf("Usage: clipoutcvt session_directory [start_interval] [end_interval]\n");
     return 1;
   }
+  int start_interval=1;
+  int end_interval=0x40000000;
+  if (argc>=3) start_interval=atoi(argv[2]);
+  if (argc>=4) end_interval=atoi(argv[3]);
+
   WDL_String logfn(argv[1]);
   logfn.Append("\\clipsort.log");
   FILE *logfile=fopen(logfn.Get(),"rt");
@@ -87,6 +104,7 @@ int main(int argc, char **argv)
 
   double m_cur_bpm=-1.0;
   int m_cur_bpi=-1;
+  int m_interval=0;
   
   double m_cur_position=0.0;
   double m_cur_lenblock=0.0;
@@ -153,10 +171,12 @@ int main(int argc, char **argv)
               m_cur_bpm=bpm;
 
               m_cur_lenblock=((double)m_cur_bpi * 60000.0 / m_cur_bpm);
+              m_interval++;
 
             }
           break;
           case 1: // local
+            if (m_interval >= start_interval && m_interval < end_interval)
             {
               if (lp.getnumtokens() != 3)
               {
@@ -171,6 +191,7 @@ int main(int argc, char **argv)
             }
           break;
           case 2: // user
+            if (m_interval >= start_interval && m_interval < end_interval)
             {
               if (lp.getnumtokens() != 5)
               {
