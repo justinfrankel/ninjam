@@ -1,5 +1,12 @@
+#ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
+#else
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <time.h>
+#endif
 
 #include "../../WDL/jnetlib/jnetlib.h"
 #include "../netmsg.h"
@@ -35,7 +42,7 @@ static char *myGetUserPass(User_Group *group, char *username, int *isanon)
   {
     printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     *isanon=1;
-    return g_config_allowanonymous?"":NULL;
+    return (char *)(g_config_allowanonymous?"":NULL);
   }
   int x;
   printf("got login request for '%s'\n",username);
@@ -177,6 +184,22 @@ static int ReadConfig(char *configfile)
   return 0;
 }
 
+int g_reloadconfig;
+
+#ifndef _WIN32
+
+void sighandler(int sig)
+{
+  if (sig == SIGHUP)
+  {
+  }
+  if (sig == SIGINT)
+  { 
+    g_reloadconfig=1;
+  }
+}
+#endif
+
 int main(int argc, char **argv)
 {
 
@@ -195,10 +218,19 @@ int main(int argc, char **argv)
   }
 
 
+#ifdef _WIN32
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
   v=(DWORD)time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
+#else
+  time_t v=time(NULL);
+  WDL_RNG_addentropy(&v,sizeof(v));
+
+  signal(SIGPIPE,sighandler);
+  signal(SIGHUP,sighandler);
+  signal(SIGINT,sighandler);
+#endif
 
   JNL::open_socketlib();
 
@@ -240,6 +272,7 @@ int main(int argc, char **argv)
           printf(": ");
           needprompt=0;
         }
+#ifdef _WIN32
         if (kbhit())
         {
           int c=toupper(getch());
@@ -323,8 +356,19 @@ int main(int argc, char **argv)
          
 
         }
-  
         Sleep(1);
+#else
+	struct timespec ts={0,1000*1000};
+	nanosleep(&ts,NULL);
+
+    if (g_reloadconfig && !ReadConfig(argv[1]))
+    {
+      delete m_listener;
+      m_listener = new JNL_Listen(g_config_port);
+      m_group->SetConfig(g_config_bpi,g_config_bpm);
+    }
+#endif
+  
       }
     }
 
