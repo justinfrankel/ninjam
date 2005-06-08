@@ -9,6 +9,7 @@
 #include "../WDL/jnetlib/jnetlib.h"
 #include "../WDL/sha.h"
 #include "../WDL/rng.h"
+#include "../WDL/mutex.h"
 
 #include "../WDL/wavwrite.h"
 
@@ -145,7 +146,7 @@ private:
 
   void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch);
 
-  CRITICAL_SECTION m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
+  WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
   WDL_PtrList<RemoteUser> m_remoteusers;
   WDL_PtrList<RemoteDownload> m_downloads;
@@ -267,7 +268,7 @@ public:
 
 
   double decode_peak_vol;
-  CRITICAL_SECTION m_cs;
+  WDL_Mutex m_cs;
   bool m_need_header;
   WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
   WDL_PtrList<WDL_HeapBuf> m_emptybufs;

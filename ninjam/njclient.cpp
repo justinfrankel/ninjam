@@ -84,10 +84,6 @@ NJClient::NJClient()
   m_metronome_state=0;
   m_metronome_tmp=0;
   m_metronome_interval=0;
-  InitializeCriticalSection(&m_users_cs);
-  InitializeCriticalSection(&m_locchan_cs);
-  InitializeCriticalSection(&m_log_cs);
-  InitializeCriticalSection(&m_misc_cs);
   m_netcon=0;
 
 
@@ -100,9 +96,9 @@ void NJClient::writeLog(char *fmt, ...)
     va_list ap;
     va_start(ap,fmt);
 
-    EnterCriticalSection(&m_log_cs);
+    m_log_cs.Enter();
     if (m_logFile) vfprintf(m_logFile,fmt,ap);
-    LeaveCriticalSection(&m_log_cs);
+    m_log_cs.Leave();
 
     va_end(ap);
 
@@ -113,7 +109,7 @@ void NJClient::writeLog(char *fmt, ...)
 
 void NJClient::SetLogFile(char *name)
 {
-  EnterCriticalSection(&m_log_cs);
+  m_log_cs.Enter();
   if (m_logFile) fclose(m_logFile);
   m_logFile=0;
   if (name && *name)
@@ -127,7 +123,7 @@ void NJClient::SetLogFile(char *name)
     else
       m_logFile=fopen(name,"a+t");
   }
-  LeaveCriticalSection(&m_log_cs);
+  m_log_cs.Leave();
 }
 
 
@@ -151,21 +147,16 @@ NJClient::~NJClient()
   m_downloads.Empty();
   for (x = 0; x < m_locchannels.GetSize(); x ++) delete m_locchannels.Get(x);
   m_locchannels.Empty();
-  
-  DeleteCriticalSection(&m_locchan_cs);
-  DeleteCriticalSection(&m_users_cs);
-  DeleteCriticalSection(&m_log_cs);
-  DeleteCriticalSection(&m_misc_cs);
 }
 
 
 void NJClient::updateBPMinfo(int bpm, int bpi)
 {
-  EnterCriticalSection(&m_misc_cs);
+  m_misc_cs.Enter();
   m_bpm=bpm;
   m_bpi=bpi;
   m_beatinfo_updated=1;
-  LeaveCriticalSection(&m_misc_cs);
+  m_misc_cs.Leave();
 }
 
 
@@ -191,7 +182,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
     int x=m_interval_length-m_interval_pos;
     if (!x || m_interval_pos < 0)
     {
-      EnterCriticalSection(&m_misc_cs);
+      m_misc_cs.Enter();
       if (m_beatinfo_updated)
       {
         double v=(double)m_bpm*(1.0/60.0);
@@ -212,7 +203,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
         m_active_bpi=m_bpi;
         m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
       }
-      LeaveCriticalSection(&m_misc_cs);
+      m_misc_cs.Leave();
 
       // new buffer time
       on_new_interval(nch,srate);
@@ -407,7 +398,7 @@ int NJClient::Run() // nonzero if sleep ok
               m_userinfochange=1;
 
               int x;
-              EnterCriticalSection(&m_users_cs);
+              m_users_cs.Enter();
 
               // todo: per-user autosubscribe option, or callback
               // todo: have volume/pan settings here go into defaults for the channel
@@ -466,7 +457,7 @@ int NJClient::Run() // nonzero if sleep ok
                   }
                 }
               }
-              LeaveCriticalSection(&m_users_cs);
+              m_users_cs.Leave();
             }
           }
         }
@@ -791,7 +782,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 {
   // encode my audio and send to server, if enabled
   int u;
-  EnterCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Enter();
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
@@ -802,13 +793,13 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       lc->AddBlock(buf+(lc->src_channel?1:0),len,nch);
     }
   }
-  LeaveCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Leave();
 
 
   input_monitor_samples(buf,len,nch,srate);
 
   // mix in all active (subscribed) channels
-  EnterCriticalSection(&m_users_cs);
+  m_users_cs.Enter();
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -826,7 +817,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
         &user->channels[ch].ds,buf,len,srate,nch);
     }
   }
-  LeaveCriticalSection(&m_users_cs);
+  m_users_cs.Leave();
 
 
   // write out wave if necessary
@@ -1003,7 +994,7 @@ void NJClient::on_new_interval(int nch, int srate)
   m_metronome_pos=0.0;
 
   int u;
-  EnterCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Enter();
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
@@ -1024,9 +1015,9 @@ void NJClient::on_new_interval(int nch, int srate)
     }
 
   }
-  LeaveCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Leave();
 
-  EnterCriticalSection(&m_users_cs);
+  m_users_cs.Enter();
   for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
     RemoteUser *user=m_remoteusers.Get(u);
@@ -1092,7 +1083,7 @@ void NJClient::on_new_interval(int nch, int srate)
       }
     }
   }
-  LeaveCriticalSection(&m_users_cs);
+  m_users_cs.Leave();
   
   //if (m_enc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
@@ -1165,7 +1156,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
       su.build_add_rec(user->name.Get(),(user->submask&=~(1<<channelidx)));
       m_netcon->Send(su.build());
 
-      EnterCriticalSection(&m_users_cs);
+      m_users_cs.Enter();
       memset(p->cur_guid,0,sizeof(p->cur_guid));
       delete p->ds.decode_codec;
       p->ds.decode_codec=0;
@@ -1174,7 +1165,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
         fclose(p->ds.decode_fp);
         p->ds.decode_fp=0;
       }
-      LeaveCriticalSection(&m_users_cs);
+      m_users_cs.Leave();
      
     }
     else
@@ -1217,7 +1208,7 @@ float NJClient::GetLocalChannelPeak(int ch)
 
 void NJClient::DeleteLocalChannel(int ch)
 {
-  EnterCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Enter();
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x < m_locchannels.GetSize())
@@ -1225,13 +1216,13 @@ void NJClient::DeleteLocalChannel(int ch)
     delete m_locchannels.Get(x);
     m_locchannels.Delete(x);
   }
-  LeaveCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Leave();
 }
 
 void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
                                    bool setbitrate, int bitrate, bool setbcast, bool broadcast)
 {  
-  EnterCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Enter();
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x == m_locchannels.GetSize())
@@ -1245,7 +1236,7 @@ void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
   if (setsrcch) c->src_channel=srcch;
   if (setbitrate) c->bitrate=bitrate;
   if (setbcast) c->broadcasting=broadcast;
-  LeaveCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Leave();
 }
 
 char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast)
@@ -1270,7 +1261,7 @@ int NJClient::EnumLocalChannels(int i)
 
 void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
 {
-  EnterCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Enter();
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x == m_locchannels.GetSize())
@@ -1283,7 +1274,7 @@ void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool se
   if (setvol) c->volume=vol;
   if (setpan) c->pan=pan;
   if (setmute) c->muted=mute;
-  LeaveCriticalSection(&m_locchan_cs);
+  m_locchan_cs.Leave();
 }
 
 int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute)
@@ -1369,30 +1360,29 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
                 decode_peak_vol(0.0)
 {
-  InitializeCriticalSection(&m_cs);
 }
 
 
 int Local_Channel::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none avail
 {
-  EnterCriticalSection(&m_cs);
+  m_cs.Enter();
   if (m_samplequeue.Available())
   {
     *b=*(WDL_HeapBuf **)m_samplequeue.Get();
     m_samplequeue.Advance(sizeof(WDL_HeapBuf *));
     if (m_samplequeue.Available()<256) m_samplequeue.Compact();
-    LeaveCriticalSection(&m_cs);
+    m_cs.Leave();
     return 0;
   }
-  LeaveCriticalSection(&m_cs);
+  m_cs.Leave();
   return 1;
 }
 
 void Local_Channel::DisposeBlock(WDL_HeapBuf *b)
 {
-  EnterCriticalSection(&m_cs);
+  m_cs.Enter();
   if (b && (int)b != -1) m_emptybufs.Add(b);
-  LeaveCriticalSection(&m_cs);
+  m_cs.Leave();
 }
 
 
@@ -1401,14 +1391,14 @@ void Local_Channel::AddBlock(float *samples, int len, int spacing)
   WDL_HeapBuf *mybuf=0;
   if (len>0)
   {
-    EnterCriticalSection(&m_cs);
+    m_cs.Enter();
     int tmp;
     if ((tmp=m_emptybufs.GetSize()))
     {
       mybuf=m_emptybufs.Get(tmp-1);
       if (mybuf) m_emptybufs.Delete(tmp-1);
     }
-    LeaveCriticalSection(&m_cs);
+    m_cs.Leave();
     if (!mybuf) mybuf=new WDL_HeapBuf;
 
     mybuf->Resize(len*sizeof(float));
@@ -1421,14 +1411,13 @@ void Local_Channel::AddBlock(float *samples, int len, int spacing)
   }
   else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 
-  EnterCriticalSection(&m_cs);
+  m_cs.Enter();
   m_samplequeue.Add(&mybuf,sizeof(mybuf));
-  LeaveCriticalSection(&m_cs);
+  m_cs.Leave();
 }
 
 Local_Channel::~Local_Channel()
 {
-  DeleteCriticalSection(&m_cs);
   delete m_enc;
   m_enc=0;
   delete m_enc_header_needsend;
