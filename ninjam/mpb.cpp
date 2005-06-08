@@ -646,12 +646,12 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, short *v
     *volume|=((int)p[1])<<8;
   }
   else *volume=0;
-  if (mpisize>3) *pan=(int)p[2];
+  if (mpisize>2) *pan=(int)p[2];
   else *pan=0;
-  if (mpisize>4) *flags=(int)p[3];
+  if (mpisize>3) *flags=(int)p[3];
   else *flags=0;
 
-  return (p+mpisize) - (unsigned char *)m_intmsg->get_data();
+  return (p+mpisize) - ((unsigned char *)m_intmsg->get_data()+2);
 }
 
 // MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN
