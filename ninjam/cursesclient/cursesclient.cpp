@@ -351,7 +351,7 @@ void showmainview(bool action=false)
 
 
   ypos=LINES-1;
-  sprintf(linebuf,"[quit ninjam] : %s : %.1f bpm %d bpi : %dHz %dch %dbps%s",
+  sprintf(linebuf,"[quit ninjam] : %s : %.1fBPM %dBPI : %dHz %dch %dbps%s",
     g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_nch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
   highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),g_sel_y != selpos ? -1 : g_sel_x);
   attrset(COLORMAP(1));
