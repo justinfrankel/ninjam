@@ -476,7 +476,7 @@ void sigfunc(int sig)
 }
 
 
-void usage()
+void usage(int noexit=0)
 {
 
   printf("Usage: ninjam hostname [options]\n"
@@ -496,7 +496,7 @@ void usage()
     "  -nowritewav\n"
     "  -nowritelog\n");
 
-  exit(1);
+  if (!noexit) exit(1);
 }
 
 int main(int argc, char **argv)
@@ -517,7 +517,26 @@ int main(int argc, char **argv)
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
 
+  char *hostname;
+
+#ifdef _MAC
+  char hostbuf[512];
+  if (argc < 2)
+  {
+    usage(1);
+    printf("Host to connect to: ");
+    gets(hostbuf);
+    hostname=hostbuf;
+    if (!hostbuf[0]) return 0;
+  }
+#else
   if (argc < 2) usage();
+#endif
+  else hostname=argv[1];
+
+
+  
+
   {
     int p;
     for (p = 2; p < argc; p++)
@@ -582,6 +601,7 @@ int main(int argc, char **argv)
     parmuser=userbuf;
     printf("Enter username: ");
     gets(userbuf);
+    if (!userbuf[0]) return 0;
   }
   if (!parmpass)
   {
@@ -707,6 +727,7 @@ int main(int argc, char **argv)
     {
       printf("Error creating session directory\n");
       buf[0]=0;
+      return 0;
     }
       
     sessiondir.Set(buf);
@@ -742,8 +763,8 @@ int main(int argc, char **argv)
     g_client->SetLogFile(lf.Get());
   }
 
-  printf("Connecting to %s...\n",argv[1]);
-  g_client->Connect(argv[1],parmuser,parmpass);
+  printf("Connecting to %s...\n",hostname);
+  g_client->Connect(hostname,parmuser,parmpass);
   g_audio_enable=1;
 
 
