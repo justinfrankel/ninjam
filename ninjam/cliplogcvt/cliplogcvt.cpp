@@ -41,6 +41,18 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
     fnfind.Append(exts[x]);
 
     FILE *tmp=fopen(fnfind.Get(),"rb");
+    if (!tmp)
+    {
+      fnfind.Set(path);
+      fnfind.Append("\\");
+      // try adding guid subdir
+      char t[3]={name[0],'\\',0};
+      fnfind.Append(t);
+
+      fnfind.Append(name);
+      fnfind.Append(exts[x]);
+      tmp=fopen(fnfind.Get(),"rb");
+    }
     if (tmp) 
     {
       fseek(tmp,0,SEEK_END);
@@ -48,15 +60,12 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
       fclose(tmp);
       if (l) 
       {
-#if 0
         char buf[4096];
         char *p;
         if (GetFullPathName(fnfind.Get(),sizeof(buf),buf,&p))
         {
           fnfind.Set(buf);
-        }
-#endif
-        
+        }       
         break;
       }
     }
