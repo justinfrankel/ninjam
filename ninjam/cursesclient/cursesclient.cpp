@@ -79,8 +79,15 @@ NJClient *g_client;
 void audiostream_onunder() { }
 void audiostream_onover() { }
 
+int g_audio_enable=0;
+
 void audiostream_onsamples(float *buf, int len, int nch) 
 { 
+  if (!g_audio_enable) 
+  {
+    memset(buf,0,sizeof(float)*len*nch);
+    return;
+  }
 #ifdef _WIN32
   if (g_client->IsAudioRunning())
   {
@@ -666,14 +673,7 @@ int main(int argc, char **argv)
 
   g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
   g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false);
-
-  
-
-
-
-  printf("Connecting to %s...\n",argv[1]);
-  g_client->Connect(argv[1],parmuser,parmpass);
-
+ 
 
   if (!sessiondir.Get()[0])
   {
@@ -726,6 +726,7 @@ int main(int argc, char **argv)
 
   g_client->SetWorkDir(sessiondir.Get());
 
+
   if (!nowav)
   {
     WDL_String wf;
@@ -740,6 +741,10 @@ int main(int argc, char **argv)
     lf.Append("clipsort.log");
     g_client->SetLogFile(lf.Get());
   }
+
+  printf("Connecting to %s...\n",argv[1]);
+  g_client->Connect(argv[1],parmuser,parmpass);
+  g_audio_enable=1;
 
 
 
@@ -822,6 +827,7 @@ int main(int argc, char **argv)
 #else
   time_t nextupd=time(NULL)+1;
 #endif
+
   while (g_client->GetStatus() >= 0 && !g_done)
   {
     if (g_client->Run()) 
