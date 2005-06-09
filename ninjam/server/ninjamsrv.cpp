@@ -31,9 +31,43 @@ public:
   WDL_String name, pass;
 };
 
+
+#define ACL_FLAG_DENY 1
+#define ACL_FLAG_RESERVE 2
+typedef struct
+{
+  unsigned long addr;
+  unsigned long mask;
+  int flags;
+} ACLEntry;
+
+
+WDL_HeapBuf g_acllist;
+void aclAdd(unsigned long addr, unsigned long mask, int flags)
+{
+  ACLEntry f={addr,mask,flags};
+  int os=g_acllist.GetSize();
+  g_acllist.Resize(os+sizeof(f));
+  memcpy((char *)g_acllist.Get()+os,&f,sizeof(f));
+}
+
+int aclGet(unsigned long addr)
+{
+  ACLEntry *p=(ACLEntry *)g_acllist.Get();
+  int x=g_acllist.GetSize()/sizeof(ACLEntry);
+  while (x--)
+  {
+    if ((addr & p->mask) == (p->addr & p->mask))
+      return p->flags;
+    p++;
+  }
+  return 0;
+}
+
+
 WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_bpm, g_config_bpi;
-int g_config_port;
+int g_config_port,g_config_max_users;
 bool g_config_allowanonymous;
 
 static char *myGetUserPass(User_Group *group, char *username, int *isanon)
@@ -81,6 +115,43 @@ static int ConfigOnToken(LineParser *lp)
     if (!p) return -2;
     g_config_bpi=p;
   }
+  else if (!stricmp(t,"MaxUsers"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    g_config_max_users=p;
+  }
+  else if (!stricmp(t,"ACL"))
+  {
+    if (lp->getnumtokens() != 3) return -1;
+    int suc=0;
+    char *v=lp->gettoken_str(1);
+    char *t=strstr(v,"/");
+    if (t)
+    {
+      *t++=0;
+      unsigned long addr=JNL::ipstr_to_addr(v);
+      if (addr != INADDR_NONE)
+      {
+        int maskbits=atoi(t);
+        if (maskbits >= 0 && maskbits <= 32)
+        {
+          int flag=lp->gettoken_enum(2,"allow\0deny\0reserve\0");
+          if (flag >= 0)
+          {
+            suc=1;
+            aclAdd(addr,~(0xffffffff>>maskbits),flag);
+          }
+        }
+      }
+    }
+
+    if (!suc)
+    {
+      printf("Usage: ACL xx.xx.xx.xx/X [ban|allow|reserve]\n");
+      return -2;
+    }
+  }
   else if (!stricmp(t,"User"))
   {
     if (lp->getnumtokens() != 3) return -1;
@@ -123,6 +194,7 @@ static int ReadConfig(char *configfile)
   g_config_bpi=8;
   g_config_port=2049;
   g_config_allowanonymous=0;
+  g_config_max_users=0; // unlimited users
 
   int x;
   for(x=0;x<g_userlist.GetSize(); x++)
@@ -200,6 +272,24 @@ void sighandler(int sig)
 }
 #endif
 
+void enforceACL()
+{
+  int x;
+  int killcnt=0;
+  for (x = 0; x < m_group->m_users.GetSize(); x ++)
+  {
+    User_Connection *c=m_group->m_users.Get(x);
+    if (aclGet(c->m_netcon.GetConnection()->get_remote()) == ACL_FLAG_DENY)
+    {
+      char str[512];
+      JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
+      killcnt++;
+      c->m_netcon.Kill();
+    }
+  }
+  printf("killed %d users by enforcing ACL\n",killcnt);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -255,9 +345,25 @@ int main(int argc, char **argv)
       if (con) 
       {
         char str[512];
+        int flag=aclGet(con->get_remote());
         JNL::addr_to_ipstr(con->get_remote(),str,sizeof(str));
         printf("Incoming connection from %s!\n",str);
-        m_group->AddConnection(con);
+
+        if (flag == ACL_FLAG_DENY)
+        {
+          printf("Denying connection (via ACL)\n");
+          delete con;
+        }
+        else
+        {
+          if (flag != ACL_FLAG_RESERVE && g_config_max_users && m_group->m_users.GetSize() >= g_config_max_users)
+          {
+            printf("Too many users, refusing connection\n");
+            // check ACL
+            delete con;
+          }
+          else m_group->AddConnection(con);
+        }
       }
 
       if (m_group->Run()) 
@@ -311,6 +417,7 @@ int main(int argc, char **argv)
                   char str[512];
                   JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
                   printf("Killing user %s on %s\n",c->m_username.Get(),str);
+                  c->m_netcon.Kill();
                   killcnt++;
                 }
               }
@@ -349,6 +456,7 @@ int main(int argc, char **argv)
               else printf("OK\n");
               printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
               m_group->SetConfig(g_config_bpi,g_config_bpm);
+              enforceACL();
             }
             needprompt=1;
           }
@@ -367,6 +475,7 @@ int main(int argc, char **argv)
       m_listener = new JNL_Listen(g_config_port);
       m_group->SetConfig(g_config_bpi,g_config_bpm);
       g_reloadconfig=0;
+      enforceACL();
     }
 #endif
   
