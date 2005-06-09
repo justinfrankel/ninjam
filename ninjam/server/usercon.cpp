@@ -81,9 +81,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         shatmp.add(m_challenge,sizeof(m_challenge));
         shatmp.add(username,strlen(username));
         shatmp.add(":",1);
+        int anon=0;
 
         char *pass=NULL;
-        int anon=0;
 
         if (group->GetUserPass && (pass=group->GetUserPass(group,username,&anon)))
         {
@@ -91,7 +91,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           {
             JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
             username=usernametmp;
-
+            strcat(usernametmp,"-");
           }
           else
           {
@@ -120,18 +120,31 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
       m_username.Set(username);
       // disconnect any user by the same name
+      // in anonymous mode, append -<idx>
       {
+        int maxv=-1;
         int user;
         for (user = 0; user < group->m_users.GetSize(); user++)
         {
           User_Connection *u=group->m_users.Get(user);
-          if (u != this && !strcmp(u->m_username.Get(),username))
+          if (username == usernametmp)
+          {
+            if (u != this && !strncmp(u->m_username.Get(),username,strlen(username)))
+            {
+              int tv=atoi(u->m_username.Get()+strlen(username));
+              if (tv > maxv) maxv=tv;
+            }
+          }
+          else if (u != this && !strcmp(u->m_username.Get(),username))
           {
             delete u;
             group->m_users.Delete(user);
             break;
           }
         }
+
+        if (username == usernametmp)
+          sprintf(username+strlen(username),"%d",maxv+1);
       }
 
       {
