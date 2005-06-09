@@ -1029,7 +1029,7 @@ time(NULL) >= nextupd
       printf("ERROR: failed connecting to host\n");
     break;
     case NJClient::NJC_STATUS_PRECONNECT:
-      printf("ERROR: failed reconnect\n");
+      printf("ERROR: failed connect\n");
     break;
     case NJClient::NJC_STATUS_DISCONNECTED:
       printf("ERROR: disconnected from host\n");

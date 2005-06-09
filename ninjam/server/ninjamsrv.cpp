@@ -45,6 +45,8 @@ typedef struct
 WDL_HeapBuf g_acllist;
 void aclAdd(unsigned long addr, unsigned long mask, int flags)
 {
+  addr=ntohl(addr);
+//  printf("adding acl entry for %08x + %08x\n",addr,mask);
   ACLEntry f={addr,mask,flags};
   int os=g_acllist.GetSize();
   g_acllist.Resize(os+sizeof(f));
@@ -53,12 +55,14 @@ void aclAdd(unsigned long addr, unsigned long mask, int flags)
 
 int aclGet(unsigned long addr)
 {
+  addr=ntohl(addr);
+
   ACLEntry *p=(ACLEntry *)g_acllist.Get();
   int x=g_acllist.GetSize()/sizeof(ACLEntry);
   while (x--)
   {
-    if ((addr & p->mask) == (p->addr & p->mask))
-      return p->flags;
+  //  printf("comparing %08x to %08x\n",addr,p->addr);
+    if ((addr & p->mask) == p->addr) return p->flags;
     p++;
   }
   return 0;
@@ -140,7 +144,8 @@ static int ConfigOnToken(LineParser *lp)
           if (flag >= 0)
           {
             suc=1;
-            aclAdd(addr,~(0xffffffff>>maskbits),flag);
+            unsigned long mask=~(0xffffffff>>maskbits);
+            aclAdd(addr,mask,flag);
           }
         }
       }
@@ -195,6 +200,7 @@ static int ReadConfig(char *configfile)
   g_config_port=2049;
   g_config_allowanonymous=0;
   g_config_max_users=0; // unlimited users
+  g_acllist.Resize(0);
 
   int x;
   for(x=0;x<g_userlist.GetSize(); x++)
@@ -281,13 +287,11 @@ void enforceACL()
     User_Connection *c=m_group->m_users.Get(x);
     if (aclGet(c->m_netcon.GetConnection()->get_remote()) == ACL_FLAG_DENY)
     {
-      char str[512];
-      JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
-      killcnt++;
       c->m_netcon.Kill();
+      killcnt++;
     }
   }
-  printf("killed %d users by enforcing ACL\n",killcnt);
+  if (killcnt) printf("killed %d users by enforcing ACL\n",killcnt);
 }
 
 int main(int argc, char **argv)
@@ -337,8 +341,10 @@ int main(int argc, char **argv)
     printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
     m_group->SetConfig(g_config_bpi,g_config_bpm);
 
+#ifdef _WIN32
     int needprompt=2;
     int esc_state=0;
+#endif
     for (;;)
     {
       JNL_Connection *con=m_listener->get_connect(65536,65536);
