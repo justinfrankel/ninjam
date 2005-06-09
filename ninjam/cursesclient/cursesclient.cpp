@@ -524,8 +524,9 @@ int main(int argc, char **argv)
   if (argc < 2)
   {
     usage(1);
-    printf("Host to connect to: ");
-    gets(hostbuf);
+    printf("(no command line options specified, using interactive mode!\n\n\nHost to connect to: ");
+    fgets(hostbuf,sizeof(hostbuf),stdin);
+    if (hostbuf[0] && hostbuf[strlen(hostbuf)-1] == '\n') hostbuf[strlen(hostbuf)-1]=0;
     hostname=hostbuf;
     if (!hostbuf[0]) return 0;
   }
@@ -600,7 +601,8 @@ int main(int argc, char **argv)
   {
     parmuser=userbuf;
     printf("Enter username: ");
-    gets(userbuf);
+    fgets(userbuf,sizeof(userbuf),stdin);
+    if (userbuf[0] && userbuf[strlen(userbuf)-1] == '\n') userbuf[strlen(userbuf)-1]=0;
     if (!userbuf[0]) return 0;
   }
   if (!parmpass)
@@ -609,7 +611,8 @@ int main(int argc, char **argv)
     if (strcmp(parmuser,"anonymous"))
     {
       printf("Enter password: ");
-      gets(passbuf);
+      fgets(passbuf,sizeof(passbuf),stdin);
+      if (passbuf[0] && passbuf[strlen(passbuf)-1] == '\n') passbuf[strlen(passbuf)-1]=0;
     }
   }
 
