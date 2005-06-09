@@ -476,9 +476,11 @@ void usage()
     "Options:\n"
     "  -user <username>\n"
     "  -pass <password>\n"
-    "  -audiostr dev:in1,in2:out1,out2 | -audiostr \"\"\n"
 #ifdef _WIN32
+    "  -audiostr dev:in1,in2:out1,out2 | -audiostr \"\"\n"
     "  -jesusonic <path to jesusonic root dir>\n"
+#else
+    "  -audiostr dev[,<outdev>][:inbuf,inch1,inch2:outbuf,outch1,outch2]\n"
 #endif
 
     "  -sessiondir <path>\n"

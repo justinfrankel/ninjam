@@ -39,4 +39,4 @@ CXXFLAGS = $(CFLAGS)
 default: cursesclient
 
 cursesclient: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o cursesclient $(OBJS) -lpthread -L.. -lvorbis -lvorbisenc -logg -lncurses -framework coreaudio
+	$(CXX) $(CXXFLAGS) -o cursesclient $(OBJS) -lpthread -lncurses -framework coreaudio -logg -lvorbis -lvorbisenc
