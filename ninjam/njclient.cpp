@@ -37,6 +37,12 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
   strcat(buf,"." NJ_ENCODER_FMT_STRING);
 
   s->Set(m_workdir.Get());
+#ifdef _WIN32
+  char tmp[3]={buf[0],'\\',0};
+#else
+  char tmp[3]={buf[0],'/',0};
+#endif
+  s->Append(tmp);
   s->Append(buf);
 }
 
@@ -572,6 +578,12 @@ int NJClient::Run() // nonzero if sleep ok
                 WDL_String fn;
 
                 fn.Set(m_workdir.Get());
+              #ifdef _WIN32
+                char tmp[3]={guidstr[0],'\\',0};
+              #else
+                char tmp[3]={guidstr[0],'/',0};
+              #endif
+                fn.Append(tmp);
                 fn.Append(guidstr);
                 fn.Append(".wav");
 
@@ -1303,6 +1315,21 @@ void NJClient::SetWorkDir(char *path)
 #else
 	m_workdir.Append("/");
 #endif
+
+  // create subdirectories for ogg files
+  int a;
+  for (a = 0; a < 16; a ++)
+  {
+    WDL_String tmp(m_workdir.Get());
+    char buf[5];
+    sprintf(buf,"%x",a);
+    tmp.Append(buf);
+#ifdef _WIN32
+    CreateDirectory(tmp.Get(),NULL);
+#else
+    mkdir(tmp.Get(),0700);
+#endif
+  }
 }
 
 
