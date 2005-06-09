@@ -524,7 +524,7 @@ int main(int argc, char **argv)
   if (argc < 2)
   {
     usage(1);
-    printf("(no command line options specified, using interactive mode!\n\n\nHost to connect to: ");
+    printf("(no command line options specified, using interactive mode!)\n\n\nHost to connect to: ");
     fgets(hostbuf,sizeof(hostbuf),stdin);
     if (hostbuf[0] && hostbuf[strlen(hostbuf)-1] == '\n') hostbuf[strlen(hostbuf)-1]=0;
     hostname=hostbuf;
