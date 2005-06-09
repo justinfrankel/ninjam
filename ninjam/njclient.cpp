@@ -61,6 +61,7 @@ NJClient::NJClient()
 
   m_status=-1;
 
+  m_in_auth=0;
   config_autosubscribe=1;
   config_savelocalaudio=0;
   config_metronome=0.5f;
@@ -279,9 +280,9 @@ void NJClient::Connect(char *host, char *user, char *pass)
 int NJClient::GetStatus()
 {
   if (!m_status || m_status == -1) return NJC_STATUS_PRECONNECT;
-  if (m_status == 999) return NJC_STATUS_RECONNECTING;
   if (m_status == 1000) return NJC_STATUS_CANTCONNECT;
   if (m_status == 1001) return NJC_STATUS_INVALIDAUTH;
+  if (m_status == 1002) return NJC_STATUS_DISCONNECTED;
 
   return NJC_STATUS_OK;
 }
@@ -293,29 +294,9 @@ int NJClient::Run() // nonzero if sleep ok
   if (m_netcon->GetStatus())
   {
     m_audio_enable=0;
-    if (m_status == 0 || m_status == 999) m_status=1000;
-    else if (m_status != 1001)  // try reconnecting if this is a disconnect
-    {
-      // todo: clear send queue too?
-      m_status = 999;
-      JNL_Connection *c=new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
-
-      WDL_String tmp(m_host.Get());
-      int port=NJ_PORT;
-      char *p=strstr(tmp.Get(),":");
-      if (p)
-      {
-        *p=0;
-        port=atoi(++p);
-        if (!port) port=NJ_PORT;
-      }
-
-      c->connect(tmp.Get(),port);
-      delete m_netcon;
-      m_netcon = new Net_Connection;
-      m_netcon->attach(c);
-
-    }
+    if (m_in_auth) m_status=1001;
+    if (m_status > 0 && m_status < 1000) m_status=1002;
+    if (m_status == 0) m_status=1000;
     return 1;
   }
 
@@ -344,6 +325,8 @@ int NJClient::Run() // nonzero if sleep ok
             tmp.result(repl.passhash);               
 
             m_netcon->Send(repl.build());
+
+            m_in_auth=1;
           }
         }
       break;
@@ -363,6 +346,7 @@ int NJClient::Run() // nonzero if sleep ok
               }
               m_netcon->Send(sci.build());
               m_status=2;
+              m_in_auth=0;
             }
             else 
             {

@@ -1018,7 +1018,27 @@ time(NULL) >= nextupd
 	// shut down curses
 	endwin();
 
-  printf("exiting on status %d\n",g_client->GetStatus());
+  switch (g_client->GetStatus())
+  {
+    case NJClient::NJC_STATUS_OK:
+    break;
+    case NJClient::NJC_STATUS_INVALIDAUTH:
+      printf("ERROR: invalid login/password\n");
+    break;
+    case NJClient::NJC_STATUS_CANTCONNECT:
+      printf("ERROR: failed connecting to host\n");
+    break;
+    case NJClient::NJC_STATUS_PRECONNECT:
+      printf("ERROR: failed reconnect\n");
+    break;
+    case NJClient::NJC_STATUS_DISCONNECTED:
+      printf("ERROR: disconnected from host\n");
+    break;
+
+    default:
+      printf("exiting on status %d\n",g_client->GetStatus());
+    break;
+  }
 
 
   printf("Shutting down\n");

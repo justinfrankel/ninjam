@@ -80,7 +80,7 @@ public:
 
   float output_peaklevel;
 
-  enum { NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT, NJC_STATUS_RECONNECTING};
+  enum { NJC_STATUS_DISCONNECTED=-3,NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT};
   int GetStatus();
 
   void SetWorkDir(char *path);
@@ -134,6 +134,7 @@ private:
 
   WDL_String m_user, m_pass, m_host;
 
+  int m_in_auth;
   int m_bpm,m_bpi;
   int m_beatinfo_updated;
   int m_audio_enable;
