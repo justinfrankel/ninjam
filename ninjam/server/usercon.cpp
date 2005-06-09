@@ -117,8 +117,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         printf("Got user: %s\n",username);
       }
 
-
-      m_username.Set(username);
       // disconnect any user by the same name
       // in anonymous mode, append -<idx>
       {
@@ -146,6 +144,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         if (username == usernametmp)
           sprintf(username+strlen(username),"%d",maxv+1);
       }
+      m_username.Set(username);
 
       {
         mpb_server_auth_reply bh;
