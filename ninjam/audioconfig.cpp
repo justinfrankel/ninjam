@@ -286,13 +286,13 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
 
 
-char *get_asio_configstr(char *inifile, int wantdlg)
+char *get_asio_configstr(char *inifile, int wantdlg, HWND hwndParent)
 {
   m_inifile.Set(inifile);
   load_config();
   if (wantdlg)
   {
-    DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),NULL,configDlgMainProc);
+    DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),hwndParent,configDlgMainProc);
     save_config();
   }
 

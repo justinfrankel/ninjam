@@ -70,7 +70,7 @@ HINSTANCE hDllInst;
 
 
 #ifdef _WIN32
-extern char *get_asio_configstr(char *inifile, int wantdlg);
+extern char *get_asio_configstr(char *inifile, int wantdlg, HWND hwndParent);
 #endif
 audioStreamer *g_audio;
 NJClient *g_client;
@@ -621,7 +621,7 @@ int main(int argc, char **argv)
     audioStreamer_ASIO *audio;
     char *dev_name_in;
     
-    dev_name_in=audioconfigstr&&*audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",audioconfigstr?0:1);
+    dev_name_in=audioconfigstr&&*audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",audioconfigstr?0:1,NULL);
     audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;
