@@ -1296,14 +1296,17 @@ int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mu
 
 void NJClient::NotifyServerOfChannelChange()
 {
-  int x;
-  mpb_client_set_channel_info sci;
-  for (x = 0; x < m_locchannels.GetSize(); x ++)
+  if (m_netcon)
   {
-    Local_Channel *ch=m_locchannels.Get(x);
-    sci.build_add_rec(ch->name.Get(),0,0,0);
+    int x;
+    mpb_client_set_channel_info sci;
+    for (x = 0; x < m_locchannels.GetSize(); x ++)
+    {
+      Local_Channel *ch=m_locchannels.Get(x);
+      sci.build_add_rec(ch->name.Get(),0,0,0);
+    }
+    m_netcon->Send(sci.build());
   }
-  m_netcon->Send(sci.build());
 }
 
 void NJClient::SetWorkDir(char *path)
