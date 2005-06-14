@@ -327,7 +327,6 @@ int NJClient::Run() // nonzero if sleep ok
             mpb_client_auth_user repl;
             repl.username=m_user.Get();
 
-
             if (cha.license_agreement)
             {
               if (LicenseAgreementCallback && LicenseAgreementCallback(LicenseAgreement_User32,cha.license_agreement))

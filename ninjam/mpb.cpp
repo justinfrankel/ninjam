@@ -13,18 +13,16 @@
 int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_AUTH_CHALLENGE) return -1;
-  int capsl=msg->get_size() - sizeof(challenge);
-  if (capsl < 0) return 1;
+  int capsl=4;
+  if (capsl > msg->get_size() - (int)sizeof(challenge)) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(challenge,p,sizeof(challenge));
   p+=sizeof(challenge);
+
   server_caps=0;
   int shift=0;
-
-
-  if (capsl > 4) capsl=4;
 
   while (capsl--)
   {
@@ -35,10 +33,14 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
   if (server_caps&1)
   {
     char *s=(char*)p;
-    while (p-(unsigned char *)msg->get_data() < msg->get_size() && *p) p++;
-    if (p-(unsigned char *)msg->get_data() < msg->get_size())
+    while (p-(unsigned char *)msg->get_data() < msg->get_size()) 
     {
-      license_agreement=s;
+      if (!*p)
+      {
+        license_agreement=s;
+        break;
+      }
+      p++;
     }
 
   }
@@ -52,15 +54,10 @@ Net_Message *mpb_server_auth_challenge::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_CHALLENGE);
   
-  int scsize=0;
+  int scsize=4;
   int sc=server_caps;
-  while (sc)
-  {
-    scsize++;
-    sc>>=8;
-  }
 
-  nm->set_size(sizeof(challenge) + scsize + (license_agreement?strlen(license_agreement+1):0));
+  nm->set_size(sizeof(challenge) + scsize + (license_agreement?strlen(license_agreement)+1:0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -72,8 +69,6 @@ Net_Message *mpb_server_auth_challenge::build()
 
   memcpy(p,challenge,sizeof(challenge));
   p+=sizeof(challenge);
-
-  sc=server_caps;
 
   if (license_agreement)
   {
@@ -91,7 +86,8 @@ Net_Message *mpb_server_auth_challenge::build()
   if (license_agreement)
   {
     strcpy((char*)p,license_agreement);
-    p+=strlen(license_agreement)+1;
+    p+=strlen(license_agreement);
+    *p++=0;
   }
 
   return nm;
