@@ -122,7 +122,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           return -1;
         }
 
-        printf("Got user: %s\n",username);
       }
 
       // disconnect any user by the same name
@@ -153,6 +152,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           sprintf(username+strlen(username),"%d",maxv+1);
       }
       m_username.Set(username);
+      printf("Accepted user: %s\n",username);
 
       {
         mpb_server_auth_reply bh;
