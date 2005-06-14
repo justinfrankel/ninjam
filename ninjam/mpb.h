@@ -10,7 +10,7 @@
 class mpb_server_auth_challenge 
 {
   public:
-    mpb_server_auth_challenge() : server_caps(0) { memset(challenge,0,sizeof(challenge)); }
+    mpb_server_auth_challenge() : server_caps(0), license_agreement(0) { memset(challenge,0,sizeof(challenge)); }
     ~mpb_server_auth_challenge() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -19,7 +19,8 @@ class mpb_server_auth_challenge
 
     // public data
     unsigned char challenge[8];
-    int server_caps;
+    int server_caps; // low bit is license agreement
+    char *license_agreement;
 };
 
 #define MESSAGE_SERVER_AUTH_REPLY 0x01
@@ -135,7 +136,7 @@ class mpb_client_auth_user
 
     // public data
     unsigned char passhash[20];
-    int client_caps;
+    int client_caps; // low bit is agreeing to license
     char *username;
 };
 

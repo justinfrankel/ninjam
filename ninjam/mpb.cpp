@@ -32,6 +32,18 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
     shift+=8;
   }
 
+  if (server_caps&1)
+  {
+    char *s=(char*)p;
+    while (p-(unsigned char *)msg->get_data() < msg->get_size() && *p) p++;
+    if (p-(unsigned char *)msg->get_data() < msg->get_size())
+    {
+      license_agreement=s;
+    }
+
+  }
+
+
   return 0;
 }
 
@@ -48,7 +60,7 @@ Net_Message *mpb_server_auth_challenge::build()
     sc>>=8;
   }
 
-  nm->set_size(sizeof(challenge) + scsize);
+  nm->set_size(sizeof(challenge) + scsize + (license_agreement?strlen(license_agreement+1):0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -62,10 +74,24 @@ Net_Message *mpb_server_auth_challenge::build()
   p+=sizeof(challenge);
 
   sc=server_caps;
+
+  if (license_agreement)
+  {
+    sc|=1;
+  }
+  else sc&=~1;
+
   while (scsize--)
   {
     *p++=sc&0xff;
     sc>>=8;
+  }
+
+
+  if (license_agreement)
+  {
+    strcpy((char*)p,license_agreement);
+    p+=strlen(license_agreement)+1;
   }
 
   return nm;
