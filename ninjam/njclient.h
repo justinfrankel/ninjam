@@ -100,8 +100,8 @@ public:
   void SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
 
   float GetUserChannelPeak(int useridx, int channelidx);
-  char *GetUserChannelState(int useridx, int channelidx, bool *sub=0, float *vol=0, float *pan=0, bool *mute=0);
-  void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
+  char *GetUserChannelState(int useridx, int channelidx, bool *sub=0, float *vol=0, float *pan=0, bool *mute=0, bool *solo=0);
+  void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo);
   int EnumUserChannels(int useridx, int i); // returns <0 if out of channels. start with i=0, and go upwards
 
   void DeleteLocalChannel(int ch);
@@ -109,9 +109,11 @@ public:
   float GetLocalChannelPeak(int ch);
   void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
   char *GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast);
-  void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
-  int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute); // 0 on success
+  void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo);
+  int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo); // 0 on success
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
+
+  int IsASoloActive() { return m_issoloactive; }
 
   void SetLogFile(char *name=NULL);
 
@@ -140,6 +142,7 @@ private:
   int m_audio_enable;
   int m_srate;
   int m_userinfochange;
+  int m_issoloactive;
 
   int m_loopcnt;
   int m_active_bpm, m_active_bpi;
@@ -208,7 +211,7 @@ class RemoteUser_Channel
 class RemoteUser
 {
 public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), chanpresentmask(0) { }
+  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), chanpresentmask(0) { }
   ~RemoteUser() { }
 
   bool muted;
@@ -218,6 +221,7 @@ public:
   int submask;
   int chanpresentmask;
   int mutedmask;
+  int solomask;
   RemoteUser_Channel channels[MAX_USER_CHANNELS];
 };
 
@@ -262,6 +266,7 @@ public:
   float volume;
   float pan;
   bool muted;
+  bool solo;
 
   //?
   // mode flag. 0=silence, 1=broadcasting, 2=loop last

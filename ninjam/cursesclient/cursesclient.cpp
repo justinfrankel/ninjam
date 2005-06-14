@@ -258,7 +258,7 @@ void showmainview(bool action=false)
     bool bc,mute;
     float vol,pan;
     char *name=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
-    g_client->GetLocalChannelMonitoring(a,&vol,&pan,&mute);
+    g_client->GetLocalChannelMonitoring(a,&vol,&pan,&mute,NULL);
 
     if (action && g_sel_y == selpos)
     {
@@ -283,7 +283,7 @@ void showmainview(bool action=false)
       else if (g_sel_x == 3)
       {
         // mute
-        g_client->SetLocalChannelMonitoring(a,false,0.0f,false,0.0f,true,mute=!mute);
+        g_client->SetLocalChannelMonitoring(a,false,0.0f,false,0.0f,true,mute=!mute,false,false);
       }
       else if (g_sel_x == 4)
       {
@@ -394,12 +394,12 @@ void showmainview(bool action=false)
       if (g_sel_x == 0)
       {
         // toggle subscribe
-        g_client->SetUserChannelState(user,a,true,sub=!sub,false,0.0f,false,0.0f,false,false);
+        g_client->SetUserChannelState(user,a,true,sub=!sub,false,0.0f,false,0.0f,false,false,false,false);
       }
       else if (g_sel_x == 1)
       {
         // toggle mute
-        g_client->SetUserChannelState(user,a,false,false,false,0.0f,false,0.0f,true,mute=!mute);
+        g_client->SetUserChannelState(user,a,false,false,false,0.0f,false,0.0f,true,mute=!mute,false,false);
       }
       else if (g_sel_x >= 2)
       {
@@ -695,7 +695,7 @@ int main(int argc, char **argv)
   // end jesusonic init
 
   g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
-  g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false);
+  g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false,false,false);
  
 
   if (!sessiondir.Get()[0])
@@ -919,7 +919,7 @@ int main(int argc, char **argv)
                 else if (g_ui_voltweakstate_channel == -1) { pan=(float)g_client->config_metronome_pan; ok=1; }
                 else if (g_ui_voltweakstate_channel >= 1024) 
                   ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,NULL,&pan,NULL);
-                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,NULL,&pan,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,NULL,&pan,NULL,NULL);
 
                 if (ok)
                 {
@@ -929,9 +929,9 @@ int main(int argc, char **argv)
                   if (g_ui_voltweakstate_channel == -2) g_client->config_masterpan=pan;
                   else if (g_ui_voltweakstate_channel == -1) g_client->config_metronome_pan=pan;
                   else if (g_ui_voltweakstate_channel>=1024)
-                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,false,0.0f,true,pan,false,false);
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,false,0.0f,true,pan,false,false,false,false);
                   else
-                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,false,0.0f,true,pan,false,false);
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,false,0.0f,true,pan,false,false,false,false);
                   showmainview();
                 }
               }
@@ -946,8 +946,8 @@ int main(int argc, char **argv)
                 if (g_ui_voltweakstate_channel == -2) { ok=1; vol=(float)g_client->config_mastervolume; }
                 else if (g_ui_voltweakstate_channel == -1) { vol=(float)g_client->config_metronome; ok=1; }
                 else if (g_ui_voltweakstate_channel >= 1024) 
-                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,&vol,NULL,NULL);
-                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,&vol,NULL,NULL);
+                  ok=!!g_client->GetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, NULL,&vol,NULL,NULL,NULL);
+                else ok=!g_client->GetLocalChannelMonitoring(g_ui_voltweakstate_channel,&vol,NULL,NULL,NULL);
 
                 if (ok)
                 {
@@ -961,9 +961,9 @@ int main(int argc, char **argv)
                   if (g_ui_voltweakstate_channel == -2) g_client->config_mastervolume=vol;
                   else if (g_ui_voltweakstate_channel == -1) g_client->config_metronome=vol;
                   else if (g_ui_voltweakstate_channel>=1024)
-                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,true,vol,false,0.0f,false,false);
+                    g_client->SetUserChannelState((g_ui_voltweakstate_channel-1024)/64,g_ui_voltweakstate_channel%64, false,false,true,vol,false,0.0f,false,false,false,false);
                   else
-                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,true,vol,false,0.0f,false,false);
+                    g_client->SetLocalChannelMonitoring(g_ui_voltweakstate_channel,true,vol,false,0.0f,false,false,false,false);
                   showmainview();
                 }
               }

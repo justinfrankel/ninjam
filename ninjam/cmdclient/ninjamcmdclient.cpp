@@ -29,7 +29,7 @@ HINSTANCE hDllInst;
 
 
 #ifdef _WIN32
-extern char *get_asio_configstr(char *inifile, int wantdlg);
+extern char *get_asio_configstr(char *inifile, int wantdlg, HWND hwndParent);
 #endif
 audioStreamer *g_audio;
 NJClient *g_client;
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
     audioStreamer_ASIO *audio;
     char *dev_name_in;
     
-    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",1);
+    dev_name_in=audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",1,NULL);
     audio=new audioStreamer_ASIO;
 
     int nbufs=2,bufsize=4096;
@@ -298,12 +298,12 @@ int main(int argc, char **argv)
   if (localchannels>0)
   {
     g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
-    g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false);
+    g_client->SetLocalChannelMonitoring(0,true,monitor,false,0.0,false,false,false,false);
 
     if (localchannels>1)
     {
       g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,true);
-      g_client->SetLocalChannelMonitoring(1,true,monitor,false,0.0,false,false);
+      g_client->SetLocalChannelMonitoring(1,true,monitor,false,0.0,false,false,false,false);
     }
 
   }

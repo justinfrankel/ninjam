@@ -82,6 +82,7 @@ NJClient::NJClient()
   waveWrite=0;
   m_logFile=0;
 
+  m_issoloactive=0;
   m_bpm=120;
   m_bpi=32;
   m_beatinfo_updated=1;
@@ -721,7 +722,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
   {
     Local_Channel *lc=m_locchannels.Get(ch);
 
-    if (!lc->muted)
+    if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
       float *src=(float *)srcbuf.Get();
       if (nch > 1 && lc->src_channel) src++; // right channel
@@ -813,7 +814,11 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       if (lpan<-1.0)lpan=-1.0;
       else if (lpan>1.0)lpan=1.0;
 
-      mixInChannel(user->muted || (user->mutedmask & (1<<ch)),
+      bool muteflag;
+      if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
+      else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
+
+      mixInChannel(muteflag,
         user->volume*user->channels[ch].volume,lpan,
         &user->channels[ch].ds,buf,len,srate,nch);
     }
@@ -1126,7 +1131,7 @@ int NJClient::EnumUserChannels(int useridx, int i)
   return -1;
 }
 
-char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute)
+char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
@@ -1137,13 +1142,14 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
   if (vol) *vol=p->volume;
   if (pan) *pan=p->pan;
   if (mute) *mute=!!(user->mutedmask & (1<<channelidx));
+  if (solo) *solo=!!(user->solomask & (1<<channelidx));
   
   return p->name.Get();
 }
 
 
 void NJClient::SetUserChannelState(int useridx, int channelidx, 
-                                   bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
+                                   bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
   RemoteUser *user=m_remoteusers.Get(useridx);
@@ -1187,6 +1193,23 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
       user->mutedmask |= (1<<channelidx);
     else
       user->mutedmask &= ~(1<<channelidx);
+  }
+  if (setsolo)
+  {
+    if (solo) user->solomask |= (1<<channelidx);
+    else user->solomask &= ~(1<<channelidx);
+
+    if (user->solomask) m_issoloactive|=1;
+    else
+    {
+      int x;
+      for (x = 0; x < m_remoteusers.GetSize(); x ++)
+      {
+        if (m_remoteusers.Get(x)->solomask)
+          break;
+      }
+      if (x == m_remoteusers.GetSize()) m_issoloactive&=~1;
+    }
   }
 }
 
@@ -1262,7 +1285,7 @@ int NJClient::EnumLocalChannels(int i)
 }
 
 
-void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
+void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo)
 {
   m_locchan_cs.Enter();
   int x;
@@ -1277,10 +1300,25 @@ void NJClient::SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool se
   if (setvol) c->volume=vol;
   if (setpan) c->pan=pan;
   if (setmute) c->muted=mute;
+  if (setsolo) 
+  {
+    c->solo = solo;
+    if (solo) m_issoloactive|=2;
+    else
+    {
+      int x;
+      for (x = 0; x < m_locchannels.GetSize(); x ++)
+      {
+        if (m_locchannels.Get(x)->solo) break;
+      }
+      if (x == m_locchannels.GetSize())
+        m_issoloactive&=~2;
+    }
+  }
   m_locchan_cs.Leave();
 }
 
-int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute)
+int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo)
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
@@ -1289,6 +1327,7 @@ int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mu
   if (vol) *vol=c->volume;
   if (pan) *pan=c->pan;
   if (mute) *mute=c->muted;
+  if (solo) *solo=c->solo;
   return 0;
 }
 
@@ -1382,7 +1421,7 @@ void RemoteDownload::Write(void *buf, int len)
 
 
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
-                muted(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
+                muted(false), solo(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
                 bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
                 decode_peak_vol(0.0)
 {
