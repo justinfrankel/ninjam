@@ -499,6 +499,125 @@ void usage(int noexit=0)
   if (!noexit) exit(1);
 }
 
+int licensecallback(int user32, char *licensetext)
+{
+  /* todo, curses shit */
+
+  int isscrolled=0;
+  int linepos=0;
+  int needref=1;
+  int retval=0;
+  while (!retval)
+  {
+    if (needref)
+    {
+	    bkgdset(COLORMAP(0));
+	    attrset(COLORMAP(0));
+
+      erase();
+      char *tp=licensetext;
+      needref=0;
+	    bkgdset(COLORMAP(6));
+	    attrset(COLORMAP(6));
+      mvaddnstr(0,0,"You must agree to this license by scrolling down",COLS-1); clrtoeol();
+      mvaddnstr(1,0,"and hitting Y to connect to this server:",COLS-1); clrtoeol();
+	    bkgdset(COLORMAP(0));
+	    attrset(COLORMAP(0));
+
+      int x;
+      for (x = 0; x < linepos; x ++)
+      {
+        int yp=0;
+        while (*tp && *tp != '\n' && x < linepos) 
+        {
+          if (yp++ >= COLS-1)
+          {
+            x++;
+            yp=0;
+          }
+          tp++;
+        }
+        if (*tp) tp++;
+      }
+      for (x = 2; x < LINES-1 && *tp; x ++)
+      {
+        move(x,0);
+        int yp=0;
+        while (*tp && *tp != '\n' && x < LINES-1) 
+        {
+          if (yp++ >= COLS-1)
+          {
+            x++;
+            yp=0;
+            move(x,0);
+          }
+          addch(*tp);
+          tp++;
+        }
+        if (*tp) tp++;
+      }
+	    bkgdset(COLORMAP(5));
+	    attrset(COLORMAP(5));
+
+      if (*tp)
+      {
+        mvaddstr(LINES-1,0,"Use the arrows or pagedown to scroll down");
+        clrtoeol();
+        isscrolled=0;
+      }
+      else
+      {
+        mvaddstr(LINES-1,0,"Hit Y to agree");
+        clrtoeol();
+        isscrolled=1;
+      }
+	    bkgdset(COLORMAP(0));
+	    attrset(COLORMAP(0));
+    }
+    
+    int a=getch();
+    switch (a)
+    {
+      case KEY_UP:
+      case KEY_PPAGE:
+        needref=1;
+        linepos -= a == KEY_UP ? 1 : 10;
+        if (linepos <0) linepos=0;
+      break;
+      case KEY_DOWN:
+      case KEY_NPAGE:
+        if (!isscrolled) linepos += a == KEY_DOWN ? 1 : 10;
+        needref=1;
+      break;
+      case 'y':
+      case 'Y':
+        if (isscrolled) retval=1;
+      break;
+      case 27:
+        retval=-1;
+      break;
+    };
+
+
+#ifdef _WIN32
+      MSG msg;
+      while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
+      {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+      Sleep(1);
+#else
+	    struct timespec ts={0,1000*1000};
+	    nanosleep(&ts,NULL);
+#endif
+    
+  }
+
+  showmainview();
+  return retval>0;
+}
+
 int main(int argc, char **argv)
 {
   g_ilog2x6 = 6.0/log10(2.0);
@@ -516,6 +635,7 @@ int main(int argc, char **argv)
   char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
+  g_client->LicenseAgreementCallback=licensecallback;
 
   char *hostname;
 
