@@ -120,6 +120,10 @@ public:
   WaveWriter *waveWrite;
 
   void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
+
+  int LicenseAgreement_User32;
+  int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts
+
 private:
 
   void updateBPMinfo(int bpm, int bpi);
