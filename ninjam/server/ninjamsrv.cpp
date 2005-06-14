@@ -73,6 +73,7 @@ WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_bpm, g_config_bpi;
 int g_config_port,g_config_max_users;
 bool g_config_allowanonymous;
+WDL_String g_config_license;
 
 static char *myGetUserPass(User_Group *group, char *username, int *isanon)
 {
@@ -124,6 +125,28 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 2) return -1;
     int p=lp->gettoken_int(1);
     g_config_max_users=p;
+  }
+  else if (!stricmp(t,"ServerLicense"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    FILE *fp=fopen(lp->gettoken_str(1),"rt");
+    if (!fp) 
+    {
+      printf("Error opening license file %s\n",lp->gettoken_str(1));
+      return -2;
+    }
+    g_config_license.Set("");
+    for (;;)
+    {
+      char buf[1024];
+      buf[0]=0;
+      fgets(buf,sizeof(buf),fp);
+      if (!buf[0]) break;
+      g_config_license.Append(buf);
+    }
+
+    fclose(fp);
+    
   }
   else if (!stricmp(t,"ACL"))
   {
@@ -201,6 +224,7 @@ static int ReadConfig(char *configfile)
   g_config_allowanonymous=0;
   g_config_max_users=0; // unlimited users
   g_acllist.Resize(0);
+  g_config_license.Set("");
 
   int x;
   for(x=0;x<g_userlist.GetSize(); x++)
@@ -341,6 +365,8 @@ int main(int argc, char **argv)
     printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
     m_group->SetConfig(g_config_bpi,g_config_bpm);
 
+    m_group->SetLicenseText(g_config_license.Get());
+
 #ifdef _WIN32
     int needprompt=2;
     int esc_state=0;
@@ -463,6 +489,7 @@ int main(int argc, char **argv)
               printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
               m_group->SetConfig(g_config_bpi,g_config_bpm);
               enforceACL();
+              m_group->SetLicenseText(g_config_license.Get());
             }
             needprompt=1;
           }
@@ -482,6 +509,7 @@ int main(int argc, char **argv)
       m_group->SetConfig(g_config_bpi,g_config_bpm);
       g_reloadconfig=0;
       enforceACL();
+      m_group->SetLicenseText(g_config_license.Get());
     }
 #endif
   

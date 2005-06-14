@@ -14,7 +14,7 @@
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_Connection *con) : m_auth_state(0), m_clientcaps(0)
+User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0)
 {
   m_netcon.attach(con);
 
@@ -24,6 +24,8 @@ User_Connection::User_Connection(JNL_Connection *con) : m_auth_state(0), m_clien
   memcpy(ch.challenge,m_challenge,sizeof(ch.challenge));
 
   ch.server_caps=0;
+  if (grp->m_licensetext.Get()[0])
+    ch.license_agreement=grp->m_licensetext.Get();
 
   m_netcon.Send(ch.build());
 }
@@ -87,7 +89,13 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
         if (group->GetUserPass && (pass=group->GetUserPass(group,username,&anon)))
         {
-          if (anon)
+          if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
+          {
+            m_netcon.Kill();
+            msg->releaseRef();
+            return -1;
+          }
+          else if (anon)
           {
             JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
             username=usernametmp;
@@ -550,5 +558,5 @@ void User_Group::SetConfig(int bpi, int bpm)
 
 void User_Group::AddConnection(JNL_Connection *con)
 {
-  m_users.Add(new User_Connection(con));
+  m_users.Add(new User_Connection(con,this));
 }

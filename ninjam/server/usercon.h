@@ -64,7 +64,7 @@ class User_Group;
 class User_Connection
 {
   public:
-    User_Connection(JNL_Connection *con);
+    User_Connection(JNL_Connection *con, User_Group *grp);
     ~User_Connection();
 
     int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
@@ -102,6 +102,7 @@ class User_Group
 
     int Run(); // return 1 if safe to sleep
     void SetConfig(int bpi, int bpm);
+    void SetLicenseText(char *text) { m_licensetext.Set(text); }
     void Broadcast(Net_Message *msg, User_Connection *nosend=0);
 
 
@@ -114,6 +115,8 @@ class User_Group
     WDL_PtrList<User_Connection> m_users;
 
     int m_last_bpm, m_last_bpi;
+
+    WDL_String m_licensetext;
 };
 
 
