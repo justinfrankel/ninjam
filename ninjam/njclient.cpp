@@ -759,12 +759,18 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
+          if (f > 1.0) f=1.0;
+          else if (f < -1.0) f=-1.0;
+
           obuf[0] += f;
 
           f=src[0]*vol2;
 
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
+
+          if (f > 1.0) f=1.0;
+          else if (f < -1.0) f=-1.0;
 
           obuf[1] += f;
           obuf+=2;
@@ -782,6 +788,10 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
           float f=*src++ * vol1;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
+
+          if (f > 1.0) f=1.0;
+          else if (f < -1.0) f=-1.0;
+
           *obuf++ += f;
         }
         lc->decode_peak_vol=maxf;
