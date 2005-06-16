@@ -412,6 +412,9 @@ Net_Message *mpb_server_download_interval_write::build()
 
 
 
+
+
+
 /////////////////////////////////////////////////////////////////////////
 //////////// client to server messages
 /////////////////////////////////////////////////////////////////////////
@@ -775,6 +778,60 @@ Net_Message *mpb_client_upload_interval_write::build()
   *p++=(unsigned char) flags;
 
   if (audio_data&&audio_data_len) memcpy(p,audio_data,audio_data_len);
+
+  return nm;
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+//////////// bidirectional generic  messages
+/////////////////////////////////////////////////////////////////////////
+
+
+// MESSAGE_CHAT_MESSAGE
+
+int mpb_chat_message::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_CHAT_MESSAGE) return -1;
+  if (msg->get_size() < 2) return 1;
+  char *p=(char *)msg->get_data();
+  if (!p) return 2;
+
+  char *endp=(char*)msg->get_data()+msg->get_size();
+  command=p;
+  while (p < endp && *p) p++;
+  if (p >= endp) { command=0; return 2; }
+  p++;
+  parm=p;
+  while (p < endp && *p) p++;
+  if (p >= endp) { command=parm=0; return 2; }
+
+  return 0;
+}
+
+
+Net_Message *mpb_chat_message::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_CHAT_MESSAGE);
+
+  char *cp=command?command:"";
+  char *pp=parm?parm:"";
+  
+  nm->set_size(strlen(cp)+1+strlen(pp)+1);
+
+  char *p=(char *)nm->get_data();
+
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+
+  strcpy(p,cp);
+  p+=strlen(cp);
+  strcpy(p,pp);
+  p+=strlen(pp);
 
   return nm;
 }

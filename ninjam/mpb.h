@@ -123,6 +123,7 @@ class mpb_server_download_interval_write
 
 
 
+
 #define MESSAGE_CLIENT_AUTH_USER 0x80
 class mpb_client_auth_user
 {
@@ -222,6 +223,21 @@ class mpb_client_upload_interval_write
 
     void *audio_data;
     int audio_data_len; // not encoded in, just used internally
+};
+
+
+#define MESSAGE_CHAT_MESSAGE 0xC0
+class mpb_chat_message
+{
+  public:
+    mpb_chat_message() : command(0), parm(0) { }
+    ~mpb_chat_message() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+    char *command;
+    char *parm;
 };
 
 
