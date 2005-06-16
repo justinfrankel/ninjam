@@ -84,7 +84,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         shatmp.add(username,strlen(username));
         shatmp.add(":",1);
         int anon=0;
-        int anon_un=0;
 
         char *pass=NULL;
 
