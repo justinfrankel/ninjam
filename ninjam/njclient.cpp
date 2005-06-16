@@ -81,6 +81,8 @@ NJClient::NJClient()
 
   LicenseAgreement_User32=0;
   LicenseAgreementCallback=0;
+  ChatMessage_Callback=0;
+  ChatMessage_User32=0;
 
   waveWrite=0;
   m_logFile=0;
@@ -536,6 +538,16 @@ int NJClient::Run() // nonzero if sleep ok
           }
         }
       break;
+      case MESSAGE_CHAT_MESSAGE:
+        if (ChatMessage_Callback)
+        {
+          mpb_chat_message foo;
+          if (!foo.parse(msg))
+          {
+            ChatMessage_Callback(ChatMessage_User32,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+          }
+        }
+      break;
       default:
         //printf("Got unknown message %02X\n",msg->get_type());
       break;
@@ -719,6 +731,20 @@ int NJClient::Run() // nonzero if sleep ok
 
   return s;
 
+}
+
+void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
+{
+  if (m_netcon)
+  {
+    mpb_chat_message m;
+    m.parms[0]=parm1;
+    m.parms[1]=parm2;
+    m.parms[2]=parm3;
+    m.parms[3]=parm4;
+    m.parms[4]=parm5;
+    m_netcon->Send(m.build());
+  }
 }
 
 void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)

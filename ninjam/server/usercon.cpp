@@ -154,7 +154,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
               if (tv > maxv) maxv=tv;
             }
           }
-          else if (u != this && !strcmp(u->m_username.Get(),username))
+          else if (u != this && !strcasecmp(u->m_username.Get(),username))
           {
             delete u;
             group->m_users.Delete(user);
@@ -285,7 +285,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
               if (unp)
               {
                 int x;
-                for (x = 0; x < m_sublist.GetSize() && strcmp(unp,m_sublist.Get(x)->username.Get()); x ++);
+                for (x = 0; x < m_sublist.GetSize() && strcasecmp(unp,m_sublist.Get(x)->username.Get()); x ++);
                 if (x == m_sublist.GetSize()) // add new
                 {
                   if (fla) // only add if we need to subscribe
@@ -365,7 +365,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
                 for (i=0; i < u->m_sublist.GetSize(); i ++)
                 {
                   User_SubscribeMask *sm=u->m_sublist.Get(i);
-                  if (!strcmp(sm->username.Get(),myusername))
+                  if (!strcasecmp(sm->username.Get(),myusername))
                   {
                     if (sm->channelmask & (1<<mp.chidx))
                     {
