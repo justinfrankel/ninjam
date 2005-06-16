@@ -463,6 +463,16 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
       break;
 
+      case MESSAGE_CHAT_MESSAGE:
+        {
+          mpb_chat_message poo;
+          if (!poo.parse(msg))
+          {
+            group->onChatMessage(this,&poo);
+          }
+        }
+      break;
+
       default:
       break;
     }
@@ -573,4 +583,52 @@ void User_Group::SetConfig(int bpi, int bpm)
 void User_Group::AddConnection(JNL_Connection *con)
 {
   m_users.Add(new User_Connection(con,this));
+}
+
+void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
+{
+  if (!strcmp(msg->parms[0],"MSG")) // chat message
+  {
+    if (msg->parms[1] && *msg->parms[1])
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="MSG";
+      newmsg.parms[1]=con->m_username.Get();
+      newmsg.parms[2]=msg->parms[1];
+      Broadcast(newmsg.build(),con);
+    }
+  }
+  else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
+  {
+    if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
+    {
+      // send a privmsg to user in parm1, and if they don't
+      int x;
+      for (x = 0; x < m_users.GetSize(); x ++)
+      {
+        if (!strcasecmp(msg->parms[1],m_users.Get(x)->m_username.Get()))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="PRIVMSG";
+          newmsg.parms[1]=con->m_username.Get();
+          newmsg.parms[2]=msg->parms[2];
+          m_users.Get(x)->Send(newmsg.build());
+
+          return;
+        }
+      }
+
+      // send a privmsg back to sender, saying shit aint there
+      WDL_String buf("No such user: ");
+      buf.Append(msg->parms[1]);          
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="MSG";
+      newmsg.parms[1]="";
+      newmsg.parms[2]=buf.Get();
+      con->Send(newmsg.build());
+    }
+  }
+  else // unknown message
+  {
+  }
 }

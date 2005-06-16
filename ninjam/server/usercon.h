@@ -5,6 +5,7 @@
 #include "../netmsg.h"
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
+#include "../mpb.h"
 
 #define MAX_USER_CHANNELS 32
 #define MAX_USERS 64
@@ -111,6 +112,7 @@ class User_Group
 
     char *(*GetUserPass)(User_Group *group, char *username, int *isanon);
 
+    void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 
     WDL_PtrList<User_Connection> m_users;
 
