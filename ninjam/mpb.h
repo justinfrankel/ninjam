@@ -230,14 +230,23 @@ class mpb_client_upload_interval_write
 class mpb_chat_message
 {
   public:
-    mpb_chat_message() : command(0), parm(0) { }
+    mpb_chat_message() { memset(parms,0,sizeof(parms)); }
     ~mpb_chat_message() { }
 
     int parse(Net_Message *msg); // return 0 on success
     Net_Message *build();
 
-    char *command;
-    char *parm;
+    char *parms[5];
+
+    // currently defined client->server commands:
+    // MSG <text>   - sends a message to everybody
+    // PRIVMSG username <text>   - sends a private message to username
+    // TOPIC <topic>   - set server topic (need permissions)
+
+    // and server->client commands:
+    // MSG <username> <text>   - a message from username
+    // PRIVMSG username <text>   - a private message from username
+    // TOPIC <topic>   - server topic change
 };
 
 
