@@ -210,7 +210,7 @@ int main(int argc, char **argv)
   if (!parmpass)
   {
     parmpass=passbuf;
-    if (strcmp(parmuser,"anonymous"))
+    if (strncmp(parmuser,"anonymous",9)||(parmuser[9] && parmuser[9] != ':'))
     {
       printf("Enter password: ");
       gets(passbuf);
