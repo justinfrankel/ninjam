@@ -77,11 +77,11 @@ WDL_String g_config_license;
 
 static char *myGetUserPass(User_Group *group, char *username, int *isanon)
 {
-  if (!strcmp(username,"anonymous"))
+  if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
     printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     *isanon=1;
-    return (char *)(g_config_allowanonymous?"":NULL);
+    return (char *)(g_config_allowanonymous?(username[9] == ':' ? username+10: ""):NULL);
   }
   int x;
   printf("got login request for '%s'\n",username);

@@ -84,6 +84,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         shatmp.add(username,strlen(username));
         shatmp.add(":",1);
         int anon=0;
+        int anon_un=0;
 
         char *pass=NULL;
 
@@ -97,9 +98,23 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           }
           else if (anon)
           {
-            JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
-            username=usernametmp;
-            strcat(usernametmp,"-");
+            if (*pass)
+            {
+              char pbuf[256];
+              strncpy(pbuf,pass,255);
+              pbuf[15]=0;
+
+              char buf[128];
+              JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+              sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
+              username=usernametmp+1;
+            }
+            else
+            {
+              JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
+              username=usernametmp;
+              strcat(usernametmp,"-");
+            }
           }
           else
           {
