@@ -799,7 +799,7 @@ int mpb_chat_message::parse(Net_Message *msg) // return 0 on success
 
   char *endp=(char*)msg->get_data()+msg->get_size();
 
-  int x;
+  unsigned int x;
   memset(parms,0,sizeof(parms));
   for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
   {
@@ -816,7 +816,7 @@ Net_Message *mpb_chat_message::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CHAT_MESSAGE);
 
-  int x;
+  unsigned int x;
   int sz=0;
   for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
   {

@@ -82,7 +82,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
   {
     printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     if (!g_config_allowanonymous) return 0;
-    *isanon=username[9] == ':' ? username+10: "";
+    *isanon=username + (username[9] == ':' ? 10:9);
     return 1; // allow
   }
 
