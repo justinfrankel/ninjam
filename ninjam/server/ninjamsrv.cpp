@@ -14,6 +14,7 @@
 #include "usercon.h"
 
 #include "../../WDL/rng.h"
+#include "../../WDL/sha.h"
 #include "../../WDL/lineparse.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/string.h"
@@ -75,21 +76,32 @@ int g_config_port,g_config_max_users;
 bool g_config_allowanonymous;
 WDL_String g_config_license;
 
-static char *myGetUserPass(User_Group *group, char *username, int *isanon)
+static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon)
 {
   if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
     printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
-    *isanon=1;
-    return (char *)(g_config_allowanonymous?(username[9] == ':' ? username+10: ""):NULL);
+    if (!g_config_allowanonymous) return 0;
+    *isanon=username[9] == ':' ? username+10: "";
+    return 1; // allow
   }
+
   int x;
   printf("got login request for '%s'\n",username);
   for (x = 0; x < g_userlist.GetSize(); x ++)
   {
     if (!strcmp(username,g_userlist.Get(x)->name.Get()))
     {
-      return g_userlist.Get(x)->pass.Get();
+      char *pass=g_userlist.Get(x)->pass.Get();
+      WDL_SHA1 shatmp;
+      shatmp.add(username,strlen(username));
+      shatmp.add(":",1);
+      shatmp.add(pass,strlen(pass));
+
+      shatmp.result(sha1buf_user);
+
+      *isanon=0;
+      return 1;
     }
   }
   return NULL;

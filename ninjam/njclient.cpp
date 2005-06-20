@@ -338,10 +338,14 @@ int NJClient::Run() // nonzero if sleep ok
             }
 
             WDL_SHA1 tmp;
-            tmp.add(cha.challenge,sizeof(cha.challenge));
             tmp.add(m_user.Get(),strlen(m_user.Get()));
             tmp.add(":",1);
             tmp.add(m_pass.Get(),strlen(m_pass.Get()));
+            tmp.result(repl.passhash);
+
+            tmp.reset(); // new auth method is SHA1(SHA1(user:pass)+challenge)
+            tmp.add(repl.passhash,sizeof(repl.passhash));
+            tmp.add(cha.challenge,sizeof(cha.challenge));
             tmp.result(repl.passhash);               
 
             m_netcon->Send(repl.build());

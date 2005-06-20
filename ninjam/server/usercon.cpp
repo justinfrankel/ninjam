@@ -79,15 +79,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       char usernametmp[512];
 
       {
-        WDL_SHA1 shatmp;
-        shatmp.add(m_challenge,sizeof(m_challenge));
-        shatmp.add(username,strlen(username));
-        shatmp.add(":",1);
-        int anon=0;
-
-        char *pass=NULL;
-
-        if (group->GetUserPass && (pass=group->GetUserPass(group,username,&anon)))
+        char *anon=0;
+        char authbuf[WDL_SHA1SIZE];
+        
+        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon))
         {
           if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
           {
@@ -97,10 +92,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           }
           else if (anon)
           {
-            if (*pass)
+            if (*anon)
             {
               char pbuf[256];
-              strncpy(pbuf,pass,255);
+              strncpy(pbuf,anon,255);
               pbuf[15]=0;
 
               char buf[128];
@@ -117,7 +112,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           }
           else
           {
-            shatmp.add(pass,strlen(pass));
+            WDL_SHA1 shatmp;
+            shatmp.add(authbuf,sizeof(authbuf));
+            shatmp.add(m_challenge,sizeof(m_challenge));
+
             char buf[WDL_SHA1SIZE];
             shatmp.result(buf);
             if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
