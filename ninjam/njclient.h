@@ -107,6 +107,8 @@ public:
   void DeleteLocalChannel(int ch);
   int EnumLocalChannels(int i);
   float GetLocalChannelPeak(int ch);
+  void SetLocalChannelProcessor(int ch, void (*cbf)(float *, int ns, void *), void *inst);
+  void GetLocalChannelProcessor(int ch, void **func, void **inst);
   void SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch, bool setbitrate, int bitrate, bool setbcast, bool broadcast);
   char *GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast);
   void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo);
@@ -297,6 +299,9 @@ public:
   // internal state
   bool bcast_active;
 
+
+  void (*cbf)(float *, int ns, void *);
+  void *cbf_inst;
 
   double decode_peak_vol;
   WDL_Mutex m_cs;

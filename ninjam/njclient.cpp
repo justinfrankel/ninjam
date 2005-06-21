@@ -840,11 +840,20 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
+    int sc=lc->src_channel;
+    if (sc < 0 || sc >= innch) continue;
+
+    // processor
+    if (lc->cbf)
+    {
+      if ((!m_issoloactive && !lc->muted) || lc->solo)
+      {
+        lc->cbf(inbuf[sc]+offset,len,lc->cbf_inst);
+      }
+    }
+
     if (lc->bcast_active) 
     {
-      int sc=lc->src_channel;
-      if (sc < 0 || sc >= innch) continue;
-
       lc->AddBlock(inbuf[sc]+offset,len,1);
     }
   }
@@ -1301,6 +1310,33 @@ void NJClient::DeleteLocalChannel(int ch)
   m_locchan_cs.Leave();
 }
 
+void NJClient::SetLocalChannelProcessor(int ch, void (*cbf)(float *, int ns, void *), void *inst)
+{
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize()) return;
+
+  Local_Channel *c=m_locchannels.Get(x);
+  c->cbf=cbf;
+  c->cbf_inst=inst;
+}
+
+void NJClient::GetLocalChannelProcessor(int ch, void **func, void **inst)
+{
+  int x;
+  for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
+  if (x == m_locchannels.GetSize()) 
+  {
+    if (func) *func=0;
+    if (inst) *inst=0;
+    return;
+  }
+
+  Local_Channel *c=m_locchannels.Get(x);
+  if (func) *func=(void *)c->cbf;
+  if (inst) *inst=c->cbf_inst; 
+}
+
 void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
                                    bool setbitrate, int bitrate, bool setbcast, bool broadcast)
 {  
@@ -1478,7 +1514,8 @@ void RemoteDownload::Write(void *buf, int len)
 
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
                 muted(false), solo(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
-                bcast_active(false), m_enc_bitrate_used(0), bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
+                bcast_active(false), cbf(NULL), cbf_inst(NULL), m_enc_bitrate_used(0), 
+                bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
                 decode_peak_vol(0.0)
 {
 }
