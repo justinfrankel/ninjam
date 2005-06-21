@@ -990,7 +990,7 @@ int main(int argc, char **argv)
     audio=new audioStreamer_CoreAudio;
 
     int nbufs=2,bufsize=4096;
-    if (audio->Open(&dev_name_in,48000,2,16,&nbufs,&bufsize))
+    if (audio->Open(&dev_name_in,48000,2,16))
     {
       printf("Error opening audio!\n");
       return 0;
