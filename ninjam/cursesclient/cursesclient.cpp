@@ -59,7 +59,7 @@ char m_chatinput_str[120];
 
 WDL_PtrList<char> g_chat_buffers;
 
-void addChatLine(char *src, char *text)
+void addChatLine(char *src, char *text, int sfmt=0)
 {
   while (g_chat_buffers.GetSize() > 256)
   {
@@ -67,25 +67,54 @@ void addChatLine(char *src, char *text)
     g_chat_buffers.Delete(0);
   }
   WDL_String tmp;
-  if (src&&*src)
+  if (!sfmt && src && *src && !strncmp(text,"/me ",4))
   {
-    tmp.Append("<");
+    tmp.Set("* ");
     tmp.Append(src);
+    tmp.Append(text+3);
   }
-  tmp.Append("> ");
-  tmp.Append(text);
+  else
+  {
+    if (src&&*src)
+    {
+      if (!sfmt) tmp.Append("<");
+      tmp.Append(src);
+    }
+    if (!sfmt) tmp.Append("> ");
+    tmp.Append(text);
+  }
   g_chat_buffers.Add(strdup(tmp.Get()));
   g_chat_scroll=0;
 }
 
+WDL_String g_topic;
 
 void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 {
   if (!parms[0]) return;
 
-  printf("Got msg %s\n",parms[0]);
-
-  if (!strcmp(parms[0],"MSG"))
+  if (!strcmp(parms[0],"TOPIC"))
+  {
+    if (parms[2])
+    {
+      WDL_String tmp;
+      if (parms[1] && *parms[1])
+      {
+        tmp.Set("*** ");
+        tmp.Append(parms[1]);
+        tmp.Append(" sets topic to: \"");
+      }
+      else
+        tmp.Set("*** Topic is: \"");
+      tmp.Append(parms[2]);
+      tmp.Append("\"");
+      g_topic.Set(parms[2]);
+      addChatLine("",tmp.Get(),1);
+    
+      g_need_disp_update=1;
+    }
+  }
+  else if (!strcmp(parms[0],"MSG"))
   {
     if (parms[1] && parms[2])
       addChatLine(parms[1],parms[2]);
@@ -572,7 +601,7 @@ void showmainview(bool action=false)
   {
 	  bkgdset(COLORMAP(1));
 	  attrset(COLORMAP(1));
-	  mvaddstr(LINES-2-chat_lines,0,"CHAT");
+    mvaddnstr(LINES-2-chat_lines,0,g_topic.Get()[0]?g_topic.Get():"CHAT",COLS-1);
     clrtoeol();
 	  bkgdset(COLORMAP(0));
 	  attrset(COLORMAP(0));
@@ -1232,8 +1261,28 @@ int main(int argc, char **argv)
                 case '\r':
                   if (m_chatinput_str[0])
                   {
-                    addChatLine(NULL,m_chatinput_str);
-                    g_client->ChatMessage_Send("MSG",m_chatinput_str);
+                    if (m_chatinput_str[0] == '/')
+                    {
+                      if (!strncmp(m_chatinput_str,"/me ",4))
+                      {
+                        g_client->ChatMessage_Send("MSG",m_chatinput_str);
+                      }
+                      else if (!strncmp(m_chatinput_str,"/topic ",7))
+                      {
+                        g_client->ChatMessage_Send("TOPIC",m_chatinput_str+7);
+                      }
+                      else
+                      {
+                        addChatLine("error: ","unknown / command. known commands so far: /topic",1);
+                      }
+                    }
+                    else
+                    {
+                      //addChatLine(NULL,m_chatinput_str);
+                      g_client->ChatMessage_Send("MSG",m_chatinput_str);
+                    }
+
+
                     m_chatinput_str[0]=0;                    
                     showmainview();
                   }
