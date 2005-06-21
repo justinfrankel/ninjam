@@ -146,7 +146,7 @@ private:
 
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
-  void input_monitor_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
+  void input_monitor_samples(float **outbuf, int outnch, int len, int srate, int offset);
   void on_new_interval(int srate);
 
   void writeLog(char *fmt, ...);
@@ -302,6 +302,8 @@ public:
 
   void (*cbf)(float *, int ns, void *);
   void *cbf_inst;
+
+  WDL_HeapBuf curblock;
 
   double decode_peak_vol;
   WDL_Mutex m_cs;

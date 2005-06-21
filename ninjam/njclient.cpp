@@ -190,7 +190,8 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
   m_srate=srate;
   if (!m_audio_enable) 
   {
-    input_monitor_samples(inbuf,innch,outbuf,outnch,len,srate,0);
+    int x;
+    for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
     return;
   }
 
@@ -751,7 +752,7 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::input_monitor_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
+void NJClient::input_monitor_samples(float **outbuf, int outnch, int len, int srate, int offset)
 {
   int x;
   for (x = 0 ; x < outnch; x ++) memset(outbuf[x]+offset,0,len*sizeof(float)); // zero output channels
@@ -763,14 +764,13 @@ void NJClient::input_monitor_samples(float **inbuf, int innch, float **outbuf, i
 
     if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
-      int sc=lc->src_channel;
-      if (sc < 0 || sc >= innch)
+      if (lc->curblock.GetSize() < len*(int)sizeof(float))
       {
         lc->decode_peak_vol=0.0;
         continue;
       }
 
-      float *src=inbuf[sc]+offset;
+      float *src=(float*)lc->curblock.Get();
 
       float *out1=outbuf[0]+offset;
 
@@ -841,25 +841,35 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   {
     Local_Channel *lc=m_locchannels.Get(u);
     int sc=lc->src_channel;
-    if (sc < 0 || sc >= innch) continue;
+    if (sc < 0 || sc >= innch) 
+    {
+      lc->curblock.Resize(0);
+      continue;
+    }
+
+    if (lc->curblock.GetSize() < len*(int)sizeof(float))
+    {
+      lc->curblock.Resize(len*sizeof(float));
+    }
+    memcpy(lc->curblock.Get(),inbuf[sc]+offset,len*sizeof(float));
 
     // processor
     if (lc->cbf)
     {
       if ((!m_issoloactive && !lc->muted) || lc->solo)
       {
-        lc->cbf(inbuf[sc]+offset,len,lc->cbf_inst);
+        lc->cbf((float *)lc->curblock.Get(),len,lc->cbf_inst);
       }
     }
 
     if (lc->bcast_active) 
     {
-      lc->AddBlock(inbuf[sc]+offset,len,1);
+      lc->AddBlock((float *)lc->curblock.Get(),len,1);
     }
   }
   m_locchan_cs.Leave();
 
-  input_monitor_samples(inbuf,innch,outbuf,outnch,len,srate,offset);
+  input_monitor_samples(outbuf,outnch,len,srate,offset);
 
   // mix in all active (subscribed) channels
   m_users_cs.Enter();
