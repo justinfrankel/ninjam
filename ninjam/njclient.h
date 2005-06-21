@@ -268,7 +268,7 @@ private:
 
 
 
-#define MAX_LOCAL_CHANNELS 2
+#define MAX_LOCAL_CHANNELS 32
 
 class Local_Channel
 {
