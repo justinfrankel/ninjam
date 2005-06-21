@@ -852,7 +852,6 @@ int licensecallback(int user32, char *licensetext)
 int main(int argc, char **argv)
 {
   g_ilog2x6 = 6.0/log10(2.0);
-  signal(SIGINT,sigfunc);
 
   char *parmuser=NULL;
   char *parmpass=NULL;
@@ -868,7 +867,7 @@ int main(int argc, char **argv)
 
   char *hostname;
 
-#ifdef _MAC
+#if 1//def _MAC
   char hostbuf[512];
   if (argc < 2)
   {
@@ -1001,6 +1000,8 @@ int main(int argc, char **argv)
     g_audio=audio;
   }
 #endif
+
+  signal(SIGINT,sigfunc);
 
   JNL::open_socketlib();
 
