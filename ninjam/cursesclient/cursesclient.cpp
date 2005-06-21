@@ -45,12 +45,52 @@ void ninjamCursesClientInstance::Run()
 ninjamCursesClientInstance m_cursinst;
 #endif
 
+int g_chat_scroll=0;
+int curs_ypos,curs_xpos;
 int color_map[8];
+int g_ui_inchat=0;
 int g_done=0;
 int g_ui_state=0;
 int g_ui_locrename_ch;
 int g_ui_voltweakstate_channel;
+int g_need_disp_update;
 char m_lineinput_str[120];
+char m_chatinput_str[120];
+
+WDL_PtrList<char> g_chat_buffers;
+
+void addChatLine(char *src, char *text)
+{
+  while (g_chat_buffers.GetSize() > 256)
+  {
+    free(g_chat_buffers.Get(0));
+    g_chat_buffers.Delete(0);
+  }
+  WDL_String tmp;
+  if (src&&*src)
+  {
+    tmp.Append("<");
+    tmp.Append(src);
+  }
+  tmp.Append("> ");
+  tmp.Append(text);
+  g_chat_buffers.Add(strdup(tmp.Get()));
+  g_chat_scroll=0;
+}
+
+void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+{
+  if (!parms[0]) return;
+
+  printf("Got msg %s\n",parms[0]);
+
+  if (!strcmp(parms[0],"MSG"))
+  {
+    if (parms[1] && parms[2])
+      addChatLine(parms[1],parms[2]);
+    g_need_disp_update=1;
+  } 
+}
 
 double g_ilog2x6;
 double VAL2DB(double x)
@@ -197,12 +237,14 @@ void drawstatusbar()
 	bkgdset(COLORMAP(0));
 	attrset(COLORMAP(0));
 
-  move(LINES-1,0);
-
+  move(curs_ypos,curs_xpos); 
 }
 
 void showmainview(bool action=false)
 {
+  int chat_lines=LINES/4;
+  if (chat_lines<4) chat_lines=4;
+
   int selpos=0;
 	bkgdset(COLORMAP(0));
 	attrset(COLORMAP(0));
@@ -215,7 +257,7 @@ void showmainview(bool action=false)
 	bkgdset(COLORMAP(0));
 	attrset(COLORMAP(0));
   char linebuf[1024];
-  int linemax=LINES-2;
+  int linemax=LINES-2-chat_lines;
   {
     if (action && g_sel_y == selpos)
     {
@@ -421,8 +463,66 @@ void showmainview(bool action=false)
 
     
   }
-  if (g_sel_y > selpos) g_sel_y=selpos;
 
+  curs_ypos=LINES-1;
+  curs_xpos=0;
+
+  g_ui_inchat=0;
+  if (chat_lines>=4)
+  {
+	  bkgdset(COLORMAP(1));
+	  attrset(COLORMAP(1));
+	  mvaddstr(LINES-2-chat_lines,0,"CHAT");
+    clrtoeol();
+	  bkgdset(COLORMAP(0));
+	  attrset(COLORMAP(0));
+
+    int x;
+    if (g_chat_scroll > g_chat_buffers.GetSize()-(chat_lines-2)) g_chat_scroll=g_chat_buffers.GetSize()-(chat_lines-2);
+    int pos=g_chat_buffers.GetSize()-g_chat_scroll;
+    if (pos < 0) pos=0;
+    else if (pos > g_chat_buffers.GetSize()) pos=g_chat_buffers.GetSize();
+
+    for (x = 0; x < chat_lines-2; )
+    {
+      char *p;
+      if (--pos < 0 || !(p=g_chat_buffers.Get(pos))) break;
+
+      char *np=p;
+      int maxw=COLS-1;
+      while ((int)strlen(np) > maxw) np+=maxw;
+
+      while (np >= p && x < chat_lines-2)
+      {
+        mvaddnstr(LINES-2-2-x,0,np,maxw);
+        x++;
+        np-=maxw;
+      }
+
+    }
+
+    if (g_sel_y == selpos++)
+    {
+      g_sel_x=0;
+      g_ui_inchat=1;
+	    bkgdset(COLORMAP(2));
+	    attrset(COLORMAP(2));
+      curs_ypos=LINES-2-1;
+      curs_xpos=strlen(m_chatinput_str);
+    }
+    else
+    {
+	    bkgdset(COLORMAP(3));
+	    attrset(COLORMAP(3));
+    }
+	  mvaddstr(LINES-2-1,0,m_chatinput_str);
+    clrtoeol();
+	  bkgdset(COLORMAP(0));
+	  attrset(COLORMAP(0));
+  }
+
+
+  if (g_sel_y > selpos) g_sel_y=selpos;
 
   if (g_ui_state==1)
   {
@@ -462,7 +562,9 @@ void showmainview(bool action=false)
     clrtoeol();
   }
   else
-    move(LINES-1,0);
+  {
+    move(curs_ypos,curs_xpos);
+  }
 
 }
 
@@ -636,6 +738,7 @@ int main(int argc, char **argv)
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
   g_client->LicenseAgreementCallback=licensecallback;
+  g_client->ChatMessage_Callback=chatmsg_cb;
 
   char *hostname;
 
@@ -1021,8 +1124,53 @@ int main(int argc, char **argv)
             }
           break;
           case '\r': case ' ':
+            if (!g_ui_inchat)
             {
               showmainview(true);
+              break;
+            }
+          default:
+            if (g_ui_inchat)
+            {
+              switch (a)
+              {
+                case KEY_PPAGE:
+                  g_chat_scroll+=LINES/4-2;
+                  showmainview();
+                break;
+                case KEY_NPAGE:
+                  g_chat_scroll-=LINES/4-2;
+                  if (g_chat_scroll<0)g_chat_scroll=0;
+                  showmainview();
+                break;
+                case '\r':
+                  if (m_chatinput_str[0])
+                  {
+                    addChatLine(NULL,m_chatinput_str);
+                    g_client->ChatMessage_Send("MSG",m_chatinput_str);
+                    m_chatinput_str[0]=0;                    
+                    showmainview();
+                  }
+                break;
+                case 27:
+                  {
+                    m_chatinput_str[0]=0;
+                    showmainview();
+                  }
+                break;
+					      case KEY_BACKSPACE: 
+                  if (m_chatinput_str[0]) m_chatinput_str[strlen(m_chatinput_str)-1]=0; 
+                  showmainview();
+					      break;
+                default:
+                  if (VALIDATE_TEXT_CHAR(a))
+						      { 
+							      int l=strlen(m_chatinput_str); 
+							      if (l < (int)sizeof(m_chatinput_str)-1) { m_chatinput_str[l]=a; m_chatinput_str[l+1]=0; }
+                    showmainview();
+						      } 
+                break;
+              }
             }
           break;
         }
@@ -1141,7 +1289,7 @@ int main(int argc, char **argv)
         }
       }
 
-      if (g_ui_state < 2 && (g_client->HasUserInfoChanged()||
+      if (g_ui_state < 2 && (g_need_disp_update||g_client->HasUserInfoChanged()||
 #ifdef _WIN32
 GetTickCount()>=nextupd 
 #else
@@ -1155,6 +1303,7 @@ time(NULL) >= nextupd
 #else
         nextupd=time(NULL)+1;
 #endif
+        g_need_disp_update=0;
         showmainview();
       }
       else drawstatusbar();
