@@ -13,6 +13,50 @@
 
 #include "../WDL/queue.h"
 
+static int g_srate;
+
+// this is a total hack until I spend the time and make a good multichannel CoreAudio implementation.
+static WDL_HeapBuf spltemp;
+static void onsamples_old(float *buf, int nsamples, int nch, int srate)
+{
+  float *inbufs[2]={0,};
+  float *outbufs[2]={0,};
+  if (nch == 1)
+  {
+    inbufs[0]=buf; // in place should actually work, amazingly enough.
+    outbufs[0]=buf;
+  }
+  else
+  {
+    if (spltemp.GetSize() < nsamples*2*sizeof(float)*nch) spltemp.Resize(nsamples*2*sizeof(float)*nch);
+    float *ptr=(float*)spltemp.Get();
+    inbufs[0] = ptr; ptr+=nsamples;
+    inbufs[1] = ptr; ptr+=nsamples;
+    outbufs[0] = ptr; ptr+=nsamples;
+    outbufs[1] = ptr; ptr+=nsamples;
+
+    int x;
+    for (x = 0; x < nsamples; x ++)
+    {
+      inbufs[0][x]=buf[x+x];
+      inbufs[1][x]=buf[x+x+1];
+    }
+  }
+
+  audiostream_onsamples(inbufs,nch,outbufs,nch,nsamples,srate);
+
+  if (nch != 1)
+  {
+    int x;
+    for (x = 0; x < nsamples; x ++)
+    {
+      buf[x+x]=outbufs[0][x];
+      buf[x+x+1]=outbufs[1][x];
+    }
+  }
+  
+}
+
 static pthread_mutex_t m_mutex;
 static WDL_Queue m_splbuf;
 static int inchtab[2]={0,1};
@@ -56,7 +100,7 @@ OSStatus caIOproc(AudioDeviceID dev,
            		*fout++=fin[inchtab[1]];
 	          	fin+=in_nch;
         	}
-        	audiostream_onsamples(ca_tmpbuf,c,in_nch);
+        	onsamples_old(ca_tmpbuf,c,in_nch, g_srate);
 		fin=(float *)ca_tmpbuf;
 		fout=(float *)out;
 		for (x = 0; x < c; x ++)
@@ -100,7 +144,7 @@ OSStatus caInproc(AudioDeviceID dev,
            		*fout++=fin[inchtab[1]];
 	          	fin+=in_nch;
         	}
-        	audiostream_onsamples(ca_tmpbuf,c,in_nch);
+        	onsamples_old(ca_tmpbuf,c,in_nch,g_srate);
 
 		pthread_mutex_lock(&m_mutex);
 		
@@ -243,14 +287,13 @@ void parseopts(char *dev, int &driverindex, int &driverindex_out)
   }
 }
 
-int audioStreamer_CoreAudio::Open(char **dev, int srate, int nch, int bps, int *nbufs, int *bufsize)
+int audioStreamer_CoreAudio::Open(char **dev, int srate, int nch, int bps)
 {
   pthread_mutex_init(&m_mutex,NULL);
   char *olddev= *dev;
-	m_srate=srate;
+	m_srate=g_srate=srate;
         m_bps=33;
-        m_nch=2;
-	*nbufs=1;
+        m_innch=m_outnch=2;
   char user_buf[512];
  
 
@@ -326,7 +369,7 @@ again:
 		os=sizeof(d);
           	AudioDeviceSetProperty(myDev,NULL,0,isinput,kAudioDevicePropertyStreamFormat,os,&d);
           	AudioDeviceGetProperty(myDev,0,isinput,kAudioDevicePropertyStreamFormat,&os,&d);
-		if (os>0) m_srate=(int)d.mSampleRate; 
+		if (os>0) g_srate=m_srate=(int)d.mSampleRate; 
  	 }
           AudioDeviceGetPropertyInfo(myDev,0,isinput,kAudioDevicePropertyStreamConfiguration,&os,&ow);
           if (os > 0) 
@@ -341,10 +384,6 @@ again:
                 for (y = 0; y < (int)buf[x].mNumberBuffers; y++)
 		{
                    if (buf[x].mBuffers[y].mNumberChannels) printf("    buffer %d: %d channels\n",y,(int)buf[x].mBuffers[y].mNumberChannels);
- 		   if (y == 0 && x == 0) 
-		   {
-			*bufsize=((buf[0].mBuffers[0].mDataByteSize) / buf[x].mBuffers[y].mNumberChannels)*m_nch;
-		   }
 		   
 		}
 		break;
