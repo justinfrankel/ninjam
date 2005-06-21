@@ -121,14 +121,17 @@ void audiostream_onover() { }
 
 int g_audio_enable=0;
 
-void audiostream_onsamples(float *buf, int len, int nch) 
+void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
   if (!g_audio_enable) 
   {
-    memset(buf,0,sizeof(float)*len*nch);
+    int x;
+    // clear all output buffers
+    for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
     return;
   }
 #ifdef _WIN32
+  /* todo: fixy
   if (g_client->IsAudioRunning())
   {
     if (JesusonicAPI && myInst)
@@ -138,8 +141,9 @@ void audiostream_onsamples(float *buf, int len, int nch)
       JesusonicAPI->osc_run(myInst,(char*)buf,len*nch*sizeof(float));
     }
   }
+  */
 #endif
-  g_client->AudioProc(buf,len,nch,g_audio->m_srate);
+  g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
 }
 
 
@@ -537,8 +541,8 @@ void showmainview(bool action=false)
 
 
   ypos=LINES-1;
-  sprintf(linebuf,"[quit ninjam] : %s : %.1fBPM %dBPI : %dHz %dch %dbps%s",
-    g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_nch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
+  sprintf(linebuf,"[quit ninjam] : %s : %.1fBPM %dBPI : %dHz %dch->%dch %dbps%s",
+    g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_innch,g_audio->m_outnch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
   highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),g_sel_y != selpos ? -1 : g_sel_x);
   attrset(COLORMAP(1));
   bkgdset(COLORMAP(1));
@@ -847,14 +851,13 @@ int main(int argc, char **argv)
     dev_name_in=audioconfigstr&&*audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",audioconfigstr?0:1,NULL);
     audio=new audioStreamer_ASIO;
 
-    int nbufs=2,bufsize=4096;
-    if (audio->Open(&dev_name_in,48000,2,16,-1,&nbufs,&bufsize))
+    if (audio->Open(&dev_name_in))
     {
       printf("Error opening audio!\n");
       return 0;
     }
-    printf("Opened %s (%dHz %dch %dbps)\n",dev_name_in,
-      audio->m_srate, audio->m_nch, audio->m_bps);
+    printf("Opened %s (%dHz %d->%dch %dbps)\n",dev_name_in,
+      audio->m_srate, audio->m_innch, audio->m_outnch, audio->m_bps);
     g_audio=audio;
   }
 #else
@@ -884,7 +887,7 @@ int main(int argc, char **argv)
 
 #ifdef _WIN32
   WDL_String jesusonic_configfile;
-  if (jesusdir)
+/*  if (jesusdir)
   {
     jesusonic_configfile.Set(jesusdir);
     jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
@@ -913,6 +916,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  */
 
 #endif
   // end jesusonic init
@@ -979,7 +983,7 @@ int main(int argc, char **argv)
     WDL_String wf;
     wf.Set(sessiondir.Get());
     wf.Append("output.wav");
-    g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_nch,g_audio->m_srate);
+    g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
   }
   if (!nolog)
   {
@@ -1259,7 +1263,7 @@ int main(int argc, char **argv)
                 {
                   int ch= atoi(m_lineinput_str);
                   if (ch < 0) ch=0;
-                  else if (ch > 1) ch=1;
+                  else if (ch > 31) ch=31;
                   g_client->SetLocalChannelInfo(g_ui_locrename_ch,NULL,true,ch,false,0,false,false);
                 }
                 g_client->NotifyServerOfChannelChange();
@@ -1278,7 +1282,7 @@ int main(int argc, char **argv)
               showmainview();
 					  break;
             default:
-              if (VALIDATE_TEXT_CHAR(a) && (g_ui_state == 2 || (a >= '0' && a <= '1'))) //fucko: 9 once we have > 2ch
+              if (VALIDATE_TEXT_CHAR(a) && (g_ui_state == 2 || (a >= '0' && a <= '9'))) //fucko: 9 once we have > 2ch
 						  { 
 							  int l=strlen(m_lineinput_str); 
 							  if (l < (int)sizeof(m_lineinput_str)-1) { m_lineinput_str[l]=a; m_lineinput_str[l+1]=0; }

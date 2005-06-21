@@ -49,7 +49,7 @@ static void myPrintf(char *s, ...)
 enum {
 	// number of input and outputs supported by the host application
 	// you can change these to higher or lower values
-	kMaxInputChannels = 2,
+	kMaxInputChannels = 32,
 	kMaxOutputChannels = 2
 };
 
@@ -139,36 +139,35 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
     else if (t==ASIOSTInt32LSB) splsize=4;
 
     // interleave the first two buffers into the queue
-    if (myDriverInfo.inputBuffers==1)
+    float *outptrs[kMaxOutputChannels]={0,};
+    float *inptrs[kMaxInputChannels]={0,};
+    float *ptr=asio_pcmbuf;
+
+    int x;
+    for (x = 0; x < myDriverInfo.inputBuffers; x ++)
     {
-      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf,2);
-      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf+1,2);
+      inptrs[x]=ptr;
+      pcmToFloats(myDriverInfo.bufferInfos[x].buffers[index],buffSize,splsize*8,1,ptr,1);
+      ptr+=buffSize;
     }
-    else
+    for (x = 0; x < myDriverInfo.outputBuffers; x ++)
     {
-      pcmToFloats(myDriverInfo.bufferInfos[0].buffers[index],buffSize,splsize*8,1,asio_pcmbuf,2);
-      pcmToFloats(myDriverInfo.bufferInfos[1].buffers[index],buffSize,splsize*8,1,asio_pcmbuf+1,2);
+      outptrs[x]=ptr;
+      ptr+=buffSize;
     }
 
     {
       int bytes=buffSize*sizeof(float)*2;
 //      EnterCriticalSection(&myDriverInfo.cs);
 
-      audiostream_onsamples(asio_pcmbuf,buffSize,2);
+      audiostream_onsamples(inptrs,myDriverInfo.inputBuffers,outptrs,myDriverInfo.outputBuffers,buffSize,(int)myDriverInfo.sampleRate);
 
-      myDriverInfo.bytesProcessed+=bytes;
   //    LeaveCriticalSection(&myDriverInfo.cs);
     }
 
-    // uninterleave the latest samples into the second two buffers
-    if (myDriverInfo.outputBuffers==1)
+    for (x = 0; x < myDriverInfo.outputBuffers; x ++)
     {
-      floatsToPcm(asio_pcmbuf,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index],splsize*8,1);
-    }
-    else
-    {
-      floatsToPcm(asio_pcmbuf,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index],splsize*8,1);
-      floatsToPcm(asio_pcmbuf+1,2,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index],splsize*8,1);
+      floatsToPcm(outptrs[x],1,buffSize,myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+x].buffers[index],splsize*8,1);
     }
   }
   
@@ -311,16 +310,10 @@ audioStreamer_ASIO::~audioStreamer_ASIO()
 
 }
 
-int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep, int *nbufs, int *bufsize)
+int audioStreamer_ASIO::Open(char **dev)
 {
 	if(!asioDrivers)
 		asioDrivers = new AsioDrivers();
-
-  if (nch != 2)
-  {
-    printf("Error: our ASIO support currently only works with 2 channels!\n");
-    return -1;
-  }
 
   if (!asioDrivers)
   {
@@ -469,10 +462,11 @@ int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep,
 
   ASIOBufferInfo *info = myDriverInfo.bufferInfos;
 
-  myDriverInfo.outputBuffers = min(myDriverInfo.inputChannels,myDriverInfo.outputChannels);
+  myDriverInfo.outputBuffers = min(myDriverInfo.outputChannels,kMaxOutputChannels);
 
-  myDriverInfo.outputBuffers=myDriverInfo.inputBuffers=min(myDriverInfo.outputBuffers,nch);
-
+  myDriverInfo.inputBuffers=inchoffs[1]-inchoffs[0]+1;
+  if (myDriverInfo.inputBuffers > myDriverInfo.inputChannels) myDriverInfo.inputBuffers = myDriverInfo.inputChannels;
+  if (myDriverInfo.inputBuffers > kMaxInputChannels) myDriverInfo.inputBuffers = kMaxInputChannels;
 
   int i;
   for (i = 0; i < myDriverInfo.inputChannels; i ++)
@@ -490,16 +484,6 @@ int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep,
     if (ASIOGetChannelInfo(&c) == ASE_OK) printf("ASIO Output Channel %d: '%s' \n",i,c.name);
   }
 
-// this should work, but it doesn't seem to :(
-//  if (myDriverInfo.inputBuffers == 2 && inchoffs[0] == inchoffs[1])
-//    myDriverInfo.inputBuffers=1;
-
-  //{
-    //char buf[512];
-    //sprintf(buf,"outputting asio to channels %d and %d\n",outchoffs[0],outchoffs[1]);
-    //OutputDebugString(buf);
-//  }
-
   if (myDriverInfo.outputBuffers == 2 && outchoffs[0] == outchoffs[1])
     myDriverInfo.outputBuffers=1;
 
@@ -507,7 +491,7 @@ int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep,
 	for(i = 0; i < myDriverInfo.inputBuffers; i++, info++)
 	{
 		info->isInput = ASIOTrue;
-		info->channelNum = inchoffs[i];
+		info->channelNum = inchoffs[0]+i;
 		info->buffers[0] = info->buffers[1] = 0;
 	}
 	for(i = 0; i < myDriverInfo.outputBuffers; i++, info++)
@@ -564,33 +548,30 @@ int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep,
 
   m_driver_active=3;
 
-  m_sleep =   sleep >= 0 ? sleep : 0;
-
-  m_nch = (int)2;
+  m_innch = (int)myDriverInfo.inputBuffers;
+  m_outnch = (int)myDriverInfo.outputBuffers;
   m_srate=(int)myDriverInfo.sampleRate;
   if (last_spltype == ASIOSTInt16LSB)
   {
-    bps=16;
+//    bps=16;
   }
   else if (last_spltype == ASIOSTInt24LSB)
   {
-    bps=24;
+ //   bps=24;
   }
   else if (last_spltype == ASIOSTInt32LSB)
   {
-    bps=32;
+//    bps=32;
   }
   else
   {
     printf("ASIO: unknown sample type '%d'. I currently only support 16 and 24 bit LSB.\n",last_spltype);
     return -1;
   }
-  m_bps=bps;
 
-  *nbufs=1;
-  m_bufsize=*bufsize=(int)myDriverInfo.preferredSize*m_nch*sizeof(float);
+  int bsize=(int)myDriverInfo.preferredSize*sizeof(float);
   free(asio_pcmbuf);
-  asio_pcmbuf = (float *)malloc(m_bufsize);
+  asio_pcmbuf = (float *)malloc(bsize*(m_innch+m_outnch));
   myDriverInfo.bytesProcessed=0;
 
   //InitializeCriticalSection(&myDriverInfo.cs);

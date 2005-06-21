@@ -185,15 +185,16 @@ void NJClient::GetPosition(int *pos, int *length)  // positions in samples
 }
 
 
-void NJClient::AudioProc(float *buf, int len, int nch, int srate)
+void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate)
 {
   m_srate=srate;
   if (!m_audio_enable) 
   {
-    input_monitor_samples(buf,len,nch,srate);
+    input_monitor_samples(inbuf,innch,outbuf,outnch,len,srate,0);
     return;
   }
 
+  int offs=0;
 
   while (len > 0)
   {
@@ -224,7 +225,7 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
       m_misc_cs.Leave();
 
       // new buffer time
-      on_new_interval(nch,srate);
+      on_new_interval(srate);
 
       m_interval_pos=0;
       x=m_interval_length;
@@ -232,11 +233,10 @@ void NJClient::AudioProc(float *buf, int len, int nch, int srate)
 
     if (x > len) x=len;
 
-    process_samples(buf,x,nch,srate);
-
+    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs);
 
     m_interval_pos+=x;
-    buf += x*nch;
+    offs += x;
     len -= x;    
   }  
 
@@ -751,13 +751,11 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
+void NJClient::input_monitor_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
 {
-  WDL_HeapBuf srcbuf;
-  int sbytes=len*sizeof(float)*nch;
-  srcbuf.Resize(sbytes);
-  memcpy(srcbuf.Get(),buf,sbytes);
-  memset(buf,0,sbytes);
+  int x;
+  for (x = 0 ; x < outnch; x ++) memset(outbuf[x]+offset,0,len*sizeof(float)); // zero output channels
+
   int ch;
   for (ch = 0; ch < m_locchannels.GetSize(); ch ++)
   {
@@ -765,22 +763,27 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
 
     if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
-      float *src=(float *)srcbuf.Get();
-      if (nch > 1 && lc->src_channel) src++; // right channel
-
-      float vol1=lc->volume;
-      float vol2=vol1;
-      if (nch == 2)
+      int sc=lc->src_channel;
+      if (sc < 0 || sc >= innch)
       {
-        if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
-        else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
+        lc->decode_peak_vol=0.0;
+        continue;
       }
 
-      
-      if (nch == 2)
+      float *src=inbuf[sc]+offset;
+
+      float *out1=outbuf[0]+offset;
+
+      float vol1=lc->volume;
+      if (outnch > 1)
       {
+        float vol2=vol1;
+        float *out2=outbuf[1]+offset;
+        if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
+        else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
+
         float maxf=(float) (lc->decode_peak_vol*0.99);
-        float *obuf=buf;
+
         int x=len;
         while (x--) 
         {
@@ -792,7 +795,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
           if (f > 1.0) f=1.0;
           else if (f < -1.0) f=-1.0;
 
-          obuf[0] += f;
+          *out1++ += f;
 
           f=src[0]*vol2;
 
@@ -802,16 +805,14 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
           if (f > 1.0) f=1.0;
           else if (f < -1.0) f=-1.0;
 
-          obuf[1] += f;
-          obuf+=2;
-          src+=2;
+          *out2++ += f;
+          src++;
         }
         lc->decode_peak_vol=maxf;
       }
       else
       {
         float maxf=(float) (lc->decode_peak_vol*0.99);
-        float *obuf=buf;
         int x=len;
         while (x--) 
         {
@@ -822,7 +823,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
           if (f > 1.0) f=1.0;
           else if (f < -1.0) f=-1.0;
 
-          *obuf++ += f;
+          *out1++ += f;
         }
         lc->decode_peak_vol=maxf;
       }
@@ -831,7 +832,7 @@ void NJClient::input_monitor_samples(float *buf, int len, int nch, int srate)
   }
 }
 
-void NJClient::process_samples(float *buf, int len, int nch, int srate)
+void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
 {
   // encode my audio and send to server, if enabled
   int u;
@@ -841,15 +842,15 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     Local_Channel *lc=m_locchannels.Get(u);
     if (lc->bcast_active) 
     {
-      // hackish, for stereo
+      int sc=lc->src_channel;
+      if (sc < 0 || sc >= innch) continue;
 
-      lc->AddBlock(buf+(lc->src_channel?1:0),len,nch);
+      lc->AddBlock(inbuf[sc]+offset,len,1);
     }
   }
   m_locchan_cs.Leave();
 
-
-  input_monitor_samples(buf,len,nch,srate);
+  input_monitor_samples(inbuf,innch,outbuf,outnch,len,srate,offset);
 
   // mix in all active (subscribed) channels
   m_users_cs.Enter();
@@ -871,7 +872,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
       mixInChannel(muteflag,
         user->volume*user->channels[ch].volume,lpan,
-        &user->channels[ch].ds,buf,len,srate,nch);
+        &user->channels[ch].ds,outbuf,len,srate,outnch,offset);
     }
   }
   m_users_cs.Leave();
@@ -881,18 +882,19 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
   if (waveWrite)
   {
-    waveWrite->WriteFloats(buf,len*nch);
+    waveWrite->WriteFloatsNI(outbuf,offset,len);
   }
 
 
   // apply master volume, then
   {
     int x=len;
-    float *ptr=buf;
+    float *ptr1=outbuf[0]+offset;
     float maxf=output_peaklevel*0.99f;
 
-    if (nch == 2)
+    if (outnch >= 2)
     {
+      float *ptr2=outbuf[1]+offset;
       float vol1=config_mastermute?0.0f:config_mastervolume;
       float vol2=vol1;
       if (config_masterpan > 0.0f) vol1 *= 1.0f-config_masterpan;
@@ -900,11 +902,11 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
       while (x--)
       {
-        float f = *ptr++ *= vol1;
+        float f = *ptr1++ *= vol1;
         if (f > maxf) maxf=f;
         else if (f < -maxf) maxf=-f;
 
-        f = *ptr++ *= vol2;
+        f = *ptr2++ *= vol2;
         if (f > maxf) maxf=f;
         else if (f < -maxf) maxf=-f;
       }
@@ -914,7 +916,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
       float vol1=config_mastermute?0.0f:config_mastervolume;
       while (x--)
       {
-        float f = *ptr++ *= vol1;
+        float f = *ptr1++ *= vol1;
         if (f > maxf) maxf=f;
         else if (f < -maxf) maxf=-f;
       }
@@ -929,8 +931,11 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
     int x;
     int um=config_metronome>0.0001f;
     double vol1=config_metronome_mute?0.0:config_metronome,vol2=vol1;
-    if (nch > 1)
+    float *ptr1=outbuf[0]+offset;
+    float *ptr2=NULL;
+    if (outnch > 1)
     {
+        ptr2=outbuf[1]+offset;
         if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
         else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
     }
@@ -952,12 +957,8 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
           if (!m_metronome_tmp) val = sin((double)m_metronome_state*sc*2.0) * 0.25;
           else val = sin((double)m_metronome_state*sc);
 
-          if (nch == 1) buf[x]+=(float)(val*vol1);
-          else
-          {
-            buf[x+x]+=(float)(val*vol1);
-            buf[x+x+1]+=(float)(val*vol2);
-          }
+          ptr1[x]+=(float)(val*vol1);
+          if (ptr2) ptr2[x]+=(float)(val*vol2);
         }
         if (++m_metronome_state >= metrolen) m_metronome_state=0;
 
@@ -967,7 +968,7 @@ void NJClient::process_samples(float *buf, int len, int nch, int srate)
 
 }
 
-void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch)
+void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int len, int srate, int outnch, int offs)
 {
   if (chan->decode_codec && chan->decode_fp)
   {
@@ -1005,12 +1006,16 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       else 
         chan->decode_peak_vol*=0.99;
 
-      if (!muted) mixFloats(sptr+chan->dump_samples,
+      if (!muted)
+      {
+        float *tmpbuf[2]={outbuf[0]+offs,outnch > 1 ? (outbuf[1]+offs) : 0};
+        mixFloatsNIOutput(sptr+chan->dump_samples,
                 chan->decode_codec->GetSampleRate(),
                 chan->decode_codec->GetNumChannels(),
-                buf,
-                srate,nch,len,
+                tmpbuf,
+                srate,outnch>1?2:1,len,
                 vol,pan,&chan->resample_state);
+      }
 
       // advance the queue
       chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
@@ -1045,7 +1050,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 
 }
 
-void NJClient::on_new_interval(int nch, int srate)
+void NJClient::on_new_interval(int srate)
 {
   m_loopcnt++;
   writeLog("interval %d %.2f %d\n",m_loopcnt,GetActualBPM(),m_active_bpi);

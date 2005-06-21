@@ -65,7 +65,7 @@ public:
 
   int IsAudioRunning() { return m_audio_enable; }
   // call AudioProc, (and only AudioProc) from your audio thread
-  void AudioProc(float *buf, int len, int nch, int srate); // len is number of sample pairs or samples
+  void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate); // len is number of sample pairs or samples
 
 
   // basic configuration (these will actually go away soon)
@@ -143,9 +143,9 @@ public:
 private:
 
   void updateBPMinfo(int bpm, int bpi);
-  void process_samples(float *buf, int len, int nch, int srate);
-  void input_monitor_samples(float *buf, int len, int nch, int srate);
-  void on_new_interval(int nch, int srate);
+  void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
+  void input_monitor_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
+  void on_new_interval(int srate);
 
   void writeLog(char *fmt, ...);
 
@@ -173,7 +173,7 @@ private:
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
-  void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float *buf, int len, int srate, int nch);
+  void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int len, int srate, int outnch, int offs);
 
   WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
