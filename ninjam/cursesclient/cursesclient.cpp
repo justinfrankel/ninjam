@@ -374,6 +374,7 @@ void showmainview(bool action=false)
             HWND h=JesusonicAPI->ui_wnd_create(myInst);
             ShowWindow(h,SW_SHOWNA);
             SetTimer(h,1,40,NULL);
+            SetForegroundWindow(h);
 
             char buf[4096];
             sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",a);
@@ -393,9 +394,20 @@ void showmainview(bool action=false)
           else
           {
            // JesusonicAPI->ui_wnd_destroy(i);
-            HWND h=JesusonicAPI->ui_wnd_create(i);
-            ShowWindow(h,SW_SHOWNA);
-            SetTimer(h,1,40,NULL);
+            HWND h=JesusonicAPI->ui_wnd_gethwnd(i);
+            if (h && IsWindow(h))
+            {
+              ShowWindow(h,SW_SHOWNA);
+              SetForegroundWindow(h);
+            }
+            else
+            {
+              HWND h=JesusonicAPI->ui_wnd_create(i);
+              ShowWindow(h,SW_SHOWNA);
+              SetTimer(h,1,40,NULL);
+              SetForegroundWindow(h);
+            }
+
             // show
           }
         }
