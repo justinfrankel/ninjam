@@ -606,7 +606,7 @@ void directory_onchange()
 
   int newstate = user && pass && *user && *pass;
   
-  if (!newstate != !directory_state || g_config_port != directory_port)
+  if (!newstate != !directory_state || (g_config_port != directory_port && newstate))
   {
     directory_port=g_config_port;
     if (directory_con) delete directory_con;

@@ -616,7 +616,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       newmsg.parms[0]="MSG";
       newmsg.parms[1]=con->m_username.Get();
       newmsg.parms[2]=msg->parms[1];
-      Broadcast(newmsg.build(),con);
+      Broadcast(newmsg.build());
     }
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
@@ -675,7 +675,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       newmsg.parms[0]="TOPIC";
       newmsg.parms[1]=con->m_username.Get();
       newmsg.parms[2]=m_topictext.Get();
-      Broadcast(newmsg.build(),con);
+      Broadcast(newmsg.build());
     }
   }
   else // unknown message
