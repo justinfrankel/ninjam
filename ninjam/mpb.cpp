@@ -805,6 +805,7 @@ int mpb_chat_message::parse(Net_Message *msg) // return 0 on success
   {
     parms[x]=p;
     while (p < endp && *p) p++;
+    p++;
     if (p >= endp) break;
   }
   return x?0:3;
@@ -838,7 +839,7 @@ Net_Message *mpb_chat_message::build()
     char *sp=parms[x];
     if (!sp) sp="";
     strcpy(p,sp);
-    p+=strlen(sp);
+    p+=strlen(sp)+1;
   }
 
   return nm;
