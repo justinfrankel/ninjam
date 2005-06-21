@@ -867,9 +867,10 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       lc->AddBlock((float *)lc->curblock.Get(),len,1);
     }
   }
+  input_monitor_samples(outbuf,outnch,len,srate,offset);
+
   m_locchan_cs.Leave();
 
-  input_monitor_samples(outbuf,outnch,len,srate,offset);
 
   // mix in all active (subscribed) channels
   m_users_cs.Enter();
