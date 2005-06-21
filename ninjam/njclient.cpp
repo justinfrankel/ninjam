@@ -1325,11 +1325,14 @@ void NJClient::SetLocalChannelProcessor(int ch, void (*cbf)(float *, int ns, voi
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
-  if (x == m_locchannels.GetSize()) return;
-
-  Local_Channel *c=m_locchannels.Get(x);
-  c->cbf=cbf;
-  c->cbf_inst=inst;
+  if (x < m_locchannels.GetSize()) 
+  {
+     m_locchan_cs.Enter();
+     Local_Channel *c=m_locchannels.Get(x);
+     c->cbf=cbf;
+     c->cbf_inst=inst;
+     m_locchan_cs.Leave();
+  }
 }
 
 void NJClient::GetLocalChannelProcessor(int ch, void **func, void **inst)
