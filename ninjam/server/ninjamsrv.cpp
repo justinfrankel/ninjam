@@ -565,6 +565,7 @@ void onConfigChange()
 
 /////////////////////// directory stuff
 
+int directory_port;
 int directory_state; // 0=not in directory, 1=in directory
 JNL_HTTPGet *directory_con;
 WDL_String directory_magic;
@@ -576,8 +577,9 @@ void directory_onchange()
 
   int newstate = user && pass && *user && *pass;
   
-  if (!newstate != !directory_state)
+  if (!newstate != !directory_state || g_config_port != directory_port)
   {
+    directory_port=g_config_port;
     if (directory_con) delete directory_con;
 
     directory_con=new JNL_HTTPGet(JNL_CONNECTION_AUTODNS,65536);
@@ -601,7 +603,11 @@ void directory_onchange()
 
       authstr.Append(outbuf);
     }
-  
+    char infobuf[512];
+    sprintf(infobuf,"njs-port:%d",directory_port);
+
+    directory_con->addheader(infobuf);
+    directory_con->addheader("User-Agent:NINJAMsrv/0.0");
 
     directory_con->addheader(userstr.Get());
     directory_con->addheader(authstr.Get());
