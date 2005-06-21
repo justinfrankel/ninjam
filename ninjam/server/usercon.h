@@ -12,6 +12,10 @@
 #define MAX_UPLOADS 32
 #define MAX_DOWNLOADS 128
 
+#define PRIV_TOPIC 1
+#define PRIV_CHATSEND 2
+
+
 class User_SubscribeMask
 {
 public:
@@ -83,6 +87,7 @@ class User_Connection
     unsigned char m_challenge[8];
     int m_clientcaps;
 
+    int m_auth_privs;
 
     User_Channel m_channels[MAX_USER_CHANNELS];
 
@@ -110,7 +115,7 @@ class User_Group
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
-    int (*GetUserPass)(User_Group *group, char *username, char *sha1buf_user, char **isanon); // return nonzero if valid, SHA1(user:pass) or username if isanon
+    int (*GetUserPass)(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs); // return nonzero if valid, SHA1(user:pass) or username if isanon
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 
@@ -119,6 +124,7 @@ class User_Group
     int m_last_bpm, m_last_bpi;
 
     WDL_String m_licensetext;
+    WDL_String m_topictext;
 };
 
 

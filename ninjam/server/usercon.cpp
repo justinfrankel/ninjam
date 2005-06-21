@@ -14,7 +14,7 @@
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0)
+User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0)
 {
   m_netcon.attach(con);
 
@@ -81,8 +81,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       {
         char *anon=0;
         char authbuf[WDL_SHA1SIZE];
+        unsigned int privs=0;
         
-        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon))
+        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon,&privs))
         {
           if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
           {
@@ -133,6 +134,8 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           msg->releaseRef();
           return -1;
         }
+
+        m_auth_privs=privs;
 
       }
 
@@ -197,6 +200,18 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }       
         m_netcon.Send(bh.build());
       }
+
+
+      if (group->m_topictext.Get() && group->m_topictext.Get()[0])
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="TOPIC";
+        newmsg.parms[1]="";
+        newmsg.parms[2]=group->m_topictext.Get();
+        m_netcon.Send(newmsg.build());
+      }
+
+
     } // m_auth_state < 1
 
 
@@ -587,7 +602,15 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 {
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
-    if (msg->parms[1] && *msg->parms[1])
+    if (!(con->m_auth_privs & PRIV_CHATSEND))
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="MSG";
+      newmsg.parms[1]="";
+      newmsg.parms[2]="No MSG permission";
+      con->Send(newmsg.build());
+    }
+    else if (msg->parms[1] && *msg->parms[1])
     {
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
@@ -598,7 +621,15 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {
-    if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
+    if (!(con->m_auth_privs & PRIV_CHATSEND))
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="MSG";
+      newmsg.parms[1]="";
+      newmsg.parms[2]="No PRIVMSG permission";
+      con->Send(newmsg.build());
+    }
+    else if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
     {
       // send a privmsg to user in parm1, and if they don't
       int x;
@@ -624,6 +655,27 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       newmsg.parms[1]="";
       newmsg.parms[2]=buf.Get();
       con->Send(newmsg.build());
+    }
+  }
+  else if (!strcmp(msg->parms[0],"TOPIC")) // chat message
+  {
+    if (!(con->m_auth_privs & PRIV_TOPIC))
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="MSG";
+      newmsg.parms[1]="";
+      newmsg.parms[2]="No TOPIC permission";
+      con->Send(newmsg.build());
+    }
+    else if (msg->parms[1] && *msg->parms[1])
+    {
+      // set topic, notify everybody of topic change
+      m_topictext.Set(msg->parms[1]);
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="TOPIC";
+      newmsg.parms[1]=con->m_username.Get();
+      newmsg.parms[2]=m_topictext.Get();
+      Broadcast(newmsg.build(),con);
     }
   }
   else // unknown message

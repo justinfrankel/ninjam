@@ -31,9 +31,10 @@ void base64encode(const unsigned char *in, char *out);
 class UserPassEntry
 {
 public:
-  UserPassEntry() {} 
+  UserPassEntry() {priv_flag=0;} 
   ~UserPassEntry() {} 
   WDL_String name, pass;
+  unsigned int priv_flag;
 };
 
 
@@ -75,18 +76,20 @@ int aclGet(unsigned long addr)
 
 
 WDL_PtrList<UserPassEntry> g_userlist;
+int g_config_allow_anonchat;
 int g_config_bpm, g_config_bpi;
 int g_config_port,g_config_max_users;
 bool g_config_allowanonymous;
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
-static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon)
+static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs)
 {
   if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
     printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     if (!g_config_allowanonymous) return 0;
     *isanon=username + (username[9] == ':' ? 10:9);
+    *privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
     return 1; // allow
   }
 
@@ -104,6 +107,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
 
       shatmp.result(sha1buf_user);
 
+      *privs=g_userlist.Get(x)->priv_flag;
       *isanon=0;
       return 1;
     }
@@ -210,10 +214,23 @@ static int ConfigOnToken(LineParser *lp)
   }
   else if (!stricmp(t,"User"))
   {
-    if (lp->getnumtokens() != 3) return -1;
+    if (lp->getnumtokens() != 3 && lp->getnumtokens() != 4) return -1;
     UserPassEntry *p=new UserPassEntry;
     p->name.Set(lp->gettoken_str(1));
     p->pass.Set(lp->gettoken_str(2));
+    if (lp->getnumtokens()>3)
+    {
+      char *ptr=lp->gettoken_str(3);
+      while (*ptr)
+      {
+        if (*ptr == '*') p->priv_flag|=~0;
+        else if (*ptr == 'T' || *ptr == 't') p->priv_flag |= PRIV_TOPIC;
+        else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
+        else printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
+        ptr++;
+      }
+    }
+    else p->priv_flag=PRIV_CHATSEND;// default privs
     g_userlist.Add(p);
   }
   else if (!stricmp(t,"AnonymousUsers"))
@@ -227,6 +244,17 @@ static int ConfigOnToken(LineParser *lp)
     }
     g_config_allowanonymous=!!x;
   }
+  else if (!stricmp(t,"AnonymousUsersCanChat"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+
+    int x=lp->gettoken_enum(1,"no\0yes\0");
+    if (x <0)
+    {
+      return -2;
+    }
+    g_config_allow_anonchat=!!x;
+  }  
   else return -3;
   return 0;
 
@@ -249,6 +277,7 @@ static int ReadConfig(char *configfile)
   g_config_bpm=120;
   g_config_bpi=8;
   g_config_port=2049;
+  g_config_allow_anonchat=1;
   g_config_allowanonymous=0;
   g_config_max_users=0; // unlimited users
   g_acllist.Resize(0);
