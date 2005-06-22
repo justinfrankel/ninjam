@@ -98,7 +98,7 @@ class mpb_server_download_interval_begin
     // public data
     unsigned char guid[16];
     int estsize;
-    int fourcc;
+    unsigned int fourcc;
     int chidx;       // only 1 byte
     char *username;
 };
@@ -201,7 +201,7 @@ class mpb_client_upload_interval_begin
     // public data
     unsigned char guid[16];
     int estsize;
-    int fourcc;
+    unsigned int fourcc;
     int chidx;       // only 1 byte
 };
 
