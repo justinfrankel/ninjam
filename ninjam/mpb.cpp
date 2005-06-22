@@ -103,7 +103,17 @@ int mpb_server_auth_reply::parse(Net_Message *msg) // return 0 on success
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
-  flag=*p;
+  flag=*p++;
+  if (msg->get_size()>1)
+  {
+    char *t=(char*)p;
+    while (p-(unsigned char *)msg->get_data() < msg->get_size() && *p) p++;
+
+    if (p-(unsigned char *)msg->get_data() < msg->get_size())
+    {
+      errmsg=t;
+    }
+  }
 
   return 0;
 }
@@ -113,7 +123,7 @@ Net_Message *mpb_server_auth_reply::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_REPLY);
   
-  nm->set_size(1);
+  nm->set_size(errmsg?strlen(errmsg)+1+1:1);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -123,7 +133,11 @@ Net_Message *mpb_server_auth_reply::build()
     return 0;
   }
 
-  *p=flag;
+  *p++=flag;
+  if (errmsg)
+  {
+    strcpy((char*)p,errmsg);
+  }
 
   return nm;
 }

@@ -71,20 +71,38 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
   if (m_netcon.GetStatus()) return m_netcon.GetStatus();
 
   Net_Message *msg=m_netcon.Run(wantsleep);
+
+  if (m_auth_state < 1 && !msg)
+  {
+     if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
+                                        // the user time to potentially read the license agreement.
+     {
+        m_connect_time=time(NULL)+120;
+        mpb_server_auth_reply bh;
+        bh.errmsg="authorization timeout";
+        m_netcon.Send(bh.build());
+
+        m_netcon.Kill();
+        return 0;
+     }
+
+
+  }
   if (msg)
   {
     msg->addRef();
     if (m_auth_state < 1)
     {
       mpb_client_auth_user authrep;
-      if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0] ||
-        time(NULL) > m_connect_time+120 // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
-                                        // the user time to potentially read the license agreement.
-        )
+      if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
       {
+        mpb_server_auth_reply bh;
+        bh.errmsg="invalid authorization reply";
+        m_netcon.Send(bh.build());
+
         m_netcon.Kill();
         msg->releaseRef();
-        return -1;
+        return 0;
       }
 
       char *username=authrep.username;
@@ -99,9 +117,13 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         {
           if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
           {
+            mpb_server_auth_reply bh;
+            bh.errmsg="license not agreed to";
+            m_netcon.Send(bh.build());
+
             m_netcon.Kill();
             msg->releaseRef();
-            return -1;
+            return 0;
           }
           else if (anon)
           {
@@ -133,18 +155,24 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             shatmp.result(buf);
             if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
             {
+              mpb_server_auth_reply bh;
+              bh.errmsg="invalid login/password";
+              m_netcon.Send(bh.build());
               m_netcon.Kill();
               msg->releaseRef();
-              return -1;
+              return 0;
             }
 
           }
         }
         else
         {
+          mpb_server_auth_reply bh;
+          bh.errmsg="invalid login/password";
+          m_netcon.Send(bh.build());
           m_netcon.Kill();
           msg->releaseRef();
-          return -1;
+          return 0;
         }
 
         m_auth_privs=privs;

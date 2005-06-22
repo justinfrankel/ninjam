@@ -66,7 +66,6 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   if (wantsleep) *wantsleep=1;
   if (!m_con || m_error) return 0;
 
-
   m_con->run();
 
   // handle sending
@@ -156,6 +155,13 @@ Net_Message *Net_Connection::Run(int *wantsleep)
 
   m_con->run();
 
+  if (m_con->get_state() >= JNL_Connection::STATE_CLOSING) // toss anything we get here
+  {
+    delete retv; 
+    retv=0;
+  }
+
+
   return retv;
 }
 
@@ -171,7 +177,7 @@ void Net_Connection::Send(Net_Message *msg)
 int Net_Connection::GetStatus()
 {
   if (m_error) return -1;
-  return !m_con || m_con->get_state()<JNL_Connection::STATE_RESOLVING || m_con->get_state()>JNL_Connection::STATE_CONNECTED; // 1 if disconnected somehow
+  return !m_con || m_con->get_state()<JNL_Connection::STATE_RESOLVING || m_con->get_state()>JNL_Connection::STATE_CLOSING; // 1 if disconnected somehow
 }
 
 Net_Connection::~Net_Connection()
@@ -197,5 +203,5 @@ Net_Connection::~Net_Connection()
 
 void Net_Connection::Kill() 
 { 
-  m_con->close(1); 
+  m_con->close(0); 
 }
