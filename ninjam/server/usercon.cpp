@@ -719,18 +719,16 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
               User_Connection *c=m_users.Get(x);
               if (!strcasecmp(c->m_username.Get(),p))
               {
-                char str[512];
-                JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
-                WDL_String buf("Kicking user \"");
+                WDL_String buf("User ");
                 buf.Append(c->m_username.Get());
-                buf.Append("\" on ");
-                buf.Append(str);
+                buf.Append(" kicked by ");
+                buf.Append(con->m_username.Get());
 
                 mpb_chat_message newmsg;
                 newmsg.parms[0]="MSG";
                 newmsg.parms[1]="";
                 newmsg.parms[2]=buf.Get();
-                con->Send(newmsg.build());
+                Broadcast(newmsg.build());
 
                 c->m_netcon.Kill();
                 killcnt++;
@@ -766,7 +764,6 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         }
         else
         {
-          // set topic, notify everybody of topic change
           int isbpm=toupper(msg->parms[1][2])=='m';
 
           char *p=msg->parms[1]+4;
