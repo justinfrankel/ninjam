@@ -76,13 +76,18 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
     return 0;
   }
 
+
+             //ID    Track    StartT  Length
   fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
-    
+
+  //          PlayRate   Locked  Normali SM Looped OnRuler  MediaType
   fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
 
+  //FileName
   fprintf(fp,"\"%s\";\t",fnfind.Get());
 
-  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t-2;\t0.000000;\t0;\t-1;\t-2;\t2\n",
+  //         Stream  StreamStart Len    FadeTimeIn   FadeTimeOut SustainGn  CurveInGainIn  CvO  GainOut  LayerColorCurveInRCurveOutR
+  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t0;\t0.000000;\t0;\t-1;\t0;\t0\n",
     (double)len);
 
   return 1;
