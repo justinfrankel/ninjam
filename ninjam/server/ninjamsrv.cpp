@@ -374,7 +374,7 @@ int main(int argc, char **argv)
 
   m_group=new User_Group;
 
-  printf("Ninjam v0.005 server starting up...\n");
+  printf("Ninjam v0.01a server starting up...\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (ReadConfig(argv[1]))
   {
