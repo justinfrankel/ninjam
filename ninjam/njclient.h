@@ -169,6 +169,8 @@ private:
   Net_Connection *m_netcon;
   WDL_PtrList<RemoteUser> m_remoteusers;
   WDL_PtrList<RemoteDownload> m_downloads;
+
+  WDL_HeapBuf tmpblock;
 };
 
 
@@ -290,8 +292,6 @@ public:
 
   void (*cbf)(float *, int ns, void *);
   void *cbf_inst;
-
-  WDL_HeapBuf curblock;
 
   double decode_peak_vol;
   WDL_Mutex m_cs;

@@ -827,44 +827,38 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   {
     Local_Channel *lc=m_locchannels.Get(u);
     int sc=lc->src_channel;
-    if (sc < 0 || sc >= innch) 
-    {
-      lc->curblock.Resize(0);
-      continue;
-    }
+    if (sc < 0 || sc >= innch)  continue;
 
-    if (lc->curblock.GetSize() < len*(int)sizeof(float))
-    {
-      lc->curblock.Resize(len*sizeof(float));
-    }
-    memcpy(lc->curblock.Get(),inbuf[sc]+offset,len*sizeof(float));
+    float *src=inbuf[sc]+offset;
 
-    // processor
     if (lc->cbf)
     {
-      if ((!m_issoloactive && !lc->muted) || lc->solo)
+      int bytelen=len*(int)sizeof(float);
+      if (tmpblock.GetSize() < bytelen) tmpblock.Resize(bytelen);
+
+      memcpy(tmpblock.Get(),src,bytelen);
+
+      src=(float* )tmpblock.Get();
+
+      // processor
+      if (lc->cbf)
       {
-        lc->cbf((float *)lc->curblock.Get(),len,lc->cbf_inst);
+        if ((!m_issoloactive && !lc->muted) || lc->solo)
+        {
+          lc->cbf(src,len,lc->cbf_inst);
+        }
       }
     }
 
     if (lc->bcast_active) 
     {
-      lc->AddBlock((float *)lc->curblock.Get(),len);
+      lc->AddBlock(src,len);
     }
 
 
     // monitor this channel
     if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
-      if (lc->curblock.GetSize() < len*(int)sizeof(float))
-      {
-        lc->decode_peak_vol=0.0;
-        continue;
-      }
-
-      float *src=(float*)lc->curblock.Get();
-
       float *out1=outbuf[0]+offset;
 
       float vol1=lc->volume;
