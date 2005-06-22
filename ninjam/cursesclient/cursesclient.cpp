@@ -1501,6 +1501,10 @@ time(NULL) >= nextupd
       printf("exiting on status %d\n",g_client->GetStatus());
     break;
   }
+  if (g_client->GetErrorStr()[0])
+  {
+    printf("Server gave explanation: %s\n",g_client->GetErrorStr());
+  }
 
 
   printf("Shutting down\n");
