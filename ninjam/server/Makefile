@@ -29,4 +29,4 @@ ninjamsrv: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o ninjamsrv $(OBJS)
 
 clean:
-	-rm $(OBJS)
+	-rm $(OBJS) ninjamsrv
