@@ -325,10 +325,10 @@ int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on s
   estsize |= ((int)*p++)<<8;
   estsize |= ((int)*p++)<<16;
   estsize |= ((int)*p++)<<24;
-  fourcc = (int)*p++;
-  fourcc |= ((int)*p++)<<8;
-  fourcc |= ((int)*p++)<<16;
-  fourcc |= ((int)*p++)<<24;
+  fourcc = (unsigned int)*p++;
+  fourcc |= ((unsigned int)*p++)<<8;
+  fourcc |= ((unsigned int)*p++)<<16;
+  fourcc |= ((unsigned int)*p++)<<24;
   chidx = (int)*p++;
   int len=msg->get_size()-25;
 
@@ -366,13 +366,13 @@ Net_Message *mpb_server_download_interval_begin::build()
   memcpy(p,guid,sizeof(guid));
   p+=sizeof(guid);
   *p++=(unsigned char)((estsize)&0xff);
-  *p++|=(unsigned char)((estsize>>8)&0xff);
-  *p++|=(unsigned char)((estsize>>16)&0xff);
-  *p++|=(unsigned char)((estsize>>24)&0xff);
+  *p++=(unsigned char)((estsize>>8)&0xff);
+  *p++=(unsigned char)((estsize>>16)&0xff);
+  *p++=(unsigned char)((estsize>>24)&0xff);
   *p++=(unsigned char)((fourcc)&0xff);
-  *p++|=(unsigned char)((fourcc>>8)&0xff);
-  *p++|=(unsigned char)((fourcc>>16)&0xff);
-  *p++|=(unsigned char)((fourcc>>24)&0xff);
+  *p++=(unsigned char)((fourcc>>8)&0xff);
+  *p++=(unsigned char)((fourcc>>16)&0xff);
+  *p++=(unsigned char)((fourcc>>24)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
 
   strcpy((char *)p,username?username:"");
@@ -712,10 +712,10 @@ int mpb_client_upload_interval_begin::parse(Net_Message *msg) // return 0 on suc
   estsize |= ((int)*p++)<<8;
   estsize |= ((int)*p++)<<16;
   estsize |= ((int)*p++)<<24;
-  fourcc = (int)*p++;
-  fourcc |= ((int)*p++)<<8;
-  fourcc |= ((int)*p++)<<16;
-  fourcc |= ((int)*p++)<<24;
+  fourcc = (unsigned int)*p++;
+  fourcc |= ((unsigned int)*p++)<<8;
+  fourcc |= ((unsigned int)*p++)<<16;
+  fourcc |= ((unsigned int)*p++)<<24;
   chidx = (int)*p++;
 
   return 0;
@@ -740,13 +740,13 @@ Net_Message *mpb_client_upload_interval_begin::build()
   memcpy(p,guid,sizeof(guid));
   p+=sizeof(guid);
   *p++=(unsigned char)((estsize)&0xff);
-  *p++|=(unsigned char)((estsize>>8)&0xff);
-  *p++|=(unsigned char)((estsize>>16)&0xff);
-  *p++|=(unsigned char)((estsize>>24)&0xff);
+  *p++=(unsigned char)((estsize>>8)&0xff);
+  *p++=(unsigned char)((estsize>>16)&0xff);
+  *p++=(unsigned char)((estsize>>24)&0xff);
   *p++=(unsigned char)((fourcc)&0xff);
-  *p++|=(unsigned char)((fourcc>>8)&0xff);
-  *p++|=(unsigned char)((fourcc>>16)&0xff);
-  *p++|=(unsigned char)((fourcc>>24)&0xff);
+  *p++=(unsigned char)((fourcc>>8)&0xff);
+  *p++=(unsigned char)((fourcc>>16)&0xff);
+  *p++=(unsigned char)((fourcc>>24)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
 
 

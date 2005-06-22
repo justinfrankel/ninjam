@@ -1586,12 +1586,12 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
   WDL_String s;
   parent->makeFilenameFromGuid(&s,guid);
 
+
+  // append extension from fourcc
   char buf[8];
   type_to_string(fourcc, buf);
   s.Append(".");
   s.Append(buf);
-
-  // append extension from fourcc
 
   fp=fopen(s.Get(),"wb");
 }
