@@ -16,7 +16,14 @@
 unsigned char zero_guid[16];
 
 
-char *guidtostr_tmp(unsigned char *guid)
+
+
+static void guidtostr(unsigned char *guid, char *str)
+{
+  int x;
+  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+}
+static char *guidtostr_tmp(unsigned char *guid)
 {
   static char tmp[64];
   guidtostr(guid,tmp);
@@ -24,17 +31,62 @@ char *guidtostr_tmp(unsigned char *guid)
 }
 
 
-void guidtostr(unsigned char *guid, char *str)
+static int is_type_char_valid(int c)
 {
-  int x;
-  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+  c&=0xff;
+  return (c >= 'a' && c <= 'z') ||
+         (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') ||
+         c == ' ' || c == '-' || 
+         c == '.' || c == '_';
 }
+
+static int is_type_valid(unsigned int t)
+{
+  return (t&0xff) != ' ' &&
+          is_type_char_valid(t>>24) &&
+          is_type_char_valid(t>>16) &&
+          is_type_char_valid(t>>8) &&
+          is_type_char_valid(t);
+}
+
+
+static void type_to_string(unsigned int t, char *out)
+{
+  if (is_type_valid(t))
+  {
+    out[0]=(t)&0xff;
+    out[1]=(t>>8)&0xff;
+    out[2]=(t>>16)&0xff;
+    out[3]=' ';//(t>>24)&0xff;
+    out[4]=0;
+    int x=3;
+    while (out[x]==' ' && x > 0) out[x--]=0;
+  }
+  else *out=0;
+}
+
+static unsigned int string_to_type(char *in)
+{
+  int n;
+  unsigned int ret=*in;
+  if (*in == ' ' || !is_type_char_valid(*in)) return 0;
+  in++;
+  for (n = 0; n < 3; n ++)
+  {
+    if (!is_type_char_valid(*in)) break;
+    ret|=(*in<<(8+8*n));
+    in++;
+  }
+  if (*in) return 0;
+  return ret;
+}
+
 
 void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
   guidtostr(guid,buf);
-  strcat(buf,"." NJ_ENCODER_FMT_STRING);
 
   s->Set(m_workdir.Get());
 #ifdef _WIN32
@@ -500,7 +552,7 @@ int NJClient::Run() // nonzero if sleep ok
                 if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                 RemoteDownload *ds=new RemoteDownload;
                 memcpy(ds->guid,dib.guid,sizeof(ds->guid));
-                ds->Open(this);
+                ds->Open(this,dib.fourcc);
              
                 m_downloads.Add(ds);
               }
@@ -605,7 +657,7 @@ int NJClient::Run() // nonzero if sleep ok
             writeLog("local %s %d\n",guidstr,lc->channel_idx);
             if (config_savelocalaudio) 
             {
-              lc->m_curwritefile.Open(this); //only save other peoples for now
+              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE); //only save other peoples for now
               if (lc->m_wavewritefile) delete lc->m_wavewritefile;
               lc->m_wavewritefile=0;
               if (config_savelocalaudio>1)
@@ -1156,7 +1208,21 @@ void NJClient::on_new_interval(int srate)
           memcpy(chan->ds.decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
 
           makeFilenameFromGuid(&s,chan->ds.decode_last_guid);
-          chan->ds.decode_fp=fopen(s.Get(),"rb");
+
+
+          // todo: make plug-in system to allow encoders to add types allowed
+          unsigned int types[]={MAKE_NJ_FOURCC('O','G','G','v')}; // only types we understand
+
+          int oldl=strlen(s.Get())+1;
+          s.Append(".XXXXXXXXX");
+          unsigned int x;
+          chan->ds.decode_fp=0;
+          for (x = 0; !chan->ds.decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
+          {
+            type_to_string(types[x],s.Get()+oldl);
+            chan->ds.decode_fp=fopen(s.Get(),"rb");
+          }
+
           if (chan->ds.decode_fp)
           {
             if (!chan->ds.decode_codec)
@@ -1514,11 +1580,19 @@ void RemoteDownload::Close()
   fp=0;
 }
 
-void RemoteDownload::Open(NJClient *parent)
+void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
 {    
   Close();
   WDL_String s;
   parent->makeFilenameFromGuid(&s,guid);
+
+  char buf[8];
+  type_to_string(fourcc, buf);
+  s.Append(".");
+  s.Append(buf);
+
+  // append extension from fourcc
+
   fp=fopen(s.Get(),"wb");
 }
 
@@ -1535,7 +1609,7 @@ void RemoteDownload::Write(void *buf, int len)
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
                 muted(false), solo(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), m_enc_bitrate_used(0), 
-                bitrate(NJ_ENCODER_BITRATE), m_need_header(true), m_wavewritefile(NULL),
+                bitrate(64), m_need_header(true), m_wavewritefile(NULL),
                 decode_peak_vol(0.0)
 {
 }

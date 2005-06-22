@@ -21,29 +21,15 @@
 #include "netmsg.h"
 
 
-#if 0
-#define NJ_ENCODER LameEncoder
-#define NJ_ENCODER_BITRATE 64
-#define NJ_ENCODER_FMT_STRING "mp3"
-#define NJ_ENCODER_FMT_TYPE 'mp3 '
+#define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
-#define NJ_DECODER LameDecoder
-#include "../WDL/lameencdec.h"
 
-#else
 
-// this currently has issues
-// specifically, codec issues, as well as having to make the bitrate default 
-// meaningful. we need to do an approximate bitrate->qval conversion
 #define NJ_ENCODER VorbisEncoder
-#define NJ_ENCODER_BITRATE 64
-#define NJ_ENCODER_FMT_STRING "ogg"
-#define NJ_ENCODER_FMT_TYPE 'ogg '
+#define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
 #define NJ_DECODER VorbisDecoder
 #include "../WDL/vorbisencdec.h"
 
-
-#endif
 
 class RemoteDownload;
 class RemoteUser;
@@ -259,7 +245,7 @@ public:
   ~RemoteDownload();
 
   void Close();
-  void Open(NJClient *parent);
+  void Open(NJClient *parent, unsigned int fourcc);
   void Write(void *buf, int len);
 
   time_t last_time;
@@ -327,10 +313,6 @@ public:
 
 
 extern unsigned char zero_guid[16];;
-char *guidtostr_tmp(unsigned char *guid);
-void guidtostr(unsigned char *guid, char *str);
-
-
 
 
 #endif//_NJCLIENT_H_
