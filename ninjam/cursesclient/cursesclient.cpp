@@ -126,6 +126,18 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       addChatLine(parms[1],parms[2]);
     g_need_disp_update=1;
   } 
+  else if (!strcmp(parms[0],"JOIN") || !strcmp(parms[0],"PART"))
+  {
+    if (parms[1] && *parms[1])
+    {
+      WDL_String tmp(parms[1]);
+      tmp.Append(" has ");
+      tmp.Append(parms[0][0]=='P' ? "left" : "joined");
+      tmp.Append(" the server");
+      addChatLine(NULL,tmp.Get());
+    }
+    g_need_disp_update=1;
+  } 
 }
 
 double g_ilog2x6;
