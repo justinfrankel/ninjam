@@ -15,6 +15,7 @@
 #define PRIV_TOPIC 1
 #define PRIV_CHATSEND 2
 #define PRIV_BPM 4
+#define PRIV_KICK 8
 
 
 class User_SubscribeMask

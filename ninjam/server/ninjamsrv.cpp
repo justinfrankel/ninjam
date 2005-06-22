@@ -77,7 +77,6 @@ int aclGet(unsigned long addr)
 
 WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
-int g_config_bpm, g_config_bpi;
 int g_config_port,g_config_max_users;
 bool g_config_allowanonymous;
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
@@ -125,20 +124,6 @@ static int ConfigOnToken(LineParser *lp)
     int p=lp->gettoken_int(1);
     if (!p) return -2;
     g_config_port=p;
-  }
-  else if (!stricmp(t,"BPM"))
-  {
-    if (lp->getnumtokens() != 2) return -1;
-    int p=lp->gettoken_int(1);
-    if (!p) return -2;
-    g_config_bpm=p;
-  }
-  else if (!stricmp(t,"BPI"))
-  {
-    if (lp->getnumtokens() != 2) return -1;
-    int p=lp->gettoken_int(1);
-    if (!p) return -2;
-    g_config_bpi=p;
   }
   else if (!stricmp(t,"MaxUsers"))
   {
@@ -227,6 +212,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'T' || *ptr == 't') p->priv_flag |= PRIV_TOPIC;
         else if (*ptr == 'B' || *ptr == 'b') p->priv_flag |= PRIV_BPM;
         else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
+        else if (*ptr == 'K' || *ptr == 'k') p->priv_flag |= PRIV_KICK;        
         else printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
         ptr++;
       }
@@ -275,8 +261,6 @@ static int ReadConfig(char *configfile)
   }
 
   // clear user list, etc
-  g_config_bpm=120;
-  g_config_bpi=8;
   g_config_port=2049;
   g_config_allow_anonchat=1;
   g_config_allowanonymous=0;
@@ -422,8 +406,8 @@ int main(int argc, char **argv)
 
     m_group->GetUserPass=myGetUserPass;
 
-    printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
-    m_group->SetConfig(g_config_bpi,g_config_bpm);
+    printf("Using default %d BPM, %d beats/interval\n",120,8);
+    m_group->SetConfig(8,120);
 
     m_group->SetLicenseText(g_config_license.Get());
 
@@ -545,7 +529,6 @@ int main(int argc, char **argv)
             else
             {
               printf("Listening on port %d...",g_config_port);    
-              printf("Using %d BPM, %d beats/interval\n",g_config_bpm,g_config_bpi);
 
               onConfigChange();
             }
@@ -586,7 +569,7 @@ void onConfigChange()
 {
   delete m_listener;
   m_listener = new JNL_Listen(g_config_port);
-  m_group->SetConfig(g_config_bpi,g_config_bpm);
+  //m_group->SetConfig(g_config_bpi,g_config_bpm);
   enforceACL();
   m_group->SetLicenseText(g_config_license.Get());
   directory_onchange();

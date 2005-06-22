@@ -12,6 +12,11 @@
 #include "../../WDL/sha.h"
 
 
+#ifdef _WIN32
+#define strncasecmp strnicmp
+#endif
+
+
 #define TRANSFER_TIMEOUT 8
 
 User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0)
@@ -657,25 +662,175 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       con->Send(newmsg.build());
     }
   }
-  else if (!strcmp(msg->parms[0],"TOPIC")) // chat message
+  else if (!strcmp(msg->parms[0],"ADMIN")) // admin message
   {
-    if (!(con->m_auth_privs & PRIV_TOPIC))
+    char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
+    if (msg->parms[1] && *msg->parms[1])
+    {
+      if (!strncasecmp(msg->parms[1],"topic ",6))
+      {
+        if (!(con->m_auth_privs & PRIV_TOPIC))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="MSG";
+          newmsg.parms[1]="";
+          newmsg.parms[2]="No TOPIC permission";
+          con->Send(newmsg.build());
+        }
+        else
+        {
+          // set topic, notify everybody of topic change
+          char *p=msg->parms[1]+6;
+          while (*p == ' ') p++;
+          if (*p)
+          {
+            m_topictext.Set(p);
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="TOPIC";
+            newmsg.parms[1]=con->m_username.Get();
+            newmsg.parms[2]=m_topictext.Get();
+            Broadcast(newmsg.build());
+          }
+        }
+
+      }
+      else if (!strncasecmp(msg->parms[1],"kick ",5))
+      {
+        if (!(con->m_auth_privs & PRIV_KICK))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="MSG";
+          newmsg.parms[1]="";
+          newmsg.parms[2]="No KICK permission";
+          con->Send(newmsg.build());
+        }
+        else
+        {
+          // set topic, notify everybody of topic change
+          char *p=msg->parms[1]+5;
+          while (*p == ' ') p++;
+          if (*p)
+          {
+            // try to kick user
+            int x;
+            int killcnt=0;
+            for (x = 0; x < m_users.GetSize(); x ++)
+            {
+              User_Connection *c=m_users.Get(x);
+              if (!strcasecmp(c->m_username.Get(),p))
+              {
+                char str[512];
+                JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
+                WDL_String buf("Kicking user \"");
+                buf.Append(c->m_username.Get());
+                buf.Append("\" on ");
+                buf.Append(str);
+
+                mpb_chat_message newmsg;
+                newmsg.parms[0]="MSG";
+                newmsg.parms[1]="";
+                newmsg.parms[2]=buf.Get();
+                con->Send(newmsg.build());
+
+                c->m_netcon.Kill();
+                killcnt++;
+              }
+            }
+            if (!killcnt)
+            {
+              WDL_String tmp;
+              tmp.Set("User \"");
+              tmp.Append(p);
+              tmp.Append("\" not found!\n");
+
+              mpb_chat_message newmsg;
+              newmsg.parms[0]="MSG";
+              newmsg.parms[1]="";
+              newmsg.parms[2]=tmp.Get();
+              con->Send(newmsg.build());
+            }
+
+          }
+        }
+
+      }
+      else if (!strncasecmp(msg->parms[1],"bpm ",4) || !strncasecmp(msg->parms[1],"bpi ",4))
+      {
+        if (!(con->m_auth_privs & PRIV_BPM))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="MSG";
+          newmsg.parms[1]="";
+          newmsg.parms[2]="No BPM/BPI permission";
+          con->Send(newmsg.build());
+        }
+        else
+        {
+          // set topic, notify everybody of topic change
+          int isbpm=toupper(msg->parms[1][2])=='m';
+
+          char *p=msg->parms[1]+4;
+          while (*p == ' ') p++;
+          int v=atoi(p);
+          if (isbpm && (v < 20 || v > 400))
+          {
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="MSG";
+            newmsg.parms[1]="";
+            newmsg.parms[2]="BPM parameter must be between 20 and 400";
+            con->Send(newmsg.build());
+          }
+          else if (!isbpm && (v < 2 || v > 1024))
+          {
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="MSG";
+            newmsg.parms[1]="";
+            newmsg.parms[2]="BPI parameter must be between 2 and 1024";
+            con->Send(newmsg.build());
+          }
+          else
+          {
+            if (isbpm) m_last_bpm=v;
+            else m_last_bpi=v;
+
+            mpb_server_config_change_notify mk;
+            mk.beats_interval=m_last_bpi;
+            mk.beats_minute=m_last_bpm;
+            Broadcast(mk.build());
+
+            WDL_String str(con->m_username.Get());
+            str.Append(" sets ");
+            if (isbpm) str.Append("BPM"); else str.Append("BPI");
+            str.Append(" to ");
+            char buf[64];
+            sprintf(buf,"%d",v);
+            str.Append(buf);
+
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="MSG";
+            newmsg.parms[1]="";
+            newmsg.parms[2]=str.Get();
+            Broadcast(newmsg.build());
+          }
+        }
+
+      }
+      else
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="MSG";
+        newmsg.parms[1]="";
+        newmsg.parms[2]=adminerr;
+        con->Send(newmsg.build());
+      }
+    }
+    else
     {
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]="";
-      newmsg.parms[2]="No TOPIC permission";
+      newmsg.parms[2]=adminerr;
       con->Send(newmsg.build());
-    }
-    else if (msg->parms[1] && *msg->parms[1])
-    {
-      // set topic, notify everybody of topic change
-      m_topictext.Set(msg->parms[1]);
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="TOPIC";
-      newmsg.parms[1]=con->m_username.Get();
-      newmsg.parms[2]=m_topictext.Get();
-      Broadcast(newmsg.build());
     }
   }
   else // unknown message
