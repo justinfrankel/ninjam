@@ -1,25 +1,14 @@
-#############################################################
-# CPU optimization section
-#############################################################
-
-OPTFLAGS =  -O2
+CFLAGS =  -O2 -s -Wall 
 
 ifdef MAC
-OPTFLAGS += -D_MAC
+CFLAGS += -D_MAC
 else
-OPTFLAGS += -malign-double -pthread
+CFLAGS += -pthread
 endif
 
-#############################################################
-# Basic Configuration
-#############################################################
-
-# we MUST have -fomit-frame-pointer and -lm, otherwise we hate life
-CFLAGS = $(OPTFLAGS) -s  -Wall 
-# CFLAGS += -Wshadow
-LFLAGS = -lm
 CC=gcc
 CXX=g++
+CXXFLAGS = $(CFLAGS)
 
 OBJS = ../../WDL/jnetlib/asyncdns.o
 OBJS += ../../WDL/jnetlib/connection.o
@@ -33,8 +22,6 @@ OBJS += ../netmsg.o
 OBJS += usercon.o
 OBJS += ninjamsrv.o
 
-
-CXXFLAGS = $(CFLAGS)
 
 default: ninjamsrv
 
