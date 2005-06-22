@@ -63,6 +63,8 @@ public:
   // call Run() from your main (UI) thread
   int Run();// returns nonzero if sleep is OK
 
+  char *GetErrorStr() { return m_errstr.Get(); }
+
   int IsAudioRunning() { return m_audio_enable; }
   // call AudioProc, (and only AudioProc) from your audio thread
   void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate); // len is number of sample pairs or samples
@@ -151,6 +153,7 @@ private:
 
   void writeLog(char *fmt, ...);
 
+  WDL_String m_errstr;
 
   WDL_String m_workdir;
   int m_status;

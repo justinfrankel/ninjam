@@ -267,6 +267,7 @@ void NJClient::Disconnect()
 
 void NJClient::Connect(char *host, char *user, char *pass)
 {
+  m_errstr.Set("");
   m_host.Set(host);
   m_user.Set(user);
   m_pass.Set(pass);
@@ -304,18 +305,21 @@ int NJClient::GetStatus()
 int NJClient::Run() // nonzero if sleep ok
 {
   if (!m_netcon) return 1;
-  if (m_netcon->GetStatus())
-  {
-    m_audio_enable=0;
-    if (m_in_auth) m_status=1001;
-    if (m_status > 0 && m_status < 1000) m_status=1002;
-    if (m_status == 0) m_status=1000;
-    return 1;
-  }
 
   int s=0;
   Net_Message *msg=m_netcon->Run(&s);
-  if (msg)
+  if (!msg)
+  {
+    if (m_netcon->GetStatus())
+    {
+      m_audio_enable=0;
+      if (m_in_auth)  m_status=1001;
+      if (m_status > 0 && m_status < 1000) m_status=1002;
+      if (m_status == 0) m_status=1000;
+      return 1;
+    }
+  }
+  else
   {
     msg->addRef();
 
@@ -375,6 +379,8 @@ int NJClient::Run() // nonzero if sleep ok
             }
             else 
             {
+              if (ar.errmsg)
+                  m_errstr.Set(ar.errmsg);
               m_status = 1001;
               m_netcon->Kill();
             }
