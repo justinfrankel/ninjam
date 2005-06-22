@@ -766,7 +766,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         }
         else
         {
-          int isbpm=toupper(msg->parms[1][2])=='m';
+          int isbpm=tolower(msg->parms[1][2])=='m';
 
           char *p=msg->parms[1]+4;
           while (*p == ' ') p++;
