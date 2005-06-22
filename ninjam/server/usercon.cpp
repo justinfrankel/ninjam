@@ -716,10 +716,11 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
             // try to kick user
             int x;
             int killcnt=0;
+            int pl=strlen(p);
             for (x = 0; x < m_users.GetSize(); x ++)
             {
               User_Connection *c=m_users.Get(x);
-              if (!strcasecmp(c->m_username.Get(),p))
+              if ((p[pl-1] == '*' && !strncasecmp(c->m_username.Get(),p,pl-1)) || !strcasecmp(c->m_username.Get(),p))
               {
                 if (c != con)
                 {
