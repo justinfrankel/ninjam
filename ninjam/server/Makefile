@@ -5,9 +5,9 @@
 OPTFLAGS =  -O2
 
 ifdef MAC
-OPTFLAGS += -D_MAC -fast
+OPTFLAGS += -D_MAC
 else
-OPTFLAGS += -malign-double 
+OPTFLAGS += -malign-double -pthread
 endif
 
 #############################################################
@@ -15,7 +15,7 @@ endif
 #############################################################
 
 # we MUST have -fomit-frame-pointer and -lm, otherwise we hate life
-CFLAGS = $(OPTFLAGS) -s  -Wall  -pthread
+CFLAGS = $(OPTFLAGS) -s  -Wall 
 # CFLAGS += -Wshadow
 LFLAGS = -lm
 CC=gcc

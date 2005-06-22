@@ -112,7 +112,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
       return 1;
     }
   }
-  return NULL;
+  return 0;
 }
 
 
