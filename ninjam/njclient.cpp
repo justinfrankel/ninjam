@@ -276,7 +276,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
       m_misc_cs.Leave();
 
       // new buffer time
-      on_new_interval(srate);
+      on_new_interval();
 
       m_interval_pos=0;
       x=m_interval_length;
@@ -650,7 +650,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = new NJ_ENCODER(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate); // qval 0.25 = ~100kbps, 0.0 is ~70kbps, -0.1 = 45kbps
+          lc->m_enc = new NJ_ENCODER(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate);
         }
 
         if (lc->m_need_header)
@@ -664,7 +664,7 @@ int NJClient::Run() // nonzero if sleep ok
             writeLog("local %s %d\n",guidstr,lc->channel_idx);
             if (config_savelocalaudio) 
             {
-              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE); //only save other peoples for now
+              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE);
               if (lc->m_wavewritefile) delete lc->m_wavewritefile;
               lc->m_wavewritefile=0;
               if (config_savelocalaudio>1)
@@ -1125,7 +1125,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 
 }
 
-void NJClient::on_new_interval(int srate)
+void NJClient::on_new_interval()
 {
   m_loopcnt++;
   writeLog("interval %d %.2f %d\n",m_loopcnt,GetActualBPM(),m_active_bpi);

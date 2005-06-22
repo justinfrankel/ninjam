@@ -157,7 +157,6 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
     }
 
     {
-      int bytes=buffSize*sizeof(float)*2;
 //      EnterCriticalSection(&myDriverInfo.cs);
 
       audiostream_onsamples(inptrs,myDriverInfo.inputBuffers,outptrs,myDriverInfo.outputBuffers,buffSize,(int)myDriverInfo.sampleRate);
