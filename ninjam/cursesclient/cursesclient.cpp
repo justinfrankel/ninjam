@@ -5,6 +5,7 @@
 #include "../audiostream_asio.h"
 #include "curses.h"
 #include "cursesclientinst.h"
+#define strncasecmp strnicmp
 #else
 #include <stdlib.h>
 #include <memory.h>
@@ -75,12 +76,24 @@ void addChatLine(char *src, char *text, int sfmt=0)
   }
   else
   {
-    if (src&&*src)
-    {
-      if (!sfmt) tmp.Append("<");
-      tmp.Append(src);
-    }
-    if (!sfmt) tmp.Append("> ");
+   if (src&&*src)
+   {
+     if (!sfmt) tmp.Append("<");
+     tmp.Append(src);
+     if (!sfmt) tmp.Append("> ");
+   }
+   else if (src)
+   {
+     if (!sfmt) 
+     {
+       tmp.Append("*** ");
+     }
+     else tmp.Append(src);
+   }
+   else
+   {
+     if (!sfmt) tmp.Append("> ");
+   }
     tmp.Append(text);
   }
   g_chat_buffers.Add(strdup(tmp.Get()));
@@ -1264,13 +1277,23 @@ int main(int argc, char **argv)
                   {
                     if (m_chatinput_str[0] == '/')
                     {
-                      if (!strncmp(m_chatinput_str,"/me ",4))
+                      if (!strncasecmp(m_chatinput_str,"/me ",4))
                       {
                         g_client->ChatMessage_Send("MSG",m_chatinput_str);
                       }
-                      else if (!strncmp(m_chatinput_str,"/topic ",7))
+                      else if (!strncasecmp(m_chatinput_str,"/topic ",7)||
+                               !strncasecmp(m_chatinput_str,"/kick ",6) ||                        
+                               !strncasecmp(m_chatinput_str,"/bpm ",5) ||
+                               !strncasecmp(m_chatinput_str,"/bpi ",5)
+                        ) // alias to /admin *
                       {
-                        g_client->ChatMessage_Send("TOPIC",m_chatinput_str+7);
+                        g_client->ChatMessage_Send("ADMIN",m_chatinput_str+1);
+                      }
+                      else if (!strncasecmp(m_chatinput_str,"/admin ",7))
+                      {
+                        char *p=m_chatinput_str+7;
+                        while (*p == ' ') p++;
+                        g_client->ChatMessage_Send("ADMIN",p);
                       }
                       else
                       {
