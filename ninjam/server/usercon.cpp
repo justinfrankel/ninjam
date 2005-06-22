@@ -216,7 +216,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       }
 
 
-      if (group->m_max_users && !m_reserved)
+      if (group->m_max_users && !m_reserved && !(m_auth_privs & PRIV_RESERVE))
       {
         int user;
         int cnt=0;

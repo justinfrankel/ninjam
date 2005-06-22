@@ -213,6 +213,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'B' || *ptr == 'b') p->priv_flag |= PRIV_BPM;
         else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
         else if (*ptr == 'K' || *ptr == 'k') p->priv_flag |= PRIV_KICK;        
+        else if (*ptr == 'R' || *ptr == 'r') p->priv_flag |= PRIV_RESERVE;        
         else printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
         ptr++;
       }

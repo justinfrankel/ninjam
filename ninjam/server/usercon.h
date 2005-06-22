@@ -16,6 +16,7 @@
 #define PRIV_CHATSEND 2
 #define PRIV_BPM 4
 #define PRIV_KICK 8
+#define PRIV_RESERVE 16
 
 
 class User_SubscribeMask
