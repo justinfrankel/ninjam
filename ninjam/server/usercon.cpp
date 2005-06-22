@@ -68,9 +68,12 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
 
 int User_Connection::Run(User_Group *group, int *wantsleep)
 {
-  if (m_netcon.GetStatus()) return m_netcon.GetStatus();
-
   Net_Message *msg=m_netcon.Run(wantsleep);
+  if (m_netcon.GetStatus()) 
+  {
+    delete msg;
+    return m_netcon.GetStatus();
+  }
 
   if (m_auth_state < 1 && !msg)
   {
@@ -81,6 +84,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         mpb_server_auth_reply bh;
         bh.errmsg="authorization timeout";
         m_netcon.Send(bh.build());
+        m_netcon.Run();
 
         m_netcon.Kill();
         return 0;
@@ -99,6 +103,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         mpb_server_auth_reply bh;
         bh.errmsg="invalid authorization reply";
         m_netcon.Send(bh.build());
+        m_netcon.Run();
 
         m_netcon.Kill();
         msg->releaseRef();
@@ -120,6 +125,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             mpb_server_auth_reply bh;
             bh.errmsg="license not agreed to";
             m_netcon.Send(bh.build());
+            m_netcon.Run();
 
             m_netcon.Kill();
             msg->releaseRef();
@@ -158,6 +164,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
               mpb_server_auth_reply bh;
               bh.errmsg="invalid login/password";
               m_netcon.Send(bh.build());
+              m_netcon.Run();
               m_netcon.Kill();
               msg->releaseRef();
               return 0;
@@ -170,6 +177,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           mpb_server_auth_reply bh;
           bh.errmsg="invalid login/password";
           m_netcon.Send(bh.build());
+          m_netcon.Run();
           m_netcon.Kill();
           msg->releaseRef();
           return 0;

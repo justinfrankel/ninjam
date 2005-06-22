@@ -170,7 +170,6 @@ void Net_Connection::Send(Net_Message *msg)
 int Net_Connection::GetStatus()
 {
   if (m_error) return -1;
-  if (m_con->recv_bytes_available()> 0) return 0;
   return !m_con || m_con->get_state()<JNL_Connection::STATE_RESOLVING || m_con->get_state()>=JNL_Connection::STATE_CLOSING; // 1 if disconnected somehow
 }
 
