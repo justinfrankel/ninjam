@@ -7,8 +7,8 @@
 class UserChannelValueRec
 {
 public:
-  int position;
-  int length;
+  double position;
+  double length;
   WDL_String guidstr;
   
 };
@@ -24,7 +24,7 @@ class UserChannelList
 };
 
 
-int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, char *path)
+int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double len, char *path)
 {
   char *p=name;
   while (*p && *p == '0') p++;
@@ -78,7 +78,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, int position, int len, c
 
 
              //ID    Track    StartT  Length
-  fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,(double)position,(double)len);
+  fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,position,len);
 
   //          PlayRate   Locked  Normali SM Looped OnRuler  MediaType
   fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
@@ -198,8 +198,8 @@ int main(int argc, char **argv)
                 return -2;
               }
               UserChannelValueRec *p=new UserChannelValueRec;
-              p->position=(int) m_cur_position;
-              p->length=(int) m_cur_lenblock;
+              p->position=m_cur_position;
+              p->length=m_cur_lenblock;
               p->guidstr.Set(lp.gettoken_str(1));
               localrecs[(lp.gettoken_int(2))&31].items.Add(p);
             }
@@ -222,8 +222,8 @@ int main(int argc, char **argv)
 
               UserChannelValueRec *ucvr=new UserChannelValueRec;
               ucvr->guidstr.Set(guidtmp);
-              ucvr->position=(int) m_cur_position;
-              ucvr->length=(int) m_cur_lenblock;
+              ucvr->position=m_cur_position;
+              ucvr->length=m_cur_lenblock;
 
               int x;
               for (x = 0; x < curintrecs.GetSize(); x ++)
