@@ -35,6 +35,8 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
     ch.license_agreement=grp->m_licensetext.Get();
 
   m_netcon.Send(ch.build());
+
+  time(&m_connect_time);
 }
 
 User_Connection::~User_Connection()
@@ -75,7 +77,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     if (m_auth_state < 1)
     {
       mpb_client_auth_user authrep;
-      if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
+      if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0] ||
+        time(NULL) > m_connect_time+120 // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
+                                        // the user time to potentially read the license agreement.
+        )
       {
         m_netcon.Kill();
         msg->releaseRef();
@@ -216,6 +221,12 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         newmsg.parms[1]="";
         newmsg.parms[2]=group->m_topictext.Get();
         m_netcon.Send(newmsg.build());
+      }
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="JOIN";
+        newmsg.parms[1]=username;
+        group->Broadcast(newmsg.build(),this);
       }
 
 
@@ -555,6 +566,11 @@ int User_Group::Run()
           // broadcast to other users that this user is no longer present
           if (p->m_auth_state>0) 
           {
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="PART";
+            newmsg.parms[1]=p->m_username.Get();
+            Broadcast(newmsg.build(),p);
+
             mpb_server_userinfo_change_notify mfmt;
             int mfmt_changes=0;
 

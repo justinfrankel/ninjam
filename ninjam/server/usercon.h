@@ -85,6 +85,7 @@ class User_Connection
     WDL_String m_username;
     
     // auth info
+    time_t m_connect_time;
     int m_auth_state;    
     unsigned char m_challenge[8];
     int m_clientcaps;
