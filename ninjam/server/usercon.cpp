@@ -5,6 +5,8 @@
 #include <string.h>
 #endif
 
+#include <ctype.h>
+
 #include "usercon.h"
 #include "../mpb.h"
 
