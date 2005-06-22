@@ -92,6 +92,8 @@ class User_Connection
 
     int m_auth_privs;
 
+    int m_reserved;
+
     User_Channel m_channels[MAX_USER_CHANNELS];
 
     WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
@@ -107,7 +109,7 @@ class User_Group
     User_Group();
     ~User_Group();
 
-    void AddConnection(JNL_Connection *con);
+    void AddConnection(JNL_Connection *con, int isres=0);
 
     int Run(); // return 1 if safe to sleep
     void SetConfig(int bpi, int bpm);
@@ -124,6 +126,7 @@ class User_Group
 
     WDL_PtrList<User_Connection> m_users;
 
+    int m_max_users;
     int m_last_bpm, m_last_bpi;
 
     WDL_String m_licensetext;

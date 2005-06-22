@@ -21,7 +21,7 @@
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0)
+User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0)
 {
   m_netcon.attach(con);
 
@@ -214,6 +214,33 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         if (username == usernametmp)
           sprintf(username+strlen(username),"%d",maxv+1);
       }
+
+
+      if (group->m_max_users && !m_reserved)
+      {
+        int user;
+        int cnt=0;
+        for (user = 0; user < group->m_users.GetSize(); user ++)
+        {
+          User_Connection *u=group->m_users.Get(user);
+          if (u != this && u->m_auth_state > 0)
+            cnt++;
+        }
+        if (cnt >= group->m_max_users)
+        {
+          // sorry, gotta kill this connection
+          mpb_server_auth_reply bh;
+          bh.errmsg="server full";
+          m_netcon.Send(bh.build());
+          m_netcon.Run();
+          m_netcon.Kill();
+          msg->releaseRef();
+          return 0;
+        }
+      }
+
+
+
       m_username.Set(username);
       printf("Accepted user: %s\n",username);
 
@@ -551,7 +578,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-User_Group::User_Group() : m_last_bpm(120), m_last_bpi(32)
+User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32)
 {
   GetUserPass=0;
 }
@@ -652,9 +679,11 @@ void User_Group::SetConfig(int bpi, int bpm)
   Broadcast(mk.build());
 }
 
-void User_Group::AddConnection(JNL_Connection *con)
+void User_Group::AddConnection(JNL_Connection *con, int isres)
 {
-  m_users.Add(new User_Connection(con,this));
+  User_Connection *p=new User_Connection(con,this);
+  if (isres) p->m_reserved=1;
+  m_users.Add(p);
 }
 
 void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)

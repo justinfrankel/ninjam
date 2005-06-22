@@ -77,7 +77,7 @@ int aclGet(unsigned long addr)
 
 WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
-int g_config_port,g_config_max_users;
+int g_config_port;
 bool g_config_allowanonymous;
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
@@ -129,7 +129,7 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 2) return -1;
     int p=lp->gettoken_int(1);
-    g_config_max_users=p;
+    m_group->m_max_users=p;
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -264,7 +264,7 @@ static int ReadConfig(char *configfile)
   g_config_port=2049;
   g_config_allow_anonchat=1;
   g_config_allowanonymous=0;
-  g_config_max_users=0; // unlimited users
+  m_group->m_max_users=0; // unlimited users
   g_acllist.Resize(0);
   g_config_license.Set("");
   g_config_pubuser.Set("");
@@ -371,6 +371,8 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  m_group=new User_Group;
+
   printf("Ninjam v0.005 server starting up...\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (ReadConfig(argv[1]))
@@ -402,8 +404,6 @@ int main(int argc, char **argv)
     if (m_listener->is_error()) printf("Error!\n");
     else printf("OK\n");
 
-    m_group=new User_Group;
-
     m_group->GetUserPass=myGetUserPass;
 
     printf("Using default %d BPM, %d beats/interval\n",120,8);
@@ -434,13 +434,7 @@ int main(int argc, char **argv)
         }
         else
         {
-          if (flag != ACL_FLAG_RESERVE && g_config_max_users && m_group->m_users.GetSize() >= g_config_max_users)
-          {
-            printf("Too many users, refusing connection\n");
-            // check ACL
-            delete con;
-          }
-          else m_group->AddConnection(con);
+          m_group->AddConnection(con,flag == ACL_FLAG_RESERVE);
         }
       }
 
