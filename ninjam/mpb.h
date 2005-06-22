@@ -5,12 +5,17 @@
 #include "netmsg.h"
 
 
+#define PROTO_VER_MIN 0x00010000
+#define PROTO_VER_MAX 0x0001ffff
+#define PROTO_VER_CUR 0x00010000
+
+
 #define MESSAGE_SERVER_AUTH_CHALLENGE 0x00
 
 class mpb_server_auth_challenge 
 {
   public:
-    mpb_server_auth_challenge() : server_caps(0), license_agreement(0) { memset(challenge,0,sizeof(challenge)); }
+    mpb_server_auth_challenge() : server_caps(0), license_agreement(0), protocol_version(0) { memset(challenge,0,sizeof(challenge)); }
     ~mpb_server_auth_challenge() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -21,6 +26,7 @@ class mpb_server_auth_challenge
     unsigned char challenge[8];
     int server_caps; // low bit is license agreement
     char *license_agreement;
+    int protocol_version; // version should be 1 to start.
 };
 
 #define MESSAGE_SERVER_AUTH_REPLY 0x01
@@ -129,7 +135,7 @@ class mpb_server_download_interval_write
 class mpb_client_auth_user
 {
   public:
-    mpb_client_auth_user() : client_caps(0), username(0) { memset(passhash,0,sizeof(passhash)); }
+    mpb_client_auth_user() : client_caps(0), client_version(0), username(0) { memset(passhash,0,sizeof(passhash)); }
     ~mpb_client_auth_user() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -139,6 +145,8 @@ class mpb_client_auth_user
     // public data
     unsigned char passhash[20];
     int client_caps; // low bit is agreeing to license
+    int client_version; // client version, only present if second bit of caps is there
+                     // second bit should be set, otherwise server will disconnect anyway.
     char *username;
 };
 

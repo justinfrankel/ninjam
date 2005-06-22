@@ -30,6 +30,14 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
     shift+=8;
   }
 
+  if ((p-(unsigned char *)msg->get_data())+3 < msg->get_size()) 
+  {
+    protocol_version = ((int)*p++);
+    protocol_version |= ((int)*p++)<<8;
+    protocol_version |= ((int)*p++)<<16;
+    protocol_version |= ((int)*p++)<<24;
+  }
+
   if (server_caps&1)
   {
     char *s=(char*)p;
@@ -45,7 +53,6 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
 
   }
 
-
   return 0;
 }
 
@@ -57,7 +64,7 @@ Net_Message *mpb_server_auth_challenge::build()
   int scsize=4;
   int sc=server_caps;
 
-  nm->set_size(sizeof(challenge) + scsize + (license_agreement?strlen(license_agreement)+1:0));
+  nm->set_size(sizeof(challenge) + scsize + 4 + (license_agreement?strlen(license_agreement)+1:0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -82,6 +89,11 @@ Net_Message *mpb_server_auth_challenge::build()
     sc>>=8;
   }
 
+  *p++ = protocol_version&0xff;
+  *p++ = (protocol_version>>8)&0xff;
+  *p++ = (protocol_version>>16)&0xff;
+  *p++ = (protocol_version>>24)&0xff;
+
 
   if (license_agreement)
   {
@@ -89,6 +101,7 @@ Net_Message *mpb_server_auth_challenge::build()
     p+=strlen(license_agreement);
     *p++=0;
   }
+
 
   return nm;
 }
@@ -464,10 +477,19 @@ int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
 
   if (capsl > 4) capsl=4;
 
+  len -= capsl;
   while (capsl--)
   {
     client_caps |= ((int)*p++)<<shift;
     shift+=8;
+  }
+
+  if (client_caps & 2 && len >= 4)
+  {
+    client_version = ((int)*p++);
+    client_version |= ((int)*p++)<<8;
+    client_version |= ((int)*p++)<<16;
+    client_version |= ((int)*p++)<<24;
   }
 
   return 0;
@@ -478,15 +500,10 @@ Net_Message *mpb_client_auth_user::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_AUTH_USER);
   
-  int scsize=0;
+  int scsize=4;
   int sc=client_caps;
-  while (sc)
-  {
-    scsize++;
-    sc>>=8;
-  }
 
-  nm->set_size(sizeof(passhash) + strlen(username?username:"")+1 + scsize);
+  nm->set_size(sizeof(passhash) + (username?strlen(username):0) + 1 + scsize+4);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -502,12 +519,16 @@ Net_Message *mpb_client_auth_user::build()
   strcpy((char*)p,username?username:"");
   p+=strlen(username?username:"")+1;
 
-  sc=client_caps;
+  sc=client_caps|2;
   while (scsize--)
   {
     *p++=sc&0xff;
     sc>>=8;
   }
+  *p++=(client_version&0xff);
+  *p++=(client_version&0xff)>>8;
+  *p++=(client_version&0xff)>>16;
+  *p++=(client_version&0xff)>>24;
 
   return nm;
 }

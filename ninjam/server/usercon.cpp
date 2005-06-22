@@ -30,6 +30,7 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
   mpb_server_auth_challenge ch;
   memcpy(ch.challenge,m_challenge,sizeof(ch.challenge));
 
+  ch.protocol_version = PROTO_VER_CUR;
   ch.server_caps=0;
   if (grp->m_licensetext.Get()[0])
     ch.license_agreement=grp->m_licensetext.Get();
@@ -120,7 +121,18 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         
         if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon,&privs))
         {
-          if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
+          if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
+          {
+            mpb_server_auth_reply bh;
+            bh.errmsg="incorrect client version";
+            m_netcon.Send(bh.build());
+            m_netcon.Run();
+
+            m_netcon.Kill();
+            msg->releaseRef();
+            return 0;
+          }
+          else if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
           {
             mpb_server_auth_reply bh;
             bh.errmsg="license not agreed to";

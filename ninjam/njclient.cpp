@@ -382,9 +382,17 @@ int NJClient::Run() // nonzero if sleep ok
           mpb_server_auth_challenge cha;
           if (!cha.parse(msg))
           {
+            if (cha.protocol_version < PROTO_VER_MIN || cha.protocol_version >= PROTO_VER_MAX)
+            {
+              m_errstr.Set("server is incorrect protocol version");
+              m_status = 1001;
+              m_netcon->Kill();
+              return 0;
+            }
 
             mpb_client_auth_user repl;
             repl.username=m_user.Get();
+            repl.client_version=PROTO_VER_CUR; // client version number
 
             if (cha.license_agreement)
             {
