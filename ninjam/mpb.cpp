@@ -13,30 +13,22 @@
 int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_AUTH_CHALLENGE) return -1;
-  int capsl=4;
-  if (capsl > msg->get_size() - (int)sizeof(challenge)) return 1;
+  if (msg->get_size() < 4+4+(int)sizeof(challenge)) return 1;
   unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(challenge,p,sizeof(challenge));
   p+=sizeof(challenge);
 
-  server_caps=0;
-  int shift=0;
+  server_caps = ((int)*p++);
+  server_caps |= ((int)*p++)<<8;
+  server_caps |= ((int)*p++)<<16;
+  server_caps |= ((int)*p++)<<24;
 
-  while (capsl--)
-  {
-    server_caps |= ((int)*p++)<<shift;
-    shift+=8;
-  }
-
-  if ((p-(unsigned char *)msg->get_data())+3 < msg->get_size()) 
-  {
-    protocol_version = ((int)*p++);
-    protocol_version |= ((int)*p++)<<8;
-    protocol_version |= ((int)*p++)<<16;
-    protocol_version |= ((int)*p++)<<24;
-  }
+  protocol_version = ((int)*p++);
+  protocol_version |= ((int)*p++)<<8;
+  protocol_version |= ((int)*p++)<<16;
+  protocol_version |= ((int)*p++)<<24;
 
   if (server_caps&1)
   {
@@ -50,7 +42,6 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
       }
       p++;
     }
-
   }
 
   return 0;
@@ -61,10 +52,7 @@ Net_Message *mpb_server_auth_challenge::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_CHALLENGE);
   
-  int scsize=4;
-  int sc=server_caps;
-
-  nm->set_size(sizeof(challenge) + scsize + 4 + (license_agreement?strlen(license_agreement)+1:0));
+  nm->set_size(sizeof(challenge) + 8 + (license_agreement?strlen(license_agreement)+1:0));
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -77,17 +65,14 @@ Net_Message *mpb_server_auth_challenge::build()
   memcpy(p,challenge,sizeof(challenge));
   p+=sizeof(challenge);
 
-  if (license_agreement)
-  {
-    sc|=1;
-  }
+  int sc=server_caps;
+  if (license_agreement) sc|=1;
   else sc&=~1;
 
-  while (scsize--)
-  {
-    *p++=sc&0xff;
-    sc>>=8;
-  }
+  *p++ = sc&0xff;
+  *p++ = (sc>>8)&0xff;
+  *p++ = (sc>>16)&0xff;
+  *p++ = (sc>>24)&0xff;
 
   *p++ = protocol_version&0xff;
   *p++ = (protocol_version>>8)&0xff;
@@ -470,27 +455,19 @@ int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
   p++;
   len--;
   
+  if (len < 8) return 3;
 
-  int capsl=len; // additional bytes are caps bytes
-  client_caps=0;
-  int shift=0;
+  client_caps = ((int)*p++);
+  client_caps |= ((int)*p++)<<8;
+  client_caps |= ((int)*p++)<<16;
+  client_caps |= ((int)*p++)<<24;
 
-  if (capsl > 4) capsl=4;
-
-  len -= capsl;
-  while (capsl--)
-  {
-    client_caps |= ((int)*p++)<<shift;
-    shift+=8;
-  }
-
-  if (client_caps & 2 && len >= 4)
-  {
-    client_version = ((int)*p++);
-    client_version |= ((int)*p++)<<8;
-    client_version |= ((int)*p++)<<16;
-    client_version |= ((int)*p++)<<24;
-  }
+  client_version = ((int)*p++);
+  client_version |= ((int)*p++)<<8;
+  client_version |= ((int)*p++)<<16;
+  client_version |= ((int)*p++)<<24;
+  
+  printf("bla (len=%d, caps=%d) decoded client version %08x\n",len,client_caps,client_version);
 
   return 0;
 }
@@ -500,10 +477,7 @@ Net_Message *mpb_client_auth_user::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_AUTH_USER);
   
-  int scsize=4;
-  int sc=client_caps;
-
-  nm->set_size(sizeof(passhash) + (username?strlen(username):0) + 1 + scsize+4);
+  nm->set_size(sizeof(passhash) + (username?strlen(username):0) + 1 + 4 + 4);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -519,16 +493,15 @@ Net_Message *mpb_client_auth_user::build()
   strcpy((char*)p,username?username:"");
   p+=strlen(username?username:"")+1;
 
-  sc=client_caps|2;
-  while (scsize--)
-  {
-    *p++=sc&0xff;
-    sc>>=8;
-  }
+  *p++=(client_caps&0xff);
+  *p++=(client_caps&0xff00)>>8;
+  *p++=(client_caps&0xff0000)>>16;
+  *p++=(client_caps&0xff000000)>>24;
+
   *p++=(client_version&0xff);
-  *p++=(client_version&0xff)>>8;
-  *p++=(client_version&0xff)>>16;
-  *p++=(client_version&0xff)>>24;
+  *p++=(client_version&0xff00)>>8;
+  *p++=(client_version&0xff0000)>>16;
+  *p++=(client_version&0xff000000)>>24;
 
   return nm;
 }
