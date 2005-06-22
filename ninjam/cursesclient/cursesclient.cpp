@@ -109,7 +109,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       if (parms[1] && *parms[1])
       {
         tmp.Set(parms[1]);
-        tmp.Append(" sets topic to: \"");
+        tmp.Append(" sets topic to: ");
       }
       else tmp.Set("Topic is: ");
       tmp.Append(parms[2]);
@@ -1227,6 +1227,32 @@ int main(int argc, char **argv)
 #endif
 
       int a=getch();
+#ifdef _MAC
+		{
+			static timeval last_t;
+			static int stage;
+			timeval now;
+			gettimeofday(&now,NULL);
+			if (a != ERR || (stage && 
+				  ((long long) (((now.tv_sec-last_t.tv_sec) * 1000) + ((now.tv_usec-last_t.tv_usec)/1000)))>333
+
+				))
+			{
+				last_t = now;
+				if (!stage && a == 27) { a=ERR; stage++; }
+				else if (stage==1 && a == 79) { a=ERR; stage++; }
+				else if (stage==2 && a >= 80 && a <= 91)
+				{
+					a = KEY_F(a-79);
+					stage=0;
+				} 
+				else if (stage) { a = 27; stage=0; }
+			}
+		}
+		if (a == 127) a = KEY_BACKSPACE;
+		if (a == KEY_F(7)) a = KEY_F(11);
+		if (a == KEY_F(8)) a = KEY_F(12);
+#endif
       if (a!=ERR)
       {
         if (!g_ui_state) switch (a)
