@@ -467,7 +467,7 @@ int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
   client_version |= ((int)*p++)<<16;
   client_version |= ((int)*p++)<<24;
   
-  printf("bla (len=%d, caps=%d) decoded client version %08x\n",len,client_caps,client_version);
+  //printf("bla (len=%d, caps=%d) decoded client version %08x\n",len,client_caps,client_version);
 
   return 0;
 }
