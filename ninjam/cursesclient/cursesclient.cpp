@@ -60,7 +60,7 @@ char m_chatinput_str[120];
 
 WDL_PtrList<char> g_chat_buffers;
 
-void addChatLine(char *src, char *text, int sfmt=0)
+void addChatLine(char *src, char *text)
 {
   while (g_chat_buffers.GetSize() > 256)
   {
@@ -68,33 +68,28 @@ void addChatLine(char *src, char *text, int sfmt=0)
     g_chat_buffers.Delete(0);
   }
   WDL_String tmp;
-  if (!sfmt && src && *src && !strncmp(text,"/me ",4))
+  if (src && *src && !strncmp(text,"/me ",4))
   {
     tmp.Set("* ");
     tmp.Append(src);
-    tmp.Append(text+3);
+    tmp.Append(" ");
+    char *p=text+3;
+    while (*p == ' ') p++;
+    tmp.Append(p);
   }
   else
   {
    if (src&&*src)
    {
-     if (!sfmt) tmp.Append("<");
+     tmp.Set("<");
      tmp.Append(src);
-     if (!sfmt) tmp.Append("> ");
+     tmp.Append("> ");
    }
-   else if (src)
+   else 
    {
-     if (!sfmt) 
-     {
-       tmp.Append("*** ");
-     }
-     else tmp.Append(src);
+     tmp.Set("*** ");
    }
-   else
-   {
-     if (!sfmt) tmp.Append("> ");
-   }
-    tmp.Append(text);
+   tmp.Append(text);
   }
   g_chat_buffers.Add(strdup(tmp.Get()));
   g_chat_scroll=0;
@@ -113,16 +108,14 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       WDL_String tmp;
       if (parms[1] && *parms[1])
       {
-        tmp.Set("*** ");
-        tmp.Append(parms[1]);
+        tmp.Set(parms[1]);
         tmp.Append(" sets topic to: \"");
       }
-      else
-        tmp.Set("*** Topic is: \"");
+      else tmp.Set("Topic is: ");
       tmp.Append(parms[2]);
-      tmp.Append("\"");
+
       g_topic.Set(parms[2]);
-      addChatLine("",tmp.Get(),1);
+      addChatLine("",tmp.Get());
     
       g_need_disp_update=1;
     }
@@ -1297,12 +1290,11 @@ int main(int argc, char **argv)
                       }
                       else
                       {
-                        addChatLine("error: ","unknown / command. known commands so far: /topic",1);
+                        addChatLine("","error: unknown command.");
                       }
                     }
                     else
                     {
-                      //addChatLine(NULL,m_chatinput_str);
                       g_client->ChatMessage_Send("MSG",m_chatinput_str);
                     }
 

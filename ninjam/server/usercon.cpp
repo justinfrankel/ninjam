@@ -721,18 +721,21 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
               User_Connection *c=m_users.Get(x);
               if (!strcasecmp(c->m_username.Get(),p))
               {
-                WDL_String buf("User ");
-                buf.Append(c->m_username.Get());
-                buf.Append(" kicked by ");
-                buf.Append(con->m_username.Get());
+                if (c != con)
+                {
+                  WDL_String buf("User ");
+                  buf.Append(c->m_username.Get());
+                  buf.Append(" kicked by ");
+                  buf.Append(con->m_username.Get());
 
-                mpb_chat_message newmsg;
-                newmsg.parms[0]="MSG";
-                newmsg.parms[1]="";
-                newmsg.parms[2]=buf.Get();
-                Broadcast(newmsg.build());
+                  mpb_chat_message newmsg;
+                  newmsg.parms[0]="MSG";
+                  newmsg.parms[1]="";
+                  newmsg.parms[2]=buf.Get();
+                  Broadcast(newmsg.build());
 
-                c->m_netcon.Kill();
+                  c->m_netcon.Kill();
+                }
                 killcnt++;
               }
             }
