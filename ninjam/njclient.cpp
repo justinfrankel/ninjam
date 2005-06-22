@@ -240,12 +240,10 @@ void NJClient::GetPosition(int *pos, int *length)  // positions in samples
 void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate)
 {
   m_srate=srate;
-  if (!m_audio_enable) 
-  {
-    int x;
-    for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
-    return;
-  }
+  // zero output
+  int x;
+  for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
+  if (!m_audio_enable) return;
 
   int offs=0;
 
@@ -633,7 +631,7 @@ int NJClient::Run() // nonzero if sleep ok
   {
     Local_Channel *lc=m_locchannels.Get(u);
     WDL_HeapBuf *p=0;
-    if (!lc->GetBlock(&p))
+    while (!lc->GetBlock(&p))
     {
       s=0;
       if ((int)p == -1)
@@ -645,6 +643,7 @@ int NJClient::Run() // nonzero if sleep ok
         cuib.fourcc=0;
         cuib.estsize=0;
         m_netcon->Send(cuib.build());
+        p=0;
       }
       else if (p)
       {
@@ -740,6 +739,7 @@ int NJClient::Run() // nonzero if sleep ok
           lc->m_enc->outqueue.Compact();
         }
         lc->DisposeBlock(p);
+        p=0;
       }
       else
       {
@@ -818,16 +818,43 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::input_monitor_samples(float **outbuf, int outnch, int len, int srate, int offset)
+void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
 {
-  int x;
-  for (x = 0 ; x < outnch; x ++) memset(outbuf[x]+offset,0,len*sizeof(float)); // zero output channels
-
-  int ch;
-  for (ch = 0; ch < m_locchannels.GetSize(); ch ++)
+  // encode my audio and send to server, if enabled
+  int u;
+  m_locchan_cs.Enter();
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
-    Local_Channel *lc=m_locchannels.Get(ch);
+    Local_Channel *lc=m_locchannels.Get(u);
+    int sc=lc->src_channel;
+    if (sc < 0 || sc >= innch) 
+    {
+      lc->curblock.Resize(0);
+      continue;
+    }
 
+    if (lc->curblock.GetSize() < len*(int)sizeof(float))
+    {
+      lc->curblock.Resize(len*sizeof(float));
+    }
+    memcpy(lc->curblock.Get(),inbuf[sc]+offset,len*sizeof(float));
+
+    // processor
+    if (lc->cbf)
+    {
+      if ((!m_issoloactive && !lc->muted) || lc->solo)
+      {
+        lc->cbf((float *)lc->curblock.Get(),len,lc->cbf_inst);
+      }
+    }
+
+    if (lc->bcast_active) 
+    {
+      lc->AddBlock((float *)lc->curblock.Get(),len);
+    }
+
+
+    // monitor this channel
     if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
       if (lc->curblock.GetSize() < len*(int)sizeof(float))
@@ -896,44 +923,6 @@ void NJClient::input_monitor_samples(float **outbuf, int outnch, int len, int sr
     }
     else lc->decode_peak_vol=0.0;
   }
-}
-
-void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
-{
-  // encode my audio and send to server, if enabled
-  int u;
-  m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize(); u ++)
-  {
-    Local_Channel *lc=m_locchannels.Get(u);
-    int sc=lc->src_channel;
-    if (sc < 0 || sc >= innch) 
-    {
-      lc->curblock.Resize(0);
-      continue;
-    }
-
-    if (lc->curblock.GetSize() < len*(int)sizeof(float))
-    {
-      lc->curblock.Resize(len*sizeof(float));
-    }
-    memcpy(lc->curblock.Get(),inbuf[sc]+offset,len*sizeof(float));
-
-    // processor
-    if (lc->cbf)
-    {
-      if ((!m_issoloactive && !lc->muted) || lc->solo)
-      {
-        lc->cbf((float *)lc->curblock.Get(),len,lc->cbf_inst);
-      }
-    }
-
-    if (lc->bcast_active) 
-    {
-      lc->AddBlock((float *)lc->curblock.Get(),len,1);
-    }
-  }
-  input_monitor_samples(outbuf,outnch,len,srate,offset);
 
   m_locchan_cs.Leave();
 
@@ -1152,7 +1141,7 @@ void NJClient::on_new_interval(int srate)
 
     if (lc->bcast_active) 
     {
-      lc->AddBlock(NULL,0,1);
+      lc->AddBlock(NULL,0);
     }
 
     int wasact=lc->bcast_active;
@@ -1161,7 +1150,7 @@ void NJClient::on_new_interval(int srate)
 
     if (wasact && !lc->bcast_active)
     {
-      lc->AddBlock(NULL,-1,1);
+      lc->AddBlock(NULL,-1);
     }
 
   }
@@ -1646,7 +1635,7 @@ void Local_Channel::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void Local_Channel::AddBlock(float *samples, int len, int spacing)
+void Local_Channel::AddBlock(float *samples, int len)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
@@ -1662,12 +1651,7 @@ void Local_Channel::AddBlock(float *samples, int len, int spacing)
     if (!mybuf) mybuf=new WDL_HeapBuf;
 
     mybuf->Resize(len*sizeof(float));
-    float *o=(float *)mybuf->Get();
-    while (len--)
-    {
-      *o++=*samples;
-      samples+=spacing;
-    }
+    memcpy(mybuf->Get(),samples,len*sizeof(float));
   }
   else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 

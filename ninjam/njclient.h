@@ -134,7 +134,6 @@ private:
 
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
-  void input_monitor_samples(float **outbuf, int outnch, int len, int srate, int offset);
   void on_new_interval(int srate);
 
   void writeLog(char *fmt, ...);
@@ -265,7 +264,7 @@ public:
   Local_Channel();
   ~Local_Channel();
 
-  void AddBlock(float *samples, int len, int spacing);
+  void AddBlock(float *samples, int len);
   int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
   void DisposeBlock(WDL_HeapBuf *b);
 
