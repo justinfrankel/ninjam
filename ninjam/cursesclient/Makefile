@@ -40,3 +40,6 @@ default: cursesclient
 
 cursesclient: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o cursesclient $(OBJS) -lpthread -framework coreaudio -logg -lvorbis -lvorbisenc -lncurses.5
+
+clean:
+	-rm $(OBJS) cursesclient
