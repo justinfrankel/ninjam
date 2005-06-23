@@ -57,7 +57,7 @@ public:
   void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate); // len is number of sample pairs or samples
 
 
-  // basic configuration (these will actually go away soon)
+  // basic configuration
   int   config_autosubscribe;
   int   config_savelocalaudio; // set 1 to save compressed files, set to 2 to save .wav files as well
   float config_metronome,config_metronome_pan; // volume of metronome
@@ -65,6 +65,8 @@ public:
   float config_mastervolume,config_masterpan; // master volume
   bool  config_mastermute;
   int   config_debug_level; 
+  int   config_play_prebuffer; // -1 means play instantly, 0 means play when full file is there, otherwise refers to how many
+                               // bytes of compressed source to have before play. the default value is 8192.
 
 
   float output_peaklevel;
@@ -175,146 +177,11 @@ protected:
 };
 
 
-class DecodeState
-{
-  public:
-    DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
-                                           decode_samplesout(0), resample_state(0.0), decode_peak_vol(0.0)
-    { 
-      memset(decode_last_guid,0,sizeof(decode_last_guid));
-    }
-    ~DecodeState()
-    {
-      delete decode_codec;
-      decode_codec=0;
-      if (decode_fp) fclose(decode_fp);
-      decode_fp=0;
-    }
-
-    double decode_peak_vol;
-
-    FILE *decode_fp;
-    NJ_DECODER *decode_codec;
-    int decode_samplesout;
-    int dump_samples;
-    unsigned char decode_last_guid[16];
-    double resample_state;
-
-};
-
 
 #define MAX_USER_CHANNELS 32
-class RemoteUser_Channel
-{
-  public:
-    RemoteUser_Channel();
-    ~RemoteUser_Channel();
-
-    float volume, pan;
-
-    unsigned char cur_guid[16];
-    WDL_String name;
-
-
-    // decode/mixer state, used by mixer
-    DecodeState ds;
-
-};
-
-class RemoteUser
-{
-public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), chanpresentmask(0) { }
-  ~RemoteUser() { }
-
-  bool muted;
-  float volume;
-  float pan;
-  WDL_String name;
-  int submask;
-  int chanpresentmask;
-  int mutedmask;
-  int solomask;
-  RemoteUser_Channel channels[MAX_USER_CHANNELS];
-};
-
-
-#define DOWNLOAD_TIMEOUT 8
-class RemoteDownload
-{
-public:
-  RemoteDownload();
-  ~RemoteDownload();
-
-  void Close();
-  void Open(NJClient *parent, unsigned int fourcc);
-  void Write(void *buf, int len);
-  void startPlaying(int force=0); // call this with 1 to make sure it gets played ASAP, or let RemoteDownload call it automatically
-
-  time_t last_time;
-  unsigned char guid[16];
-
-  // set chidx to -1 to disable the user guid updating
-  int chidx;
-  WDL_String username;
-
-private:
-  NJClient *m_parent;
-  FILE *fp;
-};
-
-
-
 #define MAX_LOCAL_CHANNELS 32
+#define DOWNLOAD_TIMEOUT 8
 
-class Local_Channel
-{
-public:
-  Local_Channel();
-  ~Local_Channel();
-
-  void AddBlock(float *samples, int len);
-  int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
-  void DisposeBlock(WDL_HeapBuf *b);
-
-  int channel_idx;
-
-  int src_channel; // 0 or 1
-  int bitrate;
-
-  float volume;
-  float pan;
-  bool muted;
-  bool solo;
-
-  //?
-  // mode flag. 0=silence, 1=broadcasting, 2=loop last
-  bool broadcasting; //takes effect next loop
-
-
-
-  // internal state
-  bool bcast_active;
-
-
-  void (*cbf)(float *, int ns, void *);
-  void *cbf_inst;
-
-  double decode_peak_vol;
-  WDL_Mutex m_cs;
-  bool m_need_header;
-  WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
-  WDL_PtrList<WDL_HeapBuf> m_emptybufs;
-  NJ_ENCODER *m_enc;
-  int m_enc_bitrate_used;
-  Net_Message *m_enc_header_needsend;
-  
-  WDL_String name;
-  RemoteDownload m_curwritefile;
-  WaveWriter *m_wavewritefile;
-
-  //DecodeState too, eventually
-};
 
 
 #endif//_NJCLIENT_H_

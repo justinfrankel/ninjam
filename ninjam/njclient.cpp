@@ -7,6 +7,153 @@
 #include "../WDL/wavwrite.h"
 
 
+
+
+class DecodeState
+{
+  public:
+    DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
+                                           decode_samplesout(0), resample_state(0.0), decode_peak_vol(0.0)
+    { 
+      memset(decode_last_guid,0,sizeof(decode_last_guid));
+    }
+    ~DecodeState()
+    {
+      delete decode_codec;
+      decode_codec=0;
+      if (decode_fp) fclose(decode_fp);
+      decode_fp=0;
+    }
+
+    double decode_peak_vol;
+
+    FILE *decode_fp;
+    NJ_DECODER *decode_codec;
+    int decode_samplesout;
+    int dump_samples;
+    unsigned char decode_last_guid[16];
+    double resample_state;
+
+};
+
+
+class RemoteUser_Channel
+{
+  public:
+    RemoteUser_Channel();
+    ~RemoteUser_Channel();
+
+    float volume, pan;
+
+    unsigned char cur_guid[16];
+    WDL_String name;
+
+
+    // decode/mixer state, used by mixer
+    DecodeState ds;
+
+};
+
+class RemoteUser
+{
+public:
+  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), chanpresentmask(0) { }
+  ~RemoteUser() { }
+
+  bool muted;
+  float volume;
+  float pan;
+  WDL_String name;
+  int submask;
+  int chanpresentmask;
+  int mutedmask;
+  int solomask;
+  RemoteUser_Channel channels[MAX_USER_CHANNELS];
+};
+
+
+class RemoteDownload
+{
+public:
+  RemoteDownload();
+  ~RemoteDownload();
+
+  void Close();
+  void Open(NJClient *parent, unsigned int fourcc);
+  void Write(void *buf, int len);
+  void startPlaying(int force=0); // call this with 1 to make sure it gets played ASAP, or let RemoteDownload call it automatically
+
+  time_t last_time;
+  unsigned char guid[16];
+
+  // set chidx to -1 to disable the user guid updating
+  int chidx;
+  WDL_String username;
+  int playtime;
+
+private:
+  NJClient *m_parent;
+  FILE *fp;
+};
+
+
+
+
+class Local_Channel
+{
+public:
+  Local_Channel();
+  ~Local_Channel();
+
+  void AddBlock(float *samples, int len);
+  int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
+  void DisposeBlock(WDL_HeapBuf *b);
+
+  int channel_idx;
+
+  int src_channel; // 0 or 1
+  int bitrate;
+
+  float volume;
+  float pan;
+  bool muted;
+  bool solo;
+
+  //?
+  // mode flag. 0=silence, 1=broadcasting, 2=loop last
+  bool broadcasting; //takes effect next loop
+
+
+
+  // internal state
+  bool bcast_active;
+
+
+  void (*cbf)(float *, int ns, void *);
+  void *cbf_inst;
+
+  double decode_peak_vol;
+  WDL_Mutex m_cs;
+  bool m_need_header;
+  WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
+  WDL_PtrList<WDL_HeapBuf> m_emptybufs;
+  NJ_ENCODER *m_enc;
+  int m_enc_bitrate_used;
+  Net_Message *m_enc_header_needsend;
+  
+  WDL_String name;
+  RemoteDownload m_curwritefile;
+  WaveWriter *m_wavewritefile;
+
+  //DecodeState too, eventually
+};
+
+
+
+
+
+
+
 #define MIN_ENC_BLOCKSIZE 2048
 #define MAX_ENC_BLOCKSIZE (8192+1024)
 
@@ -127,6 +274,7 @@ NJClient::NJClient()
   config_mastervolume=1.0f;
   config_masterpan=0.0f;
   config_mastermute=false;
+  config_play_prebuffer=8192;
 
 
   LicenseAgreement_User32=0;
@@ -557,8 +705,9 @@ int NJClient::Run() // nonzero if sleep ok
                 memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                 ds->Open(this,dib.fourcc);
 
-                if (1) // play when remotedownload wants it to play
+                if (config_play_prebuffer>=0) // play when remotedownload wants it to play
                 {
+                  ds->playtime=config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
                 }
@@ -1549,7 +1698,7 @@ RemoteUser_Channel::~RemoteUser_Channel()
 }
 
 
-RemoteDownload::RemoteDownload() : chidx(-1), fp(0)
+RemoteDownload::RemoteDownload() : chidx(-1), playtime(0), fp(0)
 {
   memset(&guid,0,sizeof(guid));
   time(&last_time);
@@ -1586,7 +1735,7 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
 
 void RemoteDownload::startPlaying(int force)
 {
-  if (m_parent && chidx >= 0 && (force || (fp && ftell(fp)>8192))) // wait until we have 8kb of data to start playing
+  if (m_parent && chidx >= 0 && (force || (playtime && fp && ftell(fp)>playtime))) // wait until we have config_play_prebuffer of data to start playing, or if config_play_prebuffer is 0, we are forced to play
   {
     int x;
     RemoteUser *theuser;
