@@ -1060,7 +1060,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       if (vol > 0.0000001) 
       {
         float *p=sptr;
-        int l=len*chan->decode_codec->GetNumChannels();
+        int l=(needed+chan->dump_samples)*chan->decode_codec->GetNumChannels();
         float maxf=(float) (chan->decode_peak_vol*0.99/vol);
         while (l--)
         {
