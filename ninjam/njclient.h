@@ -39,7 +39,7 @@ class DecodeState;
 
 class NJClient
 {
-  friend RemoteDownload;
+  friend class RemoteDownload;
 public:
   NJClient();
   ~NJClient();
