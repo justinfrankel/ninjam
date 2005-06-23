@@ -66,7 +66,7 @@ public:
   bool  config_mastermute;
   int   config_debug_level; 
   int   config_play_prebuffer; // -1 means play instantly, 0 means play when full file is there, otherwise refers to how many
-                               // bytes of compressed source to have before play. the default value is 8192.
+                               // bytes of compressed source to have before play. the default value is 4096.
 
 
   float output_peaklevel;
@@ -112,8 +112,6 @@ public:
 
   WaveWriter *waveWrite;
 
-  void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
-
   int LicenseAgreement_User32;
   int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts
 
@@ -134,6 +132,8 @@ public:
   int ChatMessage_User32;
 
 protected:
+
+  void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
 
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
