@@ -1161,23 +1161,10 @@ void NJClient::on_new_interval()
       {
         if (chan->ds.decode_fp) 
         {
-          /*
-          if (chan->ds.decode_codec)
-          {
-            int ab;
-            ab=fread(chan->ds.decode_codec->DecodeGetSrcBuffer(4096),1,4096,chan->ds.decode_fp);
-            if (ab)
-            {
-              chan->ds.decode_codec->DecodeWrote(ab);
-            }
-          }
-          */
           fclose(chan->ds.decode_fp);
         }
         chan->ds.decode_fp=0;
-        //if (chan->decode_codec) 
-//          printf("last samplesdec=%d\n",chan->decode_codec->m_samplesdec);
-  //      printf("last samplesout=%d\n",chan->decode_samplesout);
+//        printf("last samplesout=%d\n",chan->ds.decode_samplesout);
         chan->ds.decode_samplesout=0;
 
         chan->ds.dump_samples=0;
