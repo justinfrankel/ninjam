@@ -85,7 +85,7 @@ void addChatLine(char *src, char *text)
      tmp.Append(src);
      tmp.Append("> ");
    }
-   else 
+   else if (src)
    {
      tmp.Set("*** ");
    }
@@ -126,6 +126,19 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       addChatLine(parms[1],parms[2]);
     g_need_disp_update=1;
   } 
+  else if (!strcmp(parms[0],"PRIVMSG"))
+  {
+    if (parms[1] && parms[2])
+    {
+      WDL_String tmp;
+      tmp.Set("*");
+      tmp.Append(parms[1]);
+      tmp.Append("* ");
+      tmp.Append(parms[2]);
+      addChatLine(NULL,tmp.Get());
+    }
+    g_need_disp_update=1;
+  } 
   else if (!strcmp(parms[0],"JOIN") || !strcmp(parms[0],"PART"))
   {
     if (parms[1] && *parms[1])
@@ -134,7 +147,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       tmp.Append(" has ");
       tmp.Append(parms[0][0]=='P' ? "left" : "joined");
       tmp.Append(" the server");
-      addChatLine(NULL,tmp.Get());
+      addChatLine("",tmp.Get());
     }
     g_need_disp_update=1;
   } 
@@ -1325,6 +1338,29 @@ int main(int argc, char **argv)
                         char *p=m_chatinput_str+7;
                         while (*p == ' ') p++;
                         g_client->ChatMessage_Send("ADMIN",p);
+                      }
+                      else if (!strncasecmp(m_chatinput_str,"/msg ",5))
+                      {
+                        char *p=m_chatinput_str+5;
+                        while (*p == ' ') p++;
+                        char *n=p;
+                        while (*p && *p != ' ') p++;
+                        if (*p == ' ') *p++=0;
+                        while (*p == ' ') p++;
+                        if (*p)
+                        {
+                          g_client->ChatMessage_Send("PRIVMSG",n,p);
+                          WDL_String tmp;
+                          tmp.Set("-> *");
+                          tmp.Append(n);
+                          tmp.Append("* ");
+                          tmp.Append(p);
+                          addChatLine(NULL,tmp.Get());
+                        }
+                        else
+                        {
+                          addChatLine("","error: /msg requires a username and a message.");
+                        }
                       }
                       else
                       {
