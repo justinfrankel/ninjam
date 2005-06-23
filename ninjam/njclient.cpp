@@ -13,9 +13,7 @@
 
 #define NJ_PORT 2049
 
-unsigned char zero_guid[16];
-
-
+static unsigned char zero_guid[16];
 
 
 static void guidtostr(unsigned char *guid, char *str)

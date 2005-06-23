@@ -310,8 +310,4 @@ public:
 };
 
 
-
-extern unsigned char zero_guid[16];;
-
-
 #endif//_NJCLIENT_H_
