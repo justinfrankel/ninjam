@@ -543,25 +543,34 @@ int NJClient::Run() // nonzero if sleep ok
           mpb_server_download_interval_begin dib;
           if (!dib.parse(msg) && dib.username)
           {
+            m_users_cs.Enter();
             int x;
             RemoteUser *theuser;
             for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),dib.username); x ++);
             if (x < m_remoteusers.GetSize() && dib.chidx >= 0 && dib.chidx < MAX_USER_CHANNELS)
-            {
-              memcpy(theuser->channels[dib.chidx].cur_guid,dib.guid,sizeof(dib.guid));
-
+            {              
               //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
               if (dib.fourcc && memcmp(dib.guid,zero_guid,sizeof(zero_guid))) // download coming
-              {
+              {                
                 if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                 RemoteDownload *ds=new RemoteDownload;
                 memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                 ds->Open(this,dib.fourcc);
-             
+
+                if (1) // play when remotedownload wants it to play
+                {
+                  ds->chidx=dib.chidx;
+                  ds->username.Set(dib.username);
+                }
+                else memcpy(theuser->channels[dib.chidx].cur_guid,dib.guid,sizeof(dib.guid));
+
                 m_downloads.Add(ds);
               }
+              else
+                memcpy(theuser->channels[dib.chidx].cur_guid,dib.guid,sizeof(dib.guid));
 
             }
+            m_users_cs.Leave();
           }
         }
       break;
@@ -597,6 +606,7 @@ int NJClient::Run() // nonzero if sleep ok
 
                 if (now - ds->last_time > DOWNLOAD_TIMEOUT)
                 {
+                  ds->chidx=-1;
                   delete ds;
                   m_downloads.Delete(x--);
                 }
@@ -1539,7 +1549,7 @@ RemoteUser_Channel::~RemoteUser_Channel()
 }
 
 
-RemoteDownload::RemoteDownload() : fp(0)
+RemoteDownload::RemoteDownload() : chidx(-1), fp(0)
 {
   memset(&guid,0,sizeof(guid));
   time(&last_time);
@@ -1554,10 +1564,12 @@ void RemoteDownload::Close()
 {
   if (fp) fclose(fp);
   fp=0;
+  startPlaying(1);
 }
 
 void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
 {    
+  m_parent=parent;
   Close();
   WDL_String s;
   parent->makeFilenameFromGuid(&s,guid);
@@ -1572,13 +1584,32 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
   fp=fopen(s.Get(),"wb");
 }
 
+void RemoteDownload::startPlaying(int force)
+{
+  if (m_parent && chidx >= 0 && (force || (fp && ftell(fp)>8192))) // wait until we have 8kb of data to start playing
+  {
+    int x;
+    RemoteUser *theuser;
+    for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
+    if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
+    {
+      memcpy(theuser->channels[chidx].cur_guid,guid,sizeof(guid));
+    }
+    chidx=-1;
+  }
+}
+
 void RemoteDownload::Write(void *buf, int len)
 {
+  int pos=len;
   if (fp)
   {
     fwrite(buf,1,len,fp);
     fflush(fp);
+    pos = ftell(fp);
   }
+
+  startPlaying();  
 }
 
 

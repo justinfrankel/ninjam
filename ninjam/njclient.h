@@ -39,6 +39,7 @@ class DecodeState;
 
 class NJClient
 {
+  friend RemoteDownload;
 public:
   NJClient();
   ~NJClient();
@@ -130,7 +131,7 @@ public:
   void (*ChatMessage_Callback)(int user32, NJClient *inst, char **parms, int nparms); 
   int ChatMessage_User32;
 
-private:
+protected:
 
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset);
@@ -248,11 +249,17 @@ public:
   void Close();
   void Open(NJClient *parent, unsigned int fourcc);
   void Write(void *buf, int len);
+  void startPlaying(int force=0); // call this with 1 to make sure it gets played ASAP, or let RemoteDownload call it automatically
 
   time_t last_time;
   unsigned char guid[16];
 
+  // set chidx to -1 to disable the user guid updating
+  int chidx;
+  WDL_String username;
+
 private:
+  NJClient *m_parent;
   FILE *fp;
 };
 
