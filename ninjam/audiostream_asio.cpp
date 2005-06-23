@@ -552,15 +552,15 @@ int audioStreamer_ASIO::Open(char **dev)
   m_srate=(int)myDriverInfo.sampleRate;
   if (last_spltype == ASIOSTInt16LSB)
   {
-//    bps=16;
+    m_bps=16;
   }
   else if (last_spltype == ASIOSTInt24LSB)
   {
- //   bps=24;
+    m_bps=24;
   }
   else if (last_spltype == ASIOSTInt32LSB)
   {
-//    bps=32;
+    m_bps=32;
   }
   else
   {
