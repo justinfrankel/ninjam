@@ -7,7 +7,7 @@
 #include "../WDL/wavwrite.h"
 
 
-#define VU_DECAY 0.9f
+#define VU_DECAY 0.5f
 
 
 class DecodeState
