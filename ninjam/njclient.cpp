@@ -7,6 +7,7 @@
 #include "../WDL/wavwrite.h"
 
 
+#define VU_DECAY 0.9f
 
 
 class DecodeState
@@ -961,6 +962,15 @@ int NJClient::Run() // nonzero if sleep ok
 
 }
 
+float NJClient::GetOutputPeak()
+{
+  float f=(float)output_peaklevel;
+
+  output_peaklevel *= VU_DECAY;
+
+  return f;
+}
+
 void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
 {
   if (m_netcon)
@@ -1026,7 +1036,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
         else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
 
-        float maxf=(float) (lc->decode_peak_vol*0.99);
+        float maxf=(float) (lc->decode_peak_vol);
 
         int x=len;
         while (x--) 
@@ -1056,7 +1066,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       }
       else
       {
-        float maxf=(float) (lc->decode_peak_vol*0.99);
+        float maxf=(float) (lc->decode_peak_vol);
         int x=len;
         while (x--) 
         {
@@ -1116,7 +1126,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   {
     int x=len;
     float *ptr1=outbuf[0]+offset;
-    float maxf=output_peaklevel*0.99f;
+    float maxf=(float)output_peaklevel;
 
     if (outnch >= 2)
     {
@@ -1220,7 +1230,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       {
         float *p=sptr;
         int l=(needed+chan->dump_samples)*chan->decode_codec->GetNumChannels();
-        float maxf=(float) (chan->decode_peak_vol*0.99/vol);
+        float maxf=(float) (chan->decode_peak_vol/vol);
         while (l--)
         {
           float f=*p++;
@@ -1229,8 +1239,6 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
         }
         chan->decode_peak_vol=maxf*vol;
       }
-      else 
-        chan->decode_peak_vol*=0.99;
 
       if (!muted)
       {
@@ -1496,6 +1504,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   }
 }
 
+
 float NJClient::GetUserChannelPeak(int useridx, int channelidx)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return 0.0f;
@@ -1503,7 +1512,10 @@ float NJClient::GetUserChannelPeak(int useridx, int channelidx)
   RemoteUser *user=m_remoteusers.Get(useridx);
   if (!(user->chanpresentmask & (1<<channelidx))) return 0.0f;
 
-  return (float)p->ds.decode_peak_vol;
+  float f=(float)p->ds.decode_peak_vol;
+  p->ds.decode_peak_vol *= VU_DECAY;
+  
+  return f;
 }
 
 float NJClient::GetLocalChannelPeak(int ch)
@@ -1512,7 +1524,11 @@ float NJClient::GetLocalChannelPeak(int ch)
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x == m_locchannels.GetSize()) return 0.0f;
   Local_Channel *c=m_locchannels.Get(x);
-  return (float)c->decode_peak_vol;
+  float f=(float)c->decode_peak_vol;
+
+  c->decode_peak_vol *= VU_DECAY;
+
+  return f;
 }
 
 void NJClient::DeleteLocalChannel(int ch)

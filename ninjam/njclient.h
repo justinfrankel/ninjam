@@ -68,8 +68,7 @@ public:
   int   config_play_prebuffer; // -1 means play instantly, 0 means play when full file is there, otherwise refers to how many
                                // bytes of compressed source to have before play. the default value is 4096.
 
-
-  float output_peaklevel;
+  float GetOutputPeak();
 
   enum { NJC_STATUS_DISCONNECTED=-3,NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT};
   int GetStatus();
@@ -132,6 +131,7 @@ public:
   int ChatMessage_User32;
 
 protected:
+  double output_peaklevel;
 
   void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
 
