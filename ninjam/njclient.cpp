@@ -100,7 +100,7 @@ public:
   int playtime;
 
 private:
-  int m_fourcc;
+  unsigned int m_fourcc;
   NJClient *m_parent;
   FILE *fp;
 };
