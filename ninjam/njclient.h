@@ -21,19 +21,8 @@
 #include "netmsg.h"
 
 
-#define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
-
-
-
-#define NJ_ENCODER VorbisEncoder
-#define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
-#define NJ_DECODER VorbisDecoder
-#include "../WDL/vorbisencdec.h"
-
-
 class RemoteDownload;
 class RemoteUser;
-class RemoteUser_Channel;
 class Local_Channel;
 class DecodeState;
 
@@ -163,7 +152,7 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
-  DecodeState *start_decode(unsigned char *guid);
+  DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0);
 
 
 
@@ -184,7 +173,6 @@ protected:
 #define MAX_USER_CHANNELS 32
 #define MAX_LOCAL_CHANNELS 32
 #define DOWNLOAD_TIMEOUT 8
-
 
 
 #endif//_NJCLIENT_H_

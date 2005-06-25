@@ -8,6 +8,17 @@
 
 
 
+// todo: make an interface base class for vorbis enc/dec
+#define VorbisEncoder I_NJEncoder 
+#define VorbisDecoder I_NJDecoder 
+#define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
+#include "../WDL/vorbisencdec.h"
+#undef VorbisEncoder
+#undef VorbisDecoder
+
+
+#define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
+
 class DecodeState
 {
   public:
@@ -28,7 +39,7 @@ class DecodeState
     double decode_peak_vol;
 
     FILE *decode_fp;
-    NJ_DECODER *decode_codec;
+    I_NJDecoder *decode_codec;
     int decode_samplesout;
     int dump_samples;
     double resample_state;
@@ -89,6 +100,7 @@ public:
   int playtime;
 
 private:
+  int m_fourcc;
   NJClient *m_parent;
   FILE *fp;
 };
@@ -134,7 +146,7 @@ public:
   bool m_need_header;
   WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
   WDL_PtrList<WDL_HeapBuf> m_emptybufs;
-  NJ_ENCODER *m_enc;
+  I_NJEncoder  *m_enc;
   int m_enc_bitrate_used;
   Net_Message *m_enc_header_needsend;
   
@@ -805,7 +817,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = new NJ_ENCODER(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate);
+          lc->m_enc = new I_NJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate);
         }
 
         if (lc->m_need_header)
@@ -960,7 +972,7 @@ int NJClient::Run() // nonzero if sleep ok
 }
 
 
-DecodeState *NJClient::start_decode(unsigned char *guid)
+DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc)
 {
   DecodeState *newstate=new DecodeState;
   memcpy(newstate->guid,guid,sizeof(newstate->guid));
@@ -970,6 +982,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid)
   makeFilenameFromGuid(&s,guid);
 
   // todo: make plug-in system to allow encoders to add types allowed
+  // todo: with a preference for 'fourcc' if specified
   unsigned int types[]={MAKE_NJ_FOURCC('O','G','G','v')}; // only types we understand
 
   int oldl=strlen(s.Get())+1;
@@ -983,7 +996,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid)
 
   if (newstate->decode_fp)
   {
-    newstate->decode_codec= new NJ_DECODER;
+    newstate->decode_codec= new I_NJDecoder;
     // run some decoding
 
     while (newstate->decode_codec->m_samples_used <= 0)
@@ -1730,19 +1743,21 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
   s.Append(".");
   s.Append(buf);
 
+  m_fourcc=fourcc;
   fp=fopen(s.Get(),"wb");
 }
 
 void RemoteDownload::startPlaying(int force)
 {
-  if (m_parent && chidx >= 0 && (force || (playtime && fp && ftell(fp)>playtime))) // wait until we have config_play_prebuffer of data to start playing, or if config_play_prebuffer is 0, we are forced to play
+  if (m_parent && chidx >= 0 && (force || (playtime && fp && ftell(fp)>playtime))) 
+    // wait until we have config_play_prebuffer of data to start playing, or if config_play_prebuffer is 0, we are forced to play (download finished)
   {
     int x;
     RemoteUser *theuser;
     for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
     if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
-       DecodeState *tmp=m_parent->start_decode(guid);
+       DecodeState *tmp=m_parent->start_decode(guid,m_fourcc);
 
        DecodeState *tmp2;
        m_parent->m_users_cs.Enter();
