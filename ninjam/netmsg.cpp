@@ -163,7 +163,9 @@ void Net_Connection::Send(Net_Message *msg)
   if (msg)
   {
     msg->addRef();
-    m_sendq.Add(&msg,sizeof(Net_Message *));
+    if (m_sendq.GetSize() < NET_CON_MAX_MESSAGES*(int)sizeof(Net_Message *))
+      m_sendq.Add(&msg,sizeof(Net_Message *));
+    else msg->releaseRef(); // todo: debug message to log overrun error
   }
 }
 
