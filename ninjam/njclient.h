@@ -163,6 +163,9 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
+  DecodeState *start_decode(unsigned char *guid);
+
+
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
