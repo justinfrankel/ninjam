@@ -49,7 +49,7 @@ class RemoteUser_Channel
 
 
     // decode/mixer state, used by mixer
-    DecodeState ds;
+    DecodeState *ds;
 
 };
 
@@ -663,13 +663,9 @@ int NJClient::Run() // nonzero if sleep ok
                     theuser->chanpresentmask &= ~(1<<cid);
                     theuser->submask &= ~(1<<cid);
                     memset(theuser->channels[cid].cur_guid,0,sizeof(theuser->channels[cid].cur_guid));
-                    delete theuser->channels[cid].ds.decode_codec;
-                    theuser->channels[cid].ds.decode_codec=0;
-                    if (theuser->channels[cid].ds.decode_fp)
-                    {
-                      fclose(theuser->channels[cid].ds.decode_fp);
-                      theuser->channels[cid].ds.decode_fp=0;
-                    }
+
+                    delete theuser->channels[cid].ds;
+                    theuser->channels[cid].ds=0;
 
 
                     if (!theuser->chanpresentmask) // user no longer exists, it seems
@@ -1102,9 +1098,10 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
       else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
-      mixInChannel(muteflag,
-        user->volume*user->channels[ch].volume,lpan,
-        &user->channels[ch].ds,outbuf,len,srate,outnch,offset,decay);
+      if (user->channels[ch].ds)
+        mixInChannel(muteflag,
+          user->volume*user->channels[ch].volume,lpan,
+            user->channels[ch].ds,outbuf,len,srate,outnch,offset,decay);
     }
   }
   m_users_cs.Leave();
@@ -1322,15 +1319,8 @@ void NJClient::on_new_interval()
       RemoteUser_Channel *chan=&user->channels[ch];
       if ((user->submask & user->chanpresentmask) & (1<<ch))
       {
-        if (chan->ds.decode_fp) 
-        {
-          fclose(chan->ds.decode_fp);
-        }
-        chan->ds.decode_fp=0;
-//        printf("last samplesout=%d\n",chan->ds.decode_samplesout);
-        chan->ds.decode_samplesout=0;
-
-        chan->ds.dump_samples=0;
+        delete chan->ds;
+        chan->ds = new DecodeState;
 
         {
           char guidstr[64];
@@ -1341,12 +1331,10 @@ void NJClient::on_new_interval()
         if (memcmp(chan->cur_guid,zero_guid,sizeof(zero_guid)))
         {
           WDL_String s;
-          //if (!memcmp(chan->decode_last_guid,zero_guid,sizeof(zero_guid))) // loop the first sample
 
+          memcpy(chan->ds->decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
 
-          memcpy(chan->ds.decode_last_guid,chan->cur_guid,sizeof(chan->cur_guid));
-
-          makeFilenameFromGuid(&s,chan->ds.decode_last_guid);
+          makeFilenameFromGuid(&s,chan->ds->decode_last_guid);
 
 
           // todo: make plug-in system to allow encoders to add types allowed
@@ -1355,25 +1343,24 @@ void NJClient::on_new_interval()
           int oldl=strlen(s.Get())+1;
           s.Append(".XXXXXXXXX");
           unsigned int x;
-          chan->ds.decode_fp=0;
-          for (x = 0; !chan->ds.decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
+          for (x = 0; !chan->ds->decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
           {
             type_to_string(types[x],s.Get()+oldl);
-            chan->ds.decode_fp=fopen(s.Get(),"rb");
+            chan->ds->decode_fp=fopen(s.Get(),"rb");
           }
 
-          if (chan->ds.decode_fp)
+          if (chan->ds->decode_fp)
           {
-            if (!chan->ds.decode_codec)
-              chan->ds.decode_codec= new NJ_DECODER;
-            else chan->ds.decode_codec->Reset();
-            //chan->resample_state=0.0;
+            if (!chan->ds->decode_codec)
+              chan->ds->decode_codec= new NJ_DECODER;
+            else chan->ds->decode_codec->Reset();
           }
         }
-        if (!chan->ds.decode_fp)
+
+        if (!chan->ds->decode_fp)
         {
-          delete chan->ds.decode_codec;
-          chan->ds.decode_codec=0;
+          delete chan->ds;
+          chan->ds=0;
         }
       }
     }
@@ -1454,13 +1441,8 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 
       m_users_cs.Enter();
       memset(p->cur_guid,0,sizeof(p->cur_guid));
-      delete p->ds.decode_codec;
-      p->ds.decode_codec=0;
-      if (p->ds.decode_fp)
-      {
-        fclose(p->ds.decode_fp);
-        p->ds.decode_fp=0;
-      }
+      delete p->ds;
+      p->ds=0;
       m_users_cs.Leave();
      
     }
@@ -1507,8 +1489,9 @@ float NJClient::GetUserChannelPeak(int useridx, int channelidx)
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
   if (!(user->chanpresentmask & (1<<channelidx))) return 0.0f;
+  if (!p->ds) return 0.0f;
 
-  return (float)p->ds.decode_peak_vol;
+  return (float)p->ds->decode_peak_vol;
 }
 
 float NJClient::GetLocalChannelPeak(int ch)
@@ -1693,13 +1676,15 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), ds(NULL)
 {
   memset(cur_guid,0,sizeof(cur_guid));  
 }
 
 RemoteUser_Channel::~RemoteUser_Channel()
 {
+  delete ds;
+  ds=NULL;
 }
 
 
