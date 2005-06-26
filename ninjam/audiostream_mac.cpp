@@ -13,6 +13,8 @@
 
 #include "../WDL/queue.h"
 
+static int outchtab[2]={0,1};
+
 static int g_srate;
 
 // this is a total hack until I spend the time and make a good multichannel CoreAudio implementation.
@@ -40,22 +42,35 @@ static void onsamples_old(float *inbuf, int innch, float *outbuf, int outnch, in
   }
   float *outptrs[2]={t,t+nsamples};
 
-  audiostream_onsamples(inptrs,innch,outptrs,outnch,nsamples,srate);
+  audiostream_onsamples(inptrs,innch,outptrs,2,nsamples,srate);
 
   float *p1=outptrs[0];
   float *p2=outptrs[1];
   x=nsamples;
-  while (x--)
+  if (outnch > 0)
   {
-    *outbuf++=*p1++;
-    if (outnch > 1) *outbuf++=*p2++;
+    while (x--)
+    {
+      outbuf[outchtab[0]]=*p1++;
+      if (outnch > 1) outbuf[outchtab[1]]=*p2++;
+      outbuf += outnch;
+    }
+  } 
+  else
+  {
+    outnch=-outnch;
+    while (x--)
+    {
+      outbuf[0]=*p1++;
+      if (outnch > 1) outbuf[1]=*p2++;
+      outbuf += outnch;
+    }
   }
   
 }
 
 static pthread_mutex_t m_mutex;
 static WDL_Queue m_splbuf;
-static int outchtab[2]={0,1};
 static int inchbuf=0;
 static int outchbuf=0;
 static float *ca_tmpbuf;
@@ -87,15 +102,7 @@ OSStatus caIOproc(AudioDeviceID dev,
 	if (ca_tmpbuf)
 	{
         	int x,c=in_size/(sizeof(float)*in_nch);
-        	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,out_nch,c,g_srate);
-		float *fin=(float *)ca_tmpbuf;
-		float *fout=(float *)out;
-		for (x = 0; x < c; x ++)
-		{
-			fout[outchtab[0]]=*fin++;
-			fout[outchtab[1]]=*fin++;
-			fout += out_nch;
-		}
+        	onsamples_old((float*)in,in_nch,(float *)out,out_nch,c,g_srate);
 	}
      }
   }
@@ -123,7 +130,7 @@ OSStatus caInproc(AudioDeviceID dev,
 	if (ca_tmpbuf)
 	{
         	int c=in_size/(sizeof(float)*in_nch);
-        	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,2,c,g_srate);
+        	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,-2,c,g_srate);
 
 		pthread_mutex_lock(&m_mutex);
 		
