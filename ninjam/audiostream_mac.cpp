@@ -335,7 +335,7 @@ again:
   	  {  
 		d.mSampleRate=srate;
 		os=sizeof(d);
-          	AudioDeviceSetProperty(myDev,NULL,0,isinput,kAudioDevicePropertyStreamFormat,os,&d);
+//          	AudioDeviceSetProperty(myDev,NULL,0,isinput,kAudioDevicePropertyStreamFormat,os,&d);
           	AudioDeviceGetProperty(myDev,0,isinput,kAudioDevicePropertyStreamFormat,&os,&d);
 		if (os>0) g_srate=m_srate=(int)d.mSampleRate; 
  	 }
