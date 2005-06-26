@@ -280,6 +280,13 @@ audioStreamer_ASIO::audioStreamer_ASIO()
 {
   m_driver_active=0;
   asioDrivers=0;
+  memset(m_chnames,0,sizeof(m_chnames));
+}
+
+const char *audioStreamer_ASIO::GetChannelName(int idx)
+{
+  if (idx < 0 || idx >= m_innch) return NULL;
+  return m_chnames[idx];
 }
 
 audioStreamer_ASIO::~audioStreamer_ASIO()
@@ -305,6 +312,12 @@ audioStreamer_ASIO::~audioStreamer_ASIO()
     }
     delete asioDrivers;
     asioDrivers=0;
+  }
+  unsigned int x;
+  for (x = 0; x < sizeof(m_chnames)/sizeof(m_chnames[0]); x++)
+  {
+    free(m_chnames[x]);
+    m_chnames[x]=0;
   }
 
 }
@@ -473,7 +486,18 @@ int audioStreamer_ASIO::Open(char **dev)
     ASIOChannelInfo c;
     c.channel=i;
     c.isInput=1;
-    if (ASIOGetChannelInfo(&c) == ASE_OK) printf("ASIO Input Channel %d: '%s' \n",i,c.name);
+    if (ASIOGetChannelInfo(&c) == ASE_OK) 
+    {
+      printf("ASIO Input Channel %d: '%s' \n",i,c.name);
+    }
+    else strcpy(c.name,"Unnamed Channel");
+
+    if (i >= inchoffs[0] && i <= inchoffs[1])
+    {
+      int pos=i-inchoffs[0];
+      if (pos >=0 && pos <= 255)
+        m_chnames[pos]=strdup(c.name);
+    }
   }
   for (i = 0; i < myDriverInfo.outputChannels; i ++)
   {
