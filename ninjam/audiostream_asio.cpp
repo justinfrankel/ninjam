@@ -490,7 +490,7 @@ int audioStreamer_ASIO::Open(char **dev)
     {
       printf("ASIO Input Channel %d: '%s' \n",i,c.name);
     }
-    else strcpy(c.name,"Unnamed Channel");
+    else sprintf(c.name,"Channel %d",i);
 
     if (i >= inchoffs[0] && i <= inchoffs[1])
     {
