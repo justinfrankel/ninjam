@@ -34,10 +34,10 @@ class audioStreamer_CoreAudio  : public audioStreamer
 		int Write(char *buf, int len); // returns 0 on success
     const char *GetChannelName(int idx)
 	{
-		//todo: channel names
-		if (idx == 0) return "Left";
-		if (idx == 1) return "Right";
-		return NULL;
+		if (idx < 0 || idx >= m_innch) return NULL;
+		static char buf[128];
+		sprintf(buf,"Channel %d",idx+1);
+		return buf;
 	}
 
 
