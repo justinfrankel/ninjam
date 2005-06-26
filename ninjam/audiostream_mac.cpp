@@ -17,49 +17,44 @@ static int g_srate;
 
 // this is a total hack until I spend the time and make a good multichannel CoreAudio implementation.
 static WDL_HeapBuf spltemp;
-static void onsamples_old(float *buf, int nsamples, int nch, int srate)
+
+// this takes the interleaved samples in, and puts them in their own buffers,
+// and processes, then reinterleaves
+static void onsamples_old(float *inbuf, int innch, float *outbuf, int outnch, int nsamples, int srate)
 {
-  float *inbufs[2]={0,};
-  float *outbufs[2]={0,};
-  if (nch == 1)
+  float **inptrs = (float **)alloca(sizeof(float *)*innch);
+  int sz=nsamples*sizeof(float)*(innch+2);
+  if (spltemp.GetSize() < sz) spltemp.Resize(sz);
+  int x;
+  float *t=(float*)spltemp.Get();
+  for (x = 0; x < innch; x ++) 
   {
-    inbufs[0]=buf; // in place should actually work, amazingly enough.
-    outbufs[0]=buf;
-  }
-  else
-  {
-    if (spltemp.GetSize() < nsamples*2*sizeof(float)*nch) spltemp.Resize(nsamples*2*sizeof(float)*nch);
-    float *ptr=(float*)spltemp.Get();
-    inbufs[0] = ptr; ptr+=nsamples;
-    inbufs[1] = ptr; ptr+=nsamples;
-    outbufs[0] = ptr; ptr+=nsamples;
-    outbufs[1] = ptr; ptr+=nsamples;
-
-    int x;
-    for (x = 0; x < nsamples; x ++)
+    float *s=inbuf+x;
+    inptrs[x]=t;
+    int y=nsamples;
+    while (y--)
     {
-      inbufs[0][x]=buf[x+x];
-      inbufs[1][x]=buf[x+x+1];
+      *t++ = *s;
+      s += innch;
     }
   }
+  float *outptrs[2]={t,t+nsamples};
 
-  audiostream_onsamples(inbufs,nch,outbufs,nch,nsamples,srate);
+  audiostream_onsamples(inptrs,innch,outptrs,outnch,nsamples,srate);
 
-  if (nch != 1)
+  float *p1=outptrs[0];
+  float *p2=outptrs[1];
+  x=nsamples;
+  while (x--)
   {
-    int x;
-    for (x = 0; x < nsamples; x ++)
-    {
-      buf[x+x]=outbufs[0][x];
-      buf[x+x+1]=outbufs[1][x];
-    }
+    *outbuf++=*p1++;
+    if (outnch > 1) *outbuf++=*p2++;
   }
   
 }
 
 static pthread_mutex_t m_mutex;
 static WDL_Queue m_splbuf;
-static int inchtab[2]={0,1};
 static int outchtab[2]={0,1};
 static int inchbuf=0;
 static int outchbuf=0;
@@ -92,17 +87,9 @@ OSStatus caIOproc(AudioDeviceID dev,
 	if (ca_tmpbuf)
 	{
         	int x,c=in_size/(sizeof(float)*in_nch);
-	        float *fin=(float*)in;
-       	 	float *fout=(float*)ca_tmpbuf;
-       	 	for (x = 0; x < c; x ++)
-        	{
-           		*fout++=fin[inchtab[0]];
-           		*fout++=fin[inchtab[1]];
-	          	fin+=in_nch;
-        	}
-        	onsamples_old(ca_tmpbuf,c,in_nch, g_srate);
-		fin=(float *)ca_tmpbuf;
-		fout=(float *)out;
+        	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,out_nch,c,g_srate);
+		float *fin=(float *)ca_tmpbuf;
+		float *fout=(float *)out;
 		for (x = 0; x < c; x ++)
 		{
 			fout[outchtab[0]]=*fin++;
@@ -135,16 +122,8 @@ OSStatus caInproc(AudioDeviceID dev,
         if (!ca_tmpbuf || ca_tmpbuf_size <  needsize) ca_tmpbuf=(float*)realloc(ca_tmpbuf,ca_tmpbuf_size=needsize);
 	if (ca_tmpbuf)
 	{
-        	int x,c=in_size/(sizeof(float)*in_nch);
-	        float *fin=(float*)in;
-       	 	float *fout=(float*)ca_tmpbuf;
-       	 	for (x = 0; x < c; x ++)
-        	{
-           		*fout++=fin[inchtab[0]];
-           		*fout++=fin[inchtab[1]];
-	          	fin+=in_nch;
-        	}
-        	onsamples_old(ca_tmpbuf,c,in_nch,g_srate);
+        	int c=in_size/(sizeof(float)*in_nch);
+        	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,2,c,g_srate);
 
 		pthread_mutex_lock(&m_mutex);
 		
@@ -240,25 +219,7 @@ void parseopts(char *dev, int &driverindex, int &driverindex_out)
     if (*p)
     {
       inchbuf=atoi(p);
-      while (*p && *p != ',' && *p != ':') p++;
-      if (*p == ',')
-      {
-        p++;
-        if (*p)
-        {
-          inchtab[0]=atoi(p);
-          while (*p && *p != ',' && *p != ':') p++;
-        }
-        if (*p == ',')
-        {
-          p++;
-          if (*p)
-          {
-            inchtab[1]=atoi(p);
-            while (*p && *p != ',' && *p != ':') p++;
-          }
-        }
-      }
+      while (*p && *p != ':') p++;
 
       if (*p == ':')
       {
@@ -338,7 +299,7 @@ again:
         if (!m_myDev_i) 
         {
         printf("You need to specify a device index to use!\n");
-    		printf("  format is <driverindex>[,<outdriverindex>][:inbuf,inch1,inch2:outbuf,outch1,outch2]\n");
+    		printf("  format is <driverindex>[,<outdriverindex>][:inbuf:outbuf,outch1,outch2]\n");
         printf("  driverindex and outdriverindex should be used from the device list above.\n");
     		printf("You can also avoid this by using -in <string> on the command line\n");
         printf("Enter driver index string now: ");
@@ -383,8 +344,10 @@ again:
                 int y;
                 for (y = 0; y < (int)buf[x].mNumberBuffers; y++)
 		{
-                   if (buf[x].mBuffers[y].mNumberChannels) printf("    buffer %d: %d channels\n",y,(int)buf[x].mBuffers[y].mNumberChannels);
-		   
+                   if (buf[x].mBuffers[y].mNumberChannels) 
+                      printf("    buffer %d: %d channels\n",y,(int)buf[x].mBuffers[y].mNumberChannels);
+		   if (y == inchbuf && !x && buf[x].mBuffers[y].mNumberChannels)
+			m_innch = buf[x].mBuffers[y].mNumberChannels;
 		}
 		break;
              }
