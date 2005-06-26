@@ -708,16 +708,20 @@ void showmainview(bool action=false)
     g_done++;
   }
 
-  if (g_ui_state == 2 || g_ui_state == 3)
+  if (g_ui_state == 2 || g_ui_state == 3 || g_ui_state == 4)
   {
 	  bkgdset(COLORMAP(2));
 	  attrset(COLORMAP(2));
-    char *p1=(char *)(g_ui_state == 2 ? "RENAME CHANNEL:" : "SELECT SOURCE CHANNEL (0 or 1): ");
-	  mvaddnstr(LINES-2,0,p1,COLS-1);
+    char buf[512];
+    if (g_ui_state == 3)
+      sprintf(buf,"SELECT SOURCE CHANNEL [0..%d]: ",g_audio->m_innch-1);
+    else 
+      sprintf(buf,"RENAME CHANNEL:");
+	  mvaddnstr(LINES-2,0,buf,COLS-1);
 	  bkgdset(COLORMAP(0));
 	  attrset(COLORMAP(0));
 
-    if ((int)strlen(p1) < COLS-2) { addch(' '); addnstr(m_lineinput_str,COLS-2-strlen(p1)); }
+    if ((int)strlen(buf) < COLS-2) { addch(' '); addnstr(m_lineinput_str,COLS-2-strlen(buf)); }
 
     clrtoeol();
   }
@@ -1469,16 +1473,17 @@ int main(int argc, char **argv)
             break;
           }
         }
-        else if (g_ui_state == 2 || g_ui_state == 3)
+        else if (g_ui_state == 2 || g_ui_state == 3 || g_ui_state == 4)
         {
           switch (a)
           {
             case '\r':
               if (m_lineinput_str[0])
               {
-                if (g_ui_state == 2)
+                if (g_ui_state == 4)
                 {
                   g_client->SetLocalChannelInfo(g_ui_locrename_ch,m_lineinput_str,false,0,false,0,false,false);
+                  g_client->NotifyServerOfChannelChange();
                 }
                 else if (g_ui_state == 3)
                 {
@@ -1486,8 +1491,8 @@ int main(int argc, char **argv)
                   if (ch < 0) ch=0;
                   else if (ch > 31) ch=31;
                   g_client->SetLocalChannelInfo(g_ui_locrename_ch,NULL,true,ch,false,0,false,false);
+                  g_client->NotifyServerOfChannelChange();
                 }
-                g_client->NotifyServerOfChannelChange();
               }
               g_ui_state=0;
               showmainview();
@@ -1501,11 +1506,18 @@ int main(int argc, char **argv)
 					  case KEY_BACKSPACE: 
               if (m_lineinput_str[0]) m_lineinput_str[strlen(m_lineinput_str)-1]=0; 
               showmainview();
+              if (g_ui_state == 2) g_ui_state=4;
 					  break;
             default:
-              if (VALIDATE_TEXT_CHAR(a) && (g_ui_state == 2 || (a >= '0' && a <= '9'))) //fucko: 9 once we have > 2ch
+              if (VALIDATE_TEXT_CHAR(a) && (g_ui_state != 3 || (a >= '0' && a <= '9'))) //fucko: 9 once we have > 2ch
 						  { 
 							  int l=strlen(m_lineinput_str); 
+                if (g_ui_state == 2)
+                {
+                  l=0;
+                  g_ui_state=4;
+                }
+
 							  if (l < (int)sizeof(m_lineinput_str)-1) { m_lineinput_str[l]=a; m_lineinput_str[l+1]=0; }
                 showmainview();
 						  } 
