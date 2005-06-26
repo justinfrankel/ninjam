@@ -225,7 +225,7 @@ void jesusonic_processor(float *buf, int len, void *inst)
 }
 
 
-int g_sel_x, g_sel_y;
+int g_sel_x, g_sel_ypos,g_sel_ycat;
 
 #define COLORMAP(x) color_map[x]
 
@@ -322,12 +322,62 @@ void drawstatusbar()
   move(curs_ypos,curs_xpos); 
 }
 
-void showmainview(bool action=false)
+void showmainview(bool action=false, int ymove=0)
 {
   int chat_lines=LINES/4;
   if (chat_lines<4) chat_lines=4;
 
+  int sec1lines=2;
+  int x;
+  for (x=0;x<MAX_LOCAL_CHANNELS;x++)
+  {
+    if (g_client->EnumLocalChannels(x)<0) break;
+    sec1lines++;
+  }
+
+  int sec2lines=0;
+
+  x=0;
+  for (;;)
+  {
+    if (!g_client->GetUserState(x)) break;
+
+    int y=0;
+    for (;;)
+    {
+      if (g_client->EnumUserChannels(x,y) < 0) break;
+      sec2lines++;
+      y++;
+    }
+    x++;
+  }
+
+  // todo: count lines for user list
+  // todo: count users/channels, put at end
+
+  if (ymove < 0)
+  {
+    if (g_sel_ypos-- <= 0)
+    {
+      if (g_sel_ycat == 1) g_sel_ypos=sec1lines-1;
+      else if (g_sel_ycat == 2) g_sel_ypos=sec2lines-1; 
+      else g_sel_ypos=0;
+
+      if (g_sel_ycat>0) g_sel_ycat--;
+    }
+  }
+  else if (ymove > 0)
+  {
+    g_sel_ypos++;
+  }
+
+  if (!ymove && g_sel_ycat == 1 && g_sel_ypos >= sec2lines)
+  {
+    g_sel_ypos=sec2lines-1;
+  }
+
   int selpos=0;
+  int selcat=0;
 	bkgdset(COLORMAP(0));
 	attrset(COLORMAP(0));
 
@@ -341,7 +391,7 @@ void showmainview(bool action=false)
   char linebuf[1024];
   int linemax=LINES-2-chat_lines;
   {
-    if (action && g_sel_y == selpos)
+    if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
     {
       if (g_sel_x == 1 || g_sel_x == 3)
       {
@@ -369,11 +419,10 @@ void showmainview(bool action=false)
 
     highlightoutline(1,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
-                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+                               COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos++ || g_sel_ycat != selcat) ? -1 : g_sel_x);
 //	  mvaddnstr(1,0,linebuf,COLS-1);
   }
   int ypos=2;
-  int x;
   for (x=0;ypos < linemax;x++)
   {
     int a=g_client->EnumLocalChannels(x);
@@ -384,7 +433,7 @@ void showmainview(bool action=false)
     char *name=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
     g_client->GetLocalChannelMonitoring(a,&vol,&pan,&mute,NULL);
 
-    if (action && g_sel_y == selpos)
+    if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
     {
       if (g_sel_x == 0)
       {
@@ -507,11 +556,11 @@ void showmainview(bool action=false)
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
-                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+                               COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos++ || g_sel_ycat != selcat) ? -1 : g_sel_x);
   }
   if (ypos < LINES-3)
   {
-    if (action && g_sel_y == selpos)
+    if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
     {
       int x;
       for (x = 0; x < MAX_LOCAL_CHANNELS; x ++)
@@ -544,9 +593,21 @@ void showmainview(bool action=false)
     {
       highlightoutline(ypos++,"  [new channel]",COLORMAP(0),COLORMAP(0),
                                  COLORMAP(0)|A_BOLD,COLORMAP(0),
-                                 COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+                                 COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos++ || g_sel_ycat != selcat) ? -1 : g_sel_x);
     }
   }
+
+  int wasadv=0;
+  if (g_sel_ycat == selcat && g_sel_ypos >= selpos)
+  {
+    wasadv=1;
+    g_sel_ycat++;
+    g_sel_ypos=0;
+  }
+
+  selpos=0;
+  selcat=1;
+
   if (ypos < LINES-3)
   {
 	  bkgdset(COLORMAP(6));
@@ -591,7 +652,7 @@ void showmainview(bool action=false)
     // show channel info
 
 
-    if (action && g_sel_y == selpos)
+    if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
     {
       if (g_sel_x == 0)
       {
@@ -617,15 +678,32 @@ void showmainview(bool action=false)
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
-                               COLORMAP(5),COLORMAP(5),g_sel_y != selpos++ ? -1 : g_sel_x);
+                               COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos++ || g_sel_ycat != selcat) ? -1 : g_sel_x);
 
     x++;
 
     
   }
 
+  if (!selpos && ypos < linemax)
+  {
+    highlightoutline(ypos++,"[no remote users]",COLORMAP(0),COLORMAP(0),
+                               COLORMAP(0)|A_BOLD,COLORMAP(0),
+                               COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos++ || g_sel_ycat != selcat) ? -1 : g_sel_x);
+  }
+
   curs_ypos=LINES-1;
   curs_xpos=0;
+
+  if (!selpos && wasadv) g_sel_ycat++;
+  if (selpos > 0 && g_sel_ycat == selcat && g_sel_ypos >= selpos)
+  {
+    g_sel_ycat++;
+    g_sel_ypos=0;
+  }
+
+  selcat=2;
+  selpos=0;
 
   g_ui_inchat=0;
   if (chat_lines>=4)
@@ -661,7 +739,7 @@ void showmainview(bool action=false)
 
     }
 
-    if (g_sel_y == selpos++)
+    if (g_sel_ycat == selcat && g_sel_ypos == selpos++)
     {
       g_sel_x=0;
       g_ui_inchat=1;
@@ -682,7 +760,7 @@ void showmainview(bool action=false)
   }
 
 
-  if (g_sel_y > selpos) g_sel_y=selpos;
+  if (g_sel_ycat == selcat && g_sel_ypos > selpos) g_sel_ypos=selpos;
 
   if (g_ui_state==1)
   {
@@ -699,11 +777,11 @@ void showmainview(bool action=false)
   ypos=LINES-1;
   sprintf(linebuf,"[quit ninjam] : %s : %.1fBPM %dBPI : %dHz %dch->%dch %dbps%s",
     g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_innch,g_audio->m_outnch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
-  highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),g_sel_y != selpos ? -1 : g_sel_x);
+  highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos || g_sel_ycat != selcat) ? -1 : g_sel_x);
   attrset(COLORMAP(1));
   bkgdset(COLORMAP(1));
   clrtoeol();
-  if (action && g_sel_y == selpos)
+  if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
   {
     g_done++;
   }
@@ -1288,17 +1366,10 @@ int main(int argc, char **argv)
             }
           break;
           case KEY_UP:
-            if (g_sel_y > 0) 
-            {
-              g_sel_y--;
-              showmainview();
-            }
+            showmainview(false,-1);
           break;
           case KEY_DOWN:
-            {
-              g_sel_y++;
-              showmainview();
-            }
+            showmainview(false,1);
           break;
           case '\r': case ' ':
             if (!g_ui_inchat)
