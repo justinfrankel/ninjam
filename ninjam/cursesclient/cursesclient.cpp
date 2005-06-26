@@ -351,9 +351,7 @@ void showmainview(bool action=false, int ymove=0)
     }
     x++;
   }
-
-  // todo: count lines for user list
-  // todo: count users/channels, put at end
+  if (!sec2lines) sec2lines=1;
 
   if (ymove < 0)
   {
