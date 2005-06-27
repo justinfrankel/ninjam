@@ -21,6 +21,7 @@
 #include "netmsg.h"
 
 
+class I_NJEncoder;
 class RemoteDownload;
 class RemoteUser;
 class Local_Channel;
@@ -99,8 +100,8 @@ public:
 
   void SetLogFile(char *name=NULL);
 
+  void SetOggOutFile(FILE *fp, int srate, int nch, int bitrate=128);
   WaveWriter *waveWrite;
-  //FILE *oggWrite;
   BufferQueue *m_wavebq;
 
 
@@ -139,6 +140,8 @@ protected:
   WDL_String m_workdir;
   int m_status;
   FILE *m_logFile;
+  FILE *m_oggWrite;
+  I_NJEncoder *m_oggComp;
 
   WDL_String m_user, m_pass, m_host;
 

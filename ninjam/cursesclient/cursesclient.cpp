@@ -841,7 +841,8 @@ void usage(int noexit=0)
     "  -sessiondir <path>\n"
     "  -debuglevel [0..2]\n"
     "  -nosavelocal | -savelocalwavs\n"
-    "  -nowritewav\n"
+    "  -writewav\n"
+    "  -writeogg <bitrate, i.e. 128 or 160>\n"
     "  -nowritelog\n");
 
   if (!noexit) exit(1);
@@ -973,7 +974,7 @@ int main(int argc, char **argv)
   char *parmuser=NULL;
   char *parmpass=NULL;
   WDL_String sessiondir;
-  int nolog=0,nowav=0;
+  int nolog=0,nowav=1,writeogg=0;
 
   printf("Ninjam v0.01a curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
   char *audioconfigstr=NULL;
@@ -1035,9 +1036,14 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         parmpass=argv[p];
       }
-      else if (!stricmp(argv[p],"-nowritewav"))
+      else if (!stricmp(argv[p],"-writewav"))
       {
-        nowav++;
+        nowav=0;
+      }
+      else if (!stricmp(argv[p],"-writeogg"))
+      {
+        if (++p >= argc) usage();
+        writeogg=atoi(argv[p]);
       }
       else if (!stricmp(argv[p],"-nowritelog"))
       {
@@ -1214,6 +1220,13 @@ int main(int argc, char **argv)
     wf.Append("output.wav");
     g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
   }
+  if (writeogg)
+  {
+    WDL_String wf;
+    wf.Set(sessiondir.Get());
+    wf.Append("output.ogg");
+    g_client->SetOggOutFile(fopen(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,writeogg);
+  }
   if (!nolog)
   {
     WDL_String lf;
@@ -1221,7 +1234,7 @@ int main(int argc, char **argv)
     lf.Append("clipsort.log");
     g_client->SetLogFile(lf.Get());
   }
-
+ 
   printf("Connecting to %s...\n",hostname);
   g_client->Connect(hostname,parmuser,parmpass);
   g_audio_enable=1;

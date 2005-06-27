@@ -319,6 +319,8 @@ NJClient::NJClient()
   ChatMessage_User32=0;
 
   waveWrite=0;
+  m_oggWrite=0;
+  m_oggComp=0;
   m_logFile=0;
 
   m_issoloactive=0;
@@ -385,11 +387,13 @@ NJClient::~NJClient()
   m_netcon=0;
 
   delete waveWrite;
+  SetOggOutFile(NULL,0,0);
 
   if (m_logFile)
   {
     writeLog("end\n");
     fclose(m_logFile);
+    m_logFile=0;
   }
 
   int x;
@@ -546,11 +550,21 @@ int NJClient::Run() // nonzero if sleep ok
   {
     if (p)
     {
+      float *f=(float*)p->Get();
+      int hl=p->GetSize()/(2*sizeof(float));
+      float *outbuf[2]={f,f+hl};
+      if (m_oggWrite&&m_oggComp)
+      {
+        m_oggComp->Encode(f,hl,1,hl);
+        if (m_oggComp->outqueue.Available())
+        {
+          fwrite((char *)m_oggComp->outqueue.Get(),1,m_oggComp->outqueue.Available(),m_oggWrite);
+          m_oggComp->outqueue.Advance(m_oggComp->outqueue.Available());
+          m_oggComp->outqueue.Compact();
+        }
+      }
       if (waveWrite)
       {
-        float *f=(float*)p->Get();
-        int hl=p->GetSize()/(2*sizeof(float));
-        float *outbuf[2]={f,f+hl};
         waveWrite->WriteFloatsNI(outbuf,0,hl);
       }
       m_wavebq->DisposeBlock(p);
@@ -864,7 +878,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = new I_NJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate);
+          lc->m_enc = new I_NJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate,WDL_RNG_int32());
         }
 
         if (lc->m_need_header)
@@ -916,7 +930,7 @@ int NJClient::Run() // nonzero if sleep ok
           {
             lc->m_wavewritefile->WriteFloats((float*)p->Get(),p->GetSize()/sizeof(float));
           }
-          lc->m_enc->Encode((float*)p->Get(),p->GetSize()/sizeof(float),1);
+          lc->m_enc->Encode((float*)p->Get(),p->GetSize()/sizeof(float));
 
           int s;
           while ((s=lc->m_enc->outqueue.Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
@@ -1214,7 +1228,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
   // write out wave if necessary
 
-  if (waveWrite)
+  if (waveWrite||(m_oggWrite&&m_oggComp))
   {
     m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
   }
@@ -1908,3 +1922,28 @@ Local_Channel::~Local_Channel()
   m_wavewritefile=0;
 
 }
+
+void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
+{
+  if (m_oggWrite)
+  {
+    if (m_oggComp)
+    {
+      m_oggComp->Encode(NULL,0);
+      if (m_oggComp->outqueue.Available())
+        fwrite((char *)m_oggComp->outqueue.Get(),1,m_oggComp->outqueue.Available(),m_oggWrite);
+    }
+    fclose(m_oggWrite);
+    m_oggWrite=0;
+  }
+  delete m_oggComp;
+  m_oggComp=0;
+
+  if (fp)
+  {
+    //fucko
+    m_oggComp=new I_NJEncoder(srate,nch,bitrate,WDL_RNG_int32());
+    m_oggWrite=fp;
+  }
+}
+
