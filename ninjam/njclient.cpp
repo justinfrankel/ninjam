@@ -107,16 +107,43 @@ private:
 
 
 
+class BufferQueue
+{
+  public:
+    BufferQueue() { }
+    ~BufferQueue() 
+    { 
+      int x;
+      for (x = 0; x < m_emptybufs.GetSize(); x ++)
+        delete m_emptybufs.Get(x);
+      m_emptybufs.Empty();
+      int l=m_samplequeue.Available()/4;
+      WDL_HeapBuf **bufs=(WDL_HeapBuf **)m_samplequeue.Get();
+      if (bufs) while (l--)
+      {
+        if ((int)*bufs != 0 && (int)*bufs != -1) delete *bufs;
+        bufs++;
+      }
+      m_samplequeue.Advance(m_samplequeue.Available());
+      m_samplequeue.Compact();
+    }
+
+    void AddBlock(float *samples, int len);
+    int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
+    void DisposeBlock(WDL_HeapBuf *b);
+
+  private:
+    WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
+    WDL_PtrList<WDL_HeapBuf> m_emptybufs;
+    WDL_Mutex m_cs;
+};
+
 
 class Local_Channel
 {
 public:
   Local_Channel();
   ~Local_Channel();
-
-  void AddBlock(float *samples, int len);
-  int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
-  void DisposeBlock(WDL_HeapBuf *b);
 
   int channel_idx;
 
@@ -141,11 +168,10 @@ public:
   void (*cbf)(float *, int ns, void *);
   void *cbf_inst;
 
+  BufferQueue m_bq;
+
   double decode_peak_vol;
-  WDL_Mutex m_cs;
   bool m_need_header;
-  WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
-  WDL_PtrList<WDL_HeapBuf> m_emptybufs;
   I_NJEncoder  *m_enc;
   int m_enc_bitrate_used;
   Net_Message *m_enc_header_needsend;
@@ -798,7 +824,7 @@ int NJClient::Run() // nonzero if sleep ok
   {
     Local_Channel *lc=m_locchannels.Get(u);
     WDL_HeapBuf *p=0;
-    while (!lc->GetBlock(&p))
+    while (!lc->m_bq.GetBlock(&p))
     {
       s=0;
       if ((int)p == -1)
@@ -905,7 +931,7 @@ int NJClient::Run() // nonzero if sleep ok
           }
           lc->m_enc->outqueue.Compact();
         }
-        lc->DisposeBlock(p);
+        lc->m_bq.DisposeBlock(p);
         p=0;
       }
       else
@@ -1069,7 +1095,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
     if (lc->bcast_active) 
     {
-      lc->AddBlock(src,len);
+      lc->m_bq.AddBlock(src,len);
     }
 
 
@@ -1348,7 +1374,7 @@ void NJClient::on_new_interval()
 
     if (lc->bcast_active) 
     {
-      lc->AddBlock(NULL,0);
+      lc->m_bq.AddBlock(NULL,0);
     }
 
     int wasact=lc->bcast_active;
@@ -1357,7 +1383,7 @@ void NJClient::on_new_interval()
 
     if (wasact && !lc->bcast_active)
     {
-      lc->AddBlock(NULL,-1);
+      lc->m_bq.AddBlock(NULL,-1);
     }
 
   }
@@ -1793,7 +1819,7 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
 }
 
 
-int Local_Channel::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none avail
+int BufferQueue::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none avail
 {
   m_cs.Enter();
   if (m_samplequeue.Available())
@@ -1808,7 +1834,7 @@ int Local_Channel::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none a
   return 1;
 }
 
-void Local_Channel::DisposeBlock(WDL_HeapBuf *b)
+void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 {
   m_cs.Enter();
   if (b && (int)b != -1) m_emptybufs.Add(b);
@@ -1816,7 +1842,7 @@ void Local_Channel::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void Local_Channel::AddBlock(float *samples, int len)
+void BufferQueue::AddBlock(float *samples, int len)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
@@ -1847,20 +1873,6 @@ Local_Channel::~Local_Channel()
   m_enc=0;
   delete m_enc_header_needsend;
   m_enc_header_needsend=0;
-
-  int x;
-  for (x = 0; x < m_emptybufs.GetSize(); x ++)
-    delete m_emptybufs.Get(x);
-  m_emptybufs.Empty();
-  int l=m_samplequeue.Available()/4;
-  WDL_HeapBuf **bufs=(WDL_HeapBuf **)m_samplequeue.Get();
-  if (bufs) while (l--)
-  {
-    if ((int)*bufs != 0 && (int)*bufs != -1) delete *bufs;
-    bufs++;
-  }
-  m_samplequeue.Advance(m_samplequeue.Available());
-  m_samplequeue.Compact();
 
   delete m_wavewritefile;
   m_wavewritefile=0;
