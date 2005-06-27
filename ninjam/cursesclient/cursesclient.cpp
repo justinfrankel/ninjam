@@ -25,6 +25,7 @@
 #endif
 
 #include "../njclient.h"
+#include "../../WDL/dirscan.h"
 
 #ifdef _WIN32
 #include "../../jesusonic/jesusonic_dll.h"
@@ -838,10 +839,12 @@ void usage(int noexit=0)
     "  -audiostr dev[,<outdev>][:inbuf:outbuf,outch1,outch2]\n"
 #endif
 
-    "  -sessiondir <path>\n"
-    "  -nosavelocal | -savelocalwavs\n"
-    "  -writewav\n"
-    "  -writeogg <bitrate, i.e. 128 or 160>\n");
+    "  -sessiondir <path>   -- sets the session directory (default: auto)\n"
+    "  -savelocalwavs       -- save full quality copies of recorded files\n"
+    "  -nosavesourcefiles   -- don't save source files for remixing\n"
+
+    "  -writewav            -- writes a .wav of the jam in the session directory\n"
+    "  -writeogg <bitrate>  -- writes a .ogg of the jam (bitrate 64-256)..\n");
 
   if (!noexit) exit(1);
 }
@@ -972,7 +975,7 @@ int main(int argc, char **argv)
   char *parmuser=NULL;
   char *parmpass=NULL;
   WDL_String sessiondir;
-  int nolog=0,nowav=1,writeogg=0;
+  int nolog=0,nowav=1,writeogg=0,g_nssf=0;
 
   printf("Ninjam v0.01a curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
   char *audioconfigstr=NULL;
@@ -1047,6 +1050,10 @@ int main(int argc, char **argv)
       {
         nolog++;
       }
+      else if (!stricmp(argv[p],"-nosavesourcefiles"))
+      {
+        g_nssf++;
+      }
 #ifdef _WIN32
       else if (!stricmp(argv[p],"-jesusonic"))
       {
@@ -1063,6 +1070,11 @@ int main(int argc, char **argv)
     }
   }
 
+  if (g_nssf)
+  {
+    g_client->config_savelocalaudio=0;
+    nolog++;
+  }
 
   char passbuf[512]="";
   char userbuf[512]="";
@@ -1737,6 +1749,40 @@ time(NULL) >= nextupd
   JesusonicAPI=0;
 
 #endif
+
+  if (g_nssf)
+  {
+    int n;
+    for (n = 0; n < 16; n ++)
+    {
+      WDL_String s(sessiondir.Get());
+      char buf[32];
+      sprintf(buf,"%x",n);
+      s.Append(buf);
+
+      {
+        WDL_DirScan ds;
+        if (!ds.First(s.Get()))
+        {
+          do
+          {
+            if (ds.GetCurrentFN()[0] != '.')
+            {
+              WDL_String t;
+              ds.GetCurrentFullFN(&t);
+              unlink(t.Get());          
+            }
+          }
+          while (!ds.Next());
+        }
+      }
+#ifdef _WIN32
+      RemoveDirectory(s.Get());
+#else
+      rmdir(s.Get());
+#endif
+    }
+  }
 
   JNL::close_socketlib();
   return 0;
