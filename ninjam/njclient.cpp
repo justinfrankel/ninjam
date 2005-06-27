@@ -1883,6 +1883,12 @@ void BufferQueue::AddBlock(float *samples, int len, float *samples2)
   if (len>0)
   {
     m_cs.Enter();
+
+    if (m_samplequeue.Available() > 512)
+    {
+      m_cs.Leave();
+      return;
+    }
     int tmp;
     if ((tmp=m_emptybufs.GetSize()))
     {

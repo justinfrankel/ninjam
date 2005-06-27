@@ -839,11 +839,9 @@ void usage(int noexit=0)
 #endif
 
     "  -sessiondir <path>\n"
-    "  -debuglevel [0..2]\n"
     "  -nosavelocal | -savelocalwavs\n"
     "  -writewav\n"
-    "  -writeogg <bitrate, i.e. 128 or 160>\n"
-    "  -nowritelog\n");
+    "  -writeogg <bitrate, i.e. 128 or 160>\n");
 
   if (!noexit) exit(1);
 }
