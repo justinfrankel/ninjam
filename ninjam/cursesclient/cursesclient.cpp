@@ -975,6 +975,7 @@ int main(int argc, char **argv)
   char *parmuser=NULL;
   char *parmpass=NULL;
   WDL_String sessiondir;
+  int sessionspec=0;
   int nolog=0,nowav=1,writeogg=0,g_nssf=0;
 
   printf("Ninjam v0.01a curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
@@ -1065,6 +1066,7 @@ int main(int argc, char **argv)
       {
         if (++p >= argc) usage();
         sessiondir.Set(argv[p]);
+        sessionspec=1;
       }
       else usage();
     }
@@ -1782,6 +1784,15 @@ time(NULL) >= nextupd
       rmdir(s.Get());
 #endif
     }
+  }
+  if (!sessionspec)
+  {
+#ifdef _WIN32
+      RemoveDirectory(sessiondir.Get());
+#else
+      rmdir(sessiondir.Get());
+#endif
+   
   }
 
   JNL::close_socketlib();
