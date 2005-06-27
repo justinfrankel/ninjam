@@ -25,6 +25,7 @@ class RemoteDownload;
 class RemoteUser;
 class Local_Channel;
 class DecodeState;
+class BufferQueue;
 
 class NJClient
 {
@@ -99,6 +100,9 @@ public:
   void SetLogFile(char *name=NULL);
 
   WaveWriter *waveWrite;
+  //FILE *oggWrite;
+  BufferQueue *m_wavebq;
+
 
   int LicenseAgreement_User32;
   int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts

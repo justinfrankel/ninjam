@@ -128,7 +128,7 @@ class BufferQueue
       m_samplequeue.Compact();
     }
 
-    void AddBlock(float *samples, int len);
+    void AddBlock(float *samples, int len, float *samples2=NULL);
     int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
     void DisposeBlock(WDL_HeapBuf *b);
 
@@ -283,6 +283,7 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
+  m_wavebq=new BufferQueue;
   m_userinfochange=0;
   m_loopcnt=0;
   m_srate=48000;
@@ -398,6 +399,8 @@ NJClient::~NJClient()
   m_downloads.Empty();
   for (x = 0; x < m_locchannels.GetSize(); x ++) delete m_locchannels.Get(x);
   m_locchannels.Empty();
+
+  delete m_wavebq;
 }
 
 
@@ -536,6 +539,24 @@ int NJClient::GetStatus()
 int NJClient::Run() // nonzero if sleep ok
 {
   if (!m_netcon) return 1;
+
+
+  WDL_HeapBuf *p=0;
+  while (!m_wavebq->GetBlock(&p))
+  {
+    if (p)
+    {
+      if (waveWrite)
+      {
+        float *f=(float*)p->Get();
+        int hl=p->GetSize()/(2*sizeof(float));
+        float *outbuf[2]={f,f+hl};
+        waveWrite->WriteFloatsNI(outbuf,0,hl);
+      }
+      m_wavebq->DisposeBlock(p);
+    }
+  }
+//    
 
   int s=0;
   Net_Message *msg=m_netcon->Run(&s);
@@ -1195,7 +1216,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
   if (waveWrite)
   {
-    waveWrite->WriteFloatsNI(outbuf,offset,len);
+    m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
   }
 
 
@@ -1842,7 +1863,7 @@ void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void BufferQueue::AddBlock(float *samples, int len)
+void BufferQueue::AddBlock(float *samples, int len, float *samples2)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
@@ -1857,8 +1878,17 @@ void BufferQueue::AddBlock(float *samples, int len)
     m_cs.Leave();
     if (!mybuf) mybuf=new WDL_HeapBuf;
 
-    mybuf->Resize(len*sizeof(float));
+    int uselen=len*sizeof(float);
+    if (samples2)
+    {
+      uselen+=uselen;
+    }
+
+    mybuf->Resize(uselen);
+
     memcpy(mybuf->Get(),samples,len*sizeof(float));
+    if (samples2)
+      memcpy((float*)mybuf->Get()+len,samples2,len*sizeof(float));
   }
   else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 
