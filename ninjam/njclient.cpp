@@ -1121,10 +1121,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       // processor
       if (lc->cbf)
       {
-        if ((!m_issoloactive && !lc->muted) || lc->solo)
-        {
-          lc->cbf(src,len,lc->cbf_inst);
-        }
+        lc->cbf(src,len,lc->cbf_inst);
       }
     }
 
