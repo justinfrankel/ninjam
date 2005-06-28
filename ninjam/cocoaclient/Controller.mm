@@ -91,8 +91,15 @@ void mkvolpanstr(char *str, double vol, double pan)
   }  
   
   [self readMasterConfigFromFile];
-  // todo: update sliders with their values from g_client
   
+  [mastermute setIntValue:g_client->config_mastermute];
+  [metromute setIntValue:g_client->config_metronome_mute];
+  [mastervol setFloatValue:VAL2DB(g_client->config_mastervolume)];
+  [masterpan setFloatValue:(g_client->config_masterpan)];
+  [metrovol setFloatValue:VAL2DB(g_client->config_metronome)];
+  [metropan setFloatValue:(g_client->config_metronome_pan)];
+  
+      
   [self updateMasterIndicators];
   
 }

@@ -13,6 +13,12 @@
     IBOutlet NSLevelIndicator *mastervumeter;
     IBOutlet NSTextField *metrovoldisp;
     IBOutlet NSTextField *status;
+    IBOutlet NSButton *mastermute;
+    IBOutlet NSButton *metromute;
+    IBOutlet NSSlider *mastervol;
+    IBOutlet NSSlider *masterpan;
+    IBOutlet NSSlider *metrovol;
+    IBOutlet NSSlider *metropan;
     
     IBOutlet NSMenuItem *menuconnect;
     IBOutlet NSMenuItem *menudisconnect;

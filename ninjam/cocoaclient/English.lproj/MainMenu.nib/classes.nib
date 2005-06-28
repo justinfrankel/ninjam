@@ -31,12 +31,18 @@
                 "cdlg_passlabel" = NSTextField; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
+                mastermute = NSButton; 
+                masterpan = NSSlider; 
+                mastervol = NSSlider; 
                 mastervoldisp = NSTextField; 
                 mastervudisp = NSTextField; 
                 mastervumeter = NSLevelIndicator; 
                 menuacfg = NSMenuItem; 
                 menuconnect = NSMenuItem; 
                 menudisconnect = NSMenuItem; 
+                metromute = NSButton; 
+                metropan = NSSlider; 
+                metrovol = NSSlider; 
                 metrovoldisp = NSTextField; 
                 status = NSTextField; 
             }; 
