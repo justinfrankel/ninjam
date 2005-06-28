@@ -1,0 +1,50 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {
+                "adlg_insel" = id; 
+                "adlg_onclose" = id; 
+                "adlg_outsel" = id; 
+                "cdlg_anon" = id; 
+                "cdlg_cancel" = id; 
+                "cdlg_ok" = id; 
+                mastermute = id; 
+                masterpan = id; 
+                mastervol = id; 
+                metromute = id; 
+                metropan = id; 
+                metrovol = id; 
+                onaudiocfg = id; 
+                onconnect = id; 
+                ondisconnect = id; 
+                tick = id; 
+            }; 
+            CLASS = Controller; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                adlg = NSPanel; 
+                "adlg_in" = NSPopUpButton; 
+                "adlg_out" = NSPopUpButton; 
+                cdlg = NSPanel; 
+                "cdlg_anon" = NSButton; 
+                "cdlg_pass" = NSTextField; 
+                "cdlg_passlabel" = NSTextField; 
+                "cdlg_srv" = NSTextField; 
+                "cdlg_user" = NSTextField; 
+                mastervoldisp = NSTextField; 
+                mastervudisp = NSTextField; 
+                mastervumeter = NSLevelIndicator; 
+                menuacfg = NSMenuItem; 
+                menuconnect = NSMenuItem; 
+                menudisconnect = NSMenuItem; 
+                metrovoldisp = NSTextField; 
+                status = NSTextField; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
+        {CLASS = NSLevelIndicator; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+    ); 
+    IBVersion = 1; 
+}
