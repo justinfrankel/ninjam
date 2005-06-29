@@ -505,6 +505,8 @@ void NJClient::Disconnect()
   int x;
   for (x=0;x<m_remoteusers.GetSize(); x++) delete m_remoteusers.Get(x);
   m_remoteusers.Empty();
+  if (x) m_userinfochange=1; // if we removed users, notify parent
+
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
   m_downloads.Empty();
 
