@@ -51,6 +51,7 @@ void mkvolpanstr(char *str, double vol, double pan)
 {  
   [NSApp setDelegate:self];
   g_client = new NJClient;
+  g_client->LicenseAgreementCallback=licensecallback;
 
   AudioDeviceID idin,idout;
  
@@ -90,7 +91,17 @@ void mkvolpanstr(char *str, double vol, double pan)
     [cdlg_passlabel setHidden:TRUE];  
   }  
   
-  [self readMasterConfigFromFile];
+  // for now just always have one channel, heh
+  g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
+  g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false,false,false);
+
+
+  g_client->config_mastervolume=[[NSUserDefaults standardUserDefaults] floatForKey:@"mastervol"];
+  g_client->config_masterpan=[[NSUserDefaults standardUserDefaults] floatForKey:@"masterpan"];
+  g_client->config_mastermute=[[NSUserDefaults standardUserDefaults] integerForKey:@"mastermute"];
+  g_client->config_metronome=[[NSUserDefaults standardUserDefaults] floatForKey:@"metrovol"];
+  g_client->config_metronome_pan=[[NSUserDefaults standardUserDefaults] floatForKey:@"metropan"];
+  g_client->config_metronome_mute=[[NSUserDefaults standardUserDefaults] integerForKey:@"metromute"];
   
   [mastermute setIntValue:g_client->config_mastermute];
   [metromute setIntValue:g_client->config_metronome_mute];
@@ -108,7 +119,6 @@ void mkvolpanstr(char *str, double vol, double pan)
 {
   if (sender == menudisconnect) return !!g_audio_enable;
   if (sender == menuconnect) return !g_audio_enable;
-  if (sender == menuacfg) return !g_audio_enable;
   return TRUE;
 }
 
@@ -120,7 +130,6 @@ void mkvolpanstr(char *str, double vol, double pan)
 
   g_audio_enable=0;
   delete g_client;
-
   g_client=0;
 }
 
@@ -168,10 +177,6 @@ if (ns != m_laststatus)
   myAudio=0;  
 
   g_audio_enable=0;
-  delete g_client;
-  
-  g_client = new NJClient;
-  [self readMasterConfigFromFile];
   }  
 }
 
@@ -241,12 +246,7 @@ if (ns != m_laststatus)
   delete myAudio;
   myAudio=0;  
 
-  g_audio_enable=0;
-  delete g_client;
-  g_client = new NJClient;
-  [self readMasterConfigFromFile];
-  
-  g_client->LicenseAgreementCallback=licensecallback;
+  g_audio_enable=0;  
 
  if ([NSApp runModalForWindow:(NSWindow *)cdlg])
  {
@@ -310,10 +310,7 @@ if (ns != m_laststatus)
   myAudio=0;  
 
   g_audio_enable=0;
-  delete g_client;
   
-  g_client = new NJClient;
-  [self readMasterConfigFromFile];
   [status setStringValue:@"Status: Disconnected"];
     
 }
@@ -343,21 +340,6 @@ if (ns != m_laststatus)
   [cdlg_passlabel setHidden:a];
 }
 
-- (void)readMasterConfigFromFile
-{
-  // for now just always have one channel, heh
-  g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
-  g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false,false,false);
-
-
-  g_client->config_mastervolume=[[NSUserDefaults standardUserDefaults] floatForKey:@"mastervol"];
-  g_client->config_masterpan=[[NSUserDefaults standardUserDefaults] floatForKey:@"masterpan"];
-  g_client->config_mastermute=[[NSUserDefaults standardUserDefaults] integerForKey:@"mastermute"];
-  g_client->config_metronome=[[NSUserDefaults standardUserDefaults] floatForKey:@"metrovol"];
-  g_client->config_metronome_pan=[[NSUserDefaults standardUserDefaults] floatForKey:@"metropan"];
-  g_client->config_metronome_mute=[[NSUserDefaults standardUserDefaults] integerForKey:@"metromute"];
-
-}
 
 - (IBAction)adlg_onclose:(id)sender
 {

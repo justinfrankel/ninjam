@@ -61,5 +61,4 @@
 - (IBAction)adlg_insel:(NSPopUpButton *)sender;
 - (IBAction)adlg_outsel:(NSPopUpButton *)sender;
 - (void)updateMasterIndicators;
-- (void)readMasterConfigFromFile;
 @end
