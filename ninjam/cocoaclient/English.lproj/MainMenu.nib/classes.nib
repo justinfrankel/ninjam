@@ -3,6 +3,7 @@
         {
             ACTIONS = {
                 "adlg_insel" = id; 
+                "adlg_oncancel" = id; 
                 "adlg_onclose" = id; 
                 "adlg_outsel" = id; 
                 "cdlg_anon" = id; 

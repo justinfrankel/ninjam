@@ -58,6 +58,7 @@
 - (IBAction)cdlg_cancel:(id)sender;
 - (IBAction)cdlg_anon:(NSButton *)sender;
 - (IBAction)adlg_onclose:(id)sender;
+- (IBAction)adlg_oncancel:(id)sender;
 - (IBAction)adlg_insel:(NSPopUpButton *)sender;
 - (IBAction)adlg_outsel:(NSPopUpButton *)sender;
 - (void)updateMasterIndicators;

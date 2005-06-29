@@ -340,6 +340,11 @@ if (ns != m_laststatus)
   [cdlg_passlabel setHidden:a];
 }
 
+- (IBAction)adlg_oncancel:(id)sender
+{
+  [NSApp stopModal];
+  [adlg close];
+}
 
 - (IBAction)adlg_onclose:(id)sender
 {
