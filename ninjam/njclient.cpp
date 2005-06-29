@@ -495,6 +495,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
 void NJClient::Disconnect()
 {
+  m_errstr.Set("");
   m_host.Set("");
   m_user.Set("");
   m_pass.Set("");
@@ -512,12 +513,7 @@ void NJClient::Disconnect()
 
 void NJClient::Connect(char *host, char *user, char *pass)
 {
-  m_errstr.Set("");
-  m_host.Set(host);
-  m_user.Set(user);
-  m_pass.Set(pass);
-
-  delete m_netcon;
+  Disconnect();
 
   WDL_String tmp(m_host.Get());
   int port=NJ_PORT;
