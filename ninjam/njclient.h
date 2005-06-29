@@ -127,6 +127,8 @@ public:
 protected:
   double output_peaklevel;
 
+  void _reinit();
+
   void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
 
   void updateBPMinfo(int bpm, int bpi);
