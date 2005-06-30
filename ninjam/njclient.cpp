@@ -517,6 +517,10 @@ void NJClient::Connect(char *host, char *user, char *pass)
 {
   Disconnect();
 
+  m_host.Set(host);
+  m_user.Set(user);
+  m_pass.Set(pass);
+
   WDL_String tmp(m_host.Get());
   int port=NJ_PORT;
   char *p=strstr(tmp.Get(),":");
