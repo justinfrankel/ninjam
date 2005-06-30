@@ -4,9 +4,9 @@
 #else
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
 #endif
+#include <signal.h>
 #include <stdarg.h>
 
 #include "../../WDL/jnetlib/jnetlib.h"
@@ -369,7 +369,6 @@ static int ReadConfig(char *configfile)
 int g_reloadconfig;
 int g_done;
 
-#ifndef _WIN32
 
 void sighandler(int sig)
 {
@@ -377,12 +376,13 @@ void sighandler(int sig)
   {
     g_done=1;
   }
+#ifndef _WIN32
   if (sig == SIGHUP)
   {
     g_reloadconfig=1;
   }
-}
 #endif
+}
 
 void enforceACL()
 {
@@ -492,8 +492,8 @@ int main(int argc, char **argv)
 
   signal(SIGPIPE,sighandler);
   signal(SIGHUP,sighandler);
-  signal(SIGINT,sighandler);
 #endif
+  signal(SIGINT,sighandler);
 
 
   if (g_logfilename && *g_logfilename)
@@ -646,8 +646,9 @@ int main(int argc, char **argv)
         }
         Sleep(1);
 #else
-	struct timespec ts={0,1000*1000};
-	nanosleep(&ts,NULL);
+	      struct timespec ts={0,1000*1000};
+	      nanosleep(&ts,NULL);
+#endif
 
     if (g_reloadconfig && (strcmp(argv[1],"-") && !ReadConfig(argv[1])))
     {
@@ -655,7 +656,6 @@ int main(int argc, char **argv)
 
       onConfigChange();
     }
-#endif
   
       }
     }
