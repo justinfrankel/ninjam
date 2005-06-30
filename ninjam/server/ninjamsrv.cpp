@@ -31,6 +31,7 @@ void onConfigChange();
 void directory_onchange();
 void directory_run();
 void base64encode(const unsigned char *in, char *out);
+void logText(char *s, ...);
 
 class UserPassEntry
 {
@@ -89,7 +90,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
 {
   if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
-    printf("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
+    logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     if (!g_config_allowanonymous) return 0;
     *isanon=username + (username[9] == ':' ? 10:9);
     *privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
@@ -97,7 +98,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
   }
 
   int x;
-  printf("got login request for '%s'\n",username);
+  logText("got login request for '%s'\n",username);
   for (x = 0; x < g_userlist.GetSize(); x ++)
   {
     if (!strcmp(username,g_userlist.Get(x)->name.Get()))
@@ -268,10 +269,12 @@ static int ReadConfig(char *configfile)
   bool comment_state=0;
   int linecnt=0;
   WDL_String linebuild;
-  FILE *fp=strcmp(configfile,"-")?fopen(configfile,"rt"):stdin;
+  if (g_logfp) logText("[config] reloading configuration file\n");
+  FILE *fp=strcmp(configfile,"-")?fopen(configfile,"rt"):stdin; 
   if (!fp)
   {
     printf("[config] error opening configfile '%s'\n",configfile);
+    if (g_logfp) logText("[config] error opening config file (console request)\n");
     return -1;
   }
 
@@ -317,8 +320,16 @@ static int ReadConfig(char *configfile)
 
     if (res)
     {
-      if (res==-2) printf("[config] warning: unterminated string parsing line %d of %s\n",linecnt,configfile);
-      else printf("[config] warning: error parsing line %d of %s\n",linecnt,configfile);
+      if (res==-2) 
+      {
+        if (g_logfp) logText("[config] warning: unterminated string parsing line %d of %s\n",linecnt,configfile);
+        printf("[config] warning: unterminated string parsing line %d of %s\n",linecnt,configfile);
+      }
+      else 
+      {
+        if (g_logfp) logText("[config] warning: error parsing line %d of %s\n",linecnt,configfile);
+        printf("[config] warning: error parsing line %d of %s\n",linecnt,configfile);
+      }
     }
     else
     {
@@ -330,16 +341,26 @@ static int ReadConfig(char *configfile)
         if (err)
         {
           if (err == -1)
+          {
+            if (g_logfp) logText("[config] warning: wrong number of tokens on line %d of %s\n",linecnt,configfile);
             printf("[config] warning: wrong number of tokens on line %d of %s\n",linecnt,configfile);
+          }
           if (err == -2)
+          {
+            if (g_logfp) logText("[config] warning: invalid parameter on line %d of %s\n",linecnt,configfile);
             printf("[config] warning: invalid parameter on line %d of %s\n",linecnt,configfile);
+          }
           if (err == -3)
+          {
+            if (g_logfp) logText("[config] warning: invalid config command \"%s\" on line %d of %s\n",lp.gettoken_str(0),linecnt,configfile);
             printf("[config] warning: invalid config command \"%s\" on line %d of %s\n",lp.gettoken_str(0),linecnt,configfile);
+          }
         }
       }
     }
   }
 
+  if (g_logfp) logText("[config] reload complete\n");
 
   if (fp != stdin) fclose(fp);
   return 0;
@@ -606,8 +627,9 @@ int main(int argc, char **argv)
           }
           else if (c == 'R')
           {
-            if (ReadConfig(argv[1]))
+            if (!strcmp(argv[1],"-") || ReadConfig(argv[1]))
             {
+              if (g_logfp) logText("Error opening config file\n");
               printf("Error opening config file!\n");
             }
             else
@@ -627,7 +649,7 @@ int main(int argc, char **argv)
 	struct timespec ts={0,1000*1000};
 	nanosleep(&ts,NULL);
 
-    if (g_reloadconfig && !ReadConfig(argv[1]))
+    if (g_reloadconfig && (strcmp(argv[1],"-") && !ReadConfig(argv[1])))
     {
       g_reloadconfig=0;
 
