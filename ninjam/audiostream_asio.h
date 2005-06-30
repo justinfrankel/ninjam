@@ -12,9 +12,6 @@ class audioStreamer
 		audioStreamer() { m_srate=48000; m_outnch=m_innch=2; m_bps=16; }
 		virtual ~audioStreamer() { }
 
-		virtual int Read(char *buf, int len)=0; // returns 0 if blocked, < 0 if error, > 0 if data
-		virtual int Write(char *buf, int len)=0; // returns 0 on success
-
     virtual const char *GetChannelName(int idx)=0;
 
 		int m_srate, m_innch, m_outnch, m_bps;
@@ -26,8 +23,6 @@ class audioStreamer_ASIO  : public audioStreamer
 		audioStreamer_ASIO();
 		~audioStreamer_ASIO();
 		int Open(char **dev);
-		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
-		int Write(char *buf, int len); // returns 0 on success
 
     const char *GetChannelName(int idx);
 
@@ -36,6 +31,9 @@ class audioStreamer_ASIO  : public audioStreamer
     char *m_chnames[256];
     int m_driver_active;
 };
+
+
+audioStreamer *create_audioStreamer_KS();
 
 
 #endif

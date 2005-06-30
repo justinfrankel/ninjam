@@ -611,21 +611,3 @@ int audioStreamer_ASIO::Open(char **dev)
 
   return 0;
 }
-
-int audioStreamer_ASIO::Read(char *buf, int len) // returns 0 if blocked, < 0 if error, > 0 if data
-{
-  //LeaveCriticalSection(&myDriverInfo.cs);
-  Sleep(20);
-  //EnterCriticalSection(&myDriverInfo.cs);
-
-//  len=myDriverInfo.bytesProcessed;
-  //myDriverInfo.bytesProcessed=0;
-
-  return 0;
-}
-
-int audioStreamer_ASIO::Write(char *buf, int len) // returns 0 on success
-{ 
-  return 0;
-}
-
