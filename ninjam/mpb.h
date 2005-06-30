@@ -43,7 +43,7 @@ class mpb_server_auth_reply
 
     // public data
     char flag;  // low bit is success bit
-    char *errmsg;
+    char *errmsg; // if success bit is set, and this is also set, then it is the effective username of the client
 };
 
 
