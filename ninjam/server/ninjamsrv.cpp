@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <time.h>
 #endif
+#include <stdarg.h>
 
 #include "../../WDL/jnetlib/jnetlib.h"
 #include "../../WDL/jnetlib/httpget.h"
@@ -21,6 +22,9 @@
 #include "../../WDL/string.h"
 
 
+FILE *g_logfp;
+char *g_pidfilename="";
+char *g_logfilename="";
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange();
@@ -130,6 +134,16 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 2) return -1;
     int p=lp->gettoken_int(1);
     m_group->m_max_users=p;
+  }  
+  else if (!stricmp(t,"PIDFile"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_pidfilename=lp->gettoken_str(1);    
+  }
+  else if (!stricmp(t,"LogFile"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_logfilename=lp->gettoken_str(1);    
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -254,7 +268,7 @@ static int ReadConfig(char *configfile)
   bool comment_state=0;
   int linecnt=0;
   WDL_String linebuild;
-  FILE *fp=fopen(configfile,"rt");
+  FILE *fp=strcmp(configfile,"-")?fopen(configfile,"rt"):stdin;
   if (!fp)
   {
     printf("[config] error opening configfile '%s'\n",configfile);
@@ -327,7 +341,7 @@ static int ReadConfig(char *configfile)
   }
 
 
-  fclose(fp);
+  if (fp != stdin) fclose(fp);
   return 0;
 }
 
@@ -365,13 +379,43 @@ void enforceACL()
   if (killcnt) printf("killed %d users by enforcing ACL\n",killcnt);
 }
 
+
+void usage()
+{
+    printf("Usage: ninjamserver config.cfg [options]\n"
+           "Options (override config file):\n"
+           "  -pidfile <filename.pid>\n"
+           "  -logfile <filename.log>\n"
+      );
+    exit(1);
+}
+
+void logText(char *s, ...)
+{
+  {
+    va_list ap;
+    va_start(ap,s);
+
+    if (g_logfp) 
+    {      
+      time_t tv;
+      time(&tv);
+      struct tm *t=localtime(&tv);
+      fprintf(g_logfp,"[%04d/%02d/%02d %02d:%02d:%02d] ",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+    }
+
+    vfprintf(g_logfp?g_logfp:stdout,s,ap);    
+
+    va_end(ap);
+  }
+}
+
 int main(int argc, char **argv)
 {
 
-  if (argc != 2)
+  if (argc < 2)
   {
-    printf("Usage: ninjamserver config.cfg\n");
-    exit(1);
+    usage();
   }
 
   m_group=new User_Group;
@@ -383,6 +427,22 @@ int main(int argc, char **argv)
     printf("Error loading config file!\n");
     exit(1);
   }
+  int p;
+  for (p = 2; p < argc; p ++)
+  {
+      if (!strcmp(argv[p],"-pidfile"))
+      {
+        if (++p >= argc) usage();
+        g_pidfilename = argv[p];
+      }
+      else if (!strcmp(argv[p],"-logfile"))
+      {
+        if (++p >= argc) usage();
+        g_logfilename = argv[p];
+      }
+      else usage();
+
+  }
 
 
 #ifdef _WIN32
@@ -393,23 +453,50 @@ int main(int argc, char **argv)
 #else
   time_t v=time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
+  int pid=getpid();
+  WDL_RNG_addentropy(&pid,sizeof(pid));
+
+  if (g_pidfilename && *g_pidfilename)
+  {
+    FILE *fp=fopen(g_pidfilename,"w");
+    if (fp)
+    {
+      fprintf(fp,"%d\n",pid);
+      fclose(fp);
+    }
+    else printf("Error opening PID file '%s'\n",g_pidfilename);
+  }
+
+
 
   signal(SIGPIPE,sighandler);
   signal(SIGHUP,sighandler);
   signal(SIGINT,sighandler);
 #endif
 
+
+  if (g_logfilename && *g_logfilename)
+  {
+    g_logfp=fopen(g_logfilename,"at");
+    if (!g_logfp)
+      printf("Error opening log file '%s'\n",g_logfilename);
+  }
+
+  logText("Server starting up...\n");
+
   JNL::open_socketlib();
 
   {
-    printf("Listening on port %d...",g_config_port);    
+    logText("Listening on port %d\n",g_config_port);    
     m_listener = new JNL_Listen(g_config_port);
-    if (m_listener->is_error()) printf("Error!\n");
-    else printf("OK\n");
+    if (m_listener->is_error()) 
+    {
+      logText("Error listening on port!!!\n");
+    }
 
     m_group->GetUserPass=myGetUserPass;
 
-    printf("Using default %d BPM, %d beats/interval\n",120,8);
+    logText("Using default %d BPM, %d beats/interval\n",120,8);
     m_group->SetConfig(8,120);
 
     m_group->SetLicenseText(g_config_license.Get());
@@ -428,11 +515,11 @@ int main(int argc, char **argv)
         char str[512];
         int flag=aclGet(con->get_remote());
         JNL::addr_to_ipstr(con->get_remote(),str,sizeof(str));
-        printf("Incoming connection from %s!\n",str);
+        logText("Incoming connection from %s!\n",str);
 
         if (flag == ACL_FLAG_DENY)
         {
-          printf("Denying connection (via ACL)\n");
+          logText("Denying connection (via ACL)\n");
           delete con;
         }
         else
@@ -554,6 +641,8 @@ int main(int argc, char **argv)
 
   }
 
+  logText("Shutting down server\n");
+
   delete m_group;
   delete m_listener;
 
@@ -564,6 +653,8 @@ int main(int argc, char **argv)
 
 void onConfigChange()
 {
+  logText("reloading config...\n");
+
   delete m_listener;
   m_listener = new JNL_Listen(g_config_port);
   //m_group->SetConfig(g_config_bpi,g_config_bpm);
