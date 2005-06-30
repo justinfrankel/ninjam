@@ -198,6 +198,16 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         m_auth_privs=privs;
 
       }
+      {
+        // fix any invalid characters in username
+        char *p=username;
+        while (*p)
+        {
+          char c=*p;
+          if (!isalnum(c) && c != '-' && c != '_' && c != '@' && c != '.' && c != ' ') c='_';
+          *p++=c;
+        }
+      }
 
       // disconnect any user by the same name
       // in anonymous mode, append -<idx>
@@ -259,6 +269,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       {
         mpb_server_auth_reply bh;
         bh.flag=1;
+        bh.errmsg=m_username.Get();
         m_netcon.Send(bh.build());
       }
 

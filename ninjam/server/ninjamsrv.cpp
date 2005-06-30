@@ -332,16 +332,18 @@ static int ReadConfig(char *configfile)
 }
 
 int g_reloadconfig;
+int g_done;
 
 #ifndef _WIN32
 
 void sighandler(int sig)
 {
+  if (sig == SIGINT)
+  {
+    g_done=1;
+  }
   if (sig == SIGHUP)
   {
-  }
-  if (sig == SIGINT)
-  { 
     g_reloadconfig=1;
   }
 }
@@ -418,7 +420,7 @@ int main(int argc, char **argv)
     int needprompt=2;
     int esc_state=0;
 #endif
-    for (;;)
+    while (!g_done)
     {
       JNL_Connection *con=m_listener->get_connect(65536,65536);
       if (con) 
