@@ -658,6 +658,8 @@ int NJClient::Run() // nonzero if sleep ok
                 m_netcon->Send(sci.build());
                 m_status=2;
                 m_in_auth=0;
+                if (ar.errmsg)
+                  m_user.Set(ar.errmsg); // server gave us an updated name
               }
               else 
               {
