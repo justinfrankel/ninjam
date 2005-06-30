@@ -18,6 +18,7 @@
 #define strncasecmp strnicmp
 #endif
 
+#define MAX_NICK_LEN 128 // not including null term
 
 #define TRANSFER_TIMEOUT 8
 
@@ -201,11 +202,14 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       {
         // fix any invalid characters in username
         char *p=username;
+        int l=MAX_NICK_LEN;
         while (*p)
         {
           char c=*p;
-          if (!isalnum(c) && c != '-' && c != '_' && c != '@' && c != '.' && c != ' ') c='_';
+          if (!isalnum(c) && c != '-' && c != '_' && c != '@' && c != '.') c='_';
           *p++=c;
+
+          if (!--l) *p=0;
         }
       }
 
