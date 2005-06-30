@@ -833,7 +833,7 @@ void usage(int noexit=0)
     "  -user <username>\n"
     "  -pass <password>\n"
 #ifdef _WIN32
-    "  -audiostr dev:in1,in2:out1,out2 | -audiostr \"\"\n"
+    "  -noaudiocfg\n"
     "  -jesusonic <path to jesusonic root dir>\n"
 #else
     "  -audiostr dev[,<outdev>][:inbuf:outbuf,outch1,outch2]\n"
@@ -1022,6 +1022,10 @@ int main(int argc, char **argv)
       {
         if (++p >= argc) usage();
         g_client->config_debug_level=atoi(argv[p]);
+      }
+      else if (!stricmp(argv[p],"-noaudiocfg"))
+      {
+        audioconfigstr="";
       }
       else if (!stricmp(argv[p],"-audiostr"))
       {
