@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "../../sdks/oggvorbis-win32sdk-1.0.1/include" /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "C:\DXSDK\include" /I "../../sdks/oggvorbis-win32sdk-1.0.1/include" /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -134,6 +134,74 @@ SOURCE=..\..\WDL\rng.cpp
 # Begin Source File
 
 SOURCE=..\..\WDL\sha.cpp
+# End Source File
+# End Group
+# Begin Group "ks"
+
+# PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\ks\audfilter.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\audfilter.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\audpin.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\audpin.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\enum.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\filter.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\filter.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\irptgt.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\irptgt.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\kssample.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\node.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\node.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\pin.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\pin.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\ks\tlist.h
+# End Source File
+# Begin Source File
+
+SOURCE="..\ks\util-ks.cpp"
 # End Source File
 # End Group
 # Begin Source File
