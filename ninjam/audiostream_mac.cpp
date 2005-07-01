@@ -205,54 +205,12 @@ audioStreamer_CoreAudio::~audioStreamer_CoreAudio()
          
 }
 
-void parseopts(char *dev, int &driverindex, int &driverindex_out)
+
+int matchlen(const char *sub, const char *pa)
 {
-  driverindex=dev ? atoi(dev) : 0;
- 	driverindex_out=driverindex;
-
-  if (!dev) return;
-
-	char *p=dev;
-	while (*p  && *p != ',' && *p != ':') p++;
-
-	if (*p==',')
-	{
-		driverindex_out = atoi(p+1);
-	}
-
-	if (dev && (p=strstr(dev,":")))
-	{
-    p++;
-    if (*p)
-    {
-      inchbuf=atoi(p);
-      while (*p && *p != ':') p++;
-
-      if (*p == ':')
-      {
-        outchbuf=atoi(p);
-        while (*p && *p != ',') p++;
-        if (*p == ',')
-        {
-          p++;
-          if (*p)
-          {
-            outchtab[0]=atoi(p);
-            while (*p && *p != ',') p++;
-            if (*p == ',')
-            {
-              p++;
-              if (*p)
-              {
-                outchtab[1]=atoi(p);
-                while (*p && *p != ',') p++;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  int l=0;
+  while (*sub && *pa && toupper(*sub) == toupper(*pa)) { sub++; pa++; l++; }
+  return l;
 }
 
 int audioStreamer_CoreAudio::Open(char **dev, int srate, int nch, int bps)
@@ -278,8 +236,17 @@ int audioStreamer_CoreAudio::Open(char **dev, int srate, int nch, int bps)
 
 
 again:
-        parseopts(olddev,(int &)m_myDev_i,(int &)m_myDev_o);
+
+        char *indev_ptr=olddev?olddev:(char *)"";
+        char *outdev_ptr=strstr(indev_ptr,",");
+        if (outdev_ptr)
+        {
+          *outdev_ptr++=0;
+          while (*outdev_ptr == ' ') outdev_ptr++;
+          if (!*outdev_ptr) outdev_ptr=indev_ptr;
+        } else outdev_ptr=indev_ptr;
         
+        int outm=0,inm=0;
         printf("CoreAudio device list:\n");
         for (s = 0; s < theNumberDevices; s ++)
         {
@@ -291,33 +258,61 @@ again:
           if (os > 0)
           {
             char *buf=(char *)malloc(os+1);
-            AudioDeviceGetProperty(myDev,0,0,kAudioDevicePropertyDeviceName,&os,buf);
-            if (os > 0) printf("  %d: '%s'",(int)myDev,buf);
-	          if (os > 0 && m_myDev_i == myDev) *dev = strdup(buf);
 
-	          if (os > 0 && m_myDev_i == myDev) printf(" (using as input%s)",m_myDev_o == m_myDev_i ? "/output":"");
-            else if (os > 0 && m_myDev_o == myDev) printf(" (using as output)");
+            AudioDeviceGetProperty(myDev,0,0,kAudioDevicePropertyDeviceName,&os,buf);
+            if (os > 0)
+		{
+			int flags=0;
+	    		int i;
+	  
+			for (i = 0; i <2; i ++)
+			{
+  			    UInt32 nos=0; Boolean now;
+		            AudioDeviceGetPropertyInfo(myDev,0,i,kAudioDevicePropertyStreamConfiguration,&nos,&now);
+		            if (nos>=sizeof(AudioBufferList))
+		            {
+		               AudioBufferList *buf2=(AudioBufferList *)malloc(nos);
+		               AudioDeviceGetProperty(myDev,0,i,kAudioDevicePropertyStreamConfiguration,&nos,buf2);
+		               if (nos>=sizeof(AudioBufferList)) 
+		               {
+		                 flags |= 1<<i;
+		 	       }
+		             	free(buf2);
+		             }
+		          }
+                          int ml=(flags & 2) ? matchlen(indev_ptr,buf) : 0;
+                          if (ml > inm) { inm=ml; m_myDev_i = myDev; }
+                          ml=(flags & 1) ? matchlen(outdev_ptr,buf) : 0;
+                          if (ml > outm) { outm=ml; m_myDev_o = myDev; }
+
+ 			  printf("  '%s' %s%s%s",buf,flags&2?"Input":"",flags==3?"/":"",flags&1?"Output":"");
+	
+		}
 	 
             printf("\n");
             free(buf);
           }
         }
 
-        if (!m_myDev_i) 
+        if (!m_myDev_i || !m_myDev_o) 
         {
-        printf("You need to specify a device index to use!\n");
-    		printf("  format is <driverindex>[,<outdriverindex>][:inbuf:outbuf,outch1,outch2]\n");
-        printf("  driverindex and outdriverindex should be used from the device list above.\n");
-    		printf("You can also avoid this by using -in <string> on the command line\n");
-        printf("Enter driver index string now: ");
+        printf("Type in the beginning of the name of your sound hardware now (or leave blank for system defaults)\n");
+        printf("Note: to specify different input/output hardware, use device1, device2\n");
+        printf("Choice: ");
         fflush(stdout);
         user_buf[0]=0;
         fgets(user_buf,sizeof(user_buf),stdin);
         olddev=user_buf;
-        if (user_buf[0] && user_buf[0] != '\r'  && user_buf[0] != '\n') goto again;
-    		return -1;
-           
+        if (user_buf[0] && user_buf[0] != '\r'  && user_buf[0] != '\n') 
+        {
+		goto again;
         }
+        UInt32 theSize=sizeof(AudioDeviceID);
+        AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&m_myDev_i);
+        theSize=sizeof(AudioDeviceID);
+        AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice,&theSize,&m_myDev_o);
+	}
+          
 
         free(list);
 

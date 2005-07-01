@@ -843,7 +843,7 @@ void usage(int noexit=0)
     "  -noaudiocfg\n"
     "  -jesusonic <path to jesusonic root dir>\n"
 #else
-    "  -audiostr dev[,<outdev>][:inbuf:outbuf,outch1,outch2]\n"
+    "  -audiostr device_name[,output_device_name]\n"
 #endif
 
     "  -sessiondir <path>   -- sets the session directory (default: auto)\n"
