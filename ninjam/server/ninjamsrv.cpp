@@ -415,10 +415,6 @@ void usage()
 
 void logText(char *s, ...)
 {
-  {
-    va_list ap;
-    va_start(ap,s);
-
     if (g_logfp) 
     {      
       time_t tv;
@@ -427,10 +423,15 @@ void logText(char *s, ...)
       fprintf(g_logfp,"[%04d/%02d/%02d %02d:%02d:%02d] ",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
     }
 
+
+    va_list ap;
+    va_start(ap,s);
+
     vfprintf(g_logfp?g_logfp:stdout,s,ap);    
 
+    if (g_logfp) fflush(g_logfp);
+
     va_end(ap);
-  }
 }
 
 int main(int argc, char **argv)
