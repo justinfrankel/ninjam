@@ -5,7 +5,7 @@
 #include "../WDL/ptrlist.h"
 #include "audiostream_asio.h"
 
-#define DS_SLEEP 1  
+#define DS_SLEEP 1
 #define WO_SLEEP 1
 
 
@@ -194,7 +194,7 @@ int audioStreamer_waveOut::Read(char *buf, int len) // returns 0 if blocked, < 0
   WAVEHDR *th = (WAVEHDR *) m_bufs.Get(m_whichbuf)->Get();
   while (!(th->dwFlags & WHDR_DONE)) 
   {
-    Sleep(m_sleep); 
+    Sleep(WO_SLEEP); 
   }
   len=min(len,(int)th->dwBytesRecorded);
 
@@ -235,7 +235,7 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
     if (use_addr < 0)
     {
 #if 1
-      Sleep(m_sleep);
+      Sleep(WO_SLEEP);
 #else
       audiostream_onover();
       return 0;

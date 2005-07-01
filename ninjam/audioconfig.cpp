@@ -565,7 +565,7 @@ BOOL CALLBACK cfgproc_ks( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 
-#define NUM_ITEMS 2
+#define NUM_ITEMS 4
 
 BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
