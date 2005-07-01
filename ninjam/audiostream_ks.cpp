@@ -98,6 +98,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
 
       m_procbuf=(float *)malloc((bufsize*64)/bps);// allocated 2x, input and output
       hThread=CreateThread(NULL,0,threadProc,(LPVOID)this,0,&id);
+      SetThreadPriority(hThread,THREAD_PRIORITY_HIGHEST);
     }
 		~audioStreamer_KS_asiosim()
     {

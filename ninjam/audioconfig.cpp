@@ -18,7 +18,6 @@ struct
    int ks_device[2];
    int ks_blocksize;
    int ks_numblocks;
-   int ks_high;
 
 } configdata={
   0,
@@ -31,7 +30,6 @@ struct
    {-1,-1}, //ks_device;
    512, //ks_blocksize;
    8, // ks_numblocks;
-   1, // ks_high
 
 };
 
@@ -105,11 +103,6 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
     int nbufs=configdata.ks_numblocks;
     int bufsize=configdata.ks_blocksize;
     audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize);
-
-    if (p && configdata.ks_high)
-    {
-      SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS);
-    }
 
     return p;
   }
@@ -284,7 +277,6 @@ BOOL CALLBACK cfgproc_ks( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     SetDlgItemInt(hwndDlg,IDC_EDIT1,configdata.ks_srate,FALSE);
     SetDlgItemInt(hwndDlg,IDC_EDIT2,configdata.ks_numblocks,FALSE);
     SetDlgItemInt(hwndDlg,IDC_EDIT3,configdata.ks_blocksize,FALSE);
-    CheckDlgButton(hwndDlg,IDC_CHECK1,configdata.ks_high?BST_CHECKED:0);
 
     SendMessage(hwndDlg,WM_USER+0x1001,0,0);
     return 1;
@@ -333,7 +325,6 @@ BOOL CALLBACK cfgproc_ks( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     a=GetDlgItemInt(hwndDlg,IDC_EDIT3,&t,0);
     if (t) configdata.ks_blocksize=a;
   
-    configdata.ks_high = !!IsDlgButtonChecked(hwndDlg,IDC_CHECK1);     
   }
   return 0;
 }

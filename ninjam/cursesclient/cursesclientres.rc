@@ -107,8 +107,6 @@ BEGIN
     EDITTEXT        IDC_EDIT1,61,63,40,12,ES_AUTOHSCROLL | ES_NUMBER
     EDITTEXT        IDC_EDIT2,60,80,20,12,ES_AUTOHSCROLL | ES_NUMBER
     EDITTEXT        IDC_EDIT3,90,80,32,12,ES_AUTOHSCROLL | ES_NUMBER
-    CONTROL         "High priority",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,60,100,53,10
     LTEXT           "",IDC_LATENCYINFO,153,82,80,8
     RTEXT           "Input Device:",-1,1,3,55,8
     RTEXT           "Sample Format:",-1,1,49,55,8
