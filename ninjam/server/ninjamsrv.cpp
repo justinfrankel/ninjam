@@ -23,8 +23,8 @@
 
 
 FILE *g_logfp;
-char *g_pidfilename=NULL;
-char *g_logfilename=NULL;
+WDL_String g_pidfilename;
+WDL_String g_logfilename;
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange();
@@ -139,14 +139,12 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"PIDFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    free(g_pidfilename);
-    g_pidfilename=strdup(lp->gettoken_str(1));    
+    g_pidfilename.Set(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"LogFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    free(g_logfilename);
-    g_logfilename=strdup(lp->gettoken_str(1));    
+    g_logfilename.Set(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -457,14 +455,12 @@ int main(int argc, char **argv)
       if (!strcmp(argv[p],"-pidfile"))
       {
         if (++p >= argc) usage();
-        free(g_pidfilename);
-        g_pidfilename = strdup(argv[p]);
+        g_pidfilename.Set(argv[p]);
       }
       else if (!strcmp(argv[p],"-logfile"))
       {
         if (++p >= argc) usage();
-        free(g_logfilename);
-        g_logfilename = strdup(argv[p]);
+        g_logfilename.Set(argv[p]);
       }
       else usage();
 
@@ -482,15 +478,15 @@ int main(int argc, char **argv)
   int pid=getpid();
   WDL_RNG_addentropy(&pid,sizeof(pid));
 
-  if (g_pidfilename && *g_pidfilename)
+  if (g_pidfilename.Get()[0])
   {
-    FILE *fp=fopen(g_pidfilename,"w");
+    FILE *fp=fopen(g_pidfilename.Get(),"w");
     if (fp)
     {
       fprintf(fp,"%d\n",pid);
       fclose(fp);
     }
-    else printf("Error opening PID file '%s'\n",g_pidfilename);
+    else printf("Error opening PID file '%s'\n",g_pidfilename.Get());
   }
 
 
@@ -501,11 +497,11 @@ int main(int argc, char **argv)
   signal(SIGINT,sighandler);
 
 
-  if (g_logfilename && *g_logfilename)
+  if (g_logfilename.Get()[0])
   {
-    g_logfp=fopen(g_logfilename,"at");
+    g_logfp=fopen(g_logfilename.Get(),"at");
     if (!g_logfp)
-      printf("Error opening log file '%s'\n",g_logfilename);
+      printf("Error opening log file '%s'\n",g_logfilename.Get());
   }
 
   logText("Server starting up...\n");
