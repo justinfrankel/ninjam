@@ -35,4 +35,6 @@ class audioStreamer_ASIO  : public audioStreamer
 
 audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize);
 
+audioStreamer *create_audioStreamer_WO(int srate, int bps, int devs[2], int *nbufs, int *bufsize);
+audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nbufs, int *bufsize);
 #endif

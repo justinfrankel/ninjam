@@ -50,7 +50,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib setupapi.lib /nologo /subsystem:console /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib setupapi.lib  winmm.lib dsound.lib /nologo /subsystem:console /machine:I386
 
 !ELSEIF  "$(CFG)" == "cursesclient - Win32 Debug"
 
@@ -219,6 +219,19 @@ SOURCE=..\audiostream_asio.cpp
 # Begin Source File
 
 SOURCE=..\audiostream_ks.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\audiostream_win32.cpp
+
+!IF  "$(CFG)" == "cursesclient - Win32 Release"
+
+# ADD CPP /O2
+
+!ELSEIF  "$(CFG)" == "cursesclient - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 

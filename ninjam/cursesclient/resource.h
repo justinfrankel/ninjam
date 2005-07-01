@@ -3,6 +3,7 @@
 // Used by cursesclientres.rc
 //
 #define IDD_CONFIG                      102
+#define IDD_CFG_WAVEOUT                 103
 #define IDD_CFG_ASIO                    104
 #define IDD_CFG_KS                      105
 #define IDC_COMBO1                      1000
@@ -19,6 +20,7 @@
 #define IDC_EDIT2                       1008
 #define IDC_EDIT3                       1009
 #define IDC_LATENCYINFO                 1010
+#define IDC_EDIT4                       1011
 #define IDC_CHECK1                      1013
 #define IDC_BUTTON1                     1014
 

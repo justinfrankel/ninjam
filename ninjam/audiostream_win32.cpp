@@ -1,38 +1,398 @@
-#include "jesusonic.h"
-
-
 #include <windows.h>
 #include <mmsystem.h>
+#include "../WDL/pcmfmtcvt.h"
 
-#include "audiostream.h"
+#include "../WDL/ptrlist.h"
+#include "audiostream_asio.h"
 
-
-#ifdef _MSC_VER 
-
-#if 1
-#define printf myPrintf
-static void myPrintf(char *s, ... ) { }
+#define DS_SLEEP 1  
+#define WO_SLEEP 1
 
 
-#else
-//#ifdef 
-#include <stdarg.h>
-//#include <vargs.h>
 
-#define printf myPrintf
-static void myPrintf(char *s, ...)
+class audioStreamer_int
 {
-  char buf[1024];
-  va_list ap;
-  va_start(ap,s);
+	public:
+		audioStreamer_int() { m_srate=48000; m_nch=2; m_bps=16; }
+		virtual ~audioStreamer_int() { }
 
-  _vsnprintf(buf,1024,s,ap);
-  OutputDebugString(buf);
+		virtual int Read(char *buf, int len)=0; // returns 0 if blocked, < 0 if error, > 0 if data
+		virtual int Write(char *buf, int len)=0; // returns 0 on success
 
-  va_end(ap);
+		int m_srate, m_nch, m_bps;
+};
+
+
+
+
+class audioStreamer_waveOut : public audioStreamer_int
+{
+	public:
+		audioStreamer_waveOut();
+		~audioStreamer_waveOut();
+		int Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device=-1);
+		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
+		int Write(char *buf, int len); // returns 0 on success
+
+	private:
+	
+		int m_sleep;
+		int m_bufsize;
+
+		HWAVEOUT m_hwo; 
+		HWAVEIN m_hwi;
+    
+		WDL_PtrList<WDL_HeapBuf> m_bufs; // includes WAVEHDR and buffer each
+   
+		int m_whichbuf; // used only for read mode
+};
+
+
+
+
+
+//////////////////////////////
+/// waveout
+audioStreamer_waveOut::audioStreamer_waveOut()
+{
+	m_hwi=0;
+	m_hwo=0;
 }
+
+audioStreamer_waveOut::~audioStreamer_waveOut()
+{
+   int x;
+   if (m_hwo) waveOutReset(m_hwo);
+   if (m_hwi) waveInReset(m_hwi);
+   for (x = 0; x < m_bufs.GetSize(); x ++)
+   {
+	   WAVEHDR *p = (WAVEHDR *)m_bufs.Get(x)->Get();
+	   if (m_hwi && p)
+		   if (p->dwFlags & WHDR_PREPARED) waveInUnprepareHeader(m_hwi,p,sizeof(WAVEHDR));
+
+	   if (m_hwo && p)
+     {
+		   if (p->dwFlags & WHDR_PREPARED) waveOutUnprepareHeader(m_hwo,p,sizeof(WAVEHDR));
+     }
+	   delete m_bufs.Get(x);
+   }
+   m_bufs.Empty();
+
+   if (m_hwo)
+   {
+	   waveOutClose(m_hwo);
+	   m_hwo=0;
+   }
+   if (m_hwi)
+   {
+	   waveInClose(m_hwi);
+	   m_hwi=0;
+   }
+
+}
+
+int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device)
+{
+  m_sleep =   WO_SLEEP;
+
+  m_nch = nch;
+  m_srate=srate;
+  m_bps=bps;
+
+  int fmt_align=(bps>>3)*nch;
+  int fmt_mul=fmt_align*srate;
+  WAVEFORMATEX wfx={
+		WAVE_FORMAT_PCM,
+		nch,
+		srate,
+		fmt_mul,
+		fmt_align,
+		bps,
+		0
+	};
+
+  m_bufsize=bufsize;
+  m_whichbuf=0;
+
+  if (iswrite)
+  {
+	  if(waveOutOpen(&m_hwo,device,&wfx,(DWORD)0,0,WAVE_FORMAT_DIRECT)!=MMSYSERR_NOERROR) return -1; 
+  }
+  else
+  {
+  	if(waveInOpen(&m_hwi,device,&wfx,0,0,WAVE_FORMAT_DIRECT)!=MMSYSERR_NOERROR) return -1; 
+  }
+
+
+  int x;
+  for (x = 0; x < nbufs; x ++)
+  {
+	  WDL_HeapBuf *p=new WDL_HeapBuf;
+	  p->Resize(sizeof(WAVEHDR) + m_bufsize);
+
+	  WAVEHDR *h = (WAVEHDR *)p->Get();
+
+	  memset(h,0,p->GetSize());
+
+
+	  h->lpData=(char *)h + sizeof(WAVEHDR);
+	  h->dwBufferLength = m_bufsize;
+
+	  if (!iswrite)
+	  {
+		  waveInPrepareHeader(m_hwi,h,sizeof(WAVEHDR));
+		  waveInAddBuffer(m_hwi,h,sizeof(WAVEHDR));
+	  }
+	  else 
+	  {
+      waveOutPrepareHeader(m_hwo,h,sizeof(WAVEHDR));
+	  }
+
+	  m_bufs.Add(p);
+  }
+
+  if (iswrite) waveOutRestart(m_hwo);
+  else waveInStart(m_hwi);
+
+  return 0;
+}
+
+int audioStreamer_waveOut::Read(char *buf, int len) // returns 0 if blocked, < 0 if error, > 0 if data
+{
+  if (!m_hwi) return -1;
+
+#if 0 // lame, this doesnt really do what we want it to
+  // check to see if all are full, and if so, kill a lot of em
+  {
+    int x;
+    int cnt=0;
+    for (x = 0; x < m_bufs.GetSize(); x ++)
+    {
+      WAVEHDR *th = (WAVEHDR *) m_bufs.Get(x)->Get();
+      if (th->dwFlags & WHDR_DONE) cnt++;
+    }
+    if (cnt >= m_bufs.GetSize()-1)
+    {
+      audiostream_onover();
+      for (x = 0; x < m_bufs.GetSize(); x ++)
+      {
+        if (x != m_whichbuf)
+        {
+          WAVEHDR *th = (WAVEHDR *) m_bufs.Get(x)->Get();
+          if (th->dwFlags & WHDR_DONE) 
+          {
+            th->dwBytesRecorded=0;
+            th->dwFlags = WHDR_PREPARED;
+            waveInAddBuffer(m_hwi,th,sizeof(WAVEHDR));
+          }
+        }
+      }
+    }
+  }
 #endif
+
+  WAVEHDR *th = (WAVEHDR *) m_bufs.Get(m_whichbuf)->Get();
+  while (!(th->dwFlags & WHDR_DONE)) 
+  {
+    Sleep(m_sleep); 
+  }
+  len=min(len,(int)th->dwBytesRecorded);
+
+  memcpy(buf,th->lpData,len);
+
+  th->dwBytesRecorded=0;
+  th->dwFlags = WHDR_PREPARED;
+  waveInAddBuffer(m_hwi,th,sizeof(WAVEHDR));
+
+  if (++m_whichbuf >= m_bufs.GetSize()) m_whichbuf=0;
+
+  return len;
+}
+
+int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
+{ 
+  if (!m_hwo) return -1;
+  if (len<1) return 0;
+
+  int use_addr=-1;
+
+  int cnt;
+  do
+  {
+    int x;
+    cnt=0;
+    for (x = 0; x < m_bufs.GetSize(); x ++)
+    {
+        WAVEHDR *h=(WAVEHDR *)m_bufs.Get(x)->Get();
+        if (h->dwFlags & WHDR_DONE) h->dwFlags &= ~(WHDR_INQUEUE|WHDR_DONE); // remove done and in queue
+
+        if (!(h->dwFlags & WHDR_INQUEUE)) 
+        {
+          cnt++;
+          use_addr=x;
+        }
+    }
+    if (use_addr < 0)
+    {
+#if 1
+      Sleep(m_sleep);
+#else
+      audiostream_onover();
+      return 0;
 #endif
+    }
+  } while (use_addr < 0);
+
+
+  WAVEHDR *h=(WAVEHDR *)m_bufs.Get(use_addr)->Get();
+
+  if (len > m_bufsize) len=m_bufsize;
+
+  h->dwBufferLength=len;
+  memcpy(h->lpData,buf,len);
+  waveOutWrite(m_hwo,h,sizeof(WAVEHDR)); 
+
+  if (!cnt)
+  {
+    audiostream_onunder();
+
+    int x;
+    for (x = 0; x < m_bufs.GetSize(); x ++)
+    {
+      if (x != use_addr)
+      {
+        h=(WAVEHDR *) m_bufs.Get(x)->Get();
+        h->dwBufferLength=len;      
+        waveOutWrite(m_hwo,h,sizeof(WAVEHDR)); 
+      }
+    }
+  }
+
+  return 0;
+}
+
+
+
+
+
+class audioStreamer_win32_asiosim : public audioStreamer
+{
+	public:
+		audioStreamer_win32_asiosim(audioStreamer_int *i, audioStreamer_int *o, int bufsize, int srate, int bps)
+    {
+      in=i;
+      out=o;
+      DWORD id;
+      m_bps=bps;
+      m_innch=m_outnch=2;
+      m_bps=bps;
+      m_srate=srate;
+      m_done=0;
+      m_buf=(char *)malloc(bufsize);
+      m_bufsize=bufsize;
+
+      m_procbuf=(float *)malloc((bufsize*64)/bps);// allocated 2x, input and output
+      hThread=CreateThread(NULL,0,threadProc,(LPVOID)this,0,&id);
+      SetThreadPriority(hThread,THREAD_PRIORITY_HIGHEST);
+    }
+		~audioStreamer_win32_asiosim()
+    {
+      m_done=1;
+      WaitForSingleObject(hThread,INFINITE);
+      CloseHandle(hThread);
+      delete in;
+      delete out;
+      free(m_buf);
+      free(m_procbuf);
+    }
+
+    const char *GetChannelName(int idx)
+    {
+      if (idx == 0) return "Left";
+      if (idx == 1) return "Right";
+      return NULL;
+    }
+
+	private:
+    void tp();
+    static DWORD WINAPI threadProc(LPVOID p)
+    {
+      audioStreamer_win32_asiosim *t=(audioStreamer_win32_asiosim*)p;
+      t->tp();
+      return 0;
+    }
+    audioStreamer_int *in, *out;
+    
+    HANDLE hThread;
+    int m_done,m_bufsize;
+    char *m_buf;
+    float *m_procbuf;
+
+};
+
+void audioStreamer_win32_asiosim::tp()
+{
+  while (!m_done)
+  {
+    int a=in->Read(m_buf,m_bufsize);
+    if (a>0)
+    {
+      int spllen=a*4/(m_bps); // a*8/m_bps/nch
+      float *inptrs[2], *outptrs[2];
+      inptrs[0]=m_procbuf;
+      inptrs[1]=m_procbuf+spllen;
+      outptrs[0]=m_procbuf+spllen*2;
+      outptrs[1]=m_procbuf+spllen*3;
+
+      pcmToFloats(m_buf,spllen,m_bps,2,inptrs[0],1);
+      pcmToFloats(m_buf+(m_bps/8),spllen,m_bps,2,inptrs[1],1);
+
+      audiostream_onsamples(inptrs,2,outptrs,2,spllen,m_srate);
+
+      floatsToPcm(outptrs[0],1,spllen,m_buf,m_bps,2);
+      floatsToPcm(outptrs[1],1,spllen,m_buf+(m_bps/8),m_bps,2);
+  
+      out->Write(m_buf,a);
+    }
+    else
+    {
+      Sleep(1);
+    }
+  }
+}
+
+
+#include <dsound.h>
+
+class audioStreamer_ds : public audioStreamer_int
+{
+	public:
+		audioStreamer_ds();
+		~audioStreamer_ds();
+		int Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, GUID *device=NULL);// guid anyway for device
+		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
+		int Write(char *buf, int len); // returns 0 on success
+
+	private:
+	
+    int m_bps,m_nch,m_srate;
+
+    LPDIRECTSOUND m_lpds;
+    LPDIRECTSOUNDCAPTURE m_lpcap;
+    LPDIRECTSOUNDBUFFER m_outbuf;
+    LPDIRECTSOUNDCAPTUREBUFFER m_inbuf;
+
+		int m_has_started;
+    int m_bufpos;
+    int m_last_pos;
+    unsigned int m_i_lw, m_i_dw;
+
+    int m_totalbufsize;
+		int m_sleep;
+		int m_bufsize;
+
+    // fucko: finish dsound implementation
+};
 
 
 audioStreamer_ds::audioStreamer_ds()
@@ -148,7 +508,7 @@ int audioStreamer_ds::Read(char *buf, int len) // returns 0 if blocked, < 0 if e
   {
     if (m_i_lw < m_i_dw || m_bufpos + m_bufsize < cappos) break;
 
-    Sleep(m_sleep);
+    Sleep(DS_SLEEP);
     m_inbuf->GetCurrentPosition(NULL,(DWORD*)&cappos);
 
     if (cappos < m_last_pos) m_i_dw++;
@@ -176,7 +536,6 @@ int audioStreamer_ds::Read(char *buf, int len) // returns 0 if blocked, < 0 if e
   }
   else 
   {
-    printf("Error locking read buffer @ %d!\n",m_bufpos);
     return -1;
   }
 
@@ -246,7 +605,6 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
     }
     else 
     {
-      printf("Error locking write buffer!\n");
       return -1;
     }
 
@@ -262,856 +620,41 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
 
 
 
-
-
-//////////////////////////////
-/// waveout
-audioStreamer_waveOut::audioStreamer_waveOut()
+audioStreamer *create_audioStreamer_WO(int srate, int bps, int devs[2], int *nbufs, int *bufsize)
 {
-	m_hwi=0;
-	m_hwo=0;
+  audioStreamer_waveOut *in=new audioStreamer_waveOut();
+  audioStreamer_waveOut *out=new audioStreamer_waveOut();
+  if (in->Open(0,srate,2,bps,0,*nbufs,*bufsize,devs[0]))
+  {
+    delete in;
+    delete out;
+    return 0;
+  }
+  if (out->Open(1,srate,2,bps,0,*nbufs,*bufsize,devs[1]))
+  {
+    delete in;
+    delete out;
+    return 0;
+  }
+
+  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps);
 }
 
-audioStreamer_waveOut::~audioStreamer_waveOut()
+audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nbufs, int *bufsize)
 {
-   int x;
-   if (m_hwo) waveOutReset(m_hwo);
-   if (m_hwi) waveInReset(m_hwi);
-   for (x = 0; x < m_bufs.GetSize(); x ++)
-   {
-	   WAVEHDR *p = (WAVEHDR *)m_bufs.Get(x)->Get();
-	   if (m_hwi && p)
-		   if (p->dwFlags & WHDR_PREPARED) waveInUnprepareHeader(m_hwi,p,sizeof(WAVEHDR));
+  audioStreamer_ds *in=new audioStreamer_ds();
+  if (in->Open(0,srate,2,bps,0,*nbufs,*bufsize,&devs[0]))
+  {
+    delete in;
+    return 0;
+  }
+  audioStreamer_ds *out=new audioStreamer_ds();
+  if (out->Open(1,srate,2,bps,0,*nbufs,*bufsize,&devs[1]))
+  {
+    delete in;
+    delete out;
+    return 0;
+  }
 
-	   if (m_hwo && p)
-     {
-		   if (p->dwFlags & WHDR_PREPARED) waveOutUnprepareHeader(m_hwo,p,sizeof(WAVEHDR));
-     }
-	   delete m_bufs.Get(x);
-   }
-   m_bufs.Empty();
-
-   if (m_hwo)
-   {
-	   waveOutClose(m_hwo);
-	   m_hwo=0;
-   }
-   if (m_hwi)
-   {
-	   waveInClose(m_hwi);
-	   m_hwi=0;
-   }
-
+  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps);
 }
-
-int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device)
-{
-  m_sleep =   sleep >= 0 ? sleep : 0;
-
-  m_nch = nch;
-  m_srate=srate;
-  m_bps=bps;
-
-  int fmt_align=(bps>>3)*nch;
-  int fmt_mul=fmt_align*srate;
-  WAVEFORMATEX wfx={
-		WAVE_FORMAT_PCM,
-		nch,
-		srate,
-		fmt_mul,
-		fmt_align,
-		bps,
-		0
-	};
-
-  m_bufsize=bufsize;
-  m_whichbuf=0;
-
-  if (iswrite)
-  {
-	  if(waveOutOpen(&m_hwo,device,&wfx,(DWORD)0,0,CALLBACK_NULL|WAVE_FORMAT_DIRECT)!=MMSYSERR_NOERROR) return -1; 
-  }
-  else
-  {
-  	if(waveInOpen(&m_hwi,WAVE_MAPPER,&wfx,(DWORD)0,0,CALLBACK_NULL|WAVE_FORMAT_DIRECT)!=MMSYSERR_NOERROR) return -1; 
-  }
-
-
-  int x;
-  for (x = 0; x < nbufs; x ++)
-  {
-	  WDL_HeapBuf *p=new WDL_HeapBuf;
-	  p->Resize(sizeof(WAVEHDR) + m_bufsize);
-
-	  WAVEHDR *h = (WAVEHDR *)p->Get();
-
-	  memset(h,0,p->GetSize());
-
-
-	  h->lpData=(char *)h + sizeof(WAVEHDR);
-	  h->dwBufferLength = m_bufsize;
-
-	  if (!iswrite)
-	  {
-		  waveInPrepareHeader(m_hwi,h,sizeof(WAVEHDR));
-		  waveInAddBuffer(m_hwi,h,sizeof(WAVEHDR));
-	  }
-	  else 
-	  {
-      waveOutPrepareHeader(m_hwo,h,sizeof(WAVEHDR));
-	  }
-
-	  m_bufs.Add(p);
-  }
-
-  if (iswrite) waveOutRestart(m_hwo);
-  else waveInStart(m_hwi);
-
-  return 0;
-}
-
-int audioStreamer_waveOut::Read(char *buf, int len) // returns 0 if blocked, < 0 if error, > 0 if data
-{
-  if (!m_hwi) return -1;
-
-#if 0 // lame, this doesnt really do what we want it to
-  // check to see if all are full, and if so, kill a lot of em
-  {
-    int x;
-    int cnt=0;
-    for (x = 0; x < m_bufs.GetSize(); x ++)
-    {
-      WAVEHDR *th = (WAVEHDR *) m_bufs.Get(x)->Get();
-      if (th->dwFlags & WHDR_DONE) cnt++;
-    }
-    if (cnt >= m_bufs.GetSize()-1)
-    {
-      audiostream_onover();
-      for (x = 0; x < m_bufs.GetSize(); x ++)
-      {
-        if (x != m_whichbuf)
-        {
-          WAVEHDR *th = (WAVEHDR *) m_bufs.Get(x)->Get();
-          if (th->dwFlags & WHDR_DONE) 
-          {
-            th->dwBytesRecorded=0;
-            th->dwFlags = WHDR_PREPARED;
-            waveInAddBuffer(m_hwi,th,sizeof(WAVEHDR));
-          }
-        }
-      }
-    }
-  }
-#endif
-
-  WAVEHDR *th = (WAVEHDR *) m_bufs.Get(m_whichbuf)->Get();
-  while (!(th->dwFlags & WHDR_DONE)) Sleep(m_sleep); 
-
-  len=min(len,(int)th->dwBytesRecorded);
-
-  memcpy(buf,th->lpData,len);
-
-  th->dwBytesRecorded=0;
-  th->dwFlags = WHDR_PREPARED;
-  waveInAddBuffer(m_hwi,th,sizeof(WAVEHDR));
-
-  if (++m_whichbuf >= m_bufs.GetSize()) m_whichbuf=0;
-
-  return len;
-}
-
-int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
-{ 
-  if (!m_hwo) return -1;
-  if (len<1) return 0;
-
-  int use_addr=-1;
-
-  int cnt;
-  do
-  {
-    int x;
-    cnt=0;
-    for (x = 0; x < m_bufs.GetSize(); x ++)
-    {
-        WAVEHDR *h=(WAVEHDR *)m_bufs.Get(x)->Get();
-        if (h->dwFlags & WHDR_DONE) h->dwFlags &= ~(WHDR_INQUEUE|WHDR_DONE); // remove done and in queue
-
-        if (!(h->dwFlags & WHDR_INQUEUE)) 
-        {
-          cnt++;
-          use_addr=x;
-        }
-    }
-    if (use_addr < 0)
-    {
-#if 1
-      Sleep(m_sleep);
-#else
-      audiostream_onover();
-      return 0;
-#endif
-    }
-  } while (use_addr < 0);
-
-
-  WAVEHDR *h=(WAVEHDR *)m_bufs.Get(use_addr)->Get();
-
-  if (len > m_bufsize) len=m_bufsize;
-
-  h->dwBufferLength=len;
-  memcpy(h->lpData,buf,len);
-  waveOutWrite(m_hwo,h,sizeof(WAVEHDR)); 
-
-  if (!cnt)
-  {
-    audiostream_onunder();
-
-    int x;
-    for (x = 0; x < m_bufs.GetSize(); x ++)
-    {
-      if (x != use_addr)
-      {
-        h=(WAVEHDR *) m_bufs.Get(x)->Get();
-        h->dwBufferLength=len;      
-        waveOutWrite(m_hwo,h,sizeof(WAVEHDR)); 
-      }
-    }
-  }
-
-  return 0;
-}
-
-
-
-#ifdef SUPPORT_ASIO
-//////////////////////////////
-/// ASIO
-#include "asiosys.h"
-#include "asio.h"
-#include "asiodrivers.h"
-
-#include "iasiothiscallresolver.h"
-
-enum {
-	// number of input and outputs supported by the host application
-	// you can change these to higher or lower values
-	kMaxInputChannels = 2,
-	kMaxOutputChannels = 2
-};
-
-
-// internal data storage
-typedef struct DriverInfo
-{
-	// ASIOInit()
-	ASIODriverInfo driverInfo;
-
-	// ASIOGetChannels()
-	long           inputChannels;
-	long           outputChannels;
-
-	// ASIOGetBufferSize()
-	long           minSize;
-	long           maxSize;
-	long           preferredSize;
-	long           granularity;
-
-	// ASIOGetSampleRate()
-	ASIOSampleRate sampleRate;
-
-	// ASIOOutputReady()
-	bool           postOutput;
-
-	// ASIOGetLatencies ()
-	//long           inputLatency;
-	//long           outputLatency;
-
-	// ASIOCreateBuffers ()
-	long inputBuffers;	// becomes number of actual created input buffers
-	long outputBuffers;	// becomes number of actual created output buffers
-	ASIOBufferInfo bufferInfos[kMaxInputChannels + kMaxOutputChannels]; // buffer info's
-
-	// ASIOGetChannelInfo()
-	ASIOChannelInfo channelInfos[kMaxInputChannels + kMaxOutputChannels]; // channel info's
-	// The above two arrays share the same indexing, as the data in them are linked together
-
-	// Information from ASIOGetSamplePosition()
-	// data is converted to double floats for easier use, however 64 bit integer can be used, too
-
-  // 
-
-  int started;
-  int bytesProcessed;
-  //CRITICAL_SECTION cs;
-
-} DriverInfo;
-
-char *asio_pcmbuf;
-
-static DriverInfo myDriverInfo;
-static ASIOCallbacks asioCallbacks;
-
-extern AsioDrivers* asioDrivers;
-
-
-
-// callback prototypes
-void bufferSwitch(long index, ASIOBool processNow);
-ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processNow);
-void sampleRateChanged(ASIOSampleRate sRate);
-long asioMessages(long selector, long value, void* message, double* opt);
-
-
-ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processNow)
-{	// the actual processing callback.
-	// Beware that this is normally in a seperate thread, hence be sure that you take care
-	// about thread synchronization. This is omitted here for simplicity.
-
-	// get the time stamp of the buffer, not necessary if no
-	// synchronization to other media is required
-
-	// get the system reference time
-
-	// buffer size in samples
-	long buffSize = myDriverInfo.preferredSize;
-
-//  if (myDriverInfo.inputBuffers == 2 )
-  {
-    int t=myDriverInfo.channelInfos[0].type;
-    int splsize=2;
-    
-    if (t==ASIOSTInt24LSB) splsize=3;
-    else if (t==ASIOSTInt32LSB) splsize=4;
-
-    // interleave the first two buffers into the queue
-    if (myDriverInfo.inputBuffers==1)
-    {
-      char *i1=(char*)myDriverInfo.bufferInfos[0].buffers[index];
-      char *o=(char*)asio_pcmbuf;
-      int l=buffSize;
-      while (l--)
-      {
-        int s=splsize;
-        while (s--) 
-        { 
-          o[0]=o[splsize]=*i1++; 
-          o++;
-        }
-      }
-    }
-    else
-    {
-      char *i1=(char*)myDriverInfo.bufferInfos[0].buffers[index];
-      char *i2=(char*)myDriverInfo.bufferInfos[1].buffers[index];
-      char *o=(char*)asio_pcmbuf;
-      int l=buffSize;
-      while (l--)
-      {
-        int s=splsize;
-        while (s--) *o++=*i1++;
-        s=splsize;
-        while (s--) *o++=*i2++;
-      }
-    }
-
-    if (myDriverInfo.started)
-    {
-      _controlfp(_RC_CHOP,_MCW_RC);
-
-      int bytes=buffSize*splsize*2;
-//      EnterCriticalSection(&myDriverInfo.cs);
-
-      audiostream_onsamples(asio_pcmbuf,bytes);
-
-      myDriverInfo.bytesProcessed+=bytes;
-  //    LeaveCriticalSection(&myDriverInfo.cs);
-    }
-
-    // uninterleave the latest samples into the second two buffers
-    if (myDriverInfo.outputBuffers==1)
-    {
-      char *o1=(char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-      char *i=(char*)asio_pcmbuf;
-      int l=buffSize;
-      while (l--)
-      {
-        int s=splsize;
-        while (s--) *o1++=*i++;
-        i+=splsize; // ignore right channel
-      }
-    }
-    else
-    {
-      char *o1=(char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers].buffers[index];
-      char *o2=(char*)myDriverInfo.bufferInfos[myDriverInfo.inputBuffers+1].buffers[index];
-      char *i=(char*)asio_pcmbuf;
-      int l=buffSize;
-      while (l--)
-      {
-        int s=splsize;
-        while (s--) *o1++=*i++;
-        s=splsize;
-        while (s--) *o2++=*i++;
-      }
-    }
-  }
-  
-
-	// finally if the driver supports the ASIOOutputReady() optimization, do it here, all data are in place
-	if (myDriverInfo.postOutput)
-		ASIOOutputReady();
-
-
-	return 0L;
-}
-
-//----------------------------------------------------------------------------------
-void bufferSwitch(long index, ASIOBool processNow)
-{	// the actual processing callback.
-	// Beware that this is normally in a seperate thread, hence be sure that you take care
-	// about thread synchronization. This is omitted here for simplicity.
-
-	// as this is a "back door" into the bufferSwitchTimeInfo a timeInfo needs to be created
-	// though it will only set the timeInfo.samplePosition and timeInfo.systemTime fields and the according flags
-	ASIOTime  timeInfo;
-	memset (&timeInfo, 0, sizeof (timeInfo));
-
-	// get the time stamp of the buffer, not necessary if no
-	// synchronization to other media is required
-	if(ASIOGetSamplePosition(&timeInfo.timeInfo.samplePosition, &timeInfo.timeInfo.systemTime) == ASE_OK)
-		timeInfo.timeInfo.flags = kSystemTimeValid | kSamplePositionValid;
-
-	bufferSwitchTimeInfo (&timeInfo, index, processNow);
-}
-
-
-//----------------------------------------------------------------------------------
-void sampleRateChanged(ASIOSampleRate sRate)
-{
-	// do whatever you need to do if the sample rate changed
-	// usually this only happens during external sync.
-	// Audio processing is not stopped by the driver, actual sample rate
-	// might not have even changed, maybe only the sample rate status of an
-	// AES/EBU or S/PDIF digital input at the audio device.
-	// You might have to update time/sample related conversion routines, etc.
-}
-
-//----------------------------------------------------------------------------------
-long asioMessages(long selector, long value, void* message, double* opt)
-{
-	// currently the parameters "value", "message" and "opt" are not used.
-	long ret = 0;
-	switch(selector)
-	{
-		case kAsioSelectorSupported:
-			if(value == kAsioResetRequest
-			|| value == kAsioEngineVersion
-			|| value == kAsioResyncRequest
-			|| value == kAsioLatenciesChanged
-			// the following three were added for ASIO 2.0, you don't necessarily have to support them
-			|| value == kAsioSupportsTimeInfo
-			|| value == kAsioSupportsTimeCode
-			|| value == kAsioSupportsInputMonitor)
-				ret = 1L;
-			break;
-		case kAsioResetRequest:
-			// defer the task and perform the reset of the driver during the next "safe" situation
-			// You cannot reset the driver right now, as this code is called from the driver.
-			// Reset the driver is done by completely destruct is. I.e. ASIOStop(), ASIODisposeBuffers(), Destruction
-			// Afterwards you initialize the driver again.
-//			myDriverInfo.stopped;  // In this sample the processing will just stop
-			ret = 1L;
-			break;
-		case kAsioResyncRequest:
-			// This informs the application, that the driver encountered some non fatal data loss.
-			// It is used for synchronization purposes of different media.
-			// Added mainly to work around the Win16Mutex problems in Windows 95/98 with the
-			// Windows Multimedia system, which could loose data because the Mutex was hold too long
-			// by another thread.
-			// However a driver can issue it in other situations, too.
-			ret = 1L;
-			break;
-		case kAsioLatenciesChanged:
-			// This will inform the host application that the drivers were latencies changed.
-			// Beware, it this does not mean that the buffer sizes have changed!
-			// You might need to update internal delay data.
-			ret = 1L;
-			break;
-		case kAsioEngineVersion:
-			// return the supported ASIO version of the host application
-			// If a host applications does not implement this selector, ASIO 1.0 is assumed
-			// by the driver
-			ret = 2L;
-			break;
-		case kAsioSupportsTimeInfo:
-			// informs the driver wether the asioCallbacks.bufferSwitchTimeInfo() callback
-			// is supported.
-			// For compatibility with ASIO 1.0 drivers the host application should always support
-			// the "old" bufferSwitch method, too.
-			ret = 1;
-			break;
-		case kAsioSupportsTimeCode:
-			// informs the driver wether application is interested in time code info.
-			// If an application does not need to know about time code, the driver has less work
-			// to do.
-			ret = 0;
-			break;
-	}
-	return ret;
-}
-
-
-
-audioStreamer_ASIO::audioStreamer_ASIO()
-{
-  m_driver_active=0;
-  asioDrivers=0;
-}
-
-audioStreamer_ASIO::~audioStreamer_ASIO()
-{
-  if (asioDrivers)
-  {
-    if (m_driver_active>0)
-    {
-      if (m_driver_active>3)
-      {
-        //LeaveCriticalSection(&myDriverInfo.cs);
-        ASIOStop();
-      }
-      if (m_driver_active>2)
-      {
-        //DeleteCriticalSection(&myDriverInfo.cs);
-        ASIODisposeBuffers();
-      }
-      if (m_driver_active>1)
-        ASIOExit();
-
-      asioDrivers->removeCurrentDriver();
-    }
-    delete asioDrivers;
-    asioDrivers=0;
-  }
-
-}
-
-int audioStreamer_ASIO::Open(char **dev, int srate, int nch, int bps, int sleep, int *nbufs, int *bufsize)
-{
-	if(!asioDrivers)
-		asioDrivers = new AsioDrivers();
-
-  if (nch != 2)
-  {
-    printf("Error: our ASIO support currently only works with 2 channels!\n");
-    return -1;
-  }
-
-  if (!asioDrivers)
-  {
-    printf("Error initializing ASIO\n");
-    return -1;
-  }
-
-  int l=asioDrivers->asioGetNumDev();
-  printf("ASIO: %d drivers available\n",l);
-  if (l < 1) return -1;
-  int x;
-
-  char *olddev=*dev;
-  int driverindex=*dev ? atoi(*dev) : -1;
-  for (x = 0; x < l; x ++)
-  {
-    char buf[256];
-    asioDrivers->asioGetDriverName(x,buf,sizeof(buf));
-    if (x == driverindex || (driverindex<0 && !x)) *dev = strdup(buf);
-    printf("  #%d: %s\n",x,buf);
-  }
-  if (driverindex < 0) 
-  {
-    printf("ASIO Use -in <driverindex> on the command line to specify a driver\n");
-    printf("(using -in 1c will show the asio control panel for before launching)\n");
-    printf("You can also append :inch1,inch2:outch1,outch2\n");
-    return -1;
-  }
-  else if (driverindex < 0) driverindex=0;
-
-  printf("Loading driver (%s): ",*dev);
-  fflush(stdout);
-  if (!asioDrivers->loadDriver(*dev)) 
-  {
-    printf("error!\n");
-    return -1;
-  }
-  printf("done\n");
-
-  m_driver_active=1;
-  //myDriverInfo.driverInfo.sysRef=(void*)GetDesktopWindow();
-  //myDriverInfo.driverInfo.asioVersion=2;
-
-  printf("Initializing driver: "); fflush(stdout);
-  if (ASIOInit(&myDriverInfo.driverInfo) != ASE_OK)
-  {
-    printf("error!\n");    
-    return -1;
-  }
-  printf("done\n");
-
-  if (olddev && strstr(olddev,"c")) 
-  {
-    printf("Displaying ASIO control panel!\n");
-    ASIOControlPanel();
-    printf("Hit any key to continue (MAKE SURE THE PANEL HAS BEEN CLOSED)...\n");
-    getchar();
-  }
-  int inchoffs[2]={0};
-  int outchoffs[2]={0};
-  char *p;
-  if (olddev && (p=strstr(olddev,":")))
-  {
-    p++;
-    if (*p)
-    {
-      inchoffs[0]=atoi(p);
-      while (*p && *p != ',' && *p != ':') p++;
-      if (*p == ',')
-      {
-        p++;
-        if (*p)
-        {
-          inchoffs[1]=atoi(p);
-          while (*p && *p != ':') p++;
-        }
-      }
-      if (*p == ':')
-      {
-        p++;
-        outchoffs[0]=atoi(p);
-        while (*p && *p != ',') p++;
-        if (*p == ',')
-        {
-          p++;
-          if (*p)
-          {
-            outchoffs[1]=atoi(p);
-            while (*p && *p != ':') p++;
-          }
-        }
-      }
-    }
-  }
-
-  m_driver_active=2;
-
-	if (ASIOGetChannels(&myDriverInfo.inputChannels, &myDriverInfo.outputChannels) != ASE_OK) 
-  {
-    printf("Error getting ASIO channels!\n");
-    return -1;
-  }
-
-  printf ("ASIO channel info: %d inputs, %d outputs\n", (int)myDriverInfo.inputChannels, (int)myDriverInfo.outputChannels);
-
-	// get the usable buffer sizes
-  if(ASIOGetBufferSize(&myDriverInfo.minSize, &myDriverInfo.maxSize, &myDriverInfo.preferredSize, &myDriverInfo.granularity) != ASE_OK)
-  {
-    printf("Error getting ASIO buffer sizes\n");
-    return -1;
-  }
-
-	printf ("ASIO preferred buffer size: %d samples\n", (int)myDriverInfo.preferredSize);
-
-	// get the currently selected sample rate
-	if(ASIOGetSampleRate(&myDriverInfo.sampleRate) != ASE_OK)
-  {
-    printf("Error getting ASIO samplerate\n");
-    return -1;
-  }
-
-	if (myDriverInfo.sampleRate <= 0.0 || myDriverInfo.sampleRate > 192000.0)
-	{
-		// Driver does not store it's internal sample rate, so set it to a know one.
-		// Usually you should check beforehand, that the selected sample rate is valid
-		// with ASIOCanSampleRate().
-		if(ASIOSetSampleRate(44100.0) != ASE_OK || ASIOGetSampleRate(&myDriverInfo.sampleRate) != ASE_OK)
-		{
-      printf("Error trying to set a default (44kHz) samplerate\n");
-			return -1;
-		}
-	}
-	printf ("ASIO sample rate: %f\n", myDriverInfo.sampleRate);
-
-	// check wether the driver requires the ASIOOutputReady() optimization
-	// (can be used by the driver to reduce output latency by one block)
-	if(ASIOOutputReady() == ASE_OK) myDriverInfo.postOutput = true;
-	else myDriverInfo.postOutput = false;
-	//printf ("ASIOOutputReady(); - %s\n", myDriverInfo.postOutput ? "Supported" : "Not supported");
-
-	asioCallbacks.bufferSwitch = &bufferSwitch;
-	asioCallbacks.sampleRateDidChange = &sampleRateChanged;
-	asioCallbacks.asioMessage = &asioMessages;
-	asioCallbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfo;
-
-
-  ASIOBufferInfo *info = myDriverInfo.bufferInfos;
-
-  myDriverInfo.outputBuffers = min(myDriverInfo.inputChannels,myDriverInfo.outputChannels);
-
-  myDriverInfo.outputBuffers=myDriverInfo.inputBuffers=min(myDriverInfo.outputBuffers,nch);
-
-
-  int i;
-  for (i = 0; i < myDriverInfo.inputChannels; i ++)
-  {
-    ASIOChannelInfo c;
-    c.channel=i;
-    c.isInput=1;
-    if (ASIOGetChannelInfo(&c) == ASE_OK) printf("ASIO Input Channel %d: '%s' \n",i,c.name);
-  }
-  for (i = 0; i < myDriverInfo.outputChannels; i ++)
-  {
-    ASIOChannelInfo c;
-    c.channel=i;
-    c.isInput=0;
-    if (ASIOGetChannelInfo(&c) == ASE_OK) printf("ASIO Output Channel %d: '%s' \n",i,c.name);
-  }
-
-// this should work, but it doesn't seem to :(
-//  if (myDriverInfo.inputBuffers == 2 && inchoffs[0] == inchoffs[1])
-//    myDriverInfo.inputBuffers=1;
-
-  //{
-    //char buf[512];
-    //sprintf(buf,"outputting asio to channels %d and %d\n",outchoffs[0],outchoffs[1]);
-    //OutputDebugString(buf);
-//  }
-
-  if (myDriverInfo.outputBuffers == 2 && outchoffs[0] == outchoffs[1])
-    myDriverInfo.outputBuffers=1;
-
-
-	for(i = 0; i < myDriverInfo.inputBuffers; i++, info++)
-	{
-		info->isInput = ASIOTrue;
-		info->channelNum = inchoffs[i];
-		info->buffers[0] = info->buffers[1] = 0;
-	}
-	for(i = 0; i < myDriverInfo.outputBuffers; i++, info++)
-	{
-		info->isInput = ASIOFalse;
-		info->channelNum = outchoffs[i];
-		info->buffers[0] = info->buffers[1] = 0;
-	}
-
-	ASIOError result = ASIOCreateBuffers(myDriverInfo.bufferInfos,
-		myDriverInfo.inputBuffers + myDriverInfo.outputBuffers,
-		myDriverInfo.preferredSize, &asioCallbacks);
-
-  int last_spltype=-1;
-
-	if (result == ASE_OK)
-	{
-		// now get all the buffer details, sample word length, name, word clock group and activation
-		for (i = 0; i < myDriverInfo.inputBuffers + myDriverInfo.outputBuffers; i++)
-		{
-			myDriverInfo.channelInfos[i].channel = myDriverInfo.bufferInfos[i].channelNum;
-			myDriverInfo.channelInfos[i].isInput = myDriverInfo.bufferInfos[i].isInput;
-			result = ASIOGetChannelInfo(&myDriverInfo.channelInfos[i]);
-
-      //printf("Channel %d info: %s\n",i,myDriverInfo.channelInfos[i].name);
-
-      if (last_spltype < 0) last_spltype = myDriverInfo.channelInfos[i].type;
-      else if (myDriverInfo.channelInfos[i].type != last_spltype)
-      {
-        printf("ASIO: Different sample types per stream, can't deal!\n");
-        return -1;
-      }
-			if (result != ASE_OK)
-				break;
-		}
-
-		if (result == ASE_OK)
-		{
-			// get the input and output latencies
-			// Latencies often are only valid after ASIOCreateBuffers()
-			// (input latency is the age of the first sample in the currently returned audio block)
-			// (output latency is the time the first sample in the currently returned audio block requires to get to the output)
-			//result = ASIOGetLatencies(&myDriverInfo.inputLatency, &myDriverInfo.outputLatency);
-			//if (result == ASE_OK)
-			//	printf ("ASIOGetLatencies (input: %d, output: %d);\n", myDriverInfo.inputLatency, myDriverInfo.outputLatency);
-		}
-	}
-
-	if (result != ASE_OK)
-	{
-    printf("ASIO: Error initializing buffers\n");
-    return -1;
-  }
-
-  m_driver_active=3;
-
-  m_sleep =   sleep >= 0 ? sleep : 0;
-
-  m_nch = (int)2;
-  m_srate=(int)myDriverInfo.sampleRate;
-  if (last_spltype == ASIOSTInt16LSB)
-  {
-    bps=16;
-  }
-  else if (last_spltype == ASIOSTInt24LSB)
-  {
-    bps=24;
-  }
-  else if (last_spltype == ASIOSTInt32LSB)
-  {
-    bps=32;
-  }
-  else
-  {
-    printf("ASIO: unknown sample type '%d'. I currently only support 16 and 24 bit LSB.\n",last_spltype);
-    return -1;
-  }
-  m_bps=bps;
-
-  *nbufs=1;
-  m_bufsize=*bufsize=(int)myDriverInfo.preferredSize*m_nch*(m_bps/8);
-  free(asio_pcmbuf);
-  asio_pcmbuf = (char *)malloc(m_bufsize);
-  myDriverInfo.bytesProcessed=0;
-  myDriverInfo.started=0;
-
-  //InitializeCriticalSection(&myDriverInfo.cs);
-
-  if (ASIOStart() != ASE_OK)
-  {
-    printf("ASIO: Error starting\n");
-    return -1;
-  }
-
-  //EnterCriticalSection(&myDriverInfo.cs);
-
-  m_driver_active=4;
-
-  return 0;
-}
-
-int audioStreamer_ASIO::Read(char *buf, int len) // returns 0 if blocked, < 0 if error, > 0 if data
-{
-  myDriverInfo.started=1;
-  //LeaveCriticalSection(&myDriverInfo.cs);
-  Sleep(20);
-  //EnterCriticalSection(&myDriverInfo.cs);
-
-//  len=myDriverInfo.bytesProcessed;
-  //myDriverInfo.bytesProcessed=0;
-
-  return 0;
-}
-
-int audioStreamer_ASIO::Write(char *buf, int len) // returns 0 on success
-{ 
-  return 0;
-}
-
-#endif//SUPPORT_ASIO
-
-
