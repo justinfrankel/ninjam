@@ -673,6 +673,12 @@ int main(int argc, char **argv)
   delete m_group;
   delete m_listener;
 
+  if (g_logfp)
+  {
+    fclose(g_logfp);
+    g_logfp=0;
+  }
+
   JNL::close_socketlib();
 	return 0;
 }
