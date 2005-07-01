@@ -70,7 +70,7 @@ public:
   char *GetUserName() { return m_user.Get(); }
   char *GetHostName() { return m_host.Get(); }
 
-  float GetActualBPM() { if (m_srate <= 0 || m_interval_length <= 0 || m_active_bpi <= 0) return 120.0f; return (float) (60.0*m_active_bpi*m_srate/(double)m_interval_length); }
+  float GetActualBPM() { return (float) m_active_bpm; }
   int GetBPI() { return m_active_bpi; }
   void GetPosition(int *pos, int *length);  // positions in samples
   int GetLoopCount() { return m_loopcnt; }
