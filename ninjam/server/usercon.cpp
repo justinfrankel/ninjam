@@ -268,7 +268,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
 
       m_username.Set(username);
-      printf("Accepted user: %s\n",username);
+      //printf("Accepted user: %s\n",username);
 
       {
         mpb_server_auth_reply bh;

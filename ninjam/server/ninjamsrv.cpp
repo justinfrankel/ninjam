@@ -139,12 +139,12 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"PIDFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    g_pidfilename=lp->gettoken_str(1);    
+    g_pidfilename=strdup(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"LogFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    g_logfilename=lp->gettoken_str(1);    
+    g_logfilename=strdup(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"ServerLicense"))
   {
