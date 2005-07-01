@@ -33,7 +33,6 @@ class audioStreamer_ASIO  : public audioStreamer
 };
 
 
-audioStreamer *create_audioStreamer_KS();
-
+audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize);
 
 #endif

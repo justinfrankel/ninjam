@@ -4,7 +4,7 @@
 #include "resource.h"
 
 
-
+#include "audiostream_asio.h"
 
 struct
 {
@@ -12,12 +12,31 @@ struct
    int asio_driver;
    int asio_input[2];
    int asio_output[2];
+
+   int ks_srate;
+   int ks_bps;
+   int ks_device[2];
+   int ks_blocksize;
+   int ks_numblocks;
+   int ks_high;
+
 } configdata={
   0,
    0, //asio_driver;
    {0,1}, //asio_input;
    {0,1}, //asio_output;
+
+   48000, //ks_srate;
+   16, //ks_bps;
+   {-1,-1}, //ks_device;
+   512, //ks_blocksize;
+   8, // ks_numblocks;
+   1, // ks_high
+
 };
+
+
+static BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 static WDL_String m_inifile;
 static int load_config()
@@ -53,6 +72,51 @@ static void save_config()
     WritePrivateProfileString( "ninjam",n,buf,fn);
   }
 }
+
+
+audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent)
+{
+  m_inifile.Set(inifile);
+  load_config();
+  if (showcfg)
+  {
+    DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),hwndParent,configDlgMainProc);
+    save_config();
+  }
+
+  if (configdata.mode == 0)
+  {
+      static char tmpbuf[64];
+      wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
+      configdata.asio_input[0],
+      configdata.asio_input[1],
+      configdata.asio_output[0],
+      configdata.asio_output[1]
+      );
+
+      audioStreamer_ASIO *audio=new audioStreamer_ASIO;
+
+      char *dev_name_in=tmpbuf;
+      if (!audio->Open(&dev_name_in)) return audio;
+      delete audio;
+  }
+  else if (configdata.mode == 1)
+  {
+    int nbufs=configdata.ks_numblocks;
+    int bufsize=configdata.ks_blocksize;
+    audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize);
+
+    if (p && configdata.ks_high)
+    {
+      SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS);
+    }
+
+    return p;
+  }
+
+  return 0;
+}
+
 
 
 #include "asio/asiosys.h"
@@ -206,26 +270,94 @@ BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   return 0;
 }
 
+BOOL CALLBACK cfgproc_ks( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  if (uMsg == WM_INITDIALOG)
+  {
+    SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING,0,(LPARAM)"(default device (todo))");
+    SendDlgItemMessage(hwndDlg,IDC_COMBO2,CB_ADDSTRING,0,(LPARAM)"(default device (todo))");
+    SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_SETCURSEL,(WPARAM)configdata.ks_device[0]+1,0);
+    SendDlgItemMessage(hwndDlg,IDC_COMBO2,CB_SETCURSEL,(WPARAM)configdata.ks_device[1]+1,0);
+
+    CheckDlgButton(hwndDlg,configdata.ks_bps==24?IDC_RADIO4:
+                           configdata.ks_bps==32?IDC_RADIO5:IDC_RADIO3,BST_CHECKED);
+    SetDlgItemInt(hwndDlg,IDC_EDIT1,configdata.ks_srate,FALSE);
+    SetDlgItemInt(hwndDlg,IDC_EDIT2,configdata.ks_numblocks,FALSE);
+    SetDlgItemInt(hwndDlg,IDC_EDIT3,configdata.ks_blocksize,FALSE);
+    CheckDlgButton(hwndDlg,IDC_CHECK1,configdata.ks_high?BST_CHECKED:0);
+
+    SendMessage(hwndDlg,WM_USER+0x1001,0,0);
+    return 1;
+  }
+  if ((uMsg == WM_COMMAND && (
+       LOWORD(wParam) == IDC_RADIO3 ||
+       LOWORD(wParam) == IDC_RADIO4 ||
+       LOWORD(wParam) == IDC_RADIO5 ||
+       LOWORD(wParam) == IDC_EDIT1 ||
+       LOWORD(wParam) == IDC_EDIT2 ||
+       LOWORD(wParam) == IDC_EDIT3)) || uMsg == WM_USER+0x1001)
+  {
+    char buf[512];
+    BOOL t;
+    int bps=IsDlgButtonChecked(hwndDlg,IDC_RADIO4)?24:IsDlgButtonChecked(hwndDlg,IDC_RADIO5)?32:16;
+    int srate=GetDlgItemInt(hwndDlg,IDC_EDIT1,&t,0);
+    int nb=GetDlgItemInt(hwndDlg,IDC_EDIT2,&t,0);
+    int bs=GetDlgItemInt(hwndDlg,IDC_EDIT3,&t,0);
+
+    int bytesec=srate*2*(bps/8);
+    
+    if (bytesec)
+      wsprintf(buf,"(latency: %d ms)", (nb*bs*1000)/bytesec);
+    else buf[0]=0;
+
+    SetDlgItemText(hwndDlg,IDC_LATENCYINFO,buf);
+  }
+  //if (uMsg == WM_COMMAND && LOWORD(wParam) == IDC_COMBO1 && HIWORD(wParam) == CBN_SELCHANGE)
+  //{
+  //}
+  if (uMsg == WM_COMMAND && LOWORD(wParam) == IDOK)
+  {
+    int a=SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
+    if (a != CB_ERR) configdata.ks_device[0]=a-1;
+    a=SendDlgItemMessage(hwndDlg,IDC_COMBO2,CB_GETCURSEL,0,0);
+    if (a != CB_ERR) configdata.ks_device[1]=a-1;
+
+    BOOL t;
+    configdata.ks_bps=IsDlgButtonChecked(hwndDlg,IDC_RADIO4)?24:IsDlgButtonChecked(hwndDlg,IDC_RADIO5)?32:16;
+    a=GetDlgItemInt(hwndDlg,IDC_EDIT1,&t,0);
+    if (t) configdata.ks_srate=a;
+
+    a=GetDlgItemInt(hwndDlg,IDC_EDIT2,&t,0);
+    if (t) configdata.ks_numblocks=a;
+
+    a=GetDlgItemInt(hwndDlg,IDC_EDIT3,&t,0);
+    if (t) configdata.ks_blocksize=a;
+  
+    configdata.ks_high = !!IsDlgButtonChecked(hwndDlg,IDC_CHECK1);     
+  }
+  return 0;
+}
+
 
 
 BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static const int dlgids[1]={IDD_CFG_ASIO};
-  static const DLGPROC procs[1]={cfgproc_asio};
-  static HWND children[1];
-  static const char *labels[1] = { "ASIO" };
+  static const int dlgids[2]={IDD_CFG_ASIO,IDD_CFG_KS};
+  static const DLGPROC procs[2]={cfgproc_asio,cfgproc_ks};
+  static HWND children[2];
+  static const char *labels[2] = { "ASIO", "Kernel Streaming" };
 
   switch (uMsg)
   {
     case WM_INITDIALOG:
       {
         int x;
-        for (x = 0; x < 1; x ++)
+        for (x = 0; x < 2; x ++)
         {
             SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING,0,(LPARAM)labels[x]);
         }
         int cm=configdata.mode;
-        if (cm  < 0 || cm > 0) cm=0;
+        if (cm  < 0 || cm > 1) cm=0;
         SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_SETCURSEL,(WPARAM)cm,0);
         SendMessage(hwndDlg,WM_COMMAND,MAKEWPARAM(IDC_COMBO1,CBN_SELCHANGE),0);
       }
@@ -233,7 +365,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
     case WM_DESTROY:
       {
         int x;
-        for (x = 0; x < 1; x ++) 
+        for (x = 0; x < 2; x ++) 
         {
           if (children[x] && IsWindow(children[x])) DestroyWindow(children[x]);
           children[x]=0;
@@ -259,7 +391,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
                 SetWindowPos(children[y],NULL,r.left,r.top,0,0,SWP_NOSIZE|SWP_NOZORDER);
                 // position the window
               }
-              for (x = 0; x < 1; x ++) 
+              for (x = 0; x < 2; x ++) 
               {
                 if (children[x]) ShowWindow(children[x],x==y?SW_SHOWNA:SW_HIDE);
               }
@@ -269,7 +401,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         case IDOK:
           {
             int y;
-            for (y = 0; y < 1; y ++)
+            for (y = 0; y < 2; y ++)
               SendMessage(children[y],WM_COMMAND,IDOK,0);
             y=SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
             if (y != CB_ERR) configdata.mode=y;
@@ -281,28 +413,4 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
     return 0;
   }
   return 0;
-}
-
-
-
-
-char *get_asio_configstr(char *inifile, int wantdlg, HWND hwndParent)
-{
-  m_inifile.Set(inifile);
-  load_config();
-  if (wantdlg)
-  {
-    DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),hwndParent,configDlgMainProc);
-    save_config();
-  }
-
-  static char tmpbuf[64];
-    wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
-      configdata.asio_input[0],
-      configdata.asio_input[1],
-      configdata.asio_output[0],
-      configdata.asio_output[1]
-      );
-
-  return tmpbuf;
 }

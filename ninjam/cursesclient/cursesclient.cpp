@@ -173,7 +173,7 @@ char *jesusdir=NULL;
 
 
 #ifdef _WIN32
-extern char *get_asio_configstr(char *inifile, int wantdlg, HWND hwndParent);
+audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
 #endif
 audioStreamer *g_audio;
 NJClient *g_client;
@@ -1104,22 +1104,16 @@ int main(int argc, char **argv)
   }
 
 #ifdef _WIN32
-  {
-    audioStreamer_ASIO *audio;
-    char *dev_name_in;
-    
-    dev_name_in=audioconfigstr&&*audioconfigstr?audioconfigstr:get_asio_configstr("ninjam.ini",audioconfigstr?0:1,NULL);
-    audio=new audioStreamer_ASIO;
+  g_audio=CreateConfiguredStreamer("ninjam.ini", !audioconfigstr, NULL);
 
-    if (audio->Open(&dev_name_in))
-    {
-      printf("Error opening audio!\n");
-      return 0;
-    }
-    printf("Opened %s (%dHz %d->%dch %dbps)\n",dev_name_in,
-      audio->m_srate, audio->m_innch, audio->m_outnch, audio->m_bps);
-    g_audio=audio;
+  if (!g_audio)
+  {
+    printf("Error opening audio!\n");
+    return 0;
   }
+
+  printf("Opened at %dHz %d->%dch %dbps\n",
+    g_audio->m_srate, g_audio->m_innch, g_audio->m_outnch, g_audio->m_bps);
 #else
   {
     audioStreamer_CoreAudio *audio;

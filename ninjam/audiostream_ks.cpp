@@ -1,12 +1,9 @@
-#include "jesusonic.h"
-
-extern unsigned int g_sound_in_overruns, g_sound_out_underruns;
-
-
 #include <windows.h>
 #include <mmsystem.h>
 
-#include "audiostream.h"
+#include "audiostream_asio.h"
+
+#include "../WDL/pcmfmtcvt.h"
 
 #ifdef _MSC_VER 
 
@@ -36,25 +33,26 @@ static void myPrintf(char *s, ...)
 #endif
 
 
-#ifdef SUPPORT_KS
+#ifndef NO_SUPPORT_KS
 //////////////////////////////
 /// Kernel Streaming
 
 
 #include "ks/kssample.h"
 
-class audioStreamer_KS  : public audioStreamer
+class audioStreamer_KS
 {
 	public:
 		audioStreamer_KS();
 		~audioStreamer_KS();
-		int Open(int iswrite, char **dev, int srate, int nch, int bps, int sleep, int *nbufs, int *bufsize);
+		int Open(int iswrite, int srate, int bps, int *nbufs, int *bufsize);
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
 	private:
 
 
+    int m_srate, m_bps;
     int read_pos;
     void StartRead(int idx, int len);
 
@@ -81,12 +79,109 @@ class audioStreamer_KS  : public audioStreamer
 
 };
 
-audioStreamer *create_audioStreamer_KS(int iswrite, char **dev, int srate, int nch, int bps, int sleep, int *nbufs, int *bufsize)
+
+class audioStreamer_KS_asiosim : public audioStreamer
 {
-  audioStreamer_KS *n=new audioStreamer_KS();
-  if (!n->Open(iswrite,dev,srate,nch,bps,sleep,nbufs,bufsize)) return (audioStreamer *)n;
-  delete n;
-  return 0;
+	public:
+		audioStreamer_KS_asiosim(audioStreamer_KS *i, audioStreamer_KS *o, int bufsize, int srate, int bps)
+    {
+      in=i;
+      out=o;
+      DWORD id;
+      m_bps=bps;
+      m_innch=m_outnch=2;
+      m_bps=bps;
+      m_srate=srate;
+      m_done=0;
+      m_buf=(char *)malloc(bufsize);
+      m_bufsize=bufsize;
+
+      m_procbuf=(float *)malloc((bufsize*64)/bps);// allocated 2x, input and output
+      hThread=CreateThread(NULL,0,threadProc,(LPVOID)this,0,&id);
+    }
+		~audioStreamer_KS_asiosim()
+    {
+      m_done=1;
+      WaitForSingleObject(hThread,INFINITE);
+      CloseHandle(hThread);
+      delete in;
+      delete out;
+      free(m_buf);
+      free(m_procbuf);
+    }
+
+    const char *GetChannelName(int idx)
+    {
+      if (idx == 0) return "KS Left";
+      if (idx == 1) return "KS Right";
+      return NULL;
+    }
+
+	private:
+    void tp();
+    static DWORD WINAPI threadProc(LPVOID p)
+    {
+      audioStreamer_KS_asiosim *t=(audioStreamer_KS_asiosim*)p;
+      t->tp();
+      return 0;
+    }
+    audioStreamer_KS *in, *out;
+    
+    HANDLE hThread;
+    int m_done,m_bufsize;
+    char *m_buf;
+    float *m_procbuf;
+
+};
+
+
+void audioStreamer_KS_asiosim::tp()
+{
+  while (!m_done)
+  {
+    int a=in->Read(m_buf,m_bufsize);
+    if (a>0)
+    {
+      int spllen=a*4/(m_bps); // a*8/m_bps/nch
+      float *inptrs[2], *outptrs[2];
+      inptrs[0]=m_procbuf;
+      inptrs[1]=m_procbuf+spllen;
+      outptrs[0]=m_procbuf+spllen*2;
+      outptrs[1]=m_procbuf+spllen*3;
+
+      pcmToFloats(m_buf,spllen,m_bps,2,inptrs[0],1);
+      pcmToFloats(m_buf+(m_bps/8),spllen,m_bps,2,inptrs[1],1);
+
+      audiostream_onsamples(inptrs,2,outptrs,2,spllen,m_srate);
+
+      floatsToPcm(outptrs[0],1,spllen,m_buf,m_bps,2);
+      floatsToPcm(outptrs[1],1,spllen,m_buf+(m_bps/8),m_bps,2);
+      
+
+      out->Write(m_buf,a);
+    }
+    else Sleep(1);
+  }
+}
+
+
+audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize)
+{
+  audioStreamer_KS *in=new audioStreamer_KS();
+  if (in->Open(0,srate,bps,nbufs,bufsize))
+  {
+    delete in;
+    return 0;
+  }
+  audioStreamer_KS *out=new audioStreamer_KS();
+  if (out->Open(1,srate,bps,nbufs,bufsize))
+  {
+    delete in;
+    delete out;
+    return 0;
+  }
+
+  return new audioStreamer_KS_asiosim(in,out,*bufsize,srate,bps);
 }
 
 
@@ -137,17 +232,15 @@ audioStreamer_KS::~audioStreamer_KS()
   free(Packets);
 }
 
-int audioStreamer_KS::Open(int iswrite, char **dev, int srate, int nch, int bps, int sleep, int *nbufs, int *bufsize)
+int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *bufsize)
 {
   if (*nbufs < 1) *nbufs=8;
   if (*nbufs > 128) *nbufs=128;
   m_nbufs=*nbufs;
   if (*bufsize > 8192) *bufsize=8192;
   else if (*bufsize < 0) *bufsize=512;
-  *dev="";
 
   m_srate=srate;
-  m_nch=nch;
   m_bps=bps;
 
   // enumerate audio renderers
@@ -200,6 +293,7 @@ int audioStreamer_KS::Open(int iswrite, char **dev, int srate, int nch, int bps,
 		return -1;
 	}
 
+  int nch=2;
 	// instantiate the pin
   // use WAVEFORMATEXTENSIBLE to describe wave format
   WAVEFORMATEXTENSIBLE wfx;
@@ -246,6 +340,7 @@ int audioStreamer_KS::Open(int iswrite, char **dev, int srate, int nch, int bps,
   		printf("No filters available for capturing\n");
   		return -1;
   	}
+    int nch=2;
   	// instantiate the pin
     // use WAVEFORMATEXTENSIBLE to describe wave format
     WAVEFORMATEXTENSIBLE wfx;
