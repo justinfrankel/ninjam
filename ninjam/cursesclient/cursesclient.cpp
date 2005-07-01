@@ -225,6 +225,7 @@ void jesusonic_processor(float *buf, int len, void *inst)
   }
 #endif
 }
+#ifdef _WIN32
 void CreateJesusInstance(int a)
 {
   if (JesusonicAPI)
@@ -248,6 +249,7 @@ void CreateJesusInstance(int a)
     g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
   }
 }
+#endif
 
 
 int g_sel_x, g_sel_ypos,g_sel_ycat;
@@ -1224,7 +1226,9 @@ int main(int argc, char **argv)
                   case 6: //jesus
                     if (lp.gettoken_int(n+1))
                     {
+#ifdef _WIN32
                       CreateJesusInstance(ch);
+#endif
                     }
                   break;
                   case 7: //name
