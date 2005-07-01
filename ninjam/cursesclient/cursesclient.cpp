@@ -1135,7 +1135,7 @@ int main(int argc, char **argv)
       printf("Error opening audio!\n");
       return 0;
     }
-    printf("Opened %s (%dHz %d->%dch %dbps)\n",dev_name_in,
+    printf("Opened (%dHz %d->%dch %dbps)\n",
       audio->m_srate, audio->m_innch, audio->m_outnch, audio->m_bps);
     g_audio=audio;
   }
