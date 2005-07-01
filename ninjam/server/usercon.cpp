@@ -18,6 +18,8 @@
 #define strncasecmp strnicmp
 #endif
 
+extern void logText(char *s, ...);
+
 #define MAX_NICK_LEN 128 // not including null term
 
 #define TRANSFER_TIMEOUT 8
@@ -82,6 +84,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
      if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
                                         // the user time to potentially read the license agreement.
      {
+        char buf[256];
+        JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+        logText("%s: Got an authorization timeout\n",buf);
         m_connect_time=time(NULL)+120;
         mpb_server_auth_reply bh;
         bh.errmsg="authorization timeout";
@@ -112,6 +117,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         return 0;
       }
 
+      char addrbuf[256];
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+
       char *username=authrep.username;
       char usernametmp[512];
 
@@ -124,6 +132,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         {
           if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
           {
+            logText("%s: Refusing user %s, bad client version\n",addrbuf,username);
             mpb_server_auth_reply bh;
             bh.errmsg="incorrect client version";
             m_netcon.Send(bh.build());
@@ -135,6 +144,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           }
           else if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
           {
+            logText("%s: Refusing user %s, no license agreement\n",addrbuf,username);
             mpb_server_auth_reply bh;
             bh.errmsg="license not agreed to";
             m_netcon.Send(bh.build());
@@ -174,6 +184,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             shatmp.result(buf);
             if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
             {
+              logText("%s: Refusing user %s, invalid pass\n",addrbuf,username);
               mpb_server_auth_reply bh;
               bh.errmsg="invalid login/password";
               m_netcon.Send(bh.build());
@@ -187,6 +198,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
         else
         {
+          logText("%s: Refusing user %s, invalid login\n",addrbuf,username);
           mpb_server_auth_reply bh;
           bh.errmsg="invalid login/password";
           m_netcon.Send(bh.build());
@@ -254,6 +266,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
         if (cnt >= group->m_max_users)
         {
+          logText("%s: Refusing user %s, server full\n",addrbuf,username);
           // sorry, gotta kill this connection
           mpb_server_auth_reply bh;
           bh.errmsg="server full";
@@ -268,7 +281,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
 
       m_username.Set(username);
-      //printf("Accepted user: %s\n",username);
+      logText("%s: Accepted user: %s\n",addrbuf,username);
 
       {
         mpb_server_auth_reply bh;

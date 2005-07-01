@@ -23,8 +23,8 @@
 
 
 FILE *g_logfp;
-char *g_pidfilename="";
-char *g_logfilename="";
+char *g_pidfilename=NULL;
+char *g_logfilename=NULL;
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange();
@@ -139,11 +139,13 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"PIDFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
+    free(g_pidfilename);
     g_pidfilename=strdup(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"LogFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
+    free(g_logfilename);
     g_logfilename=strdup(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"ServerLicense"))
@@ -454,12 +456,14 @@ int main(int argc, char **argv)
       if (!strcmp(argv[p],"-pidfile"))
       {
         if (++p >= argc) usage();
-        g_pidfilename = argv[p];
+        free(g_pidfilename);
+        g_pidfilename = strdup(argv[p]);
       }
       else if (!strcmp(argv[p],"-logfile"))
       {
         if (++p >= argc) usage();
-        g_logfilename = argv[p];
+        free(g_logfilename);
+        g_logfilename = strdup(argv[p]);
       }
       else usage();
 
