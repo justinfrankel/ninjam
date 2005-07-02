@@ -52,14 +52,7 @@ void mkvolpanstr(char *str, double vol, double pan)
   [NSApp setDelegate:self];
   g_client = new NJClient;
   g_client->LicenseAgreementCallback=licensecallback;
-
-  AudioDeviceID idin,idout;
  
-  UInt32 theSize=sizeof(AudioDeviceID);
-  AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&idin);
-  theSize=sizeof(AudioDeviceID);
-  AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice,&theSize,&idout);
-
   [[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
      [NSNumber numberWithFloat:1.0], @"mastervol",
      [NSNumber numberWithFloat:0.0], @"masterpan",
@@ -68,8 +61,8 @@ void mkvolpanstr(char *str, double vol, double pan)
      [NSNumber numberWithFloat:0.5], @"metrovol",
      [NSNumber numberWithFloat:0.0], @"metropan",  
      [NSNumber numberWithBool:NO], @"anon",
-     [NSNumber numberWithInt:(int)idin], @"indev",
-     [NSNumber numberWithInt:(int)idout], @"outdev",
+     @"", @"indevs",
+     @"", @"outdevs",
   NULL]];
 
 
@@ -82,8 +75,8 @@ void mkvolpanstr(char *str, double vol, double pan)
   int a=[[NSUserDefaults standardUserDefaults] integerForKey:@"anon"];
   [cdlg_anon setIntValue:a];
   
-  indev=[[NSUserDefaults standardUserDefaults] integerForKey:@"indev"];
-  outdev=[[NSUserDefaults standardUserDefaults] integerForKey:@"outdev"];
+  indev=[[NSUserDefaults standardUserDefaults] stringForKey:@"indevs"];
+  outdev=[[NSUserDefaults standardUserDefaults] stringForKey:@"outdevs"];
   
   if (a)
   {
@@ -291,10 +284,16 @@ if (ns != m_laststatus)
   
   char tmp[512];
   char *d=tmp;
-  sprintf(tmp,"%d,%d",indev,outdev);
-   p->Open(&d,44100,2,16);
+  tmp[0]=0;
+  if (indev && outdev)
+  {
+    [indev getCString:tmp maxLength:254];
+    strcat(tmp,",");
+    [outdev getCString:(tmp+strlen(tmp)) maxLength:254];
+  }
+  p->Open(&d,44100,2,16);
   
-   myAudio=p;
+  myAudio=p;
    
    if (!timer)
      timer=[NSTimer scheduledTimerWithTimeInterval:0.01 target:self selector:@selector(tick:) userInfo:0 repeats:YES];
@@ -354,13 +353,10 @@ if (ns != m_laststatus)
   // see which devices the user selected
   if (m_devlist && m_devlist_len)
   {
-    int a=[[[adlg_in selectedItem] title] intValue];
-    if (a >=0 && a< m_devlist_len)
-      [[NSUserDefaults standardUserDefaults] setInteger:indev=m_devlist[a] forKey:@"indev"];
-    a=[[[adlg_out selectedItem] title] intValue];
-    if (a >=0 && a< m_devlist_len)
-      [[NSUserDefaults standardUserDefaults] setInteger:outdev=m_devlist[a] forKey:@"outdev"];
-    
+    indev = [[adlg_in selectedItem] title];
+    [[NSUserDefaults standardUserDefaults] setObject:indev forKey:@"indevs"];
+    outdev = [[adlg_out selectedItem] title];
+    [[NSUserDefaults standardUserDefaults] setObject:outdev forKey:@"outdevs"];    
   }
 }
 
@@ -373,12 +369,16 @@ if (ns != m_laststatus)
 }
 
 - (IBAction)onaudiocfg:(id)sender
-{
-  if (g_audio_enable) return;
- 
+{ 
   [adlg_in removeAllItems];
   [adlg_out removeAllItems];
-	UInt32 theSize; 
+
+  AudioDeviceID idin,idout;
+  UInt32 theSize=sizeof(AudioDeviceID);
+  AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&idin);
+  theSize=sizeof(AudioDeviceID);
+  AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice,&theSize,&idout);
+  
   if (m_devlist) { free(m_devlist); m_devlist=0; m_devlist_len=0; }
 	int s = AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &theSize, NULL ); 
   int theNumberDevices = theSize / sizeof(AudioDeviceID); 
@@ -409,9 +409,9 @@ if (ns != m_laststatus)
              AudioDeviceGetProperty(myDev,0,1,kAudioDevicePropertyStreamConfiguration,&os,buf2);
              if (os>=sizeof(AudioBufferList)) 
              {
-                NSString *t=[NSString stringWithFormat:@"%d: %s",s,buf];
+                NSString *t=[(NSString *)CFStringCreateWithCString(NULL,buf,kCFStringEncodingUTF8) autorelease];
                 [adlg_in addItemWithTitle:t];
-                if (myDev == indev) [adlg_in selectItemWithTitle:t];
+                if (!indev && idin == myDev) indev=t;
              }
              free(buf2);
           }
@@ -422,9 +422,9 @@ if (ns != m_laststatus)
              AudioDeviceGetProperty(myDev,0,0,kAudioDevicePropertyStreamConfiguration,&os,buf2);
              if (os>=sizeof(AudioBufferList)) 
              {
-                NSString *t=[NSString stringWithFormat:@"%d: %s",s,buf];
+                NSString *t=[(NSString *)CFStringCreateWithCString(NULL,buf,kCFStringEncodingUTF8) autorelease];
                 [adlg_out addItemWithTitle:t];
-                if (myDev == outdev) [adlg_out selectItemWithTitle:t];
+                if (!outdev && idout == myDev) outdev=t;
              }
              free(buf2);
           }
@@ -433,6 +433,9 @@ if (ns != m_laststatus)
       }
     }
   }
+  
+//  if (indev) [adlg_in selectItemWithTitle:indev];
+//  if (outdev) [adlg_in selectItemWithTitle:outdev];
     
   // populate list of devices
   
