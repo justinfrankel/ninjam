@@ -101,7 +101,7 @@ OSStatus caIOproc(AudioDeviceID dev,
         if (!ca_tmpbuf || ca_tmpbuf_size <  needsize) ca_tmpbuf=(float*)realloc(ca_tmpbuf,ca_tmpbuf_size=needsize);
 	if (ca_tmpbuf)
 	{
-        	int x,c=in_size/(sizeof(float)*in_nch);
+        	int c=in_size/(sizeof(float)*in_nch);
         	onsamples_old((float*)in,in_nch,(float *)out,out_nch,c,g_srate);
 	}
      }
