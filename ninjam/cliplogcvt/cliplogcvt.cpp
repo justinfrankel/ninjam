@@ -141,9 +141,15 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
       if (!concatout)
       {
         concat_fn.Set(g_concatdir.Get());
-        char buf[512];
+        char buf[4096];
         sprintf(buf,"\\%03d_%03d.ogg",chidx,concat_filen++);
         concat_fn.Append(buf);
+
+        char *p;
+        if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+        {
+          concat_fn.Set(buf);
+        }
 
         concatout = fopen(concat_fn.Get(),"wb");
         last_pos = list->items.Get(y)->position;
