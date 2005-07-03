@@ -24,6 +24,8 @@
     IBOutlet NSMenuItem *menudisconnect;
     IBOutlet NSMenuItem *menuacfg;
     
+    IBOutlet NSTableView *loctab;
+    
     IBOutlet NSPanel *cdlg;
     IBOutlet NSTextField *cdlg_srv;
     IBOutlet NSTextField *cdlg_user;
@@ -61,4 +63,13 @@
 - (IBAction)adlg_insel:(NSPopUpButton *)sender;
 - (IBAction)adlg_outsel:(NSPopUpButton *)sender;
 - (void)updateMasterIndicators;
+- (int)numberOfRowsInTableView:(NSTableView *)aTableView;
+- (id)tableView:(NSTableView *)aTableView
+    objectValueForTableColumn:(NSTableColumn *)aTableColumn
+    row:(int)rowIndex;
+- (void)tableView:(NSTableView *)aTableView
+    setObjectValue:anObject
+    forTableColumn:(NSTableColumn *)aTableColumn
+    row:(int)rowIndex;
+
 @end

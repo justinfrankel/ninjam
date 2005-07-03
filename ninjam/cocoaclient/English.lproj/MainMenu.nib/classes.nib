@@ -32,6 +32,7 @@
                 "cdlg_passlabel" = NSTextField; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
+                loctab = NSTableView; 
                 mastermute = NSButton; 
                 masterpan = NSSlider; 
                 mastervol = NSSlider; 

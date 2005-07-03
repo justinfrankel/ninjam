@@ -6,7 +6,6 @@
 audioStreamer *myAudio;
 NJClient *g_client;
 
-
 int g_audio_enable=0;
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
@@ -51,6 +50,9 @@ void mkvolpanstr(char *str, double vol, double pan)
 {  
   [NSApp setDelegate:self];
   g_client = new NJClient;
+  
+  
+  
   g_client->LicenseAgreementCallback=licensecallback;
  
   [[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
@@ -106,6 +108,8 @@ void mkvolpanstr(char *str, double vol, double pan)
       
   [self updateMasterIndicators];
   
+  
+  [loctab setDataSource:self];
 }
 
 - (BOOL)validateMenuItem:(id)sender
@@ -442,5 +446,55 @@ if (ns != m_laststatus)
   [NSApp runModalForWindow:(NSWindow *)adlg];
   
 }
+
+- (int)numberOfRowsInTableView:(NSTableView *)aTableView
+{
+    if (!g_client) return 0;
+    
+    if (aTableView == loctab)
+    {
+      int a;
+      for (a = 0; a < MAX_LOCAL_CHANNELS && g_client->EnumLocalChannels(a)>=0; a ++);
+      return a;
+    }
+    
+    return 0;
+}
+
+- (id)tableView:(NSTableView *)aTableView
+    objectValueForTableColumn:(NSTableColumn *)aTableColumn
+    row:(int)rowIndex
+{
+    if (aTableView == loctab)
+    {
+      int a=g_client->EnumLocalChannels(rowIndex);
+    
+      NSParameterAssert(a >= 0);
+      char *p=g_client->GetLocalChannelInfo(a,NULL,NULL,NULL);
+      if (!p) p="";
+      return [(NSString *)CFStringCreateWithCString(NULL,p,kCFStringEncodingUTF8) autorelease];
+    }
+    
+    return 0;
+ }
+
+- (void)tableView:(NSTableView *)aTableView
+    setObjectValue:anObject
+    forTableColumn:(NSTableColumn *)aTableColumn
+    row:(int)rowIndex
+{
+  if (aTableView == loctab)
+  {
+      int a=g_client->EnumLocalChannels(rowIndex);
+    
+      NSParameterAssert(a >= 0);
+      
+      char name[256];
+      [anObject getCString:(char *)name maxLength:(unsigned)(sizeof(name)-1)];
+  
+      g_client->SetLocalChannelInfo(a,name, false, false, false, 0, false,false);
+  }
+}
+
 
 @end
