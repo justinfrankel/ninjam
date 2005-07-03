@@ -146,6 +146,12 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 2) return -1;
     g_logfilename.Set(lp->gettoken_str(1));    
   }
+  else if (!stricmp(t,"DefaultTopic"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    if (!m_group->m_topictext.Get()[0])
+      m_group->m_topictext.Set(lp->gettoken_str(1));    
+  }
   else if (!stricmp(t,"ServerLicense"))
   {
     if (lp->getnumtokens() != 2) return -1;
@@ -519,7 +525,7 @@ int main(int argc, char **argv)
     m_group->GetUserPass=myGetUserPass;
 
     logText("Using default %d BPM, %d beats/interval\n",120,8);
-    m_group->SetConfig(8,120);
+    m_group->SetConfig(8,120);    
 
     m_group->SetLicenseText(g_config_license.Get());
 

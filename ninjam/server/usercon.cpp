@@ -317,7 +317,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       }
 
 
-      if (group->m_topictext.Get() && group->m_topictext.Get()[0])
       {
         mpb_chat_message newmsg;
         newmsg.parms[0]="TOPIC";
