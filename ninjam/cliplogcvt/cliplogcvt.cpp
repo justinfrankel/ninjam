@@ -96,11 +96,13 @@ void WriteRec(FILE *fp, char *name, int id, int trackid, double position, double
 
 void usage()
 {
-   printf("Usage: cliplogcvt session_directory [options]\n"
-           "Options:\n"
-           "-skip <intervals>\n"
-           "-maxlen <intervals>\n"
-           "-oggconcat\n"
+   printf("Usage: \n"
+          "  cliplogcvt session_directory [options]\n"
+          "\n"
+          "Options:\n"
+          "  -skip <intervals>\n"
+          "  -maxlen <intervals>\n"
+          "  -oggconcat\n"
       );
   exit(1);
 }
@@ -192,8 +194,8 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
 
 int main(int argc, char **argv)
 {
-  printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
-  printf("Copyright (C) 2005, Cockos, Inc.\n");
+  printf("ClipLogCvt v0.01a - Copyright (C) 2005, Cockos, Inc.\n"
+         "(Converts NINJAM log file to Vegas 4 compatible EDL text file)\n\n");
   if (argc <  2 || argv[1][0] == '-')
   {
     usage();
@@ -302,7 +304,7 @@ int main(int argc, char **argv)
               if ((m_cur_bpi >= 0 && m_cur_bpi != bpi) ||
                   (m_cur_bpm >= 0 && m_cur_bpm != bpm))
               {
-                printf("BPI/BPM changed from %d/%.2f to %d/%.2f\n",m_cur_bpi,m_cur_bpm,bpi,bpm);
+//                printf("BPI/BPM changed from %d/%.2f to %d/%.2f\n",m_cur_bpi,m_cur_bpm,bpi,bpm);
               }
 
               m_cur_bpi=bpi;
