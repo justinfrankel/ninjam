@@ -56,7 +56,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double 
     if (tmp) 
     {
       fseek(tmp,0,SEEK_END);
-      int l=ftell(fp);
+      int l=ftell(tmp);
       fclose(tmp);
       if (l) 
       {
@@ -93,19 +93,52 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double 
   return 1;
 }
 
+void usage()
+{
+   printf("Usage: cliplogcvt session_directory [options]\n"
+           "Options:\n"
+           "-skip <intervals>\n"
+           "-maxlen <intervals>\n"
+           "-oggconcat\n"
+      );
+  exit(1);
+}
+
+int g_ogg_concatmode=0;
+
 int main(int argc, char **argv)
 {
   printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (argc <  2)
   {
-    printf("Usage: clipoutcvt session_directory [start_interval] [end_interval]\n");
-    return 1;
+    usage();
   }
+  int chunk_len=0x40000000;
   int start_interval=1;
   int end_interval=0x40000000;
-  if (argc>=3) start_interval=atoi(argv[2]);
-  if (argc>=4) end_interval=atoi(argv[3]);
+
+
+  int p;
+  for (p = 2; p < argc; p++)
+  {
+    if (!stricmp(argv[p],"-skip"))
+    {
+      if (++p >= argc) usage();
+      start_interval = atoi(argv[p])+1;
+    }
+    else if (!stricmp(argv[p],"-maxlen"))
+    {
+      if (++p >= argc) usage();
+      end_interval = atoi(argv[p]);
+    }
+    else if (!stricmp(argv[p],"-oggconcat"))
+    {
+      g_ogg_concatmode=1;
+    }
+    else usage();
+  }
+  end_interval += start_interval;
 
   WDL_String logfn(argv[1]);
   logfn.Append("\\clipsort.log");
