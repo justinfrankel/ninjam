@@ -168,7 +168,6 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
             if (!a) break;
             fwrite(buf,1,a,concatout);
           }
-          // copy file to concat file
           last_len += list->items.Get(y)->length;
           fclose(fp);
         }
