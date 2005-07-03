@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <math.h>
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/lineparse.h"
@@ -24,7 +25,9 @@ class UserChannelList
 };
 
 
-int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double len, char *path)
+int g_ogg_concatmode=0;
+
+int resolveFile(char *name, WDL_String *outpath, char *path)
 {
   char *p=name;
   while (*p && *p == '0') p++;
@@ -33,7 +36,7 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double 
   char *exts[]={".wav",".ogg"};
   WDL_String fnfind;
   int x;
-  for (x = 0; x < sizeof(exts)/sizeof(exts[0]); x ++)
+  for (x = !!g_ogg_concatmode; x < sizeof(exts)/sizeof(exts[0]); x ++)
   {
     fnfind.Set(path);
     fnfind.Append("\\");
@@ -64,19 +67,19 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double 
         char *p;
         if (GetFullPathName(fnfind.Get(),sizeof(buf),buf,&p))
         {
-          fnfind.Set(buf);
+          outpath->Set(buf);
+          return 1;
         }       
-        break;
       }
     }
   }
-  if (x == sizeof(exts)/sizeof(exts[0]))
-  {
-    printf("Error resolving guid %s\n",name);
-    return 0;
-  }
+  printf("Error resolving guid %s\n",name);
+  return 0;
 
+}
 
+void WriteRec(FILE *fp, char *name, int id, int trackid, double position, double len, char *path)
+{
              //ID    Track    StartT  Length
   fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,position,len);
 
@@ -84,13 +87,11 @@ int WriteRec(FILE *fp, char *name, int id, int trackid, double position, double 
   fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
 
   //FileName
-  fprintf(fp,"\"%s\";\t",fnfind.Get());
+  fprintf(fp,"\"%s\";\t",name);
 
   //         Stream  StreamStart Len    FadeTimeIn   FadeTimeOut SustainGn  CurveInGainIn  CvO  GainOut  LayerColorCurveInRCurveOutR
   fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t0;\t0.000000;\t0;\t-1;\t0;\t0\n",
     (double)len);
-
-  return 1;
 }
 
 void usage()
@@ -104,13 +105,91 @@ void usage()
   exit(1);
 }
 
-int g_ogg_concatmode=0;
+
+WDL_String g_concatdir;
+
+void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_id, int *id, char *path)
+{
+  int y;
+  FILE *concatout=NULL;
+  double last_pos=-1000.0, last_len=0.0;
+  WDL_String concat_fn;
+  int concat_filen=0;
+
+  const double DELTA=0.0000001;
+  for (y = 0; y < list->items.GetSize(); y ++)
+  {
+    WDL_String op;
+    if (!resolveFile(list->items.Get(y)->guidstr.Get(),&op,path)) 
+    {
+      if (concatout) fclose(concatout);
+      concatout=0;
+      continue;
+    }
+
+    if (g_ogg_concatmode)
+    {
+      if (concatout && fabs(last_pos+last_len - list->items.Get(y)->position) > DELTA)
+      {
+        WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+        (*id)++;
+
+        fclose(concatout);
+        concatout=0;
+      }
+
+      if (!concatout)
+      {
+        concat_fn.Set(g_concatdir.Get());
+        char buf[512];
+        sprintf(buf,"\\%03d_%03d.ogg",chidx,concat_filen++);
+        concat_fn.Append(buf);
+
+        concatout = fopen(concat_fn.Get(),"wb");
+        last_pos = list->items.Get(y)->position;
+        last_len = 0.0;
+      }
+
+      if (concatout)
+      {
+        FILE *fp = fopen(op.Get(),"rb");
+        if (fp)
+        {
+          char buf[4096];
+          for (;;)
+          {
+            int a=fread(buf,1,sizeof(buf),fp);
+            if (!a) break;
+            fwrite(buf,1,a,concatout);
+          }
+          // copy file to concat file
+          last_len += list->items.Get(y)->length;
+          fclose(fp);
+        }
+
+      }
+    }
+    else
+    {
+      WriteRec(outfile,op.Get(), *id, *track_id, 
+                   list->items.Get(y)->position, list->items.Get(y)->length, path);
+      (*id)++;
+    }
+  }
+  if (concatout)
+  {
+    WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+    (*id)++;
+    fclose(concatout);
+  }
+  if (y) (*track_id)++;
+}
 
 int main(int argc, char **argv)
 {
   printf("ClipLogCvt v0.0 -- converts Ninjam log file to Vegas 4 EDL text file\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
-  if (argc <  2)
+  if (argc <  2 || argv[1][0] == '-')
   {
     usage();
   }
@@ -147,6 +226,13 @@ int main(int argc, char **argv)
   {
     printf("Error opening logfile\n");
     return -1;
+  }
+
+  if (g_ogg_concatmode)
+  {
+    g_concatdir.Set(argv[1]);
+    g_concatdir.Append("\\concat");
+    CreateDirectory(g_concatdir.Get(),NULL);
   }
 
   double m_cur_bpm=-1.0;
@@ -310,25 +396,12 @@ int main(int argc, char **argv)
   int x;
   for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
   {
-    int y;
-
-    for (y = 0; y < localrecs[x].items.GetSize(); y ++)
-    {
-      if (WriteRec(outfile, localrecs[x].items.Get(y)->guidstr.Get(), id, track_id, localrecs[x].items.Get(y)->position, localrecs[x].items.Get(y)->length ,argv[1])) id++;
-    }
-    if (y)  track_id++;
+    WriteOutTrack(x,outfile, localrecs+x, &track_id, &id, argv[1]);
 
   }
   for (x= 0; x < curintrecs.GetSize(); x ++)
   {
-    int y;
-
-    for (y = 0; y < curintrecs.Get(x)->items.GetSize(); y ++)
-    {
-      if (WriteRec(outfile, curintrecs.Get(x)->items.Get(y)->guidstr.Get(), id, track_id, curintrecs.Get(x)->items.Get(y)->position, curintrecs.Get(x)->items.Get(y)->length,argv[1])) id++;
-    }
-    if (y)  track_id++;
-
+    WriteOutTrack(x+32,outfile, curintrecs.Get(x), &track_id, &id, argv[1]);
   }
   printf("wrote %d records, %d tracks\n",id-1,track_id);
 
