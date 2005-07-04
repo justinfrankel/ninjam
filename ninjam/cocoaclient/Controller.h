@@ -4,6 +4,7 @@
 
 #include </System/Library/Frameworks/CoreAudio.framework/Headers/AudioHardware.h>
 
+@class LocalListView;
 @class VUMeter;
 @interface Controller : NSObject
 {
@@ -22,7 +23,7 @@
     IBOutlet NSMenuItem *menudisconnect;
     IBOutlet NSMenuItem *menuacfg;
     
-    IBOutlet NSTableView *loctab;
+    IBOutlet LocalListView *loclv;
     
     IBOutlet NSPanel *cdlg;
     IBOutlet NSTextField *cdlg_srv;
@@ -61,13 +62,5 @@
 - (IBAction)adlg_insel:(NSPopUpButton *)sender;
 - (IBAction)adlg_outsel:(NSPopUpButton *)sender;
 - (void)updateMasterIndicators;
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView;
-- (id)tableView:(NSTableView *)aTableView
-    objectValueForTableColumn:(NSTableColumn *)aTableColumn
-    row:(int)rowIndex;
-- (void)tableView:(NSTableView *)aTableView
-    setObjectValue:anObject
-    forTableColumn:(NSTableColumn *)aTableColumn
-    row:(int)rowIndex;
 
 @end

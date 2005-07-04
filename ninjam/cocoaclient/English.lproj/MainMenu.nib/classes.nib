@@ -32,12 +32,11 @@
                 "cdlg_passlabel" = NSTextField; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
-                loctab = NSTableView; 
+                loclv = LocalListView; 
                 mastermute = NSButton; 
                 masterpan = NSSlider; 
                 mastervol = NSSlider; 
                 mastervoldisp = NSTextField; 
-                mastervudisp = NSTextField; 
                 mastervumeter = VUMeter; 
                 menuacfg = NSMenuItem; 
                 menuconnect = NSMenuItem; 
@@ -51,6 +50,8 @@
             SUPERCLASS = NSObject; 
         }, 
         {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
+        {CLASS = LocalListItem; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
+        {CLASS = LocalListView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = NSLevelIndicator; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
         {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
         {CLASS = VUMeter; LANGUAGE = ObjC; SUPERCLASS = NSView; }

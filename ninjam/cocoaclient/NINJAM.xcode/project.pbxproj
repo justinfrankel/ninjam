@@ -158,6 +158,10 @@
 				BC874A4608709FB500F5991C,
 				BC8E61210878E89000C4D33D,
 				BC8E61220878E89000C4D33D,
+				BCE8B595087927520076BEC1,
+				BCE8B596087927520076BEC1,
+				BCE8B5CC08792AED0076BEC1,
+				BCE8B5CD08792AED0076BEC1,
 			);
 			isa = PBXGroup;
 			name = "Other Sources";
@@ -342,6 +346,8 @@
 				BC793E2D0870CCF200ED2D4E,
 				BC793E2E0870CCF200ED2D4E,
 				BC8E61230878E89100C4D33D,
+				BCE8B597087927520076BEC1,
+				BCE8B5CE08792AED0076BEC1,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -668,6 +674,50 @@
 		};
 		BCD3387C0871307600F0CAB6 = {
 			fileRef = BCD3387B0871307600F0CAB6;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCE8B595087927520076BEC1 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = LocalListView.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCE8B596087927520076BEC1 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			path = LocalListView.mm;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCE8B597087927520076BEC1 = {
+			fileRef = BCE8B596087927520076BEC1;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCE8B5CC08792AED0076BEC1 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = LocalListItem.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCE8B5CD08792AED0076BEC1 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			path = LocalListItem.mm;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCE8B5CE08792AED0076BEC1 = {
+			fileRef = BCE8B5CD08792AED0076BEC1;
 			isa = PBXBuildFile;
 			settings = {
 			};

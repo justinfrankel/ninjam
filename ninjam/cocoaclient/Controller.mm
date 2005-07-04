@@ -1,8 +1,10 @@
 #import "Controller.h"
 #import "VUMeter.h"
+#import "LocalListView.h"
 
 #include "../njclient.h"
 #include "../audiostream_mac.h"
+
 
 audioStreamer *myAudio;
 NJClient *g_client;
@@ -101,7 +103,11 @@ void mkvolpanstr(char *str, double vol, double pan)
   // for now just always have one channel, heh
   g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
   g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false,false,false);
+  [loclv newChannel:0];
 
+  g_client->SetLocalChannelInfo(1,"channel1",true,1,false,0,true,false);
+  g_client->SetLocalChannelMonitoring(1,false,0.0f,false,0.0f,false,false,false,false);
+  [loclv newChannel:1];
 
   g_client->config_mastervolume=[[NSUserDefaults standardUserDefaults] floatForKey:@"mastervol"];
   g_client->config_masterpan=[[NSUserDefaults standardUserDefaults] floatForKey:@"masterpan"];
@@ -122,8 +128,6 @@ void mkvolpanstr(char *str, double vol, double pan)
       
   [self updateMasterIndicators];
   
-  
-  [loctab setDataSource:self];
 }
 
 - (BOOL)validateMenuItem:(id)sender
@@ -163,6 +167,7 @@ if (a ++ > 10)
 double d=g_client->GetOutputPeak();
 d=VAL2DB(d);
 [mastervumeter setDoubleValue:d];
+[loclv runVUMeters];
 a=0;
 
 int ns=g_client->GetStatus();
@@ -447,63 +452,13 @@ if (ns != m_laststatus)
     }
   }
   
-//  if (indev) [adlg_in selectItemWithTitle:indev];
-//  if (outdev) [adlg_in selectItemWithTitle:outdev];
+  if (indev) [adlg_in selectItemWithTitle:indev];
+  if (outdev) [adlg_out selectItemWithTitle:outdev];
     
   // populate list of devices
   
   [NSApp runModalForWindow:(NSWindow *)adlg];
   
 }
-
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView
-{
-    if (!g_client) return 0;
-    
-    if (aTableView == loctab)
-    {
-      int a;
-      for (a = 0; a < MAX_LOCAL_CHANNELS && g_client->EnumLocalChannels(a)>=0; a ++);
-      return a;
-    }
-    
-    return 0;
-}
-
-- (id)tableView:(NSTableView *)aTableView
-    objectValueForTableColumn:(NSTableColumn *)aTableColumn
-    row:(int)rowIndex
-{
-    if (aTableView == loctab)
-    {
-      int a=g_client->EnumLocalChannels(rowIndex);
-    
-      NSParameterAssert(a >= 0);
-      char *p=g_client->GetLocalChannelInfo(a,NULL,NULL,NULL);
-      if (!p) p="";
-      return [(NSString *)CFStringCreateWithCString(NULL,p,kCFStringEncodingUTF8) autorelease];
-    }
-    
-    return 0;
- }
-
-- (void)tableView:(NSTableView *)aTableView
-    setObjectValue:anObject
-    forTableColumn:(NSTableColumn *)aTableColumn
-    row:(int)rowIndex
-{
-  if (aTableView == loctab)
-  {
-      int a=g_client->EnumLocalChannels(rowIndex);
-    
-      NSParameterAssert(a >= 0);
-      
-      char name[256];
-      [anObject getCString:(char *)name maxLength:(unsigned)(sizeof(name)-1)];
-  
-      g_client->SetLocalChannelInfo(a,name, false, false, false, 0, false,false);
-  }
-}
-
 
 @end
