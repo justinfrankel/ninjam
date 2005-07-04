@@ -296,6 +296,7 @@ again:
 
         if (!m_myDev_i || !m_myDev_o) 
         {
+    #ifndef AUDIOSTREAMER_NO_CONSOLEUI
         printf("Type in the beginning of the name of your sound hardware now (or leave blank for system defaults)\n");
         printf("Note: to specify different input/output hardware, use device1, device2\n");
         printf("Choice: ");
@@ -307,10 +308,11 @@ again:
         {
 		goto again;
         }
+    #endif
         UInt32 theSize=sizeof(AudioDeviceID);
-        AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&m_myDev_i);
+        if (!m_myDev_i) AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&m_myDev_i);
         theSize=sizeof(AudioDeviceID);
-        AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice,&theSize,&m_myDev_o);
+        if (!m_myDev_o) AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice,&theSize,&m_myDev_o);
 	}
           
 
