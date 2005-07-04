@@ -1,4 +1,5 @@
 #import "Controller.h"
+#import "VUMeter.h"
 
 #include "../njclient.h"
 #include "../audiostream_mac.h"
@@ -25,6 +26,17 @@ int licensecallback(int user32, char *licensetext)
 return 1;
 }
 
+double DB2SLIDER(double x)
+{
+double d=pow(2110.54*fabs(x),1.0/3.0);
+if (x < 0.0) d=-d;
+return d + 63.0;
+}
+
+double SLIDER2DB(double y)
+{
+return pow(y-63.0,3.0) * (1.0/2110.54);
+}
 
 double VAL2DB(double x)
 {
@@ -100,9 +112,11 @@ void mkvolpanstr(char *str, double vol, double pan)
   
   [mastermute setIntValue:g_client->config_mastermute];
   [metromute setIntValue:g_client->config_metronome_mute];
-  [mastervol setFloatValue:VAL2DB(g_client->config_mastervolume)];
+  [mastervol setFloatValue:DB2SLIDER(VAL2DB(g_client->config_mastervolume))];
+
+  [metrovol setFloatValue:DB2SLIDER(VAL2DB(g_client->config_metronome))];
+//  [metrovol setFloatValue:50.0];
   [masterpan setFloatValue:(g_client->config_masterpan)];
-  [metrovol setFloatValue:VAL2DB(g_client->config_metronome)];
   [metropan setFloatValue:(g_client->config_metronome_pan)];
   
       
@@ -149,9 +163,6 @@ if (a ++ > 10)
 double d=g_client->GetOutputPeak();
 d=VAL2DB(d);
 [mastervumeter setDoubleValue:d];
-char buf[512];
-sprintf(buf,"%s%.2f dB",d>=0.0?"+":"",d);
-[mastervudisp setStringValue:[(NSString *)CFStringCreateWithCString(NULL,buf,kCFStringEncodingUTF8) autorelease]];
 a=0;
 
 int ns=g_client->GetStatus();
@@ -201,8 +212,7 @@ if (ns != m_laststatus)
 - (IBAction)mastervol:(NSSlider *)sender
 {
    double pos=[sender doubleValue];
-   if (fabs(pos) < 1.0) pos=0.0;
-   double v=DB2VAL(pos);
+   double v=DB2VAL(SLIDER2DB(pos));
    
    g_client->config_mastervolume=v;
    [[NSUserDefaults standardUserDefaults] setFloat:g_client->config_mastervolume forKey:@"mastervol"];
@@ -229,8 +239,7 @@ if (ns != m_laststatus)
 - (IBAction)metrovol:(NSSlider *)sender
 {
    double pos=[sender doubleValue];
-   if (fabs(pos) < 1.0) pos=0.0;
-   double v=DB2VAL(pos);
+   double v=DB2VAL(SLIDER2DB(pos));
    
    g_client->config_metronome=v;
    [[NSUserDefaults standardUserDefaults] setFloat:g_client->config_metronome forKey:@"metrovol"];

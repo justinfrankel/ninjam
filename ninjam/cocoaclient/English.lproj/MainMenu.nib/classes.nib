@@ -38,7 +38,7 @@
                 mastervol = NSSlider; 
                 mastervoldisp = NSTextField; 
                 mastervudisp = NSTextField; 
-                mastervumeter = NSLevelIndicator; 
+                mastervumeter = VUMeter; 
                 menuacfg = NSMenuItem; 
                 menuconnect = NSMenuItem; 
                 menudisconnect = NSMenuItem; 
@@ -52,7 +52,8 @@
         }, 
         {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
         {CLASS = NSLevelIndicator; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
-        {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+        {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {CLASS = VUMeter; LANGUAGE = ObjC; SUPERCLASS = NSView; }
     ); 
     IBVersion = 1; 
 }

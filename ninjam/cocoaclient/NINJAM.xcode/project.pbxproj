@@ -156,6 +156,8 @@
 				29B97316FDCFA39411CA2CEA,
 				BC874A4508709FB500F5991C,
 				BC874A4608709FB500F5991C,
+				BC8E61210878E89000C4D33D,
+				BC8E61220878E89000C4D33D,
 			);
 			isa = PBXGroup;
 			name = "Other Sources";
@@ -337,6 +339,7 @@
 				BC793E100870CBC200ED2D4E,
 				BC793E2D0870CCF200ED2D4E,
 				BC793E2E0870CCF200ED2D4E,
+				BC8E61230878E89100C4D33D,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -627,6 +630,28 @@
 		};
 		BC874A610870A13F00F5991C = {
 			fileRef = BC874A5F0870A13F00F5991C;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BC8E61210878E89000C4D33D = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = VUMeter.m;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BC8E61220878E89000C4D33D = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = VUMeter.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BC8E61230878E89100C4D33D = {
+			fileRef = BC8E61210878E89000C4D33D;
 			isa = PBXBuildFile;
 			settings = {
 			};

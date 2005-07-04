@@ -2,15 +2,13 @@
 
 #import <Cocoa/Cocoa.h>
 
-
 #include </System/Library/Frameworks/CoreAudio.framework/Headers/AudioHardware.h>
 
-
+@class VUMeter;
 @interface Controller : NSObject
 {
     IBOutlet NSTextField *mastervoldisp;
-    IBOutlet NSTextField *mastervudisp;
-    IBOutlet NSLevelIndicator *mastervumeter;
+    IBOutlet VUMeter *mastervumeter;
     IBOutlet NSTextField *metrovoldisp;
     IBOutlet NSTextField *status;
     IBOutlet NSButton *mastermute;
