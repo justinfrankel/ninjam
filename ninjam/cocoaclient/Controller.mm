@@ -48,7 +48,7 @@ double VAL2DB(double x)
   if (v < -120.0) v=-120.0;
   return v;
 }
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
+double DB2VAL(double x) { return (pow(2.0,(x)/6.0)); }
 void mkvolpanstr(char *str, double vol, double pan)
 {
   double v=VAL2DB(vol);
@@ -100,6 +100,7 @@ void mkvolpanstr(char *str, double vol, double pan)
     [cdlg_passlabel setHidden:TRUE];  
   }  
   
+  #if 0
   // for now just always have one channel, heh
   g_client->SetLocalChannelInfo(0,"channel0",true,0,false,0,true,true);
   g_client->SetLocalChannelMonitoring(0,false,0.0f,false,0.0f,false,false,false,false);
@@ -109,6 +110,7 @@ void mkvolpanstr(char *str, double vol, double pan)
   g_client->SetLocalChannelMonitoring(1,false,0.0f,false,0.0f,false,false,false,false);
   [loclv newChannel:1];
 
+  #endif
   g_client->config_mastervolume=[[NSUserDefaults standardUserDefaults] floatForKey:@"mastervol"];
   g_client->config_masterpan=[[NSUserDefaults standardUserDefaults] floatForKey:@"masterpan"];
   g_client->config_mastermute=[[NSUserDefaults standardUserDefaults] integerForKey:@"mastermute"];
