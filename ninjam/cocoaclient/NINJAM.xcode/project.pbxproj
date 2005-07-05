@@ -185,6 +185,7 @@
 		};
 		29B97317FDCFA39411CA2CEA = {
 			children = (
+				BCD26748087B3CFF00831686,
 				8D1107310486CEB800E47090,
 				089C165CFE840E0CC02AAC07,
 				29B97318FDCFA39411CA2CEA,
@@ -321,6 +322,7 @@
 			files = (
 				8D11072A0486CEB800E47090,
 				8D11072B0486CEB800E47090,
+				BCD26749087B3CFF00831686,
 			);
 			isa = PBXResourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -735,6 +737,19 @@
 		};
 		BCBA2291087A2A80000EC500 = {
 			fileRef = BCBA2290087A2A80000EC500;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCD26748087B3CFF00831686 = {
+			isa = PBXFileReference;
+			lastKnownFileType = image.icns;
+			path = ninjam_gui_osx.icns;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCD26749087B3CFF00831686 = {
+			fileRef = BCD26748087B3CFF00831686;
 			isa = PBXBuildFile;
 			settings = {
 			};
