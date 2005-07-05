@@ -577,11 +577,11 @@ int NJClient::Run() // nonzero if sleep ok
     }
   }
 //    
-  int s=0;
+  int wantsleep=1;
 
   if (m_netcon)
   {
-    Net_Message *msg=m_netcon->Run(&s);
+    Net_Message *msg=m_netcon->Run(&wantsleep);
     if (!msg)
     {
       if (m_netcon->GetStatus())
@@ -871,7 +871,7 @@ int NJClient::Run() // nonzero if sleep ok
     WDL_HeapBuf *p=0;
     while (!lc->m_bq.GetBlock(&p))
     {
-      s=0;
+      wantsleep=0;
       if ((int)p == -1)
       {
         mpb_client_upload_interval_begin cuib;
@@ -1038,7 +1038,7 @@ int NJClient::Run() // nonzero if sleep ok
     }
   }
 
-  return s;
+  return wantsleep;
 
 }
 

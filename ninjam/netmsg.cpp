@@ -63,7 +63,6 @@ int Net_Message::makeMessageHeader(void *data) // makes message header, data sho
 
 Net_Message *Net_Connection::Run(int *wantsleep)
 {
-  if (wantsleep) *wantsleep=1;
   if (!m_con || m_error) return 0;
 
   m_con->run();
