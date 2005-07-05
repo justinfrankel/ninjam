@@ -1292,13 +1292,13 @@ int main(int argc, char **argv)
   {
     char buf[512];
 #ifdef _WIN32
-    SYSTEMTIME st;
-    GetLocalTime(&st);
     
     int cnt=0;
-    for (;;)
+    while (cnt < 16)
     {
-      wsprintf(buf,"njsession_%02d%02d%02d_%02d%02d%02d_%d",st.wYear%100,st.wMonth,st.wDay,st.wHour,st.wMinute,st.wSecond,cnt);
+      SYSTEMTIME st;
+      GetLocalTime(&st);
+      wsprintf(buf,"%04d%02d%02d_%02d%02d%s%d.ninjam",st.wYear,st.wMonth,st.wDay,st.wHour,st.wMinute,cnt?"_":"",cnt);
 
       if (CreateDirectory(buf,NULL)) break;
 
@@ -1306,9 +1306,12 @@ int main(int argc, char **argv)
     }
 #else
     int cnt=0;
-    for (;;)
+    while (cnt < 16)
     {
-      sprintf(buf,"njsession_%d_%d",time(NULL),cnt);
+      time_t tv;
+      time(&tv);
+      struct tm *t=localtime(&tv);
+      sprintf(buf,"%04d%02d%02d_%02d%02d%s%d.ninjam",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,cnt?"_":"",cnt);
 
       if (!mkdir(buf,0700)) break;
 
@@ -1316,7 +1319,7 @@ int main(int argc, char **argv)
     }
 #endif
     
-    if (cnt > 10)
+    if (cnt >= 16)
     {
       printf("Error creating session directory\n");
       buf[0]=0;
