@@ -8,14 +8,16 @@
 		// Add initialization code here
     last_v=0;
     last_len=0;
+    last_bpm=120.0;
 	}
 	return self;
 }
 
--(void)setVal:(int)v length:(int)len
+-(void)setVal:(int)v length:(int)len bpm:(float)bpmrate;
 {
-  if (v != last_v || len != last_len)
+  if (v != last_v || len != last_len || last_bpm != bpmrate)
   {
+    last_bpm=bpmrate;
     last_v=v;
     last_len=len;
     [self setNeedsDisplay:YES];
@@ -44,7 +46,7 @@
   
   NSDrawWindowBackground(NSMakeRect(xpos,0,XDIM-xpos,YDIM));
   
-  NSFont *font = [NSFont systemFontOfSize:YDIM*0.7];
+  NSFont *font = [NSFont systemFontOfSize:YDIM*0.75];
     NSMutableDictionary *attrs = [[NSMutableDictionary alloc] init];
     [attrs setObject:font forKey:NSFontAttributeName];
     [attrs setObject:[NSColor redColor] forKey:NSForegroundColorAttributeName];
@@ -52,7 +54,7 @@
     [p setAlignment:NSCenterTextAlignment];
     [attrs setObject:p forKey:NSParagraphStyleAttributeName];
 
-    [[NSString stringWithFormat:@"%d/%d",last_v+1,last_len] drawInRect:wb withAttributes:attrs];
+    [[NSString stringWithFormat:@"%d/%d @ %.0f BPM",last_v+1,last_len,last_bpm] drawInRect:wb withAttributes:attrs];
     [attrs release];
     [p release];
   }

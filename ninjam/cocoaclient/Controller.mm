@@ -76,10 +76,25 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       if (parms[1] && *parms[1])
       {
         tmp.Set(parms[1]);
-        tmp.Append(" sets topic to: ");
+        if (parms[2][0])
+        {
+          tmp.Append(" sets topic to: ");
+          tmp.Append(parms[2]);
+        }
+        else
+        {
+          tmp.Append(" removes topic.");
+        }  
       }
-      else tmp.Set("Topic is: ");
-      tmp.Append(parms[2]);
+      else
+      {
+        if (parms[2][0])
+        {
+          tmp.Set("Topic is: ");
+          tmp.Append(parms[2]);
+        }
+        else tmp.Set("No topic is set.");
+      }
 
       g_topic.Set(parms[2]);
       addChatLine("",tmp.Get());
@@ -457,7 +472,7 @@ if (needadd)
   [chat_text scrollRangeToVisible:NSMakeRange([tmp length],0)];
 }
 
-[progmet setVal:intp length:intl];
+[progmet setVal:intp length:intl bpm:g_client->GetActualBPM()];
 }
 
 - (IBAction)mastermute:(NSButton *)sender
