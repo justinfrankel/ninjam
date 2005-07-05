@@ -129,6 +129,8 @@ OSStatus caInproc(AudioDeviceID dev,
         if (!ca_tmpbuf || ca_tmpbuf_size <  needsize) ca_tmpbuf=(float*)realloc(ca_tmpbuf,ca_tmpbuf_size=needsize);
 	if (ca_tmpbuf)
 	{
+		if (m_splbuf.GetSize() < 48000*8)
+                {
         	int c=in_size/(sizeof(float)*in_nch);
         	onsamples_old((float*)in,in_nch,(float *)ca_tmpbuf,-2,c,g_srate);
 
@@ -137,6 +139,7 @@ OSStatus caInproc(AudioDeviceID dev,
 		m_splbuf.Add(ca_tmpbuf,needsize);
 
 		pthread_mutex_unlock(&m_mutex);
+		}
 	}
      }
   }
