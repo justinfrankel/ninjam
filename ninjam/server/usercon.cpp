@@ -304,12 +304,21 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         {
           User_Connection *u=group->m_users.Get(user);
           int channel;
-          if (u && u->m_auth_state>0) for (channel = 0; channel < MAX_USER_CHANNELS; channel ++)
+          if (u && u->m_auth_state>0 && u != this) 
           {
-            if (u->m_channels[channel].active)
+            int acnt=0;
+            for (channel = 0; channel < MAX_USER_CHANNELS; channel ++)
             {
-              bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
-                                u->m_username.Get(),u->m_channels[channel].name.Get());
+              if (u->m_channels[channel].active)
+              {
+                bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
+                                  u->m_username.Get(),u->m_channels[channel].name.Get());
+                acnt++;
+              }
+            }
+            if (!acnt && !group->m_allow_hidden_users) // give users at least one channel
+            {
+                bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
             }
           }
         }       
@@ -400,6 +409,18 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
               whichch++;
             }
+            if (!group->m_allow_hidden_users)
+            {
+              for (whichch = 0; whichch < MAX_USER_CHANNELS && !m_channels[whichch].active; whichch ++);
+
+
+              if (whichch == MAX_USER_CHANNELS) // if empty, tell the user about one channel
+              {
+                mfmt.build_add_rec(1,0,0,0,0,m_username.Get(),"");
+                mfmt_changes++;
+              }
+            }
+
 
             if (mfmt_changes) group->Broadcast(mfmt.build(),this);
           }         
@@ -617,7 +638,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32)
+User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_allow_hidden_users(0)
 {
   GetUserPass=0;
 }
@@ -681,7 +702,7 @@ int User_Group::Run()
             {
               p->m_channels[whichch].name.Set("");
 
-              if (p->m_channels[whichch].active) // only send deactivate if it was previously active
+              if (!whichch || p->m_channels[whichch].active) // only send deactivate if it was previously active
               {
                 p->m_channels[whichch].active=0;
                 mfmt_changes++;

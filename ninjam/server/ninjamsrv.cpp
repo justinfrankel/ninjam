@@ -242,6 +242,17 @@ static int ConfigOnToken(LineParser *lp)
     else p->priv_flag=PRIV_CHATSEND;// default privs
     g_userlist.Add(p);
   }
+  else if (!stricmp(t,"AllowHiddenUsers"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+
+    int x=lp->gettoken_enum(1,"no\0yes\0");
+    if (x <0)
+    {
+      return -2;
+    }
+    m_group->m_allow_hidden_users=!!x;
+  }
   else if (!stricmp(t,"AnonymousUsers"))
   {
     if (lp->getnumtokens() != 2) return -1;

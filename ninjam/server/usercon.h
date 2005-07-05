@@ -130,6 +130,8 @@ class User_Group
     int m_max_users;
     int m_last_bpm, m_last_bpi;
 
+    int m_allow_hidden_users;
+
     WDL_String m_licensetext;
     WDL_String m_topictext;
 };
