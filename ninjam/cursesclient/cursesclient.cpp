@@ -1291,33 +1291,32 @@ int main(int argc, char **argv)
   if (!sessiondir.Get()[0])
   {
     char buf[512];
-#ifdef _WIN32
     
     int cnt=0;
     while (cnt < 16)
     {
+#if 0 // _WIN32
       SYSTEMTIME st;
       GetLocalTime(&st);
-      wsprintf(buf,"%04d%02d%02d_%02d%02d%s%d.ninjam",st.wYear,st.wMonth,st.wDay,st.wHour,st.wMinute,cnt?"_":"",cnt);
-
-      if (CreateDirectory(buf,NULL)) break;
-
-      cnt++;
-    }
+      wsprintf(buf,"%04d%02d%02d_%02d%02d",st.wYear,st.wMonth,st.wDay,st.wHour,st.wMinute);
 #else
-    int cnt=0;
-    while (cnt < 16)
-    {
       time_t tv;
       time(&tv);
       struct tm *t=localtime(&tv);
-      sprintf(buf,"%04d%02d%02d_%02d%02d%s%d.ninjam",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,cnt?"_":"",cnt);
+      sprintf(buf,"%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+#endif
+      if (cnt)
+        wsprintf(buf+strlen(buf),"_%d",cnt);
+      strcat(buf,".ninjam");
 
+#ifdef _WIN32
+      if (CreateDirectory(buf,NULL)) break;
+#else
       if (!mkdir(buf,0700)) break;
+#endif
 
       cnt++;
     }
-#endif
     
     if (cnt >= 16)
     {

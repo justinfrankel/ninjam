@@ -565,8 +565,11 @@ if (needadd)
       {
         strcpy(buf,fmt);
       }
-      sprintf(buf+strlen(buf),"/%04d%02d%02d_%02d%02d%02d%s%d.njsession",
-          t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt?"_":"",cnt);
+      sprintf(buf+strlen(buf),"/%04d%02d%02d_%02d%02d",
+          t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+
+      if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
+      strcat(buf,".ninjam");
 
       if (!mkdir(buf,0700)) break;
 
