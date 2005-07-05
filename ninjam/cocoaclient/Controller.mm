@@ -215,6 +215,43 @@ void mkvolpanstr(char *str, double vol, double pan)
   [loclv newChannel:1];
 
   #endif
+  
+  NSArray *locchlist=[[NSUserDefaults standardUserDefaults] objectForKey:@"locchlist"];
+  if (locchlist)
+  {
+    int i;
+    for (i = 0 ; i < [locchlist count]; i ++)
+    {
+      NSArray *chinfo=[locchlist objectAtIndex:i];
+      if (chinfo && [chinfo count] >= 2)
+      {
+        int nitems=[chinfo count];
+        int sch=0;
+        bool bc=true;
+        bool m=false,s=false;
+        float v=0.0;
+        float p=0.0;
+        int ch = [[chinfo objectAtIndex:0] intValue];
+        if (ch < 0 || ch >= MAX_LOCAL_CHANNELS) continue;
+        
+        char name[512];
+        [[chinfo objectAtIndex:1] getCString:(char *)name maxLength:(unsigned)(sizeof(name)-1)];
+        
+        if (nitems > 2) sch=[[chinfo objectAtIndex:2] intValue];
+        if (nitems > 3) bc=[[chinfo objectAtIndex:3] boolValue];
+        if (nitems > 4) v=[[chinfo objectAtIndex:4] floatValue];
+        if (nitems > 5) p=[[chinfo objectAtIndex:5] floatValue];
+        if (nitems > 6) m=[[chinfo objectAtIndex:6] boolValue];
+        if (nitems > 7) s=[[chinfo objectAtIndex:7] boolValue];
+      
+        g_client->SetLocalChannelInfo(ch,name,true,sch,false,0,true,bc);
+        g_client->SetLocalChannelMonitoring(ch,true,v,true,p,true,m,true,s);
+        [loclv newChannel:ch];
+      }
+    }
+  }
+  
+  
   g_client->config_mastervolume=[[NSUserDefaults standardUserDefaults] floatForKey:@"mastervol"];
   g_client->config_masterpan=[[NSUserDefaults standardUserDefaults] floatForKey:@"masterpan"];
   g_client->config_mastermute=[[NSUserDefaults standardUserDefaults] integerForKey:@"mastermute"];
@@ -270,6 +307,53 @@ void mkvolpanstr(char *str, double vol, double pan)
 
   struct timespec ts={0,100000*1000};
   nanosleep(&ts,NULL);
+
+  //save local channel state
+  {
+    NSMutableArray *chlist=[[NSMutableArray alloc] init];
+    int i=0;
+    for (;;)
+    {
+      int ch=g_client->EnumLocalChannels(i++);
+      if (ch < 0) break;
+            
+      int sch=0;
+      bool bc=0;
+      char *lcn;
+      float v=0.0f,p=0.0f;
+      bool m=0,s=0;
+      
+      lcn=g_client->GetLocalChannelInfo(ch,&sch,NULL,&bc);
+      g_client->GetLocalChannelMonitoring(ch,&v,&p,&m,&s);
+      
+      if (lcn)
+      {
+        NSString *label=(NSString *)CFStringCreateWithCString(NULL,lcn,kCFStringEncodingUTF8);
+        NSMutableArray *thisch = [[NSMutableArray alloc] init];
+
+        [thisch addObject:[NSNumber numberWithInt:ch]];
+
+        [thisch addObject:label];        
+        [label release];
+        
+        [thisch addObject:[NSNumber numberWithInt:sch]];
+        [thisch addObject:[NSNumber numberWithBool:bc]];
+        [thisch addObject:[NSNumber numberWithFloat:v]];
+        [thisch addObject:[NSNumber numberWithFloat:p]];
+        [thisch addObject:[NSNumber numberWithBool:m]];
+        [thisch addObject:[NSNumber numberWithBool:s]];
+        
+      
+        [chlist addObject:thisch];
+        [thisch release];
+      }
+    }
+
+
+    [[NSUserDefaults standardUserDefaults] setObject:chlist forKey:@"locchlist"];
+    [chlist release];
+  }
+
 
   [self ondisconnect:0];
   
