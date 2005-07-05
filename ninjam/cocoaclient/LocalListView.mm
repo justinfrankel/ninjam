@@ -9,7 +9,7 @@ extern NJClient *g_client;
 
 - (id)initWithFrame:(NSRect)frameRect
 {
-  frameRect.size.width = 640;
+  frameRect.size.width = 320;
 	if ((self = [super initWithFrame:frameRect]) != nil) {
 		// Add initialization code here
     addbutton=[[NSButton alloc] init];
@@ -35,16 +35,8 @@ extern NJClient *g_client;
 
 
 - (void)drawRect:(NSRect)rect
-{
-  double XDIM,YDIM;
-  
-  NSRect wb=[self bounds];
-
-  XDIM = wb.size.width;
-  YDIM = wb.size.height;
-  
-  NSDrawWindowBackground(NSMakeRect(0,0,XDIM,YDIM));
-  
+{  
+  NSDrawWindowBackground(rect);
 }
 
 - (void)runVUMeters
@@ -56,7 +48,6 @@ extern NJClient *g_client;
     if ([p tag] >= 1024 && [p tag] < 1024+MAX_LOCAL_CHANNELS)
     {
       LocalListItem *pp=p;
-    // check tag to see if it's the LocalListItem
       [pp runVUmeter];
     }
   }
@@ -90,7 +81,7 @@ extern NJClient *g_client;
   NSRect r3=[addbutton frame];
   r3.origin.y = r.origin.y + r.size.height;
     
-  r2.size.width = r.size.width;
+  r2.size.width = r.size.width+r.origin.x;
   r2.size.height = r3.size.height + r3.origin.y;
   r2.origin.x=0;
   r2.origin.y=0;

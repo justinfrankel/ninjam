@@ -6,6 +6,7 @@
 
 @class LocalListView;
 @class VUMeter;
+@class RemoteListView;
 @interface Controller : NSObject
 {
     IBOutlet NSTextField *mastervoldisp;
@@ -21,9 +22,9 @@
     
     IBOutlet NSMenuItem *menuconnect;
     IBOutlet NSMenuItem *menudisconnect;
-    IBOutlet NSMenuItem *menuacfg;
     
     IBOutlet LocalListView *loclv;
+    IBOutlet RemoteListView *remlv;
     
     IBOutlet NSPanel *cdlg;
     IBOutlet NSTextField *cdlg_srv;

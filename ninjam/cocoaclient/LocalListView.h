@@ -2,7 +2,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class LocalListItem;
 @interface LocalListView : NSView
 {
   NSButton *addbutton;

@@ -1,6 +1,7 @@
 #import "Controller.h"
 #import "VUMeter.h"
 #import "LocalListView.h"
+#import "RemoteListView.h"
 
 #include "../njclient.h"
 #include "../audiostream_mac.h"
@@ -161,7 +162,13 @@ void mkvolpanstr(char *str, double vol, double pan)
 
 - (IBAction)tick:(id)sender
 {
+
 while (!g_client->Run());
+
+if (g_client->HasUserInfoChanged())
+{
+[remlv updateList];
+}
 
 static int a;
 if (a ++ > 10)
@@ -170,6 +177,7 @@ double d=g_client->GetOutputPeak();
 d=VAL2DB(d);
 [mastervumeter setDoubleValue:d];
 [loclv runVUMeters];
+[remlv runVUMeters];
 a=0;
 
 int ns=g_client->GetStatus();
@@ -184,7 +192,7 @@ if (ns != m_laststatus)
   if (ns == NJClient::NJC_STATUS_CANTCONNECT)
     [status setStringValue:@"Status: can't connect to host."];
   if (ns == NJClient::NJC_STATUS_OK)
-    [status setStringValue:@"Status: Connected"];
+    [status setStringValue:[NSString stringWithFormat:@"Status: Connected to %s as %s",g_client->GetHostName(),g_client->GetUserName()]];
 
   if (ns < 0)
   {

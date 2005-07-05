@@ -45,6 +45,7 @@
                 metropan = NSSlider; 
                 metrovol = NSSlider; 
                 metrovoldisp = NSTextField; 
+                remlv = RemoteListView; 
                 status = NSTextField; 
             }; 
             SUPERCLASS = NSObject; 
@@ -54,6 +55,8 @@
         {CLASS = LocalListView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = NSLevelIndicator; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
         {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {CLASS = RemoteListItem; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
+        {CLASS = RemoteListView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = VUMeter; LANGUAGE = ObjC; SUPERCLASS = NSView; }
     ); 
     IBVersion = 1; 

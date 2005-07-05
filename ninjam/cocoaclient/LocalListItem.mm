@@ -95,7 +95,7 @@ extern void mkvolpanstr(char *str, double vol, double pan);
 - (id)initWithCh:(int)ch atPos:(int)ypos
 {
   m_idx=ch;
-	if ((self = [super initWithFrame:NSMakeRect(0,ypos*60,520,60)]) != nil) {
+	if ((self = [super initWithFrame:NSMakeRect(4,4+ypos*60,516,60)]) != nil) {
 		// Add initialization code here
     
     int sch;

@@ -162,6 +162,10 @@
 				BCE8B596087927520076BEC1,
 				BCE8B5CC08792AED0076BEC1,
 				BCE8B5CD08792AED0076BEC1,
+				BCBA2268087A1A91000EC500,
+				BCBA2269087A1A91000EC500,
+				BCBA228F087A2A80000EC500,
+				BCBA2290087A2A80000EC500,
 			);
 			isa = PBXGroup;
 			name = "Other Sources";
@@ -348,6 +352,8 @@
 				BC8E61230878E89100C4D33D,
 				BCE8B597087927520076BEC1,
 				BCE8B5CE08792AED0076BEC1,
+				BCBA226A087A1A91000EC500,
+				BCBA2291087A2A80000EC500,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -660,6 +666,50 @@
 		};
 		BC8E61230878E89100C4D33D = {
 			fileRef = BC8E61210878E89000C4D33D;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCBA2268087A1A91000EC500 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = RemoteListView.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCBA2269087A1A91000EC500 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			path = RemoteListView.mm;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCBA226A087A1A91000EC500 = {
+			fileRef = BCBA2269087A1A91000EC500;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCBA228F087A2A80000EC500 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = RemoteListItem.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCBA2290087A2A80000EC500 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			path = RemoteListItem.mm;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCBA2291087A2A80000EC500 = {
+			fileRef = BCBA2290087A2A80000EC500;
 			isa = PBXBuildFile;
 			settings = {
 			};
