@@ -6,11 +6,12 @@
 #include "../njclient.h"
 #include "../audiostream_mac.h"
 
-
+NSLock *g_client_mutex;
 audioStreamer *myAudio;
 NJClient *g_client;
 
 int g_audio_enable=0;
+int g_thread_quit=0;
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
@@ -65,8 +66,7 @@ void mkvolpanstr(char *str, double vol, double pan)
 {  
   [NSApp setDelegate:self];
   g_client = new NJClient;
-  
-  
+  g_client_mutex = [[NSLock alloc] init];
   
   g_client->LicenseAgreementCallback=licensecallback;
  
@@ -131,6 +131,20 @@ void mkvolpanstr(char *str, double vol, double pan)
       
   [self updateMasterIndicators];
   
+  [NSThread detachNewThreadSelector:@selector(threadFunc:) toTarget:self withObject:self]; 
+  
+}
+
+- (void)threadFunc:(id)obj
+{
+  while (!g_thread_quit)
+  {
+    [g_client_mutex lock];
+    while (!g_thread_quit && !g_client->Run());
+    [g_client_mutex unlock];
+    struct timespec ts={0,1000*1000};
+    nanosleep(&ts,NULL);
+  }
 }
 
 - (BOOL)validateMenuItem:(id)sender
@@ -143,10 +157,14 @@ void mkvolpanstr(char *str, double vol, double pan)
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
+  g_thread_quit=1;
   delete myAudio;
   myAudio=0;  
 
   g_audio_enable=0;
+  [g_client_mutex release];
+  g_client_mutex=0;
+  
   delete g_client;
   g_client=0;
 }
@@ -163,23 +181,20 @@ void mkvolpanstr(char *str, double vol, double pan)
 - (IBAction)tick:(id)sender
 {
 
-while (!g_client->Run());
-
+[g_client_mutex lock];
 if (g_client->HasUserInfoChanged())
 {
-[remlv updateList];
+  [g_client_mutex unlock];
+  [remlv updateList];
+  [g_client_mutex lock];
 }
 
-static int a;
-if (a ++ > 10)
-{
 double d=g_client->GetOutputPeak();
 d=VAL2DB(d);
 if (!g_audio_enable) d=-120.0;
 [mastervumeter setDoubleValue:d];
 [loclv runVUMeters];
 [remlv runVUMeters];
-a=0;
 
 int ns=g_client->GetStatus();
 if (ns != m_laststatus)
@@ -203,8 +218,8 @@ if (ns != m_laststatus)
   g_audio_enable=0;
   }  
 }
+[g_client_mutex unlock];
 
-}
 }
 
 - (IBAction)mastermute:(NSButton *)sender
@@ -304,6 +319,7 @@ if (ns != m_laststatus)
       cnt++;
     }
     
+  [g_client_mutex lock];   
     g_client->SetWorkDir(buf);
     g_client->Connect(srv,userstr.Get(),passstr.Get());
     g_audio_enable=1;
@@ -324,8 +340,9 @@ if (ns != m_laststatus)
   
   myAudio=p;
    
-   if (!timer)
-     timer=[NSTimer scheduledTimerWithTimeInterval:0.01 target:self selector:@selector(tick:) userInfo:0 repeats:YES];
+  [g_client_mutex unlock]; 
+  if (!timer)
+     timer=[NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(tick:) userInfo:0 repeats:YES];
 
   }
 }
@@ -337,7 +354,10 @@ if (ns != m_laststatus)
   delete myAudio;
   myAudio=0;  
 
+  [g_client_mutex lock];
   g_client->Disconnect();
+  [g_client_mutex unlock];
+  
   g_audio_enable=0;
   
   [status setStringValue:@"Status: Disconnected"];

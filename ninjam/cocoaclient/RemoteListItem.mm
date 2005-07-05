@@ -3,6 +3,7 @@
 
 
 #include "../njclient.h"
+extern NSLock *g_client_mutex;
 extern NJClient *g_client;
 extern double DB2VAL(double x);
 extern double VAL2DB(double x);
@@ -44,35 +45,45 @@ extern void mkvolpanstr(char *str, double vol, double pan);
   if (sender == volslider)
   {
     double pos=[sender doubleValue];
+    [g_client_mutex lock];
     g_client->SetUserChannelState(m_user, m_ch, false,false, true, DB2VAL(SLIDER2DB(pos)), false, 0.0, false, false, false, false);
     float vol,pan;
     if (g_client->GetUserChannelState(m_user, m_ch, NULL, &vol, &pan, NULL,NULL))
     {
       [self updateVolInfo:vol Pan:pan];
     }
+    [g_client_mutex unlock];
   }
   else if (sender == panslider)
   {
     double pos=[sender doubleValue];
     if (fabs(pos) < 0.08) pos=0.0;
+    [g_client_mutex lock];
     g_client->SetUserChannelState(m_user, m_ch, false,false, false,0.0, true, pos, false, false, false, false);
     float vol,pan;
     if (g_client->GetUserChannelState(m_user, m_ch, NULL, &vol, &pan, NULL,NULL))
     {
       [self updateVolInfo:vol Pan:pan];
     }
+    [g_client_mutex unlock];
   }
   else if (sender == recvtog)
   {
+    [g_client_mutex lock];
     g_client->SetUserChannelState(m_user, m_ch, true,!![sender intValue], false,0.0, false, 0.0, false, false, false, false);
+    [g_client_mutex unlock];
   }
   else if (sender == mute)
   {
+    [g_client_mutex lock];
     g_client->SetUserChannelState(m_user, m_ch, false, false, false,0.0, false, 0.0, true,!![sender intValue], false, false);
+    [g_client_mutex unlock];
   }
   else if (sender == solo)
   {
+    [g_client_mutex lock];
     g_client->SetUserChannelState(m_user, m_ch, false, false, false,0.0, false, 0.0, false,false,true,!![sender intValue]);
+    [g_client_mutex unlock];
   }
 }
 
@@ -83,6 +94,7 @@ extern void mkvolpanstr(char *str, double vol, double pan);
 
 - (void)updateWithUser:(int)user withChannel:(int)ch
 {
+// we don't mutex this, the parent takes care of it
   m_user=user;
   m_ch=ch;
   // update controls to reflect values

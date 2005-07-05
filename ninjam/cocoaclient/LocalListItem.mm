@@ -8,6 +8,7 @@
 
 extern audioStreamer *myAudio;
 extern NJClient *g_client;
+extern NSLock *g_client_mutex;
 
 extern double DB2VAL(double x);
 extern double VAL2DB(double x);
@@ -45,17 +46,21 @@ extern void mkvolpanstr(char *str, double vol, double pan);
 {
   if (sender == remove)
   {
+    [g_client_mutex lock];
     g_client->DeleteLocalChannel(m_idx);
     g_client->NotifyServerOfChannelChange();  
     LocalListView *par=[self superview];
     [par removeChannel:self];
+    [g_client_mutex unlock];
   }
   else if (sender == volslider)
   {
     double pos=[sender doubleValue];
     float vol,pan;
+    [g_client_mutex lock];
     g_client->SetLocalChannelMonitoring(m_idx,true,DB2VAL(SLIDER2DB(pos)), false, false, false,false,false,false);
     g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan,NULL,NULL);
+    [g_client_mutex unlock];
     [self updateVolInfo:vol Pan:pan];
   }
   else if (sender == panslider)
@@ -63,22 +68,30 @@ extern void mkvolpanstr(char *str, double vol, double pan);
     double pos=[sender doubleValue];
     if (fabs(pos) < 0.08) pos=0.0;
     float vol,pan;
+    [g_client_mutex lock];
     g_client->SetLocalChannelMonitoring(m_idx,false,0.0, true, pos, false,false,false,false);
     g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan,NULL,NULL);
+    [g_client_mutex unlock];
     [self updateVolInfo:vol Pan:pan];
   }
   else if (sender == transmit)
   {
+    [g_client_mutex lock];
     g_client->SetLocalChannelInfo(m_idx, NULL, false, 0, false, 0, true, !![sender intValue]);
+    [g_client_mutex unlock];
     g_client->NotifyServerOfChannelChange();
   }
   else if (sender == mute)
   {
+    [g_client_mutex lock];
     g_client->SetLocalChannelMonitoring(m_idx,false,0.0, false, 0.0, true,!![sender intValue],false,false);
+    [g_client_mutex unlock];
   }
   else if (sender == solo)
   {
+    [g_client_mutex lock];
     g_client->SetLocalChannelMonitoring(m_idx,false,0.0, false, 0.0,false,false, true,!![sender intValue]);
+    [g_client_mutex unlock];
   }
   else if (sender == sourcesel)
   {
@@ -87,7 +100,9 @@ extern void mkvolpanstr(char *str, double vol, double pan);
     int a=atoi(name+6);
     if (a > 0)
     {
+      [g_client_mutex lock];
       g_client->SetLocalChannelInfo(m_idx, NULL, true, a-1, false, 0, false, false);
+      [g_client_mutex unlock];
     }
   }
 }
@@ -100,11 +115,13 @@ extern void mkvolpanstr(char *str, double vol, double pan);
     
     int sch;
     bool bc;
+    [g_client_mutex lock];
     char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc);
     NSRect of=[self frame];
     float vol=0.0,pan=0.0 ;
     bool ismute=0,issolo=0;
     g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
+    [g_client_mutex unlock];
     float h=22;
     float xpos=0;
     float ypos=of.size.height-h;
@@ -253,8 +270,10 @@ extern void mkvolpanstr(char *str, double vol, double pan);
 {
     char name[512];
     [[channelname stringValue] getCString:(char *)name maxLength:(unsigned)(sizeof(name)-1)];
+    [g_client_mutex lock];
     g_client->SetLocalChannelInfo(m_idx, name, false, 0, false, 0, false, false);
     g_client->NotifyServerOfChannelChange();  
+    [g_client_mutex unlock];
 }
 
 - (void)runVUmeter

@@ -3,6 +3,8 @@
 
 #include "../njclient.h"
 
+extern NSLock *g_client_mutex;
+
 extern NJClient *g_client;
 
 @implementation LocalListView
@@ -59,14 +61,18 @@ extern NJClient *g_client;
   if (sender == addbutton)
   {
     int idx;
+    [g_client_mutex lock];
     for (idx = 0; idx < MAX_LOCAL_CHANNELS && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
     if (idx < MAX_LOCAL_CHANNELS)
     {
       g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,false);
 //    g_client->SetLocalChannelMonitoring(idx,false,0.0f,false,0.0f,false,false,false,false);
-      [self newChannel:idx];
       g_client->NotifyServerOfChannelChange();  
     }
+    [g_client_mutex unlock];
+    
+    // we do this outside the mutex, because the item will need to lock the mutex itself
+    if (idx < MAX_LOCAL_CHANNELS) [self newChannel:idx];
   }
 }
 

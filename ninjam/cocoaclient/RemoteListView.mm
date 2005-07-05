@@ -4,6 +4,7 @@
 #include "../njclient.h"
 
 extern NJClient *g_client;
+extern NSLock *g_client_mutex;
 
 
 @implementation RemoteListView
@@ -22,6 +23,7 @@ extern NJClient *g_client;
   int pos=0;
   int us;
   NSRect lastr;
+  [g_client_mutex lock];  
   for (us = 0; us < g_client->GetNumUsers(); us ++)
   {
     int ch=0;
@@ -34,7 +36,7 @@ extern NJClient *g_client;
       {
         // create a new view
         foo=[[RemoteListItem alloc] initWithPos:pos];
-        NSLog(@"Created a new remoteitem");
+      //  NSLog(@"Created a new remoteitem");
         [self addSubview:foo];
       }
       lastr=[foo frame];
@@ -43,6 +45,7 @@ extern NJClient *g_client;
       pos++;
     }
   }
+  [g_client_mutex unlock];
   
   if (pos)
   {
