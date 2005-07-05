@@ -287,7 +287,7 @@ NJClient::NJClient()
   m_userinfochange=0;
   m_loopcnt=0;
   m_srate=48000;
-
+  output_peaklevel=0.0;
 #ifdef _WIN32
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
