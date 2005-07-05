@@ -23,6 +23,10 @@
     
     IBOutlet NSMenuItem *menuconnect;
     IBOutlet NSMenuItem *menudisconnect;
+
+    IBOutlet NSTextView *chat_text;
+    IBOutlet NSTextField *chat_entry;
+
     
     IBOutlet LocalListView *loclv;
     IBOutlet RemoteListView *remlv;
@@ -63,6 +67,7 @@
 - (IBAction)onaudiocfg:(id)sender;
 - (IBAction)ldlg_ok:(id)sender;
 - (IBAction)ldlg_cancel:(id)sender;
+- (IBAction)chat_enter:(id)sender;
 - (IBAction)cdlg_ok:(id)sender;
 - (IBAction)cdlg_cancel:(id)sender;
 - (IBAction)cdlg_anon:(NSButton *)sender;

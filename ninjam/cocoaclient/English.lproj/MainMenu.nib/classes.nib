@@ -9,6 +9,7 @@
                 "cdlg_anon" = id; 
                 "cdlg_cancel" = id; 
                 "cdlg_ok" = id; 
+                "chat_enter" = id; 
                 "ldlg_cancel" = id; 
                 "ldlg_ok" = id; 
                 mastermute = id; 
@@ -34,6 +35,8 @@
                 "cdlg_passlabel" = NSTextField; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
+                "chat_entry" = NSTextField; 
+                "chat_text" = NSTextView; 
                 licensedlg = NSPanel; 
                 "licensedlg_text" = NSTextView; 
                 loclv = LocalListView; 

@@ -27,6 +27,93 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
 }
 
+WDL_String g_chat_needadd;
+
+void addChatLine(char *src, char *text)
+{
+  WDL_String tmp;
+  if (src && *src && !strncmp(text,"/me ",4))
+  {
+    tmp.Set("* ");
+    tmp.Append(src);
+    tmp.Append(" ");
+    char *p=text+3;
+    while (*p == ' ') p++;
+    tmp.Append(p);
+  }
+  else
+  {
+   if (src&&*src)
+   {
+     tmp.Set("<");
+     tmp.Append(src);
+     tmp.Append("> ");
+   }
+   else if (src)
+   {
+     tmp.Set("*** ");
+   }
+   tmp.Append(text);
+  }
+  tmp.Append("\n");
+  g_chat_needadd.Append(tmp.Get());
+}
+
+
+WDL_String g_topic;
+
+void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+{
+  if (!parms[0]) return;
+
+  if (!strcmp(parms[0],"TOPIC"))
+  {
+    if (parms[2])
+    {
+      WDL_String tmp;
+      if (parms[1] && *parms[1])
+      {
+        tmp.Set(parms[1]);
+        tmp.Append(" sets topic to: ");
+      }
+      else tmp.Set("Topic is: ");
+      tmp.Append(parms[2]);
+
+      g_topic.Set(parms[2]);
+      addChatLine("",tmp.Get());
+    
+    }
+  }
+  else if (!strcmp(parms[0],"MSG"))
+  {
+    if (parms[1] && parms[2])
+      addChatLine(parms[1],parms[2]);
+  } 
+  else if (!strcmp(parms[0],"PRIVMSG"))
+  {
+    if (parms[1] && parms[2])
+    {
+      WDL_String tmp;
+      tmp.Set("*");
+      tmp.Append(parms[1]);
+      tmp.Append("* ");
+      tmp.Append(parms[2]);
+      addChatLine(NULL,tmp.Get());
+    }
+  } 
+  else if (!strcmp(parms[0],"JOIN") || !strcmp(parms[0],"PART"))
+  {
+    if (parms[1] && *parms[1])
+    {
+      WDL_String tmp(parms[1]);
+      tmp.Append(" has ");
+      tmp.Append(parms[0][0]=='P' ? "left" : "joined");
+      tmp.Append(" the server");
+      addChatLine("",tmp.Get());
+    }
+  } 
+}
+
 int licensecallback(int user32, char *licensetext)
 {
 g_need_license=licensetext;
@@ -144,6 +231,8 @@ void mkvolpanstr(char *str, double vol, double pan)
   
   [NSThread detachNewThreadSelector:@selector(threadFunc:) toTarget:self withObject:self]; 
   
+  if (!timer)
+     timer=[NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(tick:) userInfo:0 repeats:YES];
 }
 
 - (void)threadFunc:(id)obj
@@ -255,7 +344,20 @@ if (!len) len=1;
 intl=g_client->GetBPI();
 intp = (pos * intl)/len;
 
+NSString *needadd=NULL;
+if (g_chat_needadd.Get()[0])
+{
+  needadd = [(NSString *)CFStringCreateWithCString(NULL,g_chat_needadd.Get(),kCFStringEncodingUTF8) autorelease];
+  g_chat_needadd.Set("");
+}
+
+
 [g_client_mutex unlock];
+
+if (needadd)
+{
+  [chat_text setString:[[chat_text string] stringByAppendingString:needadd]];
+}
 
 [progmet setVal:intp length:intl];
 }
@@ -316,6 +418,7 @@ intp = (pos * intl)/len;
   [self updateMasterIndicators];
 }
 
+
 - (IBAction)onconnect:(id)sender
 {
   delete myAudio;
@@ -344,7 +447,8 @@ intp = (pos * intl)/len;
       passstr.Set(pass);
     }
    
- // g_client->ChatMessage_Callback=chatmsg_cb;
+    g_client->ChatMessage_Callback=chatmsg_cb;
+    g_client->ChatMessage_User32 = (int)self;
   
     char buf[1024];
     int cnt=0;
@@ -379,12 +483,79 @@ intp = (pos * intl)/len;
   myAudio=p;
    
   [g_client_mutex unlock]; 
-  if (!timer)
-     timer=[NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(tick:) userInfo:0 repeats:YES];
 
   }
 }
 
+- (IBAction)chat_enter:(id)sender
+{
+    char str[1024];
+    [[sender stringValue] getCString:(char *)str maxLength:(unsigned)(sizeof(str)-1)];
+    if (str[0])
+    {
+    
+      [g_client_mutex lock]; 
+
+
+                    if (str[0] == '/')
+                    {
+                      if (!strncasecmp(str,"/me ",4))
+                      {
+                        g_client->ChatMessage_Send("MSG",str);
+                      }
+                      else if (!strncasecmp(str,"/topic ",7)||
+                               !strncasecmp(str,"/kick ",6) ||                        
+                               !strncasecmp(str,"/bpm ",5) ||
+                               !strncasecmp(str,"/bpi ",5)
+                        ) // alias to /admin *
+                      {
+                        g_client->ChatMessage_Send("ADMIN",str+1);
+                      }
+                      else if (!strncasecmp(str,"/admin ",7))
+                      {
+                        char *p=str+7;
+                        while (*p == ' ') p++;
+                        g_client->ChatMessage_Send("ADMIN",p);
+                      }
+                      else if (!strncasecmp(str,"/msg ",5))
+                      {
+                        char *p=str+5;
+                        while (*p == ' ') p++;
+                        char *n=p;
+                        while (*p && *p != ' ') p++;
+                        if (*p == ' ') *p++=0;
+                        while (*p == ' ') p++;
+                        if (*p)
+                        {
+                          g_client->ChatMessage_Send("PRIVMSG",n,p);
+                          WDL_String tmp;
+                          tmp.Set("-> *");
+                          tmp.Append(n);
+                          tmp.Append("* ");
+                          tmp.Append(p);
+                          addChatLine(NULL,tmp.Get());
+                        }
+                        else
+                        {
+                          addChatLine("","error: /msg requires a username and a message.");
+                        }
+                      }
+                      else
+                      {
+                        addChatLine("","error: unknown command.");
+                      }
+                    }
+                    else
+                    {
+                      g_client->ChatMessage_Send("MSG",str);
+                    }
+
+
+      [g_client_mutex unlock]; 
+    }
+    [sender setStringValue:@""];
+
+}
 
 - (IBAction)ondisconnect:(id)sender
 {
