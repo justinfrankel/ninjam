@@ -196,10 +196,7 @@ void mkvolpanstr(char *str, double vol, double pan)
   if (s) [cdlg_pass setStringValue:s];
   int a=[[NSUserDefaults standardUserDefaults] integerForKey:@"anon"];
   [cdlg_anon setIntValue:a];
-  
-  indev=[[NSUserDefaults standardUserDefaults] stringForKey:@"indevs"];
-  outdev=[[NSUserDefaults standardUserDefaults] stringForKey:@"outdevs"];
-  
+    
   if (a)
   {
     [cdlg_pass setHidden:TRUE];
@@ -467,9 +464,9 @@ if (needadd)
       time(&tv);
       struct tm *t=localtime(&tv);
     
-      sprintf(buf,"%s/njsession_%04d%02d%02d_%02d%02d%02d_%d",
+      sprintf(buf,"%s/Documents/%04d%02d%02d_%02d%02d%02d%s%d.njsession",
         getenv("HOME")
-          ,t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt);
+          ,t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt?"_":"",cnt);
 
       if (!mkdir(buf,0700)) break;
 
@@ -486,6 +483,10 @@ if (needadd)
   char tmp[512];
   char *d=tmp;
   tmp[0]=0;
+
+  NSString *indev=[[NSUserDefaults standardUserDefaults] stringForKey:@"indevs"];
+  NSString *outdev=[[NSUserDefaults standardUserDefaults] stringForKey:@"outdevs"];
+
   if (indev && outdev)
   {
     [indev getCString:tmp maxLength:254];
@@ -703,10 +704,8 @@ if (needadd)
   // see which devices the user selected
   if (m_devlist && m_devlist_len)
   {
-    indev = [[adlg_in selectedItem] title];
-    [[NSUserDefaults standardUserDefaults] setObject:indev forKey:@"indevs"];
-    outdev = [[adlg_out selectedItem] title];
-    [[NSUserDefaults standardUserDefaults] setObject:outdev forKey:@"outdevs"];    
+    [[NSUserDefaults standardUserDefaults] setObject:[[adlg_in selectedItem] title] forKey:@"indevs"];
+    [[NSUserDefaults standardUserDefaults] setObject:[[adlg_out selectedItem] title] forKey:@"outdevs"];    
   }
   
   [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:1] objectValue] forKey:@"savewave"];    
@@ -732,6 +731,11 @@ if (needadd)
   [adlg_in removeAllItems];
   [adlg_out removeAllItems];
 
+  NSString *indev, *outdev;
+  
+  indev=[[NSUserDefaults standardUserDefaults] stringForKey:@"indevs"];
+  outdev=[[NSUserDefaults standardUserDefaults] stringForKey:@"outdevs"];
+  
   AudioDeviceID idin,idout;
   UInt32 theSize=sizeof(AudioDeviceID);
   AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,&theSize,&idin);

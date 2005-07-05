@@ -46,7 +46,6 @@
     IBOutlet NSPopUpButton *adlg_in;
     IBOutlet NSPopUpButton *adlg_out;
     
-    NSString *indev, *outdev;
     NSTimer *timer;
     AudioDeviceID *m_devlist;
     int m_devlist_len;
