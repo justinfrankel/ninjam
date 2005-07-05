@@ -166,6 +166,8 @@
 				BCBA2269087A1A91000EC500,
 				BCBA228F087A2A80000EC500,
 				BCBA2290087A2A80000EC500,
+				BCB6BB32087A52CC00870A97,
+				BCB6BB33087A52CC00870A97,
 			);
 			isa = PBXGroup;
 			name = "Other Sources";
@@ -354,6 +356,7 @@
 				BCE8B5CE08792AED0076BEC1,
 				BCBA226A087A1A91000EC500,
 				BCBA2291087A2A80000EC500,
+				BCB6BB34087A52CC00870A97,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -666,6 +669,28 @@
 		};
 		BC8E61230878E89100C4D33D = {
 			fileRef = BC8E61210878E89000C4D33D;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
+		BCB6BB32087A52CC00870A97 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = IntervalProgressMeter.h;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCB6BB33087A52CC00870A97 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = IntervalProgressMeter.m;
+			refType = 4;
+			sourceTree = "<group>";
+		};
+		BCB6BB34087A52CC00870A97 = {
+			fileRef = BCB6BB33087A52CC00870A97;
 			isa = PBXBuildFile;
 			settings = {
 			};

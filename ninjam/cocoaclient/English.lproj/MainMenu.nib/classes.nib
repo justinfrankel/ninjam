@@ -9,6 +9,8 @@
                 "cdlg_anon" = id; 
                 "cdlg_cancel" = id; 
                 "cdlg_ok" = id; 
+                "ldlg_cancel" = id; 
+                "ldlg_ok" = id; 
                 mastermute = id; 
                 masterpan = id; 
                 mastervol = id; 
@@ -32,25 +34,28 @@
                 "cdlg_passlabel" = NSTextField; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
+                licensedlg = NSPanel; 
+                "licensedlg_text" = NSTextView; 
                 loclv = LocalListView; 
                 mastermute = NSButton; 
                 masterpan = NSSlider; 
                 mastervol = NSSlider; 
                 mastervoldisp = NSTextField; 
                 mastervumeter = VUMeter; 
-                menuacfg = NSMenuItem; 
                 menuconnect = NSMenuItem; 
                 menudisconnect = NSMenuItem; 
                 metromute = NSButton; 
                 metropan = NSSlider; 
                 metrovol = NSSlider; 
                 metrovoldisp = NSTextField; 
+                progmet = IntervalProgressMeter; 
                 remlv = RemoteListView; 
                 status = NSTextField; 
             }; 
             SUPERCLASS = NSObject; 
         }, 
         {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
+        {CLASS = IntervalProgressMeter; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = LocalListItem; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = LocalListView; LANGUAGE = ObjC; SUPERCLASS = NSView; }, 
         {CLASS = NSLevelIndicator; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 

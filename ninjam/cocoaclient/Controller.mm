@@ -2,7 +2,7 @@
 #import "VUMeter.h"
 #import "LocalListView.h"
 #import "RemoteListView.h"
-
+#import "IntervalProgressMeter.h"
 #include "../njclient.h"
 #include "../audiostream_mac.h"
 
@@ -12,6 +12,8 @@ NJClient *g_client;
 
 int g_audio_enable=0;
 int g_thread_quit=0;
+char *g_need_license;
+int g_license_result;
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
@@ -27,7 +29,16 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 
 int licensecallback(int user32, char *licensetext)
 {
-return 1;
+g_need_license=licensetext;
+g_license_result=0;
+[g_client_mutex unlock];
+while (g_need_license)
+{
+  struct timespec ts={0,10000*1000};
+  nanosleep(&ts,NULL);
+}
+[g_client_mutex lock];
+return g_license_result;
 }
 
 double DB2SLIDER(double x)
@@ -178,8 +189,26 @@ void mkvolpanstr(char *str, double vol, double pan)
    [metrovoldisp setStringValue:[(NSString *)CFStringCreateWithCString(NULL,buf,kCFStringEncodingUTF8) autorelease]];
 }
 
+- (IBAction)ldlg_ok:(id)sender
+{
+  [NSApp stopModalWithCode:1];
+  [licensedlg close];
+}
+- (IBAction)ldlg_cancel:(id)sender
+{
+  [NSApp stopModalWithCode:0];
+  [licensedlg close];
+}
+
 - (IBAction)tick:(id)sender
 {
+
+if (g_need_license)
+{
+  [licensedlg_text setString:[(NSString *)CFStringCreateWithCString(NULL,g_need_license,kCFStringEncodingUTF8) autorelease]];
+  g_license_result=[NSApp runModalForWindow:(NSWindow *)licensedlg];
+  g_need_license=0;
+}
 
 [g_client_mutex lock];
 if (g_client->HasUserInfoChanged())
@@ -218,8 +247,17 @@ if (ns != m_laststatus)
   g_audio_enable=0;
   }  
 }
+
+int intp, intl;
+int pos, len;
+g_client->GetPosition(&pos,&len);
+if (!len) len=1;
+intl=g_client->GetBPI();
+intp = (pos * intl)/len;
+
 [g_client_mutex unlock];
 
+[progmet setVal:intp length:intl];
 }
 
 - (IBAction)mastermute:(NSButton *)sender

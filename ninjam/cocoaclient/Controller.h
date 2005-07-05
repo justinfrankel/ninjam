@@ -7,6 +7,7 @@
 @class LocalListView;
 @class VUMeter;
 @class RemoteListView;
+@class IntervalProgressMeter;
 @interface Controller : NSObject
 {
     IBOutlet NSTextField *mastervoldisp;
@@ -25,6 +26,11 @@
     
     IBOutlet LocalListView *loclv;
     IBOutlet RemoteListView *remlv;
+    IBOutlet IntervalProgressMeter *progmet;
+
+    IBOutlet NSPanel *licensedlg;
+    IBOutlet NSTextView *licensedlg_text;
+
     
     IBOutlet NSPanel *cdlg;
     IBOutlet NSTextField *cdlg_srv;
@@ -55,6 +61,8 @@
 - (IBAction)onconnect:(id)sender;
 - (IBAction)ondisconnect:(id)sender;
 - (IBAction)onaudiocfg:(id)sender;
+- (IBAction)ldlg_ok:(id)sender;
+- (IBAction)ldlg_cancel:(id)sender;
 - (IBAction)cdlg_ok:(id)sender;
 - (IBAction)cdlg_cancel:(id)sender;
 - (IBAction)cdlg_anon:(NSButton *)sender;
