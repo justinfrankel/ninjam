@@ -65,7 +65,7 @@ extern NJClient *g_client;
     for (idx = 0; idx < MAX_LOCAL_CHANNELS && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
     if (idx < MAX_LOCAL_CHANNELS)
     {
-      g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,false);
+      g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
 //    g_client->SetLocalChannelMonitoring(idx,false,0.0f,false,0.0f,false,false,false,false);
       g_client->NotifyServerOfChannelChange();  
     }

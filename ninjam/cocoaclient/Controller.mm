@@ -180,6 +180,7 @@ void mkvolpanstr(char *str, double vol, double pan)
      [NSNumber numberWithBool:NO], @"anon",
      [NSNumber numberWithInt:1], @"savelocal",
      [NSNumber numberWithInt:0], @"savelocalwav",
+     @"~/Documents", @"sessiondir",
      [NSNumber numberWithInt:0], @"savewave",
      [NSNumber numberWithInt:0], @"saveogg",
      [NSNumber numberWithInt:128], @"saveoggbr",
@@ -366,7 +367,9 @@ if (g_chat_needadd.Get()[0])
 
 if (needadd)
 {
-  [chat_text setString:[[chat_text string] stringByAppendingString:needadd]];
+  NSString *tmp=[[chat_text string] stringByAppendingString:needadd];
+  [chat_text setString:tmp];
+  [chat_text scrollRangeToVisible:NSMakeRange([tmp length],0)];
 }
 
 [progmet setVal:intp length:intl];
@@ -458,15 +461,27 @@ if (needadd)
   
     char buf[1024];
     int cnt=0;
+    char fmt[1024];
+    [[[NSUserDefaults standardUserDefaults] stringForKey:@"sessiondir"] getCString:fmt maxLength:(sizeof(fmt)-1)];
+    
     while (cnt < 16)
     {
       time_t tv;
       time(&tv);
       struct tm *t=localtime(&tv);
     
-      sprintf(buf,"%s/Documents/%04d%02d%02d_%02d%02d%02d%s%d.njsession",
-        getenv("HOME")
-          ,t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt?"_":"",cnt);
+      buf[0]=0;
+      if (fmt[0] == '~' && (fmt[1] == '/' || !fmt[1]))
+      {
+        strcpy(buf,getenv("HOME"));
+        strcat(buf,fmt+1);
+      }
+      else
+      {
+        strcpy(buf,fmt);
+      }
+      sprintf(buf+strlen(buf),"/%04d%02d%02d_%02d%02d%02d%s%d.njsession",
+          t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt?"_":"",cnt);
 
       if (!mkdir(buf,0700)) break;
 
@@ -713,6 +728,7 @@ if (needadd)
   [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:3] objectValue] forKey:@"saveoggbr"];    
   [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:4] objectValue] forKey:@"savelocal"];    
   [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:5] objectValue] forKey:@"savelocalwav"];    
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:6] objectValue] forKey:@"sessiondir"];    
 
   
   
@@ -807,6 +823,7 @@ if (needadd)
   [[[adlg contentView] viewWithTag:3] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"saveoggbr"]];
   [[[adlg contentView] viewWithTag:4] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"]];
   [[[adlg contentView] viewWithTag:5] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"]];
+  [[[adlg contentView] viewWithTag:6] setStringValue:[[NSUserDefaults standardUserDefaults] stringForKey:@"sessiondir"]];
   
   
   
