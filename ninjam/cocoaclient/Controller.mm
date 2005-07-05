@@ -329,6 +329,14 @@ int ns=g_client->GetStatus();
 if (ns != m_laststatus)
 {
   m_laststatus=ns;
+
+  if (ns < 0)
+  {
+    [g_client_mutex unlock];
+    [self ondisconnect:0];
+    [g_client_mutex lock];
+  }  
+
   
   if (ns == NJClient::NJC_STATUS_DISCONNECTED)
     [status setStringValue:@"Status: disconnected from host."];
@@ -339,13 +347,6 @@ if (ns != m_laststatus)
   if (ns == NJClient::NJC_STATUS_OK)
     [status setStringValue:[NSString stringWithFormat:@"Status: Connected to %s as %s",g_client->GetHostName(),g_client->GetUserName()]];
 
-  if (ns < 0)
-  {
-  delete myAudio;
-  myAudio=0;  
-
-  g_audio_enable=0;
-  }  
 }
 
 int intp, intl;
