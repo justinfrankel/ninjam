@@ -175,6 +175,7 @@ if (a ++ > 10)
 {
 double d=g_client->GetOutputPeak();
 d=VAL2DB(d);
+if (!g_audio_enable) d=-120.0;
 [mastervumeter setDoubleValue:d];
 [loclv runVUMeters];
 [remlv runVUMeters];
@@ -336,6 +337,7 @@ if (ns != m_laststatus)
   delete myAudio;
   myAudio=0;  
 
+  g_client->Disconnect();
   g_audio_enable=0;
   
   [status setStringValue:@"Status: Disconnected"];

@@ -99,7 +99,7 @@ extern void mkvolpanstr(char *str, double vol, double pan);
   float vol,pan;
   char *chn=g_client->GetUserChannelState(m_user, m_ch, &sub, &vol, &pan, &ismute, &issolo);
 
-  [channelname setStringValue:[(NSString *)CFStringCreateWithCString(NULL,chn?chn:"<error>",kCFStringEncodingUTF8) autorelease]];
+  [channelname setStringValue:[NSString stringWithFormat:@"%s (%d)",chn?chn:"<error>",m_ch]];
 
   if (!chn) return;
 

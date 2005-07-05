@@ -78,10 +78,9 @@ extern NJClient *g_client;
   int x;
   for (x = 0; x < [[self subviews] count]; x ++)
   {
-    NSView *p=[[self subviews] objectAtIndex:x];
-    if ([p tag] >= 1024)
+    RemoteListItem *pp=[[self subviews] objectAtIndex:x];
+    if ([pp tag] >= 1024)
     {
-      RemoteListItem *pp=p;
       [pp runVUmeter];
     }
   }
