@@ -662,7 +662,7 @@ int User_Group::Run()
       User_Connection *p=m_users.Get(x);
       if (p)
       {
-        int nsl=0;
+        int nsl=1; // run will clear nsl if a sleep isnt desired
         if (p->Run(this,&nsl))
         {
           // broadcast to other users that this user is no longer present
