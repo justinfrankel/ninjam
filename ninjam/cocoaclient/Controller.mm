@@ -5,6 +5,8 @@
 #import "IntervalProgressMeter.h"
 #include "../njclient.h"
 #include "../audiostream_mac.h"
+#include "../../WDL/dirscan.h"
+
 
 NSLock *g_client_mutex;
 audioStreamer *myAudio;
@@ -176,6 +178,11 @@ void mkvolpanstr(char *str, double vol, double pan)
      [NSNumber numberWithFloat:0.5], @"metrovol",
      [NSNumber numberWithFloat:0.0], @"metropan",  
      [NSNumber numberWithBool:NO], @"anon",
+     [NSNumber numberWithInt:1], @"savelocal",
+     [NSNumber numberWithInt:0], @"savelocalwav",
+     [NSNumber numberWithInt:0], @"savewave",
+     [NSNumber numberWithInt:0], @"saveogg",
+     [NSNumber numberWithInt:128], @"saveoggbr",
      @"", @"indevs",
      @"", @"outdevs",
   NULL]];
@@ -216,6 +223,10 @@ void mkvolpanstr(char *str, double vol, double pan)
   g_client->config_metronome=[[NSUserDefaults standardUserDefaults] floatForKey:@"metrovol"];
   g_client->config_metronome_pan=[[NSUserDefaults standardUserDefaults] floatForKey:@"metropan"];
   g_client->config_metronome_mute=[[NSUserDefaults standardUserDefaults] integerForKey:@"metromute"];
+  
+   
+    g_client->ChatMessage_Callback=chatmsg_cb;
+    g_client->ChatMessage_User32 = (int)self;
   
   [mastermute setIntValue:g_client->config_mastermute];
   [metromute setIntValue:g_client->config_metronome_mute];
@@ -258,10 +269,12 @@ void mkvolpanstr(char *str, double vol, double pan)
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
   g_thread_quit=1;
-  delete myAudio;
-  myAudio=0;  
 
-  g_audio_enable=0;
+  struct timespec ts={0,100000*1000};
+  nanosleep(&ts,NULL);
+
+  [self ondisconnect:0];
+  
   [g_client_mutex release];
   g_client_mutex=0;
   
@@ -421,10 +434,8 @@ if (needadd)
 
 - (IBAction)onconnect:(id)sender
 {
-  delete myAudio;
-  myAudio=0;  
 
-  g_audio_enable=0;  
+  [self ondisconnect:0];
 
  if ([NSApp runModalForWindow:(NSWindow *)cdlg])
  {
@@ -446,27 +457,30 @@ if (needadd)
       userstr.Set(user);
       passstr.Set(pass);
     }
-   
-    g_client->ChatMessage_Callback=chatmsg_cb;
-    g_client->ChatMessage_User32 = (int)self;
+
   
     char buf[1024];
     int cnt=0;
-    for (;;)
+    while (cnt < 16)
     {
-      sprintf(buf,"/tmp/njsession_%d_%d",time(NULL),cnt);
+      time_t tv;
+      time(&tv);
+      struct tm *t=localtime(&tv);
+    
+      sprintf(buf,"%s/njsession_%04d%02d%02d_%02d%02d%02d_%d",
+        getenv("HOME")
+          ,t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec,cnt);
 
       if (!mkdir(buf,0700)) break;
 
       cnt++;
     }
-    
-  [g_client_mutex lock];   
-    g_client->SetWorkDir(buf);
-    g_client->Connect(srv,userstr.Get(),passstr.Get());
-    g_audio_enable=1;
-    [status setStringValue:@"Status: Connecting..."];
-    
+    if (cnt >= 16)
+    {      
+      [status setStringValue:@"Status: ERROR CREATING SESSION DIRECTORY"];
+      return;
+    }
+
    audioStreamer_CoreAudio *p=new audioStreamer_CoreAudio;
   
   char tmp[512];
@@ -481,7 +495,46 @@ if (needadd)
   p->Open(&d,44100,2,16);
   
   myAudio=p;
-   
+    
+  [g_client_mutex lock];   
+  g_client->SetWorkDir(buf);
+
+  g_client->config_savelocalaudio=0;
+  if ([[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"])
+  {
+    g_client->config_savelocalaudio|=1;
+    if ([[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"])
+      g_client->config_savelocalaudio|=2;
+  }
+  if ([[NSUserDefaults standardUserDefaults] integerForKey:@"savewave"])
+  {
+    WDL_String wf;
+    wf.Set(g_client->GetWorkDir());
+    wf.Append("output.wav");
+    g_client->waveWrite = new WaveWriter(wf.Get(),24,myAudio->m_outnch>1?2:1,myAudio->m_srate);
+  }
+  
+  if ([[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"])
+  {
+    WDL_String wf;
+    wf.Set(g_client->GetWorkDir());
+    wf.Append("output.ogg");
+    g_client->SetOggOutFile(fopen(wf.Get(),"ab"),myAudio->m_srate,myAudio->m_outnch>1?2:1,[[NSUserDefaults standardUserDefaults] integerForKey:@"saveoggbr"]);
+  }
+  
+  if (g_client->config_savelocalaudio)
+  {
+    WDL_String lf;
+    lf.Set(g_client->GetWorkDir());
+    lf.Append("clipsort.log");
+    g_client->SetLogFile(lf.Get());
+  }
+
+
+    g_client->Connect(srv,userstr.Get(),passstr.Get());
+    g_audio_enable=1;
+    [status setStringValue:@"Status: Connecting..."];
+       
   [g_client_mutex unlock]; 
 
   }
@@ -564,7 +617,45 @@ if (needadd)
   myAudio=0;  
 
   [g_client_mutex lock];
+  WDL_String sessiondir(g_client->GetWorkDir());
   g_client->Disconnect();
+  delete g_client->waveWrite;
+  g_client->waveWrite=0;
+  g_client->SetOggOutFile(NULL,0,0,0);
+  g_client->SetLogFile(NULL);
+  
+  if (!g_client->config_savelocalaudio)
+  {
+    int n;
+    for (n = 0; n < 16; n ++)
+    {
+      WDL_String s(sessiondir.Get());
+      char buf[32];
+      sprintf(buf,"%x",n);
+      s.Append(buf);
+
+      {
+        WDL_DirScan ds;
+        if (!ds.First(s.Get()))
+        {
+          do
+          {
+            if (ds.GetCurrentFN()[0] != '.')
+            {
+              WDL_String t;
+              ds.GetCurrentFullFN(&t);
+              unlink(t.Get());          
+            }
+          }
+          while (!ds.Next());
+        }
+      }
+      rmdir(s.Get());
+    }
+    rmdir(sessiondir.Get());
+  }
+  
+  
   [g_client_mutex unlock];
   
   g_audio_enable=0;
@@ -617,6 +708,15 @@ if (needadd)
     outdev = [[adlg_out selectedItem] title];
     [[NSUserDefaults standardUserDefaults] setObject:outdev forKey:@"outdevs"];    
   }
+  
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:1] objectValue] forKey:@"savewave"];    
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:2] objectValue] forKey:@"saveogg"];    
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:3] objectValue] forKey:@"saveoggbr"];    
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:4] objectValue] forKey:@"savelocal"];    
+  [[NSUserDefaults standardUserDefaults] setObject:[[[adlg contentView] viewWithTag:5] objectValue] forKey:@"savelocalwav"];    
+
+  
+  
 }
 
 - (IBAction)adlg_insel:(NSPopUpButton *)sender
@@ -697,6 +797,14 @@ if (needadd)
   if (outdev) [adlg_out selectItemWithTitle:outdev];
     
   // populate list of devices
+  
+  [[[adlg contentView] viewWithTag:1] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"savewave"]];
+  [[[adlg contentView] viewWithTag:2] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"]];
+  [[[adlg contentView] viewWithTag:3] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"saveoggbr"]];
+  [[[adlg contentView] viewWithTag:4] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"]];
+  [[[adlg contentView] viewWithTag:5] setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"]];
+  
+  
   
   [NSApp runModalForWindow:(NSWindow *)adlg];
   
