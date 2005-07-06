@@ -376,6 +376,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
       m_netcon.Kill();
       msg->releaseRef();
+
       return 0;
     }
     
