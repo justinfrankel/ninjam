@@ -95,6 +95,8 @@ class User_Connection
 
     int m_reserved;
 
+    int m_max_channels;
+
     User_Channel m_channels[MAX_USER_CHANNELS];
 
     WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
@@ -121,7 +123,7 @@ class User_Group
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
-    int (*GetUserPass)(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs); // return nonzero if valid, SHA1(user:pass) or username if isanon
+    int (*GetUserPass)(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs, int *max_channels); // return nonzero if valid, SHA1(user:pass) or username if isanon
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 

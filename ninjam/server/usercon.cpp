@@ -24,7 +24,7 @@ extern void logText(char *s, ...);
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0)
+User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0), m_max_channels(0)
 {
   m_netcon.attach(con);
 
@@ -128,7 +128,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         char authbuf[WDL_SHA1SIZE];
         unsigned int privs=0;
         
-        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon,&privs))
+        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon,&privs,&m_max_channels))
         {
           if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
           {
@@ -286,6 +286,12 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       {
         mpb_server_auth_reply bh;
         bh.flag=1;
+        int ch=m_max_channels;
+        if (ch > MAX_USER_CHANNELS) ch=MAX_USER_CHANNELS;
+        if (ch < 0) ch = 0;
+
+        bh.maxchan = ch;
+
         bh.errmsg=m_username.Get();
         m_netcon.Send(bh.build());
       }
@@ -307,7 +313,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           if (u && u->m_auth_state>0 && u != this) 
           {
             int acnt=0;
-            for (channel = 0; channel < MAX_USER_CHANNELS; channel ++)
+            for (channel = 0; channel < u->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
             {
               if (u->m_channels[channel].active)
               {
@@ -316,7 +322,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
                 acnt++;
               }
             }
-            if (!acnt && !group->m_allow_hidden_users) // give users at least one channel
+            if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
             {
                 bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
             }
@@ -361,7 +367,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             int p,f;
             int whichch=0;
             char *chnp=0;
-            while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS)
+            while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS && whichch < m_max_channels)
             {
               if (!chnp) chnp=""; 
 
@@ -409,7 +415,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
               whichch++;
             }
-            if (!group->m_allow_hidden_users)
+            if (!group->m_allow_hidden_users && m_max_channels)
             {
               for (whichch = 0; whichch < MAX_USER_CHANNELS && !m_channels[whichch].active; whichch ++);
 
@@ -470,7 +476,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       case MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN:
         {
           mpb_client_upload_interval_begin mp;
-          if (!mp.parse(msg))
+          if (!mp.parse(msg) && mp.chidx < m_max_channels)
           {
             char *myusername=m_username.Get();
 

@@ -86,8 +86,9 @@ int g_config_port;
 bool g_config_allowanonymous;
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
-static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs)
+static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs, int *max_channels)
 {
+  *max_channels=MAX_USER_CHANNELS;
   if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
     logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
