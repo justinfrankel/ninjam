@@ -18,6 +18,7 @@
 #define PRIV_BPM 4
 #define PRIV_KICK 8
 #define PRIV_RESERVE 16
+#define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 
 
 class User_SubscribeMask
@@ -45,17 +46,17 @@ public:
 class IUserInfoLookup // abstract base class, overridden by server
 {
 public:
-  IUserInfoLookup() { user_valid=0; isanon=0; privs=0; max_channels=0; }
+  IUserInfoLookup() { user_valid=0; reqpass=1; privs=0; max_channels=0; }
   virtual ~IUserInfoLookup() { }
 
   virtual int Run()=0; // return 1 if run is complete, 0 if still needs to run more
 
   int user_valid;
 
+  WDL_String hostmask;
   WDL_String username;
 
-  int isanon;
-  WDL_String anon_username;
+  int reqpass; // password required, 1 is default
 
   unsigned char sha1buf_user[WDL_SHA1SIZE];
   unsigned int privs;

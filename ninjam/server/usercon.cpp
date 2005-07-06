@@ -124,29 +124,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 {
   char addrbuf[256];
   JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
-
-  char usernametmp[512];
-  char *username=m_lookup->username.Get();
  
-  if (m_lookup->user_valid && m_lookup->isanon)
-  {
-    if (m_lookup->anon_username.Get()[0])
-    {
-      char pbuf[64];
-      strncpy(pbuf,m_lookup->anon_username.Get(),32);
-      pbuf[15]=0;
-
-      sprintf(usernametmp+1,"%s-%s",pbuf,addrbuf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
-      username=usernametmp+1;
-    }
-    else
-    {
-      strcpy(usernametmp,addrbuf);
-      username=usernametmp;
-      strcat(usernametmp,"-");
-    }
-  }
-  else
   {
     WDL_SHA1 shatmp;
 
@@ -157,7 +135,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     char buf[WDL_SHA1SIZE];
     shatmp.result(buf);
 
-    if (memcmp(buf,m_lookup->sha1buf_request,WDL_SHA1SIZE) || !m_lookup->user_valid)
+    if ((m_lookup->reqpass && memcmp(buf,m_lookup->sha1buf_request,WDL_SHA1SIZE)) || !m_lookup->user_valid)
     {
       logText("%s: Refusing user, invalid login/password\n",addrbuf);
       mpb_server_auth_reply bh;
@@ -170,10 +148,9 @@ int User_Connection::OnRunAuth(User_Group *group)
   m_auth_privs=m_lookup->privs;
   m_max_channels = m_lookup->max_channels;
 
-
   {
     // fix any invalid characters in username
-    char *p=username;
+    char *p=m_lookup->username.Get();
     int l=MAX_NICK_LEN;
     while (*p)
     {
@@ -187,31 +164,41 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   // disconnect any user by the same name
   // in anonymous mode, append -<idx>
+  WDL_String username_work;
   {
-    int maxv=-1;
-    int user;
-    for (user = 0; user < group->m_users.GetSize(); user++)
+    int user=0;
+    int uw_pos=0;
+    username_work.Set(m_lookup->username.Get());
+
+    while (user < group->m_users.GetSize())
     {
       User_Connection *u=group->m_users.Get(user);
-      if (username == usernametmp)
+      if (u != this && !strcasecmp(u->m_username.Get(),username_work.Get()))
       {
-        if (u != this && !strncmp(u->m_username.Get(),username,strlen(username)))
+
+        if ((m_auth_privs & PRIV_ALLOWMULTI) && uw_pos++ < 16)
         {
-          int tv=atoi(u->m_username.Get()+strlen(username));
-          if (tv > maxv) maxv=tv;
+          username_work.Set(m_lookup->username.Get());
+          if (uw_pos)
+          {
+            char buf[64];
+            sprintf(buf,"-%d",uw_pos);
+            username_work.Append(buf);
+          }
+          user=0;
+          continue; // start over
+        }
+        else
+        {
+          delete u;
+          group->m_users.Delete(user);
+          break;
         }
       }
-      else if (u != this && !strcasecmp(u->m_username.Get(),username))
-      {
-        delete u;
-        group->m_users.Delete(user);
-        break;
-      }
-    }
-
-    if (username == usernametmp)
-      sprintf(username+strlen(username),"%d",maxv+1);
+      user++;
+    }   
   }
+  char *username = username_work.Get();
 
 
   if (group->m_max_users && !m_reserved && !(m_auth_privs & PRIV_RESERVE))
@@ -387,6 +374,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
     if (m_lookup)
     {
+      char addrbuf[256];
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+      m_lookup->hostmask.Set(addrbuf);
       memcpy(m_lookup->sha1buf_request,authrep.passhash,sizeof(m_lookup->sha1buf_request));
     }
 

@@ -116,9 +116,18 @@ public:
       if (!g_config_allowanonymous) return 1;
 
       user_valid=1;
-      isanon=1;
-      anon_username.Set(username.Get() + (username.Get()[9] == ':' ? 10:9));
-      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
+      reqpass=0;
+
+      WDL_String tmp(username.Get());
+
+      if (tmp.Get()[9] == ':' && tmp.Get()[10])
+        username.Set(tmp.Get()+10);
+      else username.Set("anon");
+
+      username.Append("-");
+      username.Append(hostmask.Get());
+
+      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | PRIV_ALLOWMULTI; // todo: config PRIV_ALLOWMULTI
       max_channels=g_config_maxch_anon;
     }
     else
@@ -130,7 +139,7 @@ public:
         if (!strcmp(username.Get(),g_userlist.Get(x)->name.Get()))
         {
           user_valid=1;
-          isanon=0;
+          reqpass=1;
 
           char *pass=g_userlist.Get(x)->pass.Get();
           WDL_SHA1 shatmp;
@@ -140,7 +149,7 @@ public:
 
           shatmp.result(sha1buf_user);
 
-          privs=g_userlist.Get(x)->priv_flag;
+          privs=g_userlist.Get(x)->priv_flag; 
           max_channels=g_config_maxch_user;
           break;
         }
@@ -295,6 +304,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
         else if (*ptr == 'K' || *ptr == 'k') p->priv_flag |= PRIV_KICK;        
         else if (*ptr == 'R' || *ptr == 'r') p->priv_flag |= PRIV_RESERVE;        
+        else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
         else 
         {
           if (g_logfp)
