@@ -124,7 +124,12 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
     WDL_String op;
     if (!resolveFile(list->items.Get(y)->guidstr.Get(),&op,path)) 
     {
-      if (concatout) fclose(concatout);
+      if (concatout) 
+      {
+        WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+        (*id)++;
+        fclose(concatout);
+      }
       concatout=0;
       continue;
     }
@@ -154,6 +159,10 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
         }
 
         concatout = fopen(concat_fn.Get(),"wb");
+        if (!concatout)
+        {
+          printf("Warning: error opening %s. RESULTING TXT WILL LACK REFERENCE TO THIS FILE! ACK!\n",concat_fn.Get());
+        }
         last_pos = list->items.Get(y)->position;
         last_len = 0.0;
       }
