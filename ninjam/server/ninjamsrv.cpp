@@ -121,7 +121,6 @@ static int myGetUserPass(User_Group *group, UserInfoStruct *uinfo)
 
       uinfo->privs=g_userlist.Get(x)->priv_flag;
       uinfo->max_channels=g_config_maxch_user;
-      uinfo->isanon=0;
       return 1;
     }
   }

@@ -150,6 +150,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     if (m_auth_state < 1)
     {
       mpb_client_auth_user authrep;
+      char addrbuf[256];
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+
       if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
       {
         mpb_server_auth_reply bh;
@@ -162,87 +165,74 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         return 0;
       }
 
-      char addrbuf[256];
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
-
       char *username=authrep.username;
+      
+      if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
+      {
+        logText("%s: Refusing user, bad client version\n",addrbuf);
+        mpb_server_auth_reply bh;
+        bh.errmsg="incorrect client version";
+        m_netcon.Send(bh.build());
+        m_netcon.Run();
+
+        m_netcon.Kill();
+        msg->releaseRef();
+        return 0;
+      }
+      if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
+      {
+        logText("%s: Refusing user, no license agreement\n",addrbuf);
+        mpb_server_auth_reply bh;
+        bh.errmsg="license not agreed to";
+        m_netcon.Send(bh.build());
+        m_netcon.Run();
+
+        m_netcon.Kill();
+        msg->releaseRef();
+        return 0;
+      }
+
+      UserInfoStruct uinfo={username, 0};
+
+      // if this returns 0, we act normal, but bail later (avoid timing attacks
+      // to see if a username is valid)
+      int gupret = group->GetUserPass && group->GetUserPass(group,&uinfo);
+    
       char usernametmp[512];
 
-      {        
-        UserInfoStruct uinfo={username, 0};
-
-        if (group->GetUserPass && group->GetUserPass(group,&uinfo))
+      m_max_channels = uinfo.max_channels;
+ 
+      if (gupret && uinfo.isanon)
+      {
+        if (*uinfo.isanon)
         {
-          m_max_channels = uinfo.max_channels;
-          if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
-          {
-            logText("%s: Refusing user %s, bad client version\n",addrbuf,username);
-            mpb_server_auth_reply bh;
-            bh.errmsg="incorrect client version";
-            m_netcon.Send(bh.build());
-            m_netcon.Run();
+          char pbuf[256];
+          strncpy(pbuf,uinfo.isanon,255);
+          pbuf[15]=0;
 
-            m_netcon.Kill();
-            msg->releaseRef();
-            return 0;
-          }
-          else if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
-          {
-            logText("%s: Refusing user %s, no license agreement\n",addrbuf,username);
-            mpb_server_auth_reply bh;
-            bh.errmsg="license not agreed to";
-            m_netcon.Send(bh.build());
-            m_netcon.Run();
-
-            m_netcon.Kill();
-            msg->releaseRef();
-            return 0;
-          }
-          else if (uinfo.isanon)
-          {
-            if (*uinfo.isanon)
-            {
-              char pbuf[256];
-              strncpy(pbuf,uinfo.isanon,255);
-              pbuf[15]=0;
-
-              char buf[128];
-              JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
-              sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
-              username=usernametmp+1;
-            }
-            else
-            {
-              JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
-              username=usernametmp;
-              strcat(usernametmp,"-");
-            }
-          }
-          else
-          {
-            WDL_SHA1 shatmp;
-            shatmp.add(uinfo.sha1buf_user,sizeof(uinfo.sha1buf_user));
-            shatmp.add(m_challenge,sizeof(m_challenge));
-
-            char buf[WDL_SHA1SIZE];
-            shatmp.result(buf);
-            if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE))
-            {
-              logText("%s: Refusing user %s, invalid pass\n",addrbuf,username);
-              mpb_server_auth_reply bh;
-              bh.errmsg="invalid login/password";
-              m_netcon.Send(bh.build());
-              m_netcon.Run();
-              m_netcon.Kill();
-              msg->releaseRef();
-              return 0;
-            }
-
-          }
+          char buf[128];
+          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+          sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
+          username=usernametmp+1;
         }
         else
         {
-          logText("%s: Refusing user %s, invalid login\n",addrbuf,username);
+          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
+          username=usernametmp;
+          strcat(usernametmp,"-");
+        }
+      }
+      else
+      {
+        WDL_SHA1 shatmp;
+        shatmp.add(uinfo.sha1buf_user,sizeof(uinfo.sha1buf_user));
+        shatmp.add(m_challenge,sizeof(m_challenge));
+
+        char buf[WDL_SHA1SIZE];
+        shatmp.result(buf);
+        if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE) || !gupret)
+        {
+          logText("%s: Refusing user, invalid login/password\n",addrbuf);
           mpb_server_auth_reply bh;
           bh.errmsg="invalid login/password";
           m_netcon.Send(bh.build());
@@ -251,10 +241,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           msg->releaseRef();
           return 0;
         }
-
-        m_auth_privs=uinfo.privs;
-
       }
+      m_auth_privs=uinfo.privs;
+
       {
         // fix any invalid characters in username
         char *p=username;
