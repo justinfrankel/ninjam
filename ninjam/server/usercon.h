@@ -41,6 +41,16 @@ public:
   int flags;
 };
 
+typedef struct
+{
+  char *username;
+  char *isanon;
+
+  char sha1buf_user[WDL_SHA1SIZE];
+  unsigned int privs;
+  int max_channels;
+
+} UserInfoStruct;
 
 
 class User_TransferState
@@ -81,7 +91,7 @@ class User_Connection
 
     void Send(Net_Message *msg) { m_netcon.Send(msg); }
 
-
+    int OnRunAuth(User_Group *group, int gupret, UserInfoStruct *uinfo, char *addrbuf, unsigned char *passhash);
 
     Net_Connection m_netcon;
     WDL_String m_username;
@@ -107,16 +117,6 @@ class User_Connection
 };
 
 
-typedef struct
-{
-  char *username;
-  char *isanon;
-
-  char sha1buf_user[WDL_SHA1SIZE];
-  unsigned int privs;
-  int max_channels;
-
-} UserInfoStruct;
 
 class User_Group
 {

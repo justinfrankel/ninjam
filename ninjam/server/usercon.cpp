@@ -115,6 +115,187 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
+
+int User_Connection::OnRunAuth(User_Group *group, int wasUserFound, UserInfoStruct *uinfo, char *addrbuf, unsigned char *passhash)
+{
+  char usernametmp[512];
+  char *username=uinfo->username;
+ 
+  if (wasUserFound && uinfo->isanon)
+  {
+    if (*(uinfo->isanon))
+    {
+      char pbuf[256];
+      strncpy(pbuf,uinfo->isanon,255);
+      pbuf[15]=0;
+
+      char buf[128];
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+      sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
+      username=usernametmp+1;
+    }
+    else
+    {
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
+      username=usernametmp;
+      strcat(usernametmp,"-");
+    }
+  }
+  else
+  {
+    WDL_SHA1 shatmp;
+    shatmp.add(uinfo->sha1buf_user,sizeof(uinfo->sha1buf_user));
+    shatmp.add(m_challenge,sizeof(m_challenge));
+
+    char buf[WDL_SHA1SIZE];
+    shatmp.result(buf);
+    if (memcmp(buf,passhash,WDL_SHA1SIZE) || !wasUserFound)
+    {
+      logText("%s: Refusing user, invalid login/password\n",addrbuf);
+      mpb_server_auth_reply bh;
+      bh.errmsg="invalid login/password";
+      m_netcon.Send(bh.build());
+      return 0;
+    }
+  }
+  m_auth_privs=uinfo->privs;
+  m_max_channels = uinfo->max_channels;
+
+
+  {
+    // fix any invalid characters in username
+    char *p=username;
+    int l=MAX_NICK_LEN;
+    while (*p)
+    {
+      char c=*p;
+      if (!isalnum(c) && c != '-' && c != '_' && c != '@' && c != '.') c='_';
+      *p++=c;
+
+      if (!--l) *p=0;
+    }
+  }
+
+  // disconnect any user by the same name
+  // in anonymous mode, append -<idx>
+  {
+    int maxv=-1;
+    int user;
+    for (user = 0; user < group->m_users.GetSize(); user++)
+    {
+      User_Connection *u=group->m_users.Get(user);
+      if (username == usernametmp)
+      {
+        if (u != this && !strncmp(u->m_username.Get(),username,strlen(username)))
+        {
+          int tv=atoi(u->m_username.Get()+strlen(username));
+          if (tv > maxv) maxv=tv;
+        }
+      }
+      else if (u != this && !strcasecmp(u->m_username.Get(),username))
+      {
+        delete u;
+        group->m_users.Delete(user);
+        break;
+      }
+    }
+
+    if (username == usernametmp)
+      sprintf(username+strlen(username),"%d",maxv+1);
+  }
+
+
+  if (group->m_max_users && !m_reserved && !(m_auth_privs & PRIV_RESERVE))
+  {
+    int user;
+    int cnt=0;
+    for (user = 0; user < group->m_users.GetSize(); user ++)
+    {
+      User_Connection *u=group->m_users.Get(user);
+      if (u != this && u->m_auth_state > 0)
+        cnt++;
+    }
+    if (cnt >= group->m_max_users)
+    {
+      logText("%s: Refusing user %s, server full\n",addrbuf,username);
+      // sorry, gotta kill this connection
+      mpb_server_auth_reply bh;
+      bh.errmsg="server full";
+      m_netcon.Send(bh.build());
+      return 0;
+    }
+  }
+
+
+
+  m_username.Set(username);
+  logText("%s: Accepted user: %s\n",addrbuf,username);
+
+  {
+    mpb_server_auth_reply bh;
+    bh.flag=1;
+    int ch=m_max_channels;
+    if (ch > MAX_USER_CHANNELS) ch=MAX_USER_CHANNELS;
+    if (ch < 0) ch = 0;
+
+    bh.maxchan = ch;
+
+    bh.errmsg=m_username.Get();
+    m_netcon.Send(bh.build());
+  }
+
+  m_auth_state=1;
+
+  SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
+
+  // send user list to user
+  {
+    mpb_server_userinfo_change_notify bh;
+
+    int user;
+    for (user = 0; user < group->m_users.GetSize(); user++)
+    {
+      User_Connection *u=group->m_users.Get(user);
+      int channel;
+      if (u && u->m_auth_state>0 && u != this) 
+      {
+        int acnt=0;
+        for (channel = 0; channel < u->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
+        {
+          if (u->m_channels[channel].active)
+          {
+            bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
+                              u->m_username.Get(),u->m_channels[channel].name.Get());
+            acnt++;
+          }
+        }
+        if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
+        {
+            bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
+        }
+      }
+    }       
+    m_netcon.Send(bh.build());
+  }
+
+
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="TOPIC";
+    newmsg.parms[1]="";
+    newmsg.parms[2]=group->m_topictext.Get();
+    m_netcon.Send(newmsg.build());
+  }
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="JOIN";
+    newmsg.parms[1]=username;
+    group->Broadcast(newmsg.build(),this);
+  }
+
+  return 1;
+}
+
 int User_Connection::Run(User_Group *group, int *wantsleep)
 {
   Net_Message *msg=m_netcon.Run(wantsleep);
@@ -155,6 +336,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
       if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
       {
+        logText("%s: Refusing user, invalid authorization reply\n",addrbuf);
         mpb_server_auth_reply bh;
         bh.errmsg="invalid authorization reply";
         m_netcon.Send(bh.build());
@@ -164,8 +346,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         msg->releaseRef();
         return 0;
       }
-
-      char *username=authrep.username;
       
       if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
       {
@@ -181,7 +361,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       }
       if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
       {
-        logText("%s: Refusing user, no license agreement\n",addrbuf);
+        logText("%s: Refusing user, license agreement not agreed to\n",addrbuf);
         mpb_server_auth_reply bh;
         bh.errmsg="license not agreed to";
         m_netcon.Send(bh.build());
@@ -192,193 +372,23 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         return 0;
       }
 
-      UserInfoStruct uinfo={username, 0};
+
+      UserInfoStruct uinfo={authrep.username, 0};
 
       // if this returns 0, we act normal, but bail later (avoid timing attacks
       // to see if a username is valid)
-      int gupret = group->GetUserPass && group->GetUserPass(group,&uinfo);
-    
-      char usernametmp[512];
-
-      m_max_channels = uinfo.max_channels;
- 
-      if (gupret && uinfo.isanon)
-      {
-        if (*uinfo.isanon)
-        {
-          char pbuf[256];
-          strncpy(pbuf,uinfo.isanon,255);
-          pbuf[15]=0;
-
-          char buf[128];
-          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
-          sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
-          username=usernametmp+1;
-        }
-        else
-        {
-          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
-          username=usernametmp;
-          strcat(usernametmp,"-");
-        }
-      }
-      else
-      {
-        WDL_SHA1 shatmp;
-        shatmp.add(uinfo.sha1buf_user,sizeof(uinfo.sha1buf_user));
-        shatmp.add(m_challenge,sizeof(m_challenge));
-
-        char buf[WDL_SHA1SIZE];
-        shatmp.result(buf);
-        if (memcmp(buf,authrep.passhash,WDL_SHA1SIZE) || !gupret)
-        {
-          logText("%s: Refusing user, invalid login/password\n",addrbuf);
-          mpb_server_auth_reply bh;
-          bh.errmsg="invalid login/password";
-          m_netcon.Send(bh.build());
-          m_netcon.Run();
-          m_netcon.Kill();
-          msg->releaseRef();
-          return 0;
-        }
-      }
-      m_auth_privs=uinfo.privs;
-
-      {
-        // fix any invalid characters in username
-        char *p=username;
-        int l=MAX_NICK_LEN;
-        while (*p)
-        {
-          char c=*p;
-          if (!isalnum(c) && c != '-' && c != '_' && c != '@' && c != '.') c='_';
-          *p++=c;
-
-          if (!--l) *p=0;
-        }
-      }
-
-      // disconnect any user by the same name
-      // in anonymous mode, append -<idx>
-      {
-        int maxv=-1;
-        int user;
-        for (user = 0; user < group->m_users.GetSize(); user++)
-        {
-          User_Connection *u=group->m_users.Get(user);
-          if (username == usernametmp)
-          {
-            if (u != this && !strncmp(u->m_username.Get(),username,strlen(username)))
-            {
-              int tv=atoi(u->m_username.Get()+strlen(username));
-              if (tv > maxv) maxv=tv;
-            }
-          }
-          else if (u != this && !strcasecmp(u->m_username.Get(),username))
-          {
-            delete u;
-            group->m_users.Delete(user);
-            break;
-          }
-        }
-
-        if (username == usernametmp)
-          sprintf(username+strlen(username),"%d",maxv+1);
-      }
-
-
-      if (group->m_max_users && !m_reserved && !(m_auth_privs & PRIV_RESERVE))
-      {
-        int user;
-        int cnt=0;
-        for (user = 0; user < group->m_users.GetSize(); user ++)
-        {
-          User_Connection *u=group->m_users.Get(user);
-          if (u != this && u->m_auth_state > 0)
-            cnt++;
-        }
-        if (cnt >= group->m_max_users)
-        {
-          logText("%s: Refusing user %s, server full\n",addrbuf,username);
-          // sorry, gotta kill this connection
-          mpb_server_auth_reply bh;
-          bh.errmsg="server full";
-          m_netcon.Send(bh.build());
-          m_netcon.Run();
-          m_netcon.Kill();
-          msg->releaseRef();
-          return 0;
-        }
-      }
-
-
-
-      m_username.Set(username);
-      logText("%s: Accepted user: %s\n",addrbuf,username);
-
-      {
-        mpb_server_auth_reply bh;
-        bh.flag=1;
-        int ch=m_max_channels;
-        if (ch > MAX_USER_CHANNELS) ch=MAX_USER_CHANNELS;
-        if (ch < 0) ch = 0;
-
-        bh.maxchan = ch;
-
-        bh.errmsg=m_username.Get();
-        m_netcon.Send(bh.build());
-      }
+      int wasUserFound = group->GetUserPass && group->GetUserPass(group,&uinfo);
+      // todo: async calls to GetUserPass(), with some state pointer, perhaps
 
       m_clientcaps=authrep.client_caps;
-      m_auth_state=1;
-
-      SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
-
-      // send user list to user
+      
+      if (!OnRunAuth(group,wasUserFound,&uinfo,addrbuf,authrep.passhash))
       {
-        mpb_server_userinfo_change_notify bh;
-
-        int user;
-        for (user = 0; user < group->m_users.GetSize(); user++)
-        {
-          User_Connection *u=group->m_users.Get(user);
-          int channel;
-          if (u && u->m_auth_state>0 && u != this) 
-          {
-            int acnt=0;
-            for (channel = 0; channel < u->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
-            {
-              if (u->m_channels[channel].active)
-              {
-                bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
-                                  u->m_username.Get(),u->m_channels[channel].name.Get());
-                acnt++;
-              }
-            }
-            if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
-            {
-                bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
-            }
-          }
-        }       
-        m_netcon.Send(bh.build());
+        m_netcon.Run();
+        m_netcon.Kill();
+        msg->releaseRef();
+        return 0;
       }
-
-
-      {
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="TOPIC";
-        newmsg.parms[1]="";
-        newmsg.parms[2]=group->m_topictext.Get();
-        m_netcon.Send(newmsg.build());
-      }
-      {
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="JOIN";
-        newmsg.parms[1]=username;
-        group->Broadcast(newmsg.build(),this);
-      }
-
 
     } // m_auth_state < 1
 
