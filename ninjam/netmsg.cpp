@@ -133,7 +133,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
       a=m_recvmsg->parseMessageHeader(buf,bufl);
       if (a<0)
       {
-        m_error=1;
+        m_error=-1;
         break;
       }
       if (a==0) break;
@@ -166,6 +166,7 @@ int Net_Connection::Send(Net_Message *msg)
       m_sendq.Add(&msg,sizeof(Net_Message *));
     else 
     {
+      m_error=-2;
       msg->releaseRef(); // todo: debug message to log overrun error
       return -1;
     }
@@ -175,7 +176,7 @@ int Net_Connection::Send(Net_Message *msg)
 
 int Net_Connection::GetStatus()
 {
-  if (m_error) return -1;
+  if (m_error) return m_error;
   return !m_con || m_con->get_state()<JNL_Connection::STATE_RESOLVING || m_con->get_state()>=JNL_Connection::STATE_CLOSING; // 1 if disconnected somehow
 }
 

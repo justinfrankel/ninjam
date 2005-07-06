@@ -814,7 +814,8 @@ int User_Group::Run()
       User_Connection *p=m_users.Get(thispos);
       if (p)
       {
-        if (p->Run(this,&wantsleep))
+        int ret=p->Run(this,&wantsleep);
+        if (ret)
         {
           // broadcast to other users that this user is no longer present
           if (p->m_auth_state>0) 
@@ -852,7 +853,7 @@ int User_Group::Run()
 
           char addrbuf[256];
           JNL::addr_to_ipstr(p->m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
-          logText("%s: disconnected (username:'%s')\n",addrbuf,p->m_auth_state>0?p->m_username.Get():"");
+          logText("%s: disconnected (username:'%s', code=%d)\n",addrbuf,p->m_auth_state>0?p->m_username.Get():"",ret);
 
           delete p;
           m_users.Delete(thispos);
