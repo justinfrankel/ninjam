@@ -93,39 +93,77 @@ time_t next_session_update_time;
 
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
-static int myGetUserPass(User_Group *group, UserInfoStruct *uinfo)
+class localUserInfoLookup : public IUserInfoLookup
 {
-  if (!strncmp(uinfo->username,"anonymous",9) && (!uinfo->username[9] || uinfo->username[9] == ':'))
+public:
+  localUserInfoLookup(char *name)
   {
-    logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
-    if (!g_config_allowanonymous) return 0;
-    uinfo->isanon=uinfo->username + (uinfo->username[9] == ':' ? 10:9);
-    uinfo->privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
-    uinfo->max_channels=g_config_maxch_anon;
-    return 1; // allow
+    username.Set(name);
+  }
+  ~localUserInfoLookup()
+  {
   }
 
-  int x;
-  logText("got login request for '%s'\n",uinfo->username);
-  for (x = 0; x < g_userlist.GetSize(); x ++)
+  void OnAbandon()
   {
-    if (!strcmp(uinfo->username,g_userlist.Get(x)->name.Get()))
+    delete this;
+  }
+
+  int Run()
+  {
+    // perform lookup here
+
+    user_valid=0;
+
+    if (!strncmp(username.Get(),"anonymous",9) && (!username.Get()[9] || username.Get()[9] == ':'))
     {
-      char *pass=g_userlist.Get(x)->pass.Get();
-      WDL_SHA1 shatmp;
-      shatmp.add(uinfo->username,strlen(uinfo->username));
-      shatmp.add(":",1);
-      shatmp.add(pass,strlen(pass));
+      logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
+      if (!g_config_allowanonymous) return 1;
 
-      shatmp.result(uinfo->sha1buf_user);
-
-      uinfo->privs=g_userlist.Get(x)->priv_flag;
-      uinfo->max_channels=g_config_maxch_user;
-      return 1;
+      user_valid=1;
+      isanon=1;
+      anon_username.Set(username.Get() + (username.Get()[9] == ':' ? 10:9));
+      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
+      max_channels=g_config_maxch_anon;
     }
+    else
+    {
+      int x;
+      logText("got login request for '%s'\n",username.Get());
+      for (x = 0; x < g_userlist.GetSize(); x ++)
+      {
+        if (!strcmp(username.Get(),g_userlist.Get(x)->name.Get()))
+        {
+          user_valid=1;
+          isanon=0;
+
+          char *pass=g_userlist.Get(x)->pass.Get();
+          WDL_SHA1 shatmp;
+          shatmp.add(username.Get(),strlen(username.Get()));
+          shatmp.add(":",1);
+          shatmp.add(pass,strlen(pass));
+
+          shatmp.result(sha1buf_user);
+
+          privs=g_userlist.Get(x)->priv_flag;
+          max_channels=g_config_maxch_user;
+          break;
+        }
+      }
+    }
+
+    return 1;
   }
-  return 0;
+
+};
+
+
+static IUserInfoLookup *myCreateUserLookup(char *username)
+{
+  return new localUserInfoLookup(username);
 }
+
+
 
 
 static int ConfigOnToken(LineParser *lp)
@@ -570,7 +608,7 @@ int main(int argc, char **argv)
       logText("Error listening on port!!!\n");
     }
 
-    m_group->GetUserPass=myGetUserPass;
+    m_group->CreateUserLookup=myCreateUserLookup;
 
     logText("Using default %d BPM, %d beats/interval\n",120,8);
     m_group->SetConfig(8,120);    

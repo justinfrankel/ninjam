@@ -41,16 +41,28 @@ public:
   int flags;
 };
 
-typedef struct
+
+class IUserInfoLookup // abstract base class, overridden by server
 {
-  char *username;
-  char *isanon;
+public:
+  IUserInfoLookup() { user_valid=0; isanon=0; privs=0; max_channels=0; }
+  virtual ~IUserInfoLookup() { }
+
+  virtual int Run()=0; // return 1 if run is complete, 0 if still needs to run more
+  virtual void OnAbandon()=0; // default should be "delete this", but can override if needed
+
+  int user_valid;
+
+  WDL_String username;
+
+  int isanon;
+  WDL_String anon_username;
 
   char sha1buf_user[WDL_SHA1SIZE];
   unsigned int privs;
   int max_channels;
 
-} UserInfoStruct;
+};
 
 
 class User_TransferState
@@ -91,7 +103,7 @@ class User_Connection
 
     void Send(Net_Message *msg) { m_netcon.Send(msg); }
 
-    int OnRunAuth(User_Group *group, int gupret, UserInfoStruct *uinfo, char *addrbuf, unsigned char *passhash);
+    int OnRunAuth(User_Group *group, IUserInfoLookup *uinfo, char *addrbuf, unsigned char *passhash);
 
     Net_Connection m_netcon;
     WDL_String m_username;
@@ -137,7 +149,7 @@ class User_Group
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
-    int (*GetUserPass)(User_Group *group, UserInfoStruct *uinfo); // return nonzero if valid, SHA1(user:pass) or username if isanon
+    IUserInfoLookup *(*CreateUserLookup)(char *username); // return nonzero if valid, SHA1(user:pass) or username if isanon
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 

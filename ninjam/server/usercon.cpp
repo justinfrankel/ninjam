@@ -115,41 +115,46 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
-
-int User_Connection::OnRunAuth(User_Group *group, int wasUserFound, UserInfoStruct *uinfo, char *addrbuf, unsigned char *passhash)
+int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo, char *addrbuf, unsigned char *passhash)
 {
   char usernametmp[512];
-  char *username=uinfo->username;
+  char *username=uinfo->username.Get();
  
-  if (wasUserFound && uinfo->isanon)
+  if (uinfo && uinfo->user_valid && uinfo->isanon)
   {
-    if (*(uinfo->isanon))
+    if (uinfo->anon_username.Get()[0])
     {
-      char pbuf[256];
-      strncpy(pbuf,uinfo->isanon,255);
+      char pbuf[64];
+      strncpy(pbuf,uinfo->anon_username.Get(),32);
       pbuf[15]=0;
 
-      char buf[128];
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
-      sprintf(usernametmp+1,"%s-%s",pbuf,buf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
+      sprintf(usernametmp+1,"%s-%s",pbuf,addrbuf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
       username=usernametmp+1;
     }
     else
     {
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),usernametmp,sizeof(usernametmp));
+      strcpy(usernametmp,addrbuf);
       username=usernametmp;
       strcat(usernametmp,"-");
     }
   }
   else
   {
+    unsigned char sha1buf_tmp[WDL_SHA1SIZE];
+
     WDL_SHA1 shatmp;
-    shatmp.add(uinfo->sha1buf_user,sizeof(uinfo->sha1buf_user));
+
+    if (uinfo)
+      shatmp.add(uinfo->sha1buf_user,sizeof(uinfo->sha1buf_user));
+    else
+      shatmp.add(sha1buf_tmp,sizeof(sha1buf_tmp));
+
     shatmp.add(m_challenge,sizeof(m_challenge));
 
     char buf[WDL_SHA1SIZE];
     shatmp.result(buf);
-    if (memcmp(buf,passhash,WDL_SHA1SIZE) || !wasUserFound)
+
+    if (memcmp(buf,passhash,WDL_SHA1SIZE) || !uinfo || !uinfo->user_valid)
     {
       logText("%s: Refusing user, invalid login/password\n",addrbuf);
       mpb_server_auth_reply bh;
@@ -158,6 +163,7 @@ int User_Connection::OnRunAuth(User_Group *group, int wasUserFound, UserInfoStru
       return 0;
     }
   }
+
   m_auth_privs=uinfo->privs;
   m_max_channels = uinfo->max_channels;
 
@@ -372,23 +378,26 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         return 0;
       }
 
-
-      UserInfoStruct uinfo={authrep.username, 0};
-
-      // if this returns 0, we act normal, but bail later (avoid timing attacks
-      // to see if a username is valid)
-      int wasUserFound = group->GetUserPass && group->GetUserPass(group,&uinfo);
-      // todo: async calls to GetUserPass(), with some state pointer, perhaps
-
       m_clientcaps=authrep.client_caps;
-      
-      if (!OnRunAuth(group,wasUserFound,&uinfo,addrbuf,authrep.passhash))
+
+      IUserInfoLookup *lookup=group->CreateUserLookup?group->CreateUserLookup(authrep.username):NULL;
+
+
+      if (lookup)
       {
+        lookup->Run();
+      }
+
+      
+      if (!OnRunAuth(group,lookup,addrbuf,authrep.passhash))
+      {
+        delete lookup;
         m_netcon.Run();
         m_netcon.Kill();
         msg->releaseRef();
         return 0;
       }
+      delete lookup;
 
     } // m_auth_state < 1
 
@@ -702,7 +711,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_loopcnt(0), m_allow_hidden_users(0), m_logfp(0)
 {
-  GetUserPass=0;
+  CreateUserLookup=0;
   memset(&m_next_loop_time,0,sizeof(m_next_loop_time));
 }
 
