@@ -181,6 +181,8 @@ static int ConfigOnToken(LineParser *lp)
     if (!fp) 
     {
       printf("Error opening license file %s\n",lp->gettoken_str(1));
+      if (g_logfp)
+        logText("Error opening license file %s\n",lp->gettoken_str(1));
       return -2;
     }
     g_config_license.Set("");
@@ -201,6 +203,8 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 4) 
     {
       printf("PublicServer requires a userid, password and description\n");
+      if (g_logfp)
+        logText("PublicServer requires a userid, password and description\n");
       g_config_pubuser.Set(lp->gettoken_str(1));
       g_config_pubpass.Set(lp->gettoken_str(2));
       g_config_pubdesc.Set(lp->gettoken_str(3));
@@ -236,6 +240,8 @@ static int ConfigOnToken(LineParser *lp)
 
     if (!suc)
     {
+      if (g_logfp)
+        logText("Usage: ACL xx.xx.xx.xx/X [ban|allow|reserve]\n");
       printf("Usage: ACL xx.xx.xx.xx/X [ban|allow|reserve]\n");
       return -2;
     }
@@ -257,7 +263,12 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
         else if (*ptr == 'K' || *ptr == 'k') p->priv_flag |= PRIV_KICK;        
         else if (*ptr == 'R' || *ptr == 'r') p->priv_flag |= PRIV_RESERVE;        
-        else printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
+        else 
+        {
+          if (g_logfp)
+            logText("Warning: Unknown user priviledge flag '%c'\n",*ptr);
+          printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
+        }
         ptr++;
       }
     }
@@ -441,7 +452,7 @@ void enforceACL()
       killcnt++;
     }
   }
-  if (killcnt) printf("killed %d users by enforcing ACL\n",killcnt);
+  if (killcnt) logText("killed %d users by enforcing ACL\n",killcnt);
 }
 
 
@@ -855,7 +866,7 @@ void directory_run()
     int a=directory_con->run();
     if (a < 0)
     {
-      printf("Error reporting to NJD: %s\n",directory_con->geterrorstr());
+      logText("Error reporting to NJD: %s\n",directory_con->geterrorstr());
       delete directory_con;
       directory_con=0;
       directory_state=0;
@@ -884,16 +895,16 @@ void directory_run()
             {
               if (!strcmp(p+7,"OK"))
               {
-                printf("NJD: Server replied OK\n");
+                logText("NJD: Server replied OK\n");
                 success=1;
               }
               else if (!strcmp(p+7,"REMOVED"))
               {
                 directory_magic.Set("");
-                if (directory_state) printf("Error reporting to NJD: server removed even though add requested\n");
+                if (directory_state) logText("Error reporting to NJD: server removed even though add requested\n");
               }
               else 
-                printf("Error reporting to NJD: server replied \"%s\"\n",p+7);
+                logText("Error reporting to NJD: server replied \"%s\"\n",p+7);
             }            
             else if (!strncmp(p,"MAGIC:",6))
             {
@@ -904,9 +915,9 @@ void directory_run()
           }
 
         }
-        else printf("Error reporting to NJD: empty reply\n");
+        else logText("Error reporting to NJD: empty reply\n");
       }
-      else printf("Error reporting to NJD: got reply %d\n",directory_con->getreplycode());
+      else logText("Error reporting to NJD: got reply %d\n",directory_con->getreplycode());
 
       directory_state=success;
       delete directory_con;
