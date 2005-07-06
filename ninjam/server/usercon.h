@@ -51,16 +51,15 @@ public:
 
   virtual int Run()=0; // return 1 if run is complete, 0 if still needs to run more
 
-  int user_valid;
-
-  WDL_String hostmask;
-  WDL_String username;
-
+  int user_valid; // 1 if valid
   int reqpass; // password required, 1 is default
-
-  unsigned char sha1buf_user[WDL_SHA1SIZE];
   unsigned int privs;
   int max_channels;
+  unsigned char sha1buf_user[WDL_SHA1SIZE];
+
+  WDL_String hostmask;
+  WDL_String username; // can modify this to change the username
+
 
   unsigned char sha1buf_request[WDL_SHA1SIZE]; // don't use, internal for User_Connection
 };

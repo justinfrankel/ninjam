@@ -162,29 +162,25 @@ int User_Connection::OnRunAuth(User_Group *group)
     }
   }
 
+  m_username.Set(m_lookup->username.Get());
   // disconnect any user by the same name
-  // in anonymous mode, append -<idx>
-  WDL_String username_work;
+  // in allowmulti mode, append -<idx>
   {
     int user=0;
     int uw_pos=0;
-    username_work.Set(m_lookup->username.Get());
 
     while (user < group->m_users.GetSize())
     {
       User_Connection *u=group->m_users.Get(user);
-      if (u != this && !strcasecmp(u->m_username.Get(),username_work.Get()))
+      if (u != this && !strcasecmp(u->m_username.Get(),m_username.Get()))
       {
 
         if ((m_auth_privs & PRIV_ALLOWMULTI) && uw_pos++ < 16)
         {
-          username_work.Set(m_lookup->username.Get());
-          if (uw_pos)
-          {
-            char buf[64];
-            sprintf(buf,"-%d",uw_pos);
-            username_work.Append(buf);
-          }
+          m_username.Set(m_lookup->username.Get());
+          char buf[64];
+          sprintf(buf,".%d",uw_pos);
+          m_username.Append(buf);
           user=0;
           continue; // start over
         }
@@ -198,7 +194,6 @@ int User_Connection::OnRunAuth(User_Group *group)
       user++;
     }   
   }
-  char *username = username_work.Get();
 
 
   if (group->m_max_users && !m_reserved && !(m_auth_privs & PRIV_RESERVE))
@@ -213,7 +208,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     }
     if (cnt >= group->m_max_users)
     {
-      logText("%s: Refusing user %s, server full\n",addrbuf,username);
+      logText("%s: Refusing user %s, server full\n",addrbuf,m_username.Get());
       // sorry, gotta kill this connection
       mpb_server_auth_reply bh;
       bh.errmsg="server full";
@@ -224,8 +219,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 
 
 
-  m_username.Set(username);
-  logText("%s: Accepted user: %s\n",addrbuf,username);
+  logText("%s: Accepted user: %s\n",addrbuf,m_username.Get());
 
   {
     mpb_server_auth_reply bh;
@@ -285,7 +279,7 @@ int User_Connection::OnRunAuth(User_Group *group)
   {
     mpb_chat_message newmsg;
     newmsg.parms[0]="JOIN";
-    newmsg.parms[1]=username;
+    newmsg.parms[1]=m_username.Get();
     group->Broadcast(newmsg.build(),this);
   }
 

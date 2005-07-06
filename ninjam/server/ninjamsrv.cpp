@@ -127,6 +127,8 @@ public:
       username.Append("-");
       username.Append(hostmask.Get());
 
+      // todo: option for subnet privacy
+
       privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | PRIV_ALLOWMULTI; // todo: config PRIV_ALLOWMULTI
       max_channels=g_config_maxch_anon;
     }
