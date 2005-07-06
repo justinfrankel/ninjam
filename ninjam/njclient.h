@@ -73,7 +73,8 @@ public:
   float GetActualBPM() { return (float) m_active_bpm; }
   int GetBPI() { return m_active_bpi; }
   void GetPosition(int *pos, int *length);  // positions in samples
-  int GetLoopCount() { return m_loopcnt; }
+  int GetLoopCount() { return m_loopcnt; }  
+  unsigned int GetSessionPosition(); // returns milliseconds
 
   int HasUserInfoChanged() { if (m_userinfochange) { m_userinfochange=0; return 1; } return 0; }
   int GetNumUsers() { return m_remoteusers.GetSize(); }
@@ -156,6 +157,8 @@ protected:
   int m_srate;
   int m_userinfochange;
   int m_issoloactive;
+
+  unsigned int m_session_pos_ms,m_session_pos_samples; // samples just keeps track of any samples lost to precision errors
 
   int m_loopcnt;
   int m_active_bpm, m_active_bpi;

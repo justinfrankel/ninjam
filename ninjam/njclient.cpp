@@ -330,6 +330,7 @@ void NJClient::_reinit()
 {
   m_max_localch=MAX_LOCAL_CHANNELS;
   output_peaklevel=0.0;
+  m_session_pos_ms=m_session_pos_samples=0;
 
   m_status=-1;
 
@@ -441,6 +442,13 @@ void NJClient::GetPosition(int *pos, int *length)  // positions in samples
   if (pos && (*pos=m_interval_pos)<0) *pos=0;
 }
 
+unsigned int NJClient::GetSessionPosition()// returns milliseconds
+{
+  unsigned int a=m_session_pos_ms;
+  if (m_srate)
+    a+=(m_session_pos_samples*1000)/m_srate;
+  return a;
+}
 
 void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate)
 {
@@ -449,6 +457,26 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
   int x;
   for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
   if (!m_audio_enable) return;
+
+  if (srate>0)
+  {
+    unsigned int spl=m_session_pos_samples;
+    unsigned int sec=m_session_pos_ms;
+
+    spl += len;
+    if (spl >= (unsigned int)srate)
+    {
+      sec += (spl/srate)*1000;
+      spl %= srate;
+    }
+    // writing these both like this reduces the chance that the 
+    // main thread will read them and get a mix. still possible, tho,
+    // but super unlikely
+    m_session_pos_samples=spl;
+    m_session_pos_ms=sec;
+  }
+
+
 
   int offs=0;
 
