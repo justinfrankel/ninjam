@@ -86,6 +86,8 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
   m_netcon.Send(ch.build());
 
   time(&m_connect_time);
+
+  m_lookup=0;
 }
 
 User_Connection::~User_Connection()
@@ -101,6 +103,12 @@ User_Connection::~User_Connection()
   for (x = 0; x < m_sendfiles.GetSize(); x ++)
     delete m_sendfiles.Get(x);
   m_sendfiles.Empty();
+
+  if (m_lookup)
+  {
+    m_lookup->OnAbandon();
+    m_lookup=0;
+  }
 }
 
 
@@ -115,8 +123,11 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
-int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo, char *addrbuf, unsigned char *passhash)
+int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo)
 {
+  char addrbuf[256];
+  JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+
   char usernametmp[512];
   char *username=uinfo->username.Get();
  
@@ -154,7 +165,7 @@ int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo, char *
     char buf[WDL_SHA1SIZE];
     shatmp.result(buf);
 
-    if (memcmp(buf,passhash,WDL_SHA1SIZE) || !uinfo || !uinfo->user_valid)
+    if (memcmp(buf,uinfo?uinfo->sha1buf_request:sha1buf_tmp,WDL_SHA1SIZE) || !uinfo || !uinfo->user_valid)
     {
       logText("%s: Refusing user, invalid login/password\n",addrbuf);
       mpb_server_auth_reply bh;
@@ -311,97 +322,105 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     return m_netcon.GetStatus();
   }
 
-  if (m_auth_state < 1 && !msg)
+  if (!msg)
   {
-     if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
-                                        // the user time to potentially read the license agreement.
-     {
-        char buf[256];
-        JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
-        logText("%s: Got an authorization timeout\n",buf);
-        m_connect_time=time(NULL)+120;
-        mpb_server_auth_reply bh;
-        bh.errmsg="authorization timeout";
-        m_netcon.Send(bh.build());
-        m_netcon.Run();
-
-        m_netcon.Kill();
-        return 0;
-     }
-
-
-  }
-  if (msg)
-  {
-    msg->addRef();
-    if (m_auth_state < 1)
+    if (m_auth_state < 0)
     {
-      mpb_client_auth_user authrep;
-      char addrbuf[256];
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
-
-      if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
+      if (!m_lookup || m_lookup->Run())
       {
-        logText("%s: Refusing user, invalid authorization reply\n",addrbuf);
-        mpb_server_auth_reply bh;
-        bh.errmsg="invalid authorization reply";
-        m_netcon.Send(bh.build());
-        m_netcon.Run();
-
-        m_netcon.Kill();
-        msg->releaseRef();
-        return 0;
+        if (!OnRunAuth(group,m_lookup))
+        {
+          m_netcon.Run();
+          m_netcon.Kill();
+        }
+        delete m_lookup;
+        m_lookup=0;
       }
-      
-      if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
-      {
-        logText("%s: Refusing user, bad client version\n",addrbuf);
-        mpb_server_auth_reply bh;
-        bh.errmsg="incorrect client version";
-        m_netcon.Send(bh.build());
-        m_netcon.Run();
+    }
+    else if (!m_auth_state)
+    {
+       if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
+                                          // the user time to potentially read the license agreement.
+       {
+          char buf[256];
+          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+          logText("%s: Got an authorization timeout\n",buf);
+          m_connect_time=time(NULL)+120;
+          mpb_server_auth_reply bh;
+          bh.errmsg="authorization timeout";
+          m_netcon.Send(bh.build());
+          m_netcon.Run();
 
-        m_netcon.Kill();
-        msg->releaseRef();
-        return 0;
-      }
-      if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
-      {
-        logText("%s: Refusing user, license agreement not agreed to\n",addrbuf);
-        mpb_server_auth_reply bh;
-        bh.errmsg="license not agreed to";
-        m_netcon.Send(bh.build());
-        m_netcon.Run();
+          m_netcon.Kill();
+       }
+    }
+    return 0;
+  }
 
-        m_netcon.Kill();
-        msg->releaseRef();
-        return 0;
-      }
+  msg->addRef();
 
-      m_clientcaps=authrep.client_caps;
+  if (!m_auth_state)
+  {
+    mpb_client_auth_user authrep;
+    char addrbuf[256];
+    JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
 
-      IUserInfoLookup *lookup=group->CreateUserLookup?group->CreateUserLookup(authrep.username):NULL;
+    if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
+    {
+      logText("%s: Refusing user, invalid authorization reply\n",addrbuf);
+      mpb_server_auth_reply bh;
+      bh.errmsg="invalid authorization reply";
+      m_netcon.Send(bh.build());
+      m_netcon.Run();
+
+      m_netcon.Kill();
+      msg->releaseRef();
+      return 0;
+    }
+    
+    if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
+    {
+      logText("%s: Refusing user, bad client version\n",addrbuf);
+      mpb_server_auth_reply bh;
+      bh.errmsg="incorrect client version";
+      m_netcon.Send(bh.build());
+      m_netcon.Run();
+
+      m_netcon.Kill();
+      msg->releaseRef();
+      return 0;
+    }
+    if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
+    {
+      logText("%s: Refusing user, license agreement not agreed to\n",addrbuf);
+      mpb_server_auth_reply bh;
+      bh.errmsg="license not agreed to";
+      m_netcon.Send(bh.build());
+      m_netcon.Run();
+
+      m_netcon.Kill();
+      msg->releaseRef();
+      return 0;
+    }
+
+    m_clientcaps=authrep.client_caps;
+
+    if (m_lookup) m_lookup->OnAbandon();
+    m_lookup=group->CreateUserLookup?group->CreateUserLookup(authrep.username):NULL;
+
+    if (m_lookup)
+    {
+      memcpy(m_lookup->sha1buf_request,authrep.passhash,sizeof(m_lookup->sha1buf_request));
+    }
+
+    m_auth_state=-1;
+    
+
+  } // !m_auth_state
 
 
-      if (lookup)
-      {
-        lookup->Run();
-      }
-
-      
-      if (!OnRunAuth(group,lookup,addrbuf,authrep.passhash))
-      {
-        delete lookup;
-        m_netcon.Run();
-        m_netcon.Kill();
-        msg->releaseRef();
-        return 0;
-      }
-      delete lookup;
-
-    } // m_auth_state < 1
-
-
+  if (m_auth_state > 0) 
+  {
     switch (msg->get_type())
     {
       case MESSAGE_CLIENT_SET_CHANNEL_INFO:
@@ -413,7 +432,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
             mpb_server_userinfo_change_notify mfmt;
             int mfmt_changes=0;
-            
+          
             int offs=0;
             short v;
             int p,f;
@@ -541,7 +560,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
             Net_Message *newmsg=nmb.build();
             newmsg->addRef();
-                      
+                    
             static unsigned char zero_guid[16];
 
 
@@ -575,7 +594,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
                   fprintf(group->m_logfp,"user %s \"%s\" %d \"%s\"\n",guidstr,myusername,mp.chidx,chn);
                 }
               }
-              
+            
               m_recvfiles.Add(newrecv);
             }
 
@@ -701,9 +720,8 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       default:
       break;
     }
-    msg->releaseRef();
-  }
-
+  } // m_auth_state > 0
+  msg->releaseRef();
 
   return 0;
 }

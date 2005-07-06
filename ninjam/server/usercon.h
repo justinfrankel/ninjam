@@ -58,10 +58,11 @@ public:
   int isanon;
   WDL_String anon_username;
 
-  char sha1buf_user[WDL_SHA1SIZE];
+  unsigned char sha1buf_user[WDL_SHA1SIZE];
   unsigned int privs;
   int max_channels;
 
+  unsigned char sha1buf_request[WDL_SHA1SIZE]; // don't use, internal for User_Connection
 };
 
 
@@ -103,14 +104,14 @@ class User_Connection
 
     void Send(Net_Message *msg) { m_netcon.Send(msg); }
 
-    int OnRunAuth(User_Group *group, IUserInfoLookup *uinfo, char *addrbuf, unsigned char *passhash);
+    int OnRunAuth(User_Group *group, IUserInfoLookup *uinfo);
 
     Net_Connection m_netcon;
     WDL_String m_username;
     
     // auth info
     time_t m_connect_time;
-    int m_auth_state;    
+    int m_auth_state;      // 1 if authorized, 0 if not yet, -1 if auth pending
     unsigned char m_challenge[8];
     int m_clientcaps;
 
@@ -126,6 +127,8 @@ class User_Connection
 
     WDL_PtrList<User_TransferState> m_recvfiles;
     WDL_PtrList<User_TransferState> m_sendfiles;
+
+    IUserInfoLookup *m_lookup;
 };
 
 
@@ -149,7 +152,7 @@ class User_Group
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
-    IUserInfoLookup *(*CreateUserLookup)(char *username); // return nonzero if valid, SHA1(user:pass) or username if isanon
+    IUserInfoLookup *(*CreateUserLookup)(char *username);
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 
