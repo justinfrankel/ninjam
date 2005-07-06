@@ -62,8 +62,9 @@ extern NJClient *g_client;
   {
     int idx;
     [g_client_mutex lock];
-    for (idx = 0; idx < MAX_LOCAL_CHANNELS && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
-    if (idx < MAX_LOCAL_CHANNELS)
+    int maxc=g_client->GetMaxLocalChannels();
+    for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
+    if (idx < maxc)
     {
       g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
 //    g_client->SetLocalChannelMonitoring(idx,false,0.0f,false,0.0f,false,false,false,false);
@@ -72,7 +73,7 @@ extern NJClient *g_client;
     [g_client_mutex unlock];
     
     // we do this outside the mutex, because the item will need to lock the mutex itself
-    if (idx < MAX_LOCAL_CHANNELS) [self newChannel:idx];
+    if (idx < maxc) [self newChannel:idx];
   }
 }
 
