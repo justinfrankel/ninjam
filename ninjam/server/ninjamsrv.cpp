@@ -725,9 +725,9 @@ int main(int argc, char **argv)
           tmp.Append(buf);
 
     #ifdef _WIN32
-          if (CreateDirectory(buf,NULL)) break;
+          if (CreateDirectory(tmp.Get(),NULL)) break;
     #else
-          if (!mkdir(buf,0700)) break;
+          if (!mkdir(tmp.Get(),0700)) break;
     #endif
 
           cnt++;
@@ -735,12 +735,12 @@ int main(int argc, char **argv)
     
         if (cnt < 16 )
         {
-          logText("Logging to new session '%s'\n",tmp.Get());
+          logText("Archiving session '%s'\n",tmp.Get());
           m_group->SetLogDir(tmp.Get());
         }
         else
         {
-          logText("Error creating a session log directory!\n");
+          logText("Error creating a session archive directory! Gave up after '%s' failed!\n",tmp.Get());
         }
 
       }

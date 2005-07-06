@@ -793,9 +793,19 @@ int User_Group::Run()
       m_next_loop_time = now + (60*1000*m_last_bpi) / (m_last_bpm?m_last_bpm:120);
 #else
     struct timeval now;
-    gettimeofday(&now);
-    // fucko: compare now to m_next_loop_time
-    // fucko: set m_next_loop_time
+    gettimeofday(&now,NULL);
+    if (now.tv_sec >= m_next_loop_time.tv_sec && now.tv_usec >= m_next_loop_time.tv_usec)
+    {
+      int len_ms = ((60*1000*m_last_bpi) / (m_last_bpm?m_last_bpm:120));
+      int len_s = len_ms/1000;
+      len_ms %= 1000;
+      m_next_loop_time.tv_sec = now.tv_sec + len_s;
+      m_next_loop_time.tv_usec = now.tv_usec + len_ms*1000;
+      if (m_next_loop_time.tv_usec >= 1000000)
+      {
+        m_next_loop_time.tv_sec += 1;
+       m_next_loop_time.tv_usec -= 1000000;
+      }
 #endif
 
       m_loopcnt++;
