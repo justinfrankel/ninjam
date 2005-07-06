@@ -175,10 +175,10 @@ int User_Connection::OnRunAuth(User_Group *group)
       if (u != this && !strcasecmp(u->m_username.Get(),m_username.Get()))
       {
 
-        if ((m_auth_privs & PRIV_ALLOWMULTI) && uw_pos++ < 16)
+        if ((m_auth_privs & PRIV_ALLOWMULTI) && ++uw_pos < 16)
         {
           char buf[64];
-          sprintf(buf,".%d",uw_pos);
+          sprintf(buf,".%d",uw_pos+1);
           m_username.Set(m_lookup->username.Get());
           m_username.Append(buf);
           user=0;
