@@ -201,7 +201,7 @@ Net_Connection::~Net_Connection()
 }
 
 
-void Net_Connection::Kill() 
+void Net_Connection::Kill(int quick) 
 { 
-  m_con->close(0); 
+  m_con->close(); 
 }

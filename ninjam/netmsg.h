@@ -65,7 +65,7 @@ class Net_Connection
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
     JNL_Connection *GetConnection() { return m_con; }
 
-    void Kill();
+    void Kill(int quick=0);
 
   private:
     int m_error;
