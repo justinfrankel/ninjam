@@ -84,17 +84,20 @@ WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
 int g_config_port;
 bool g_config_allowanonymous;
+int g_config_maxch_anon=2;
+int g_config_maxch_user=32;
+
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
 static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs, int *max_channels)
 {
-  *max_channels=MAX_USER_CHANNELS;
   if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
   {
     logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     if (!g_config_allowanonymous) return 0;
     *isanon=username + (username[9] == ':' ? 10:9);
     *privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
+    *max_channels=g_config_maxch_anon;
     return 1; // allow
   }
 
@@ -113,6 +116,7 @@ static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, 
       shatmp.result(sha1buf_user);
 
       *privs=g_userlist.Get(x)->priv_flag;
+      *max_channels=g_config_maxch_user;
       *isanon=0;
       return 1;
     }
@@ -152,6 +156,13 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 2) return -1;
     if (!m_group->m_topictext.Get()[0])
       m_group->m_topictext.Set(lp->gettoken_str(1));    
+  }
+  else if (!stricmp(t,"MaxChannels"))
+  {
+    if (lp->getnumtokens() != 2 && lp->getnumtokens() != 3) return -1;
+    
+    g_config_maxch_user=lp->gettoken_int(1);
+    g_config_maxch_anon=lp->gettoken_int(lp->getnumtokens()>2?2:1);
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -300,6 +311,9 @@ static int ReadConfig(char *configfile)
   g_config_port=2049;
   g_config_allow_anonchat=1;
   g_config_allowanonymous=0;
+  g_config_maxch_anon=2;
+  g_config_maxch_user=32;
+
   m_group->m_max_users=0; // unlimited users
   g_acllist.Resize(0);
   g_config_license.Set("");
