@@ -324,13 +324,13 @@ NJClient::NJClient()
 
   _reinit();
 
+  m_session_pos_ms=m_session_pos_samples=0;
 }
 
 void NJClient::_reinit()
 {
   m_max_localch=MAX_LOCAL_CHANNELS;
   output_peaklevel=0.0;
-  m_session_pos_ms=m_session_pos_samples=0;
 
   m_status=-1;
 
@@ -550,6 +550,8 @@ void NJClient::Disconnect()
 void NJClient::Connect(char *host, char *user, char *pass)
 {
   Disconnect();
+
+  m_session_pos_ms=m_session_pos_samples=0;
 
   m_host.Set(host);
   m_user.Set(user);
