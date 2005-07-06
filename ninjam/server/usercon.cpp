@@ -854,6 +854,10 @@ int User_Group::Run()
             if (mfmt_changes) Broadcast(mfmt.build(),p);
           }
 
+          char addrbuf[256];
+          JNL::addr_to_ipstr(p->m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+          logText("%s: disconnected (username:'%s')\n",addrbuf,p->m_auth_state>0?p->m_username.Get():"");
+
           delete p;
           m_users.Delete(x--);
         }
