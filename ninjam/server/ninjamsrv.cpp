@@ -678,7 +678,7 @@ int main(int argc, char **argv)
               User_Connection *c=m_group->m_users.Get(x);
               char str[512];
               JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
-              printf("%s:%s\n",c->m_auth_state?c->m_username.Get():"<unauthorized>",str);
+              printf("%s:%s\n",c->m_auth_state>0?c->m_username.Get():"<unauthorized>",str);
             }
           }
           else if (c == 'R')
