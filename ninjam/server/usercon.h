@@ -49,7 +49,6 @@ public:
   virtual ~IUserInfoLookup() { }
 
   virtual int Run()=0; // return 1 if run is complete, 0 if still needs to run more
-  virtual void OnAbandon()=0; // default should be "delete this", but can override if needed
 
   int user_valid;
 
@@ -104,7 +103,7 @@ class User_Connection
 
     void Send(Net_Message *msg) { m_netcon.Send(msg); }
 
-    int OnRunAuth(User_Group *group, IUserInfoLookup *uinfo);
+    int OnRunAuth(User_Group *group);
 
     Net_Connection m_netcon;
     WDL_String m_username;

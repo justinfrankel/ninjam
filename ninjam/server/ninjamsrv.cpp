@@ -104,15 +104,6 @@ public:
   {
   }
 
-  void OnAbandon()
-  {
-    // for a networked version, should add myself to a global list where I wait til I 
-    // finish, then send a disconnect notification request or whatnot, THEN delete
-
-    // but for the local file, we just delete
-    delete this;
-  }
-
   int Run()
   {
     // perform lookup here

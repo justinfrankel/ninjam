@@ -104,11 +104,8 @@ User_Connection::~User_Connection()
     delete m_sendfiles.Get(x);
   m_sendfiles.Empty();
 
-  if (m_lookup)
-  {
-    m_lookup->OnAbandon();
-    m_lookup=0;
-  }
+  delete m_lookup;
+  m_lookup=0;
 }
 
 
@@ -123,20 +120,20 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
-int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo)
+int User_Connection::OnRunAuth(User_Group *group)
 {
   char addrbuf[256];
   JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
 
   char usernametmp[512];
-  char *username=uinfo->username.Get();
+  char *username=m_lookup->username.Get();
  
-  if (uinfo && uinfo->user_valid && uinfo->isanon)
+  if (m_lookup->user_valid && m_lookup->isanon)
   {
-    if (uinfo->anon_username.Get()[0])
+    if (m_lookup->anon_username.Get()[0])
     {
       char pbuf[64];
-      strncpy(pbuf,uinfo->anon_username.Get(),32);
+      strncpy(pbuf,m_lookup->anon_username.Get(),32);
       pbuf[15]=0;
 
       sprintf(usernametmp+1,"%s-%s",pbuf,addrbuf); // we make username = usernametmp+1 so we dont treat as a pure anonymous
@@ -151,21 +148,16 @@ int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo)
   }
   else
   {
-    unsigned char sha1buf_tmp[WDL_SHA1SIZE];
-
     WDL_SHA1 shatmp;
 
-    if (uinfo)
-      shatmp.add(uinfo->sha1buf_user,sizeof(uinfo->sha1buf_user));
-    else
-      shatmp.add(sha1buf_tmp,sizeof(sha1buf_tmp));
+    shatmp.add(m_lookup->sha1buf_user,sizeof(m_lookup->sha1buf_user));
 
     shatmp.add(m_challenge,sizeof(m_challenge));
 
     char buf[WDL_SHA1SIZE];
     shatmp.result(buf);
 
-    if (memcmp(buf,uinfo?uinfo->sha1buf_request:sha1buf_tmp,WDL_SHA1SIZE) || !uinfo || !uinfo->user_valid)
+    if (memcmp(buf,m_lookup->sha1buf_request,WDL_SHA1SIZE) || !m_lookup->user_valid)
     {
       logText("%s: Refusing user, invalid login/password\n",addrbuf);
       mpb_server_auth_reply bh;
@@ -175,8 +167,8 @@ int User_Connection::OnRunAuth(User_Group *group, IUserInfoLookup *uinfo)
     }
   }
 
-  m_auth_privs=uinfo->privs;
-  m_max_channels = uinfo->max_channels;
+  m_auth_privs=m_lookup->privs;
+  m_max_channels = m_lookup->max_channels;
 
 
   {
@@ -328,7 +320,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     {
       if (!m_lookup || m_lookup->Run())
       {
-        if (!OnRunAuth(group,m_lookup))
+        if (!m_lookup || !OnRunAuth(group))
         {
           m_netcon.Run();
           m_netcon.Kill();
@@ -405,7 +397,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
     m_clientcaps=authrep.client_caps;
 
-    if (m_lookup) m_lookup->OnAbandon();
+    delete m_lookup;
     m_lookup=group->CreateUserLookup?group->CreateUserLookup(authrep.username):NULL;
 
     if (m_lookup)
