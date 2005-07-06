@@ -18,6 +18,51 @@
 #define strncasecmp strnicmp
 #endif
 
+static void guidtostr(unsigned char *guid, char *str)
+{
+  int x;
+  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+}
+
+
+
+static int is_type_char_valid(int c)
+{
+  c&=0xff;
+  return (c >= 'a' && c <= 'z') ||
+         (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') ||
+         c == ' ' || c == '-' || 
+         c == '.' || c == '_';
+}
+
+static int is_type_valid(unsigned int t)
+{
+  return (t&0xff) != ' ' &&
+          is_type_char_valid(t>>24) &&
+          is_type_char_valid(t>>16) &&
+          is_type_char_valid(t>>8) &&
+          is_type_char_valid(t);
+}
+
+
+static void type_to_string(unsigned int t, char *out)
+{
+  if (is_type_valid(t))
+  {
+    out[0]=(t)&0xff;
+    out[1]=(t>>8)&0xff;
+    out[2]=(t>>16)&0xff;
+    out[3]=' ';//(t>>24)&0xff;
+    out[4]=0;
+    int x=3;
+    while (out[x]==' ' && x > 0) out[x--]=0;
+  }
+  else *out=0;
+}
+
+
+
 extern void logText(char *s, ...);
 
 #define MAX_NICK_LEN 128 // not including null term
@@ -500,15 +545,28 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
               newrecv->fourcc=mp.fourcc;
               memcpy(newrecv->guid,mp.guid,sizeof(newrecv->guid));
 
-              if (0) // server doesn't HAVE to cache, but might be useful eventually
+              if (group->m_logdir.Get()[0])
               {
                 char fn[512];
-                int x;
-                for (x = 0; x < 16; x ++)
-                  wsprintf(fn+x*2,"%02x",mp.guid[x]);
-                strcpy(fn+x*2,".ogg");
+                char guidstr[64];
+                guidtostr(mp.guid,guidstr);
 
-                newrecv->fp = fopen(fn,"wb");
+                char ext[8];
+                type_to_string(mp.fourcc,ext);
+                sprintf(fn,"%c/%s.%s",guidstr[0],guidstr,ext);
+
+                WDL_String tmp(group->m_logdir.Get());                
+                tmp.Append(fn);
+
+                newrecv->fp = fopen(tmp.Get(),"wb");
+
+                if (group->m_logfp)
+                {
+                  // decide when to write new interval
+                  char *chn="?";
+                  if (mp.chidx >= 0 && mp.chidx < MAX_USER_CHANNELS) chn=m_channels[mp.chidx].name.Get();
+                  fprintf(group->m_logfp,"user %s \"%s\" %d \"%s\"\n",guidstr,myusername,mp.chidx,chn);
+                }
               }
               
               m_recvfiles.Add(newrecv);
@@ -644,9 +702,10 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_allow_hidden_users(0)
+User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_loopcnt(0), m_allow_hidden_users(0), m_logfp(0)
 {
   GetUserPass=0;
+  memset(&m_next_loop_time,0,sizeof(m_next_loop_time));
 }
 
 User_Group::~User_Group()
@@ -657,8 +716,49 @@ User_Group::~User_Group()
     delete m_users.Get(x);
   }
   m_users.Empty();
+  if (m_logfp) fclose(m_logfp);
+  m_logfp=0;
 }
 
+
+void User_Group::SetLogDir(char *path) // NULL to not log
+{
+  m_loopcnt=0;
+  if (!path || !*path)
+  {
+    if (m_logfp) fclose(m_logfp);
+    m_logfp=0;
+    m_logdir.Set("");
+    return;
+  }
+
+#ifdef _WIN32
+    CreateDirectory(path,NULL);
+#else
+    mkdir(path,0700);
+#endif
+
+  m_logdir.Set(path);
+  m_logdir.Append("/");
+
+  WDL_String cl(path);
+  cl.Append("/clipsort.log");
+  m_logfp=fopen(cl.Get(),"at");
+
+  int a;
+  for (a = 0; a < 16; a ++)
+  {
+    WDL_String tmp(path);
+    char buf[5];
+    sprintf(buf,"/%x",a);
+    tmp.Append(buf);
+#ifdef _WIN32
+    CreateDirectory(tmp.Get(),NULL);
+#else
+    mkdir(tmp.Get(),0700);
+#endif
+  }
+}
 
 void User_Group::Broadcast(Net_Message *msg, User_Connection *nosend)
 {
@@ -684,6 +784,24 @@ int User_Group::Run()
 {
     int nosleep=0;
     int x;
+
+    // track bpm/bpi stuff
+#ifdef _WIN32
+    DWORD now=GetTickCount();
+    if (now >= m_next_loop_time)
+    {
+      m_next_loop_time = now + (60*1000*m_last_bpi) / (m_last_bpm?m_last_bpm:120);
+#else
+    struct timeval now;
+    gettimeofday(&now);
+    // fucko: compare now to m_next_loop_time
+    // fucko: set m_next_loop_time
+#endif
+
+      m_loopcnt++;
+      if (m_logfp) fprintf(m_logfp,"interval %d %d %d\n",m_loopcnt,m_last_bpm,m_last_bpi);
+    }
+
     for (x = 0; x < m_users.GetSize(); x ++)
     {
       User_Connection *p=m_users.Get(x);

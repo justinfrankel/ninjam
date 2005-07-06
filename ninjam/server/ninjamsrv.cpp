@@ -84,8 +84,12 @@ WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
 int g_config_port;
 bool g_config_allowanonymous;
-int g_config_maxch_anon=2;
-int g_config_maxch_user=32;
+int g_config_maxch_anon;
+int g_config_maxch_user;
+WDL_String g_config_logpath;
+int g_config_log_sessionlen;
+
+time_t next_session_update_time;
 
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
@@ -150,6 +154,12 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 2) return -1;
     g_logfilename.Set(lp->gettoken_str(1));    
+  }
+  else if (!stricmp(t,"SessionArchive"))
+  {
+    if (lp->getnumtokens() != 3) return -1;
+    g_config_logpath.Set(lp->gettoken_str(1));    
+    g_config_log_sessionlen = lp->gettoken_int(2);
   }
   else if (!stricmp(t,"DefaultTopic"))
   {
@@ -313,6 +323,8 @@ static int ReadConfig(char *configfile)
   g_config_allowanonymous=0;
   g_config_maxch_anon=2;
   g_config_maxch_user=32;
+
+  g_config_log_sessionlen=10; // ten minute default, tho the user will need to specify the path anyway
 
   m_group->m_max_users=0; // unlimited users
   g_acllist.Resize(0);
@@ -688,6 +700,54 @@ int main(int argc, char **argv)
       g_reloadconfig=0;
 
       onConfigChange();
+    }
+
+    time_t now;
+    time(&now);
+    if (now >= next_session_update_time)
+    {
+      m_group->SetLogDir(NULL);
+      if (g_config_logpath.Get()[0])
+      {
+        WDL_String tmp;
+    
+        int cnt=0;
+        while (cnt < 16)
+        {
+          char buf[512];
+          struct tm *t=localtime(&now);
+          sprintf(buf,"/%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+          if (cnt)
+            wsprintf(buf+strlen(buf),"_%d",cnt);
+          strcat(buf,".ninjam");
+
+          tmp.Set(g_config_logpath.Get());
+          tmp.Append(buf);
+
+    #ifdef _WIN32
+          if (CreateDirectory(buf,NULL)) break;
+    #else
+          if (!mkdir(buf,0700)) break;
+    #endif
+
+          cnt++;
+        }
+    
+        if (cnt < 16 )
+        {
+          logText("Logging to new session '%s'\n",tmp.Get());
+          m_group->SetLogDir(tmp.Get());
+        }
+        else
+        {
+          logText("Error creating a session log directory!\n");
+        }
+
+      }
+
+      int len=g_config_log_sessionlen*60;
+      if (len < 60) len=30;
+      next_session_update_time=now+len;
     }
   
       }

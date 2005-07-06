@@ -120,6 +120,8 @@ class User_Group
     void Broadcast(Net_Message *msg, User_Connection *nosend=0);
 
 
+    void SetLogDir(char *path); // NULL to not log
+
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
@@ -132,10 +134,21 @@ class User_Group
     int m_max_users;
     int m_last_bpm, m_last_bpi;
 
+    int m_loopcnt;
+
     int m_allow_hidden_users;
 
     WDL_String m_licensetext;
     WDL_String m_topictext;
+
+    WDL_String m_logdir;
+    FILE *m_logfp;
+
+#ifdef _WIN32
+    DWORD m_next_loop_time;
+#else
+    struct timeval m_next_loop_time;
+#endif
 };
 
 
