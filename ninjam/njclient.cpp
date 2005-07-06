@@ -156,12 +156,12 @@ public:
   bool solo;
 
   //?
-  // mode flag. 0=silence, 1=broadcasting, 2=loop last
+  // mode flag. 0=silence, 1=broadcasting
   bool broadcasting; //takes effect next loop
 
 
 
-  // internal state
+  // internal state. should ONLY be used by the audio thread.
   bool bcast_active;
 
 
@@ -909,7 +909,6 @@ int NJClient::Run() // nonzero if sleep ok
         if (lc->m_need_header)
         {
           lc->m_need_header=false;
-          if (lc->bcast_active)
           {
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
@@ -945,7 +944,6 @@ int NJClient::Run() // nonzero if sleep ok
             cuib.estsize=0;
             delete lc->m_enc_header_needsend;
             lc->m_enc_header_needsend=cuib.build();
-
           }
         }
 
@@ -996,7 +994,7 @@ int NJClient::Run() // nonzero if sleep ok
       }
       else
       {
-        if (lc->m_enc && lc->bcast_active)
+        if (lc->m_enc)
         {
           // finish any encoding
           lc->m_enc->Encode(NULL,0);
