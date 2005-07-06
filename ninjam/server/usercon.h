@@ -162,6 +162,8 @@ class User_Group
 
     int m_loopcnt;
 
+    unsigned int m_run_robin;
+
     int m_allow_hidden_users;
 
     WDL_String m_licensetext;

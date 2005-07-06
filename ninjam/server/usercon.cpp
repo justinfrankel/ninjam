@@ -688,7 +688,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_loopcnt(0), m_allow_hidden_users(0), m_logfp(0)
+User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0)
 {
   CreateUserLookup=0;
   memset(&m_next_loop_time,0,sizeof(m_next_loop_time));
@@ -768,7 +768,7 @@ void User_Group::Broadcast(Net_Message *msg, User_Connection *nosend)
 
 int User_Group::Run()
 {
-    int nosleep=0;
+    int wantsleep=1;
     int x;
 
     // track bpm/bpi stuff
@@ -798,13 +798,14 @@ int User_Group::Run()
       if (m_logfp) fprintf(m_logfp,"interval %d %d %d\n",m_loopcnt,m_last_bpm,m_last_bpi);
     }
 
+
     for (x = 0; x < m_users.GetSize(); x ++)
     {
-      User_Connection *p=m_users.Get(x);
+      int thispos=(x+m_run_robin)%m_users.GetSize();
+      User_Connection *p=m_users.Get(thispos);
       if (p)
       {
-        int nsl=1; // run will clear nsl if a sleep isnt desired
-        if (p->Run(this,&nsl))
+        if (p->Run(this,&wantsleep))
         {
           // broadcast to other users that this user is no longer present
           if (p->m_auth_state>0) 
@@ -845,12 +846,14 @@ int User_Group::Run()
           logText("%s: disconnected (username:'%s')\n",addrbuf,p->m_auth_state>0?p->m_username.Get():"");
 
           delete p;
-          m_users.Delete(x--);
+          m_users.Delete(thispos);
+          x--;
         }
-        if (!nsl) nosleep=1;
       }
     }
-    return !nosleep;
+    m_run_robin++;
+
+    return wantsleep;
 }
 
 void User_Group::SetConfig(int bpi, int bpm)
