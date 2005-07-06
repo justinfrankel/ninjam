@@ -110,6 +110,12 @@ int mpb_server_auth_reply::parse(Net_Message *msg) // return 0 on success
     if (p-(unsigned char *)msg->get_data() < msg->get_size())
     {
       errmsg=t;
+
+      p++;
+      if (p-(unsigned char *)msg->get_data() < msg->get_size())
+      {
+        maxchan=*p++;
+      }
     }
   }
 
@@ -121,7 +127,7 @@ Net_Message *mpb_server_auth_reply::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_REPLY);
   
-  nm->set_size(errmsg?strlen(errmsg)+1+1:1);
+  nm->set_size(errmsg?strlen(errmsg)+1+1+1:1);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -135,6 +141,8 @@ Net_Message *mpb_server_auth_reply::build()
   if (errmsg)
   {
     strcpy((char*)p,errmsg);
+    p+=strlen(errmsg)+1;
+    *p++ = maxchan;
   }
 
   return nm;

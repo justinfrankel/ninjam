@@ -34,7 +34,7 @@ class mpb_server_auth_challenge
 class mpb_server_auth_reply
 {
   public:
-    mpb_server_auth_reply() : flag(0), errmsg(0) { }
+    mpb_server_auth_reply() : flag(0), errmsg(0), maxchan(32) { }
     ~mpb_server_auth_reply() { }
 
     int parse(Net_Message *msg); // return 0 on success
@@ -44,6 +44,7 @@ class mpb_server_auth_reply
     // public data
     char flag;  // low bit is success bit
     char *errmsg; // if success bit is set, and this is also set, then it is the effective username of the client
+    char maxchan;
 };
 
 
