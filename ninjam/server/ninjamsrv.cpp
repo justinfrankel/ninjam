@@ -84,6 +84,8 @@ WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
 int g_config_port;
 bool g_config_allowanonymous;
+bool g_config_allowanonymous_multi;
+bool g_config_anonymous_mask_ip;
 int g_config_maxch_anon;
 int g_config_maxch_user;
 WDL_String g_config_logpath;
@@ -121,15 +123,40 @@ public:
       WDL_String tmp(username.Get());
 
       if (tmp.Get()[9] == ':' && tmp.Get()[10])
+      {
         username.Set(tmp.Get()+10);
+
+        int cnt=16;
+        char *p=username.Get();
+        while (*p)
+        {
+          if (!cnt--)
+          {
+            *p=0;
+            break;
+          }
+          if (*p == '@' || *p == '.') *p='_';
+          p++;
+        }
+      }
       else username.Set("anon");
 
-      username.Append("-");
+      username.Append("@");
       username.Append(hostmask.Get());
 
-      // todo: option for subnet privacy
+      if (g_config_anonymous_mask_ip)
+      {
+        char *p=username.Get();
+        while (*p) p++;
+        while (p > username.Get() && *p != '.' && *p != '@') p--;
+        if (*p == '.' && p[1])
+        {
+          p[1]='x';
+          p[2]=0;
+        }
+      }
 
-      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | PRIV_ALLOWMULTI; // todo: config PRIV_ALLOWMULTI
+      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | (g_config_allowanonymous_multi?PRIV_ALLOWMULTI:0);
       max_channels=g_config_maxch_anon;
     }
     else
@@ -334,13 +361,36 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 2) return -1;
 
+    int x=lp->gettoken_enum(1,"no\0yes\0multi\0");
+    if (x <0)
+    {
+      return -2;
+    }
+    g_config_allowanonymous=!!x;
+    g_config_allowanonymous_multi=x==2;
+  }
+  else if (!stricmp(t,"AnonymousMaskIP"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+
+    int x=lp->gettoken_enum(1,"no\0yes\0");
+    if (x <0)
+    {
+      return -2;
+    }
+    g_config_anonymous_mask_ip=!!x;
+  }
+  else if (!stricmp(t,"AnonymousUsers"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+
     int x=lp->gettoken_enum(1,"no\0yes\0");
     if (x <0)
     {
       return -2;
     }
     g_config_allowanonymous=!!x;
-  }
+  }  
   else if (!stricmp(t,"AnonymousUsersCanChat"))
   {
     if (lp->getnumtokens() != 2) return -1;
@@ -376,6 +426,8 @@ static int ReadConfig(char *configfile)
   g_config_port=2049;
   g_config_allow_anonchat=1;
   g_config_allowanonymous=0;
+  g_config_allowanonymous_multi=0;
+  g_config_anonymous_mask_ip=0;
   g_config_maxch_anon=2;
   g_config_maxch_user=32;
 

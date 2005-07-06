@@ -177,9 +177,9 @@ int User_Connection::OnRunAuth(User_Group *group)
 
         if ((m_auth_privs & PRIV_ALLOWMULTI) && uw_pos++ < 16)
         {
-          m_username.Set(m_lookup->username.Get());
           char buf[64];
           sprintf(buf,".%d",uw_pos);
+          m_username.Set(m_lookup->username.Get());
           m_username.Append(buf);
           user=0;
           continue; // start over
