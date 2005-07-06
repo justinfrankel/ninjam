@@ -93,35 +93,35 @@ time_t next_session_update_time;
 
 WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
 
-static int myGetUserPass(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs, int *max_channels)
+static int myGetUserPass(User_Group *group, UserInfoStruct *uinfo)
 {
-  if (!strncmp(username,"anonymous",9) && (!username[9] || username[9] == ':'))
+  if (!strncmp(uinfo->username,"anonymous",9) && (!uinfo->username[9] || uinfo->username[9] == ':'))
   {
     logText("got anonymous request (%s)\n",g_config_allowanonymous?"allowing":"denying");
     if (!g_config_allowanonymous) return 0;
-    *isanon=username + (username[9] == ':' ? 10:9);
-    *privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
-    *max_channels=g_config_maxch_anon;
+    uinfo->isanon=uinfo->username + (uinfo->username[9] == ':' ? 10:9);
+    uinfo->privs=(g_config_allow_anonchat?PRIV_CHATSEND:0);
+    uinfo->max_channels=g_config_maxch_anon;
     return 1; // allow
   }
 
   int x;
-  logText("got login request for '%s'\n",username);
+  logText("got login request for '%s'\n",uinfo->username);
   for (x = 0; x < g_userlist.GetSize(); x ++)
   {
-    if (!strcmp(username,g_userlist.Get(x)->name.Get()))
+    if (!strcmp(uinfo->username,g_userlist.Get(x)->name.Get()))
     {
       char *pass=g_userlist.Get(x)->pass.Get();
       WDL_SHA1 shatmp;
-      shatmp.add(username,strlen(username));
+      shatmp.add(uinfo->username,strlen(uinfo->username));
       shatmp.add(":",1);
       shatmp.add(pass,strlen(pass));
 
-      shatmp.result(sha1buf_user);
+      shatmp.result(uinfo->sha1buf_user);
 
-      *privs=g_userlist.Get(x)->priv_flag;
-      *max_channels=g_config_maxch_user;
-      *isanon=0;
+      uinfo->privs=g_userlist.Get(x)->priv_flag;
+      uinfo->max_channels=g_config_maxch_user;
+      uinfo->isanon=0;
       return 1;
     }
   }

@@ -4,6 +4,7 @@
 
 #include "../netmsg.h"
 #include "../../WDL/string.h"
+#include "../../WDL/sha.h"
 #include "../../WDL/ptrlist.h"
 #include "../mpb.h"
 
@@ -106,6 +107,17 @@ class User_Connection
 };
 
 
+typedef struct
+{
+  char *username;
+  char *isanon;
+
+  char sha1buf_user[WDL_SHA1SIZE];
+  unsigned int privs;
+  int max_channels;
+
+} UserInfoStruct;
+
 class User_Group
 {
   public:
@@ -125,7 +137,7 @@ class User_Group
     // sends a message to the people subscribing to a channel of a user
     void BroadcastToSubs(Net_Message *msg, User_Connection *src, int channel);
 
-    int (*GetUserPass)(User_Group *group, char *username, char *sha1buf_user, char **isanon, unsigned int *privs, int *max_channels); // return nonzero if valid, SHA1(user:pass) or username if isanon
+    int (*GetUserPass)(User_Group *group, UserInfoStruct *uinfo); // return nonzero if valid, SHA1(user:pass) or username if isanon
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 

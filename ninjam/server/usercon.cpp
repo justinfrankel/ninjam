@@ -168,13 +168,12 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       char *username=authrep.username;
       char usernametmp[512];
 
-      {
-        char *anon=0;
-        char authbuf[WDL_SHA1SIZE];
-        unsigned int privs=0;
-        
-        if (group->GetUserPass && group->GetUserPass(group,username,authbuf,&anon,&privs,&m_max_channels))
+      {        
+        UserInfoStruct uinfo={username, 0};
+
+        if (group->GetUserPass && group->GetUserPass(group,&uinfo))
         {
+          m_max_channels = uinfo.max_channels;
           if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
           {
             logText("%s: Refusing user %s, bad client version\n",addrbuf,username);
@@ -199,12 +198,12 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             msg->releaseRef();
             return 0;
           }
-          else if (anon)
+          else if (uinfo.isanon)
           {
-            if (*anon)
+            if (*uinfo.isanon)
             {
               char pbuf[256];
-              strncpy(pbuf,anon,255);
+              strncpy(pbuf,uinfo.isanon,255);
               pbuf[15]=0;
 
               char buf[128];
@@ -222,7 +221,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           else
           {
             WDL_SHA1 shatmp;
-            shatmp.add(authbuf,sizeof(authbuf));
+            shatmp.add(uinfo.sha1buf_user,sizeof(uinfo.sha1buf_user));
             shatmp.add(m_challenge,sizeof(m_challenge));
 
             char buf[WDL_SHA1SIZE];
@@ -253,7 +252,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           return 0;
         }
 
-        m_auth_privs=privs;
+        m_auth_privs=uinfo.privs;
 
       }
       {
