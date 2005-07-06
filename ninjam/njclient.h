@@ -85,6 +85,7 @@ public:
   void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo);
   int EnumUserChannels(int useridx, int i); // returns <0 if out of channels. start with i=0, and go upwards
 
+  int GetMaxLocalChannels() { return m_max_localch; }
   void DeleteLocalChannel(int ch);
   int EnumLocalChannels(int i);
   float GetLocalChannelPeak(int ch);
@@ -141,6 +142,7 @@ protected:
 
   WDL_String m_workdir;
   int m_status;
+  int m_max_localch;
   FILE *m_logFile;
   FILE *m_oggWrite;
   I_NJEncoder *m_oggComp;
@@ -180,7 +182,7 @@ protected:
 
 
 #define MAX_USER_CHANNELS 32
-#define MAX_LOCAL_CHANNELS 32
+#define MAX_LOCAL_CHANNELS 32 // probably want to use NJClient::GetMaxLocalChannels() if determining when it's OK to add a channel,etc
 #define DOWNLOAD_TIMEOUT 8
 
 

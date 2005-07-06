@@ -570,11 +570,11 @@ void showmainview(bool action=false, int ymove=0)
     if (action && g_sel_ycat == selcat && g_sel_ypos == selpos)
     {
       int x;
-      for (x = 0; x < MAX_LOCAL_CHANNELS; x ++)
+      for (x = 0; x < g_client->GetMaxLocalChannels(); x ++)
       {
         if (!g_client->GetLocalChannelInfo(x,NULL,NULL,NULL)) break;
       }
-      if (x < MAX_LOCAL_CHANNELS)
+      if (x < g_client->GetMaxLocalChannels())
       {
         g_client->SetLocalChannelInfo(x,"channel",true,0,false,0,true,false);
         g_client->NotifyServerOfChannelChange();

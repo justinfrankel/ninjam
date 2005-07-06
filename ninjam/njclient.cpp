@@ -287,7 +287,6 @@ NJClient::NJClient()
   m_userinfochange=0;
   m_loopcnt=0;
   m_srate=48000;
-  output_peaklevel=0.0;
 #ifdef _WIN32
   DWORD v=GetTickCount();
   WDL_RNG_addentropy(&v,sizeof(v));
@@ -329,6 +328,9 @@ NJClient::NJClient()
 
 void NJClient::_reinit()
 {
+  m_max_localch=MAX_LOCAL_CHANNELS;
+  output_peaklevel=0.0;
+
   m_status=-1;
 
   m_in_auth=0;
@@ -658,6 +660,7 @@ int NJClient::Run() // nonzero if sleep ok
                 m_netcon->Send(sci.build());
                 m_status=2;
                 m_in_auth=0;
+                m_max_localch=ar.maxchan;
                 if (ar.errmsg)
                   m_user.Set(ar.errmsg); // server gave us an updated name
               }
@@ -872,6 +875,14 @@ int NJClient::Run() // nonzero if sleep ok
     while (!lc->m_bq.GetBlock(&p))
     {
       wantsleep=0;
+      if (u >= m_max_localch)
+      {
+        if (p && (int)p != -1)
+          lc->m_bq.DisposeBlock(p);
+        p=0;
+        continue;
+      }
+
       if ((int)p == -1)
       {
         mpb_client_upload_interval_begin cuib;
@@ -1111,7 +1122,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   // encode my audio and send to server, if enabled
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize(); u ++)
+  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
     int sc=lc->src_channel;
@@ -1409,7 +1420,7 @@ void NJClient::on_new_interval()
 
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize(); u ++)
+  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
 
