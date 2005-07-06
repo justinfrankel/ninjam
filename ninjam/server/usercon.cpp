@@ -805,7 +805,11 @@ int User_Group::Run()
 #endif
 
       m_loopcnt++;
-      if (m_logfp) fprintf(m_logfp,"interval %d %d %d\n",m_loopcnt,m_last_bpm,m_last_bpi);
+      if (m_logfp) 
+      {
+        fprintf(m_logfp,"interval %d %d %d\n",m_loopcnt,m_last_bpm,m_last_bpi);
+        fflush(m_logfp);
+      }
     }
 
 
