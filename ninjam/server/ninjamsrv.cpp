@@ -695,65 +695,72 @@ int main(int argc, char **argv)
 	      nanosleep(&ts,NULL);
 #endif
 
-    if (g_reloadconfig && (strcmp(argv[1],"-") && !ReadConfig(argv[1])))
-    {
-      g_reloadconfig=0;
+        if (g_reloadconfig && (strcmp(argv[1],"-") && !ReadConfig(argv[1])))
+        {
+          g_reloadconfig=0;
 
-      onConfigChange();
-    }
+          onConfigChange();
+        }
 
-    time_t now;
-    time(&now);
-    if (now >= next_session_update_time)
-    {
-      m_group->SetLogDir(NULL);
-      if (g_config_logpath.Get()[0])
-      {
-        WDL_String tmp;
+        time_t now;
+        time(&now);
+        if (now >= next_session_update_time)
+        {
+          m_group->SetLogDir(NULL);
+
+          int len=30; // check every 30 seconds if we aren't logging       
+
+          if (g_config_logpath.Get()[0])
+          {
+            int x;
+            for (x = 0; x < m_group->m_users.GetSize() && m_group->m_users.Get(x)->m_auth_state < 1; x ++);
+           
+            if (x < m_group->m_users.GetSize())
+            {
+              WDL_String tmp;
     
-        int cnt=0;
-        while (cnt < 16)
-        {
-          char buf[512];
-          struct tm *t=localtime(&now);
-          sprintf(buf,"/%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
-          if (cnt)
-            wsprintf(buf+strlen(buf),"_%d",cnt);
-          strcat(buf,".ninjam");
+              int cnt=0;
+              while (cnt < 16)
+              {
+                char buf[512];
+                struct tm *t=localtime(&now);
+                sprintf(buf,"/%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+                if (cnt)
+                  wsprintf(buf+strlen(buf),"_%d",cnt);
+                strcat(buf,".ninjam");
 
-          tmp.Set(g_config_logpath.Get());
-          tmp.Append(buf);
+                tmp.Set(g_config_logpath.Get());
+                tmp.Append(buf);
 
-    #ifdef _WIN32
-          if (CreateDirectory(tmp.Get(),NULL)) break;
-    #else
-          if (!mkdir(tmp.Get(),0700)) break;
-    #endif
+                #ifdef _WIN32
+                if (CreateDirectory(tmp.Get(),NULL)) break;
+                #else
+                if (!mkdir(tmp.Get(),0700)) break;
+                #endif
 
-          cnt++;
-        }
+                cnt++;
+              }
     
-        if (cnt < 16 )
-        {
-          logText("Archiving session '%s'\n",tmp.Get());
-          m_group->SetLogDir(tmp.Get());
+              if (cnt < 16 )
+              {
+                logText("Archiving session '%s'\n",tmp.Get());
+                m_group->SetLogDir(tmp.Get());
+              }
+              else
+              {
+                logText("Error creating a session archive directory! Gave up after '%s' failed!\n",tmp.Get());
+              }
+              // if we succeded, don't check until configured time
+              len=g_config_log_sessionlen*60;
+              if (len < 60) len=30;
+            }
+
+          }
+          next_session_update_time=now+len;
+
         }
-        else
-        {
-          logText("Error creating a session archive directory! Gave up after '%s' failed!\n",tmp.Get());
-        }
-
-      }
-
-      int len=g_config_log_sessionlen*60;
-      if (len < 60) len=30;
-      next_session_update_time=now+len;
-    }
-  
       }
     }
-
-
   }
 
   logText("Shutting down server\n");
