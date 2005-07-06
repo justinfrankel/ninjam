@@ -353,6 +353,10 @@ void NJClient::_reinit()
 
   m_issoloactive&=~1;
 
+  int x;
+  for (x = 0; x < m_locchannels.GetSize(); x ++)
+    m_locchannels.Get(x)->decode_peak_vol=0.0f;
+
 }
 
 
