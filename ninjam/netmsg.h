@@ -61,7 +61,7 @@ class Net_Connection
     void attach(JNL_Connection *con) { m_con=con; }
 
     Net_Message *Run(int *wantsleep=0);
-    void Send(Net_Message *msg);
+    int Send(Net_Message *msg); // -1 on error, i.e. queue full
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
     JNL_Connection *GetConnection() { return m_con; }
 

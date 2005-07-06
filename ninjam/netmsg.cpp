@@ -157,15 +157,20 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   return retv;
 }
 
-void Net_Connection::Send(Net_Message *msg)
+int Net_Connection::Send(Net_Message *msg)
 {
   if (msg)
   {
     msg->addRef();
     if (m_sendq.GetSize() < NET_CON_MAX_MESSAGES*(int)sizeof(Net_Message *))
       m_sendq.Add(&msg,sizeof(Net_Message *));
-    else msg->releaseRef(); // todo: debug message to log overrun error
+    else 
+    {
+      msg->releaseRef(); // todo: debug message to log overrun error
+      return -1;
+    }
   }
+  return 0;
 }
 
 int Net_Connection::GetStatus()

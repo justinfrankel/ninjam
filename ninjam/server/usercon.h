@@ -101,7 +101,7 @@ class User_Connection
     int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
     void SendConfigChangeNotify(int bpm, int bpi);
 
-    void Send(Net_Message *msg) { m_netcon.Send(msg); }
+    void Send(Net_Message *msg);
 
     int OnRunAuth(User_Group *group);
 

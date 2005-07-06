@@ -83,11 +83,20 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
   if (grp->m_licensetext.Get()[0])
     ch.license_agreement=grp->m_licensetext.Get();
 
-  m_netcon.Send(ch.build());
+  Send(ch.build());
 
   time(&m_connect_time);
 
   m_lookup=0;
+}
+
+
+void User_Connection::Send(Net_Message *msg)
+{
+  if (m_netcon.Send(msg))
+  {
+    logText("Error sending message to user '%s', type %d, queue full!\n",m_username.Get(),msg->get_type());
+  }
 }
 
 User_Connection::~User_Connection()
@@ -116,7 +125,7 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
     mpb_server_config_change_notify mk;
     mk.beats_interval=bpi;
     mk.beats_minute=bpm;
-    m_netcon.Send(mk.build());
+    Send(mk.build());
   }
 }
 
@@ -140,7 +149,7 @@ int User_Connection::OnRunAuth(User_Group *group)
       logText("%s: Refusing user, invalid login/password\n",addrbuf);
       mpb_server_auth_reply bh;
       bh.errmsg="invalid login/password";
-      m_netcon.Send(bh.build());
+      Send(bh.build());
       return 0;
     }
   }
@@ -212,7 +221,7 @@ int User_Connection::OnRunAuth(User_Group *group)
       // sorry, gotta kill this connection
       mpb_server_auth_reply bh;
       bh.errmsg="server full";
-      m_netcon.Send(bh.build());
+      Send(bh.build());
       return 0;
     }
   }
@@ -231,7 +240,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     bh.maxchan = ch;
 
     bh.errmsg=m_username.Get();
-    m_netcon.Send(bh.build());
+    Send(bh.build());
   }
 
   m_auth_state=1;
@@ -265,7 +274,7 @@ int User_Connection::OnRunAuth(User_Group *group)
         }
       }
     }       
-    m_netcon.Send(bh.build());
+    Send(bh.build());
   }
 
 
@@ -274,7 +283,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     newmsg.parms[0]="TOPIC";
     newmsg.parms[1]="";
     newmsg.parms[2]=group->m_topictext.Get();
-    m_netcon.Send(newmsg.build());
+    Send(newmsg.build());
   }
   {
     mpb_chat_message newmsg;
@@ -321,7 +330,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         m_connect_time=time(NULL)+120;
         mpb_server_auth_reply bh;
         bh.errmsg="authorization timeout";
-        m_netcon.Send(bh.build());
+        Send(bh.build());
         m_netcon.Run();
 
         m_netcon.Kill();
@@ -352,7 +361,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
       logText("%s: Refusing user, %s\n",addrbuf,bh.errmsg);
 
-      m_netcon.Send(bh.build());
+      Send(bh.build());
       m_netcon.Run();
 
       m_netcon.Kill();
