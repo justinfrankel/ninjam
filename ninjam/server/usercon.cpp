@@ -331,20 +331,20 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     }
     else if (!m_auth_state)
     {
-       if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
-                                          // the user time to potentially read the license agreement.
-       {
-          char buf[256];
-          JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
-          logText("%s: Got an authorization timeout\n",buf);
-          m_connect_time=time(NULL)+120;
-          mpb_server_auth_reply bh;
-          bh.errmsg="authorization timeout";
-          m_netcon.Send(bh.build());
-          m_netcon.Run();
+      if (time(NULL) > m_connect_time+120) // if we haven't gotten an auth reply in 120s, disconnect. The reason this is so long is to give
+                                        // the user time to potentially read the license agreement.
+      {
+        char buf[256];
+        JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+        logText("%s: Got an authorization timeout\n",buf);
+        m_connect_time=time(NULL)+120;
+        mpb_server_auth_reply bh;
+        bh.errmsg="authorization timeout";
+        m_netcon.Send(bh.build());
+        m_netcon.Run();
 
-          m_netcon.Kill();
-       }
+        m_netcon.Kill();
+      }
     }
     return 0;
   }
@@ -354,14 +354,23 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
   if (!m_auth_state)
   {
     mpb_client_auth_user authrep;
-    char addrbuf[256];
-    JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
 
-    if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0])
+    // verify everything
+    int          err_st = ( msg->get_type() != MESSAGE_CLIENT_AUTH_USER || authrep.parse(msg) || !authrep.username || !authrep.username[0] ) ? 1 : 0;
+    if (!err_st) err_st = ( authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX ) ? 2 : 0;
+    if (!err_st) err_st = ( group->m_licensetext.Get()[0] && !(authrep.client_caps & 1) ) ? 3 : 0;
+
+    if (err_st)
     {
-      logText("%s: Refusing user, invalid authorization reply\n",addrbuf);
+      static char *tab[] = { "invalid authorization reply", "incorrect client version", "license not agreed to" };
       mpb_server_auth_reply bh;
-      bh.errmsg="invalid authorization reply";
+      bh.errmsg=tab[err_st-1];
+
+      char addrbuf[256];
+      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+
+      logText("%s: Refusing user, %s\n",addrbuf,bh.errmsg);
+
       m_netcon.Send(bh.build());
       m_netcon.Run();
 
@@ -370,31 +379,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       return 0;
     }
     
-    if (authrep.client_version < PROTO_VER_MIN || authrep.client_version > PROTO_VER_MAX)
-    {
-      logText("%s: Refusing user, bad client version\n",addrbuf);
-      mpb_server_auth_reply bh;
-      bh.errmsg="incorrect client version";
-      m_netcon.Send(bh.build());
-      m_netcon.Run();
-
-      m_netcon.Kill();
-      msg->releaseRef();
-      return 0;
-    }
-    if (group->m_licensetext.Get()[0] && !(authrep.client_caps & 1)) // user didn't agree to license agreement
-    {
-      logText("%s: Refusing user, license agreement not agreed to\n",addrbuf);
-      mpb_server_auth_reply bh;
-      bh.errmsg="license not agreed to";
-      m_netcon.Send(bh.build());
-      m_netcon.Run();
-
-      m_netcon.Kill();
-      msg->releaseRef();
-      return 0;
-    }
-
     m_clientcaps=authrep.client_caps;
 
     delete m_lookup;
