@@ -104,7 +104,6 @@ public:
 
   void SetOggOutFile(FILE *fp, int srate, int nch, int bitrate=128);
   WaveWriter *waveWrite;
-  BufferQueue *m_wavebq;
 
 
   int LicenseAgreement_User32;
@@ -169,6 +168,7 @@ protected:
 
   DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0);
 
+  BufferQueue *m_wavebq;
 
 
   WDL_PtrList<Local_Channel> m_locchannels;
