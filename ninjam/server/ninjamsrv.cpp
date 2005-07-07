@@ -21,6 +21,9 @@
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/string.h"
 
+#define VERSION "v0.01a ALPHA"
+
+const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005, Cockos, Inc.\n";
 
 FILE *g_logfp;
 WDL_String g_pidfilename;
@@ -593,8 +596,7 @@ int main(int argc, char **argv)
 
   m_group=new User_Group;
 
-  printf("NINJAM v0.01a ALPHA server built on " __DATE__ " at " __TIME__ " starting up...\n");
-  printf("Copyright (C) 2005, Cockos, Inc.\n");
+  printf("%s",startupmessage);
   if (ReadConfig(argv[1]))
   {
     printf("Error loading config file!\n");
@@ -653,6 +655,9 @@ int main(int argc, char **argv)
     g_logfp=fopen(g_logfilename.Get(),"at");
     if (!g_logfp)
       printf("Error opening log file '%s'\n",g_logfilename.Get());
+    else
+      logText("Opened log:\n%s",startupmessage);
+
   }
 
   logText("Server starting up...\n");
