@@ -655,7 +655,7 @@ int NJClient::Run() // nonzero if sleep ok
 
               m_connection_keepalive=(cha.server_caps>>8)&0xff;
 
-              printf("Got keepalive of %d\n",m_connection_keepalive);
+//              printf("Got keepalive of %d\n",m_connection_keepalive);
 
               if (cha.license_agreement)
               {
