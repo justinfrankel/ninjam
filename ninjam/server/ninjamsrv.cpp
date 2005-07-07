@@ -25,6 +25,7 @@
 
 const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005, Cockos, Inc.\n";
 
+int g_default_bpm,g_default_bpi;
 FILE *g_logfp;
 WDL_String g_pidfilename;
 WDL_String g_logfilename;
@@ -234,6 +235,20 @@ static int ConfigOnToken(LineParser *lp)
     g_config_logpath.Set(lp->gettoken_str(1));    
     g_config_log_sessionlen = lp->gettoken_int(2);
   }
+  else if (!stricmp(t,"DefaultBPI"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_default_bpi=lp->gettoken_int(1);
+    if (g_default_bpi<2) g_default_bpi=2;
+    else if (g_default_bpi > 1024) g_default_bpi=1024;
+  }
+  else if (!stricmp(t,"DefaultBPM"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_default_bpm=lp->gettoken_int(1);
+    if (g_default_bpm<20) g_default_bpm=20;
+    else if (g_default_bpm > 400) g_default_bpm=400;
+  }
   else if (!stricmp(t,"DefaultTopic"))
   {
     if (lp->getnumtokens() != 2) return -1;
@@ -433,6 +448,8 @@ static int ReadConfig(char *configfile)
   g_config_anonymous_mask_ip=0;
   g_config_maxch_anon=2;
   g_config_maxch_user=32;
+  g_default_bpi=8;
+  g_default_bpm=120;
 
   g_config_log_sessionlen=10; // ten minute default, tho the user will need to specify the path anyway
 
@@ -656,7 +673,7 @@ int main(int argc, char **argv)
     if (!g_logfp)
       printf("Error opening log file '%s'\n",g_logfilename.Get());
     else
-      logText("Opened log:\n%s",startupmessage);
+      logText("Opened log. NINJAM Server %s built on %s at %s\n",VERSION,__DATE__,__TIME__);
 
   }
 
@@ -665,17 +682,17 @@ int main(int argc, char **argv)
   JNL::open_socketlib();
 
   {
-    logText("Listening on port %d\n",g_config_port);    
+    logText("Port: %d\n",g_config_port);    
     m_listener = new JNL_Listen(g_config_port);
     if (m_listener->is_error()) 
     {
-      logText("Error listening on port!!!\n");
+      logText("Error listening on port %d!\n",g_config_port);
     }
 
     m_group->CreateUserLookup=myCreateUserLookup;
 
-    logText("Using default %d BPM, %d beats/interval\n",120,8);
-    m_group->SetConfig(8,120);    
+    logText("Using defaults %d BPM %d BPI\n",g_default_bpm,g_default_bpi);
+    m_group->SetConfig(g_default_bpi,g_default_bpm);    
 
     m_group->SetLicenseText(g_config_license.Get());
 
@@ -687,7 +704,7 @@ int main(int argc, char **argv)
 #endif
     while (!g_done)
     {
-      JNL_Connection *con=m_listener->get_connect(65536,65536);
+      JNL_Connection *con=m_listener->get_connect(2*65536,65536);
       if (con) 
       {
         char str[512];
