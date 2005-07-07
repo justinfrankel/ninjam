@@ -59,7 +59,7 @@ class RemoteUser_Channel
 
     // decode/mixer state, used by mixer
     DecodeState *ds;
-    DecodeState *next_ds; // prepared by main thread, for audio thread
+    DecodeState *next_ds[2]; // prepared by main thread, for audio thread
 
 };
 
@@ -784,9 +784,11 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->submask &= ~(1<<cid);
 
                       delete theuser->channels[cid].ds;
+                      delete theuser->channels[cid].next_ds[0];
+                      delete theuser->channels[cid].next_ds[1];
                       theuser->channels[cid].ds=0;
-                      delete theuser->channels[cid].next_ds;
-                      theuser->channels[cid].next_ds=0;
+                      theuser->channels[cid].next_ds[0]=0;
+                      theuser->channels[cid].next_ds[1]=0;
 
 
                       if (!theuser->chanpresentmask) // user no longer exists, it seems
@@ -816,8 +818,9 @@ int NJClient::Run() // nonzero if sleep ok
                 if (!memcmp(dib.guid,zero_guid,sizeof(zero_guid)))
                 {
                   m_users_cs.Enter();
-                  DecodeState *tmp=theuser->channels[dib.chidx].next_ds;
-                  theuser->channels[dib.chidx].next_ds=0;
+                  int useidx=!!theuser->channels[dib.chidx].next_ds[0];
+                  DecodeState *tmp=theuser->channels[dib.chidx].next_ds[useidx];
+                  theuser->channels[dib.chidx].next_ds[useidx]=0;
                   m_users_cs.Leave();
                   delete tmp;
                 }
@@ -838,8 +841,9 @@ int NJClient::Run() // nonzero if sleep ok
                 {
                   DecodeState *tmp=start_decode(dib.guid);
                   m_users_cs.Enter();
-                  DecodeState *t2=theuser->channels[dib.chidx].next_ds;
-                  theuser->channels[dib.chidx].next_ds=tmp;
+                  int useidx=!!theuser->channels[dib.chidx].next_ds[0];
+                  DecodeState *t2=theuser->channels[dib.chidx].next_ds[useidx];
+                  theuser->channels[dib.chidx].next_ds[useidx]=tmp;
                   m_users_cs.Leave();
                   delete t2;
                 }
@@ -1492,9 +1496,11 @@ void NJClient::on_new_interval()
       RemoteUser_Channel *chan=&user->channels[ch];
       delete chan->ds;
       chan->ds=0;
-      if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds;
-      else delete chan->next_ds;
-      chan->next_ds=0;
+      if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
+      else delete chan->next_ds[0];
+      chan->next_ds[0]=chan->next_ds[1]; // advance queue
+      chan->next_ds[1]=0;
+      ;
       if (chan->ds)
       {
         char guidstr[64];
@@ -1577,14 +1583,16 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
       su.build_add_rec(user->name.Get(),(user->submask&=~(1<<channelidx)));
       m_netcon->Send(su.build());
 
-      DecodeState *tmp,*tmp2;
+      DecodeState *tmp,*tmp2,*tmp3;
       m_users_cs.Enter();
       tmp=p->ds; p->ds=0;
-      tmp2=p->next_ds; p->next_ds=0;
+      tmp2=p->next_ds[0]; p->next_ds[0]=0;
+      tmp3=p->next_ds[1]; p->next_ds[1]=0;
       m_users_cs.Leave();
 
       delete tmp;
       delete tmp2;   
+      delete tmp3;   
     }
     else
     {
@@ -1820,16 +1828,18 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), ds(NULL), next_ds(NULL)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), ds(NULL)
 {
+  memset(next_ds,0,sizeof(next_ds));
 }
 
 RemoteUser_Channel::~RemoteUser_Channel()
 {
   delete ds;
   ds=NULL;
-  delete next_ds;
-  next_ds=NULL;
+  delete next_ds[0];
+  delete next_ds[1];
+  memset(next_ds,0,sizeof(next_ds));
 }
 
 
@@ -1883,8 +1893,9 @@ void RemoteDownload::startPlaying(int force)
 
        DecodeState *tmp2;
        m_parent->m_users_cs.Enter();
-       tmp2=theuser->channels[chidx].next_ds;
-       theuser->channels[chidx].next_ds=tmp;
+       int useidx=!!theuser->channels[chidx].next_ds[0];
+       tmp2=theuser->channels[chidx].next_ds[useidx];
+       theuser->channels[chidx].next_ds[useidx]=tmp;
        m_parent->m_users_cs.Leave();
        delete tmp2;
     }
