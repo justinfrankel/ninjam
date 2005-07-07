@@ -24,7 +24,7 @@ class mpb_server_auth_challenge
 
     // public data
     unsigned char challenge[8];
-    int server_caps; // low bit is license agreement
+    int server_caps; // low bit is license agreement, bits 8-16 are keepalive
     char *license_agreement;
     int protocol_version; // version should be 1 to start.
 };

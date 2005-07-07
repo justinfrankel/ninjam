@@ -159,6 +159,8 @@ class User_Group
 
     int m_max_users;
     int m_last_bpm, m_last_bpi;
+    int m_keepalive;
+
 
     int m_loopcnt;
 

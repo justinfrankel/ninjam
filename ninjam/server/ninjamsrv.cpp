@@ -262,6 +262,13 @@ static int ConfigOnToken(LineParser *lp)
     g_config_maxch_user=lp->gettoken_int(1);
     g_config_maxch_anon=lp->gettoken_int(lp->getnumtokens()>2?2:1);
   }
+  else if (!stricmp(t,"SetKeepAlive"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    m_group->m_keepalive=lp->gettoken_int(1);
+    if (m_group->m_keepalive < 0 || m_group->m_keepalive > 255)
+      m_group->m_keepalive=0;
+  }
   else if (!stricmp(t,"ServerLicense"))
   {
     if (lp->getnumtokens() != 2) return -1;

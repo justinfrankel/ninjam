@@ -80,12 +80,18 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
 
 
   ch.protocol_version = PROTO_VER_CUR;
-  ch.server_caps=0;
+  int ka=grp->m_keepalive;
+
+  if (ka < 0)ka=0;
+  else if (ka > 255) ka=255;
+  ch.server_caps=ka<<8;
+
   if (grp->m_licensetext.Get()[0])
   {
     m_netcon.SetKeepAlive(45); // wait a max of 45s * 3
     ch.license_agreement=grp->m_licensetext.Get();
   }
+  else m_netcon.SetKeepAlive(grp->m_keepalive);
   Send(ch.build());
 
   time(&m_connect_time);
@@ -373,7 +379,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       return 0;
     }
 
-    m_netcon.SetKeepAlive(0); // restore default keepalive behavior since we got a response
+    m_netcon.SetKeepAlive(group->m_keepalive); // restore default keepalive behavior since we got a response
 
     m_clientcaps=authrep.client_caps;
 
@@ -702,7 +708,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0)
+User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0)
 {
   CreateUserLookup=0;
   memset(&m_next_loop_time,0,sizeof(m_next_loop_time));
