@@ -58,7 +58,7 @@ class Net_Connection
   public:
     Net_Connection() : m_error(0),m_msgsendpos(-1), m_recvstate(0),m_recvmsg(0),m_con(0)
     { 
-      m_last_send=m_last_recv=time(NULL);
+      SetKeepAlive(0);
     }
     ~Net_Connection();
 
@@ -72,11 +72,18 @@ class Net_Connection
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
     JNL_Connection *GetConnection() { return m_con; }
 
+    void SetKeepAlive(int interval)
+    {
+      m_keepalive=interval?interval:NET_CON_KEEPALIVE_RATE;
+      m_last_send=m_last_recv=time(NULL);
+    }
+
     void Kill(int quick=0);
 
   private:
     int m_error;
 
+    int m_keepalive;
     int m_msgsendpos;
 
     time_t m_last_send, m_last_recv;

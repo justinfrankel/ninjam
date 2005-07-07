@@ -78,11 +78,14 @@ User_Connection::User_Connection(JNL_Connection *con, User_Group *grp) : m_auth_
   mpb_server_auth_challenge ch;
   memcpy(ch.challenge,m_challenge,sizeof(ch.challenge));
 
+
   ch.protocol_version = PROTO_VER_CUR;
   ch.server_caps=0;
   if (grp->m_licensetext.Get()[0])
+  {
+    m_netcon.SetKeepAlive(45); // wait a max of 45s * 3
     ch.license_agreement=grp->m_licensetext.Get();
-
+  }
   Send(ch.build());
 
   time(&m_connect_time);
@@ -369,7 +372,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
       return 0;
     }
-    
+
+    m_netcon.SetKeepAlive(0); // restore default keepalive behavior since we got a response
+
     m_clientcaps=authrep.client_caps;
 
     delete m_lookup;

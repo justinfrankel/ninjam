@@ -654,10 +654,12 @@ int NJClient::Run() // nonzero if sleep ok
 
               if (cha.license_agreement)
               {
+                m_netcon->SetKeepAlive(45);
                 if (LicenseAgreementCallback && LicenseAgreementCallback(LicenseAgreement_User32,cha.license_agreement))
                 {
                   repl.client_caps|=1;
                 }
+                m_netcon->SetKeepAlive(0);
               }
 
               WDL_SHA1 tmp;

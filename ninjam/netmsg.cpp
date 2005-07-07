@@ -68,7 +68,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   m_con->run();
 
   if (m_sendq.Available() > 0) time(&m_last_send);
-  else if (time(NULL) > m_last_send + NET_CON_KEEPALIVE_RATE)
+  else if (time(NULL) > m_last_send + m_keepalive)
   {
     Net_Message *keepalive= new Net_Message;
     keepalive->set_type(MESSAGE_KEEPALIVE);
@@ -169,7 +169,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   {
     time(&m_last_recv);
   }
-  else if (time(NULL) > m_last_recv + NET_CON_KEEPALIVE_RATE*3)
+  else if (time(NULL) > m_last_recv + m_keepalive*3)
   {
     m_error=-3;
   }
