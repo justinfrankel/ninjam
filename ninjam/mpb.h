@@ -5,9 +5,9 @@
 #include "netmsg.h"
 
 
-#define PROTO_VER_MIN 0x00010000
-#define PROTO_VER_MAX 0x0001ffff
-#define PROTO_VER_CUR 0x00010000
+#define PROTO_VER_MIN 0x00020000
+#define PROTO_VER_MAX 0x0002ffff
+#define PROTO_VER_CUR 0x00020000
 
 
 #define MESSAGE_SERVER_AUTH_CHALLENGE 0x00
