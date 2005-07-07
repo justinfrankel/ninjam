@@ -736,44 +736,52 @@ if (needadd)
   myAudio=0;  
 
   [g_client_mutex lock];
-  WDL_String sessiondir(g_client->GetWorkDir());
+  
+  
+  WDL_String sessiondir(g_client->GetWorkDir()); // save a copy of the work dir before we blow it away
+  
   g_client->Disconnect();
   delete g_client->waveWrite;
   g_client->waveWrite=0;
+  g_client->SetWorkDir(NULL);
   g_client->SetOggOutFile(NULL,0,0,0);
   g_client->SetLogFile(NULL);
   
-  if (!g_client->config_savelocalaudio)
+  if (sessiondir.Get()[0])
   {
-    int n;
-    for (n = 0; n < 16; n ++)
+    addChatLine("","Disconnected from server");
+    if (!g_client->config_savelocalaudio)
     {
-      WDL_String s(sessiondir.Get());
-      char buf[32];
-      sprintf(buf,"%x",n);
-      s.Append(buf);
-
+      int n;
+      for (n = 0; n < 16; n ++)
       {
-        WDL_DirScan ds;
-        if (!ds.First(s.Get()))
+        WDL_String s(sessiondir.Get());
+        char buf[32];
+        sprintf(buf,"%x",n);
+        s.Append(buf);
+    
         {
-          do
+          WDL_DirScan ds;
+          if (!ds.First(s.Get()))
           {
-            if (ds.GetCurrentFN()[0] != '.')
+            do
             {
-              WDL_String t;
-              ds.GetCurrentFullFN(&t);
-              unlink(t.Get());          
+              if (ds.GetCurrentFN()[0] != '.')
+              {
+                WDL_String t;
+                ds.GetCurrentFullFN(&t);
+                unlink(t.Get());          
+              }
             }
+            while (!ds.Next());
           }
-          while (!ds.Next());
         }
+        rmdir(s.Get());
       }
-      rmdir(s.Get());
+      rmdir(sessiondir.Get());
     }
-    rmdir(sessiondir.Get());
+    
   }
-  
   
   [g_client_mutex unlock];
   
