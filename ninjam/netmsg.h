@@ -8,8 +8,11 @@
 
 #define NET_CON_MAX_MESSAGES 512
 
+#define MESSAGE_KEEPALIVE 0xfd
 #define MESSAGE_EXTENDED 0xfe
 #define MESSAGE_INVALID 0xff
+
+#define NET_CON_KEEPALIVE_RATE 3
 
 
 class Net_Message
@@ -55,10 +58,14 @@ class Net_Connection
   public:
     Net_Connection() : m_error(0),m_msgsendpos(-1), m_recvstate(0),m_recvmsg(0),m_con(0)
     { 
+      m_last_send=m_last_recv=time(NULL);
     }
     ~Net_Connection();
 
-    void attach(JNL_Connection *con) { m_con=con; }
+    void attach(JNL_Connection *con) 
+    {
+      m_con=con; 
+    }
 
     Net_Message *Run(int *wantsleep=0);
     int Send(Net_Message *msg); // -1 on error, i.e. queue full
@@ -71,6 +78,8 @@ class Net_Connection
     int m_error;
 
     int m_msgsendpos;
+
+    time_t m_last_send, m_last_recv;
 
     int m_recvstate;
     Net_Message *m_recvmsg;
