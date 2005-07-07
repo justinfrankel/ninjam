@@ -144,6 +144,7 @@ protected:
   WDL_String m_workdir;
   int m_status;
   int m_max_localch;
+  int m_connection_keepalive;
   FILE *m_logFile;
   FILE *m_oggWrite;
   I_NJEncoder *m_oggComp;

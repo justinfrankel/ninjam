@@ -332,6 +332,7 @@ void NJClient::_reinit()
   m_max_localch=MAX_LOCAL_CHANNELS;
   output_peaklevel=0.0;
 
+  m_connection_keepalive=0;
   m_status=-1;
 
   m_in_auth=0;
@@ -652,6 +653,10 @@ int NJClient::Run() // nonzero if sleep ok
               repl.username=m_user.Get();
               repl.client_version=PROTO_VER_CUR; // client version number
 
+              m_connection_keepalive=(cha.server_caps>>8)&0xff;
+
+              printf("Got keepalive of %d\n",m_connection_keepalive);
+
               if (cha.license_agreement)
               {
                 m_netcon->SetKeepAlive(45);
@@ -659,8 +664,8 @@ int NJClient::Run() // nonzero if sleep ok
                 {
                   repl.client_caps|=1;
                 }
-                m_netcon->SetKeepAlive(0);
               }
+              m_netcon->SetKeepAlive(m_connection_keepalive);
 
               WDL_SHA1 tmp;
               tmp.add(m_user.Get(),strlen(m_user.Get()));
