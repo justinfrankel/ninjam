@@ -169,7 +169,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   {
     time(&m_last_recv);
   }
-  else if (time(NULL) > m_last_recv + NET_CON_KEEPALIVE_RATE*2)
+  else if (time(NULL) > m_last_recv + NET_CON_KEEPALIVE_RATE*3)
   {
     m_error=-3;
   }
