@@ -235,7 +235,7 @@ void CreateJesusInstance(int a)
     JesusonicAPI->ui_init(myInst);
     JesusonicAPI->set_opts(myInst,1,1,-1);
     JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,1,33);
-    JesusonicAPI->set_status(myInst,"","ninjam embedded");
+    JesusonicAPI->set_status(myInst,"","NINJAM embedded");
     HWND h=JesusonicAPI->ui_wnd_create(myInst);
     ShowWindow(h,SW_SHOWNA);
     SetTimer(h,1,40,NULL);
@@ -791,7 +791,7 @@ void showmainview(bool action=false, int ymove=0)
 
 
   ypos=LINES-1;
-  sprintf(linebuf,"[quit ninjam] : %s : %.1fBPM %dBPI : %dHz %dch->%dch %dbps%s",
+  sprintf(linebuf,"[QUIT NINJAM] : %s : %.1fBPM %dBPI : %dHz %dch->%dch %dbps%s",
     g_client->GetHostName(),g_client->GetActualBPM(),g_client->GetBPI(),g_audio->m_srate,g_audio->m_innch,g_audio->m_outnch,g_audio->m_bps&~7,g_audio->m_bps&1 ? "(f)":"");
   highlightoutline(ypos++,linebuf,COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(1),COLORMAP(5),COLORMAP(5),(g_sel_ypos != selpos || g_sel_ycat != selcat) ? -1 : g_sel_x);
   attrset(COLORMAP(1));
@@ -835,7 +835,7 @@ void sigfunc(int sig)
 void usage(int noexit=0)
 {
 
-  printf("Usage: ninjam hostname [options]\n"
+  printf("Usage: NINJAM hostname [options]\n"
     "Options:\n"
     "  -user <username>\n"
     "  -pass <password>\n"
@@ -985,7 +985,7 @@ int main(int argc, char **argv)
   int sessionspec=0;
   int nolog=0,nowav=1,writeogg=0,g_nssf=0;
 
-  printf("Ninjam v0.01a curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
+  printf("NINJAM v0.01a ALPHA curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
   char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;

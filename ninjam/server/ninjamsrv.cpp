@@ -554,7 +554,7 @@ void enforceACL()
 
 void usage()
 {
-    printf("Usage: ninjamserver config.cfg [options]\n"
+    printf("Usage: NINJAMserver config.cfg [options]\n"
            "Options (override config file):\n"
            "  -pidfile <filename.pid>\n"
            "  -logfile <filename.log>\n"
@@ -593,7 +593,7 @@ int main(int argc, char **argv)
 
   m_group=new User_Group;
 
-  printf("NINJAM v0.01a server built on " __DATE__ " at " __TIME__ " starting up...\n");
+  printf("NINJAM v0.01a ALPHA server built on " __DATE__ " at " __TIME__ " starting up...\n");
   printf("Copyright (C) 2005, Cockos, Inc.\n");
   if (ReadConfig(argv[1]))
   {

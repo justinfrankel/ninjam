@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 
-#ifdef NOT_MSC_VER 
+#ifdef _MSC_VER 
 
 #if 1
 #define printf myPrintf

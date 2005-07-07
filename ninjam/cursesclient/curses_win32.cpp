@@ -389,17 +389,17 @@ HWND init_win32_window(ninjamCursesClientInstance *inst)
   {
 	  if (!RegisterClass(&wc))
     {
-      MessageBox(NULL,"Error registering window class!","Ninjam Error",MB_OK);
+      MessageBox(NULL,"Error registering window class!","NINJAM Error",MB_OK);
     }
   }
 
-	HWND h=CreateWindowEx(0,wc.lpszClassName, "Ninjam Curses Client",WS_CAPTION|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|WS_SIZEBOX|WS_SYSMENU,
+	HWND h=CreateWindowEx(0,wc.lpszClassName, "NINJAM Curses Client",WS_CAPTION|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|WS_SIZEBOX|WS_SYSMENU,
 					CW_USEDEFAULT,CW_USEDEFAULT,640,480,
 					NULL, NULL,wc.hInstance,(void *)inst);
 
   if (!h)
   {
-    MessageBox(NULL,"Error creating window","Ninjam Error",MB_OK);
+    MessageBox(NULL,"Error creating window","NINJAM Error",MB_OK);
   }
   else
   {
