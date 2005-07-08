@@ -26,6 +26,8 @@ public:
 
   virtual void onUserButton(int id);
 
+  virtual void onConnect();
+
   void refreshInfo();
 
   virtual void onPostApplyDlgToAttr(Attribute *attr, const char *newval, int dlgid);

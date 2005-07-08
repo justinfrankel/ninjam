@@ -21,6 +21,7 @@ public:
   virtual void rackwndAppendToPopup(PopupMenu *pop, int ofs);
   virtual void rackwndOnPopupCommand(int cmd);
 
+  void onConnect();
   void onDisconnect();
 
 private:

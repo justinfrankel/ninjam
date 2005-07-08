@@ -469,6 +469,8 @@ void MainWnd::handleConnect() {
 
           g_audio_enable=1;
 
+          rackwnd->onConnect();
+
           //begin a new session
           Session::newSession();
         }

@@ -219,6 +219,14 @@ void NJRackWnd::rackwndOnPopupCommand(int cmd) {
   }
 }
 
+void NJRackWnd::onConnect() {
+  PtrList<RackSlot> locals = getPanelList(RS_TYPE_LOCAL_CHANNEL);
+  foreach(locals)
+    LocalChannelPanel *lcp = static_cast<LocalChannelPanel*>(locals.getfor());
+    lcp->onConnect();
+  endfor
+}
+
 void NJRackWnd::onDisconnect() {
   killDeadChannels();
 }

@@ -137,14 +137,13 @@ void LocalChannelPanel::onSolo(bool sol) {
 }
 
 void LocalChannelPanel::onFx(bool fx) {
-int a = channel_id;
-        void *i=0;
-        g_client->GetLocalChannelProcessor(channel_id,NULL,&i);
+  int a = channel_id;
+  void *i=0;
+  g_client->GetLocalChannelProcessor(channel_id,NULL,&i);
   if (fx) {
-        if (!i)
-        {
-          attachInstToLocChan(a);
-        }
+    if (!i) {
+      attachInstToLocChan(a);
+    }
 #if 0
 // have effects already
             HWND h=JesusonicAPI->ui_wnd_gethwnd(i);
@@ -162,10 +161,10 @@ int a = channel_id;
             }
 #endif
   } else {	// want no fx
-if (i != NULL) {
-            g_client->SetLocalChannelProcessor(a,NULL,NULL);
-            deleteJesusonicProc(i,a);
-}
+    if (i != NULL) {
+      g_client->SetLocalChannelProcessor(a,NULL,NULL);
+      deleteJesusonicProc(i,a);
+    }
   }
 }
 
@@ -253,6 +252,10 @@ void LocalChannelPanel::onUserButton(int id) {
     }
     break;
   }
+}
+
+void LocalChannelPanel::onConnect() {
+  onFx(fx);
 }
 
 double g_ilog2x6;
