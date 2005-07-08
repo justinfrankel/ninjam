@@ -564,7 +564,7 @@ void showmainview(bool action=false, int ymove=0)
 #ifdef _WIN32
     if (JesusonicAPI)
     {
-      sprintf(linebuf+strlen(linebuf),"[j][%c] ", tmp?'x': ' ');
+      sprintf(linebuf+strlen(linebuf),"[js][%c] ", tmp?'x': ' ');
     }
 #endif
 
@@ -607,7 +607,7 @@ void showmainview(bool action=false, int ymove=0)
           sname,
           volstr,
 #ifdef _WIN32
-          JesusonicAPI?"[j][ ] " : 
+          JesusonicAPI?"[js][ ] " : 
 #endif
            ""
           
