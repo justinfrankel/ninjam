@@ -377,6 +377,12 @@ int main(int argc, char **argv)
 
                 curintrecs.Add(t);
               }
+              if (curintrecs.Get(x)->items.GetSize())
+              {
+                UserChannelValueRec *lastitem=curintrecs.Get(x)->items.Get(curintrecs.Get(x)->items.GetSize()-1); // this is for when the server sometimes groups them in the wrong interval
+                if (lastitem->position == ucvr->position)
+                  ucvr->position += ucvr->length;
+              }
               curintrecs.Get(x)->items.Add(ucvr);
               // add this record to it
             }
