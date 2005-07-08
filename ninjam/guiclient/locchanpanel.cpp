@@ -25,9 +25,9 @@ extern NJClient *g_client;
 static PopupMenu *subpop;
 
 LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
-  : BasicPanel(wnd, IDD_PANEL_LOCALCHANNEL, StringPrintf("local|%d", id)),
-  broadcasting(StringPrintf("user settings/local|%d/broadcasting", id)),
-  channel_name(StringPrintf("user settings/local|%d/name", id))
+  : BasicPanel(wnd, IDD_PANEL_LOCALCHANNEL, StringPrintf("local/channel %02d", id)),
+  broadcasting(StringPrintf("user settings/local/channel %02d/broadcasting", id)),
+  channel_name(StringPrintf("user settings/local/channel %02d/name", id))
 //CUT  src_channel(StringPrintf("%d src_channel", id))
 {
   channel_id = id;
@@ -48,7 +48,6 @@ LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
 //CUT  channel_name = "";
   registerAttribute(&channel_name, IDC_CHANNEL_NAME);
 
-  broadcasting = 1;	// default on
   registerAttribute(&broadcasting, IDC_BROADCAST);
 
   registerBoolDisable(broadcasting, IDC_CHANNEL_NAME, FALSE);
@@ -64,7 +63,7 @@ LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
 
   registerBoolDisable(fx, IDC_EDIT_FX, FALSE);
 
-  refreshInfo();
+//CUT  refreshInfo();
 }
 
 #if 0
@@ -79,13 +78,11 @@ int getUserIdFromName(const char *user_name) {
 #endif
 
 void LocalChannelPanel::refreshInfo() {
-#if 1
+#if 0	// hmm
   if (g_client == NULL) return;
 
   int srcch, bitrate;
-  bool broad;
-  String nm = g_client->GetLocalChannelInfo(channel_id, &srcch, &bitrate, &broad);
-  broadcasting = broad;
+  String nm = g_client->GetLocalChannelInfo(channel_id, &srcch, &bitrate, NULL);
 
 //  float vo, pa;
 //  bool mu;

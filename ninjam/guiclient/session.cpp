@@ -26,18 +26,10 @@ extern NJClient *g_client;
 extern audioStreamer *g_audio;
 
 String makeSessionDirName(int cnt, time_t t) {
-  String ret;
-//  char buf[512];
-//      time_t tv;
-//      time(&tv);
-//      struct tm *t=localtime(&tv);
-//      sprintf(buf,"%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
-  ret = StringStrftime(t, session_format);
-  if (cnt)
-//        wsprintf(buf+strlen(buf),"_%d",cnt);
+  String ret = StringStrftime(t, session_format);
+  if (cnt > 0)
     ret.cat(StringPrintf("_%d",cnt));
-//      strcat(buf,".ninjam");
-//  ret.cat(".ninjam");
+  ret.cat(".ninjam");
   return ret;
 }
 

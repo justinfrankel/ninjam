@@ -143,18 +143,6 @@ SOURCE=..\..\WDL\sha.cpp
 # PROP Default_Filter ""
 # Begin Source File
 
-SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisenc_static_d.lib"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbis_static_d.lib"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\ogg_static_d.lib"
-# End Source File
-# Begin Source File
-
 SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisenc_static.lib"
 # End Source File
 # Begin Source File

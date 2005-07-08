@@ -28,7 +28,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 IDD_PANEL_CHANNEL DIALOGEX 0, 0, 405, 27
 STYLE WS_CHILD
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",TBS_BOTH | 
                     WS_TABSTOP,174,1,56,25,WS_EX_STATICEDGE
@@ -45,7 +45,7 @@ BEGIN
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "receive",IDC_SUBSCRIBE,"Button",BS_AUTOCHECKBOX | 
-                    BS_PUSHLIKE | WS_TABSTOP,2,16,40,10
+                    WS_TABSTOP,2,16,40,10
     CTEXT           "00",IDC_CHANNEL_ID,72,2,13,12,SS_CENTERIMAGE,
                     WS_EX_STATICEDGE
     CONTROL         "Progress1",IDC_VUMETER,"msctls_progress32",PBS_SMOOTH,
@@ -72,11 +72,11 @@ END
 
 IDD_PANEL_LOCALCHANNEL DIALOGEX 0, 0, 405, 27
 STYLE WS_CHILD
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_CHANNEL_NAME,0,2,95,12,ES_AUTOHSCROLL
     CONTROL         "transmit",IDC_BROADCAST,"Button",BS_AUTOCHECKBOX | 
-                    BS_PUSHLIKE | WS_TABSTOP,2,16,40,10
+                    WS_TABSTOP,2,16,40,10
     CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",TBS_BOTH | 
                     WS_TABSTOP,174,1,56,25,WS_EX_STATICEDGE
     CONTROL         "Slider2",IDC_VOLUME,"msctls_trackbar32",TBS_BOTH | 
@@ -331,15 +331,15 @@ STYLE DS_MODALFRAME | DS_NOFAILCREATE | DS_CENTER | WS_POPUP | WS_CAPTION
 CAPTION "Server license agreement"
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
+    CONTROL         "I agree to these terms for my contribution",
+                    IDC_SERVER_LICENSE_AGREE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,199,158,164,10
     DEFPUSHBUTTON   "Continue>>",IDOK,302,170,61,14,0,WS_EX_STATICEDGE
     PUSHBUTTON      "I disagree, disconnect me",IDCANCEL,200,170,97,14
     EDITTEXT        IDC_SERVER_LICENSE_TEXT,7,20,356,135,ES_MULTILINE | 
                     ES_READONLY | WS_VSCROLL
     LTEXT           "The server has requested that you agree to the following license for your contributed audio  in order to connect.",
                     IDC_STATIC,7,7,350,8
-    CONTROL         "I agree to these terms for my contribution",
-                    IDC_SERVER_LICENSE_AGREE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,199,158,164,10
 END
 
 IDD_CHAT DIALOG DISCARDABLE  0, 0, 335, 138

@@ -79,6 +79,7 @@ int displayLicense(int user32, char *licensetext) {
   lic.registerAttribute(agree, IDC_SERVER_LICENSE_AGREE);
   lic.registerBoolDisable(agree, IDOK, FALSE);
   lic.registerBoolDisable(agree, IDCANCEL, TRUE);
+  lic.setFocusedControl(IDC_SERVER_LICENSE_AGREE);//FUCKO doesn't work?
   return lic.createModal();
 }
 
@@ -268,6 +269,7 @@ int MainWnd::onInit() {
   if (chatwnd == NULL) {
     chatwnd = new ChatWnd;
     chatwnd->createModeless(FALSE, chat_was_showing);
+    StdWnd::setFocus(getOsWindowHandle());
   }
 
   return r;
