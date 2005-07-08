@@ -489,7 +489,7 @@ void showmainview(bool action=false, int ymove=0)
         g_ui_voltweakstate_channel=a;
       }
 #ifdef _WIN32
-      else if (g_sel_x >= 6)
+      else if (g_sel_x >= 6 && JesusonicAPI)
       {
         void *i=0;
         g_client->GetLocalChannelProcessor(a,NULL,&i);
@@ -550,15 +550,26 @@ void showmainview(bool action=false, int ymove=0)
     mkvolpanstr(volstr,vol,pan);
     const char *sname=g_audio->GetChannelName(sch);
     if (!sname) sname="Silence";
-    sprintf(linebuf,"  [%s] [%c]active [%s] [%c]mute [%s] [del] " 
+
+    char snamebuf[32];
+    if (strlen(sname)>16)
+    {
+      strcpy(snamebuf,"...");
+      strcat(snamebuf,sname+strlen(sname)-13);
+      sname=snamebuf;
+    }
+    sprintf(linebuf,"  [%s] [%c]xmit [%s] [%c]mute [%s] [del] ",name,bc?'X':' ',sname,mute?'X':' ',volstr);
+    
+
 #ifdef _WIN32
-      "[j][%c] "
+    if (JesusonicAPI)
+    {
+      sprintf(linebuf+strlen(linebuf),"[j][%c] ", tmp?'x': ' ');
+    }
 #endif
-      
-      "<%2.1fdB>",name,bc?'X':' ',sname,mute?'X':' ',volstr,
-#ifdef _WIN32
-      tmp?'x': ' ',
-#endif
+
+    sprintf(linebuf+strlen(linebuf),
+      "<%2.1fdB>",
       VAL2DB(g_client->GetLocalChannelPeak(a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
@@ -579,13 +590,28 @@ void showmainview(bool action=false, int ymove=0)
         g_client->SetLocalChannelInfo(x,"channel",true,0,false,0,true,false);
         g_client->NotifyServerOfChannelChange();
 
+        const char *sname=g_audio->GetChannelName(0);
+        if (!sname) sname="Silence";        
+
+        char snamebuf[32];
+        if (strlen(sname)>16)
+        {
+          strcpy(snamebuf,"...");
+          strcat(snamebuf,sname+strlen(sname)-13);
+          sname=snamebuf;
+        }
+        
         char volstr[256];
-        mkvolpanstr(volstr,0.0f,0.0f);
-        sprintf(linebuf,"  [channel] [ ]active [0]source [ ]mute [%s] [delete]"
+        mkvolpanstr(volstr,1.0f,0.0f);
+        sprintf(linebuf,"  [channel] [ ]xmit [%s] [ ]mute [%s] [del] %s<-120dB>",
+          sname,
+          volstr,
 #ifdef _WIN32
-          " [j][ ]"
+          JesusonicAPI?"[j][ ] " : 
 #endif
-          ,volstr);
+           ""
+          
+          );
 
         action=false;
         selpos++;
@@ -681,7 +707,7 @@ void showmainview(bool action=false, int ymove=0)
 
     char volstr[256];
     mkvolpanstr(volstr,vol,pan);
-    sprintf(linebuf,"  \"%s\" [%c]subscribe [%c]mute [%s] <%2.1fdB>",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
+    sprintf(linebuf,"  \"%s\" [%c]recv [%c]mute [%s] <%2.1fdB>",name,sub?'X':' ',mute?'X':' ',volstr,VAL2DB(g_client->GetUserChannelPeak(user,a)));
 
     highlightoutline(ypos++,linebuf,COLORMAP(0),COLORMAP(0),
                                COLORMAP(0)|A_BOLD,COLORMAP(0),
