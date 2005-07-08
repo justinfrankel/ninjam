@@ -26,7 +26,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // Dialog
 //
 
-IDD_PANEL_CHANNEL DIALOGEX 0, 0, 405, 27
+IDD_PANEL_CHANNEL DIALOGEX 0, 0, 420, 27
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -37,11 +37,11 @@ BEGIN
     EDITTEXT        IDC_CHANNEL_USER,0,2,70,12,ES_AUTOHSCROLL | ES_READONLY | 
                     NOT WS_BORDER,WS_EX_STATICEDGE
     CONTROL         "mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,2,29,11
+                    389,2,29,11
     CONTROL         "solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,15,29,11
+                    389,15,29,11
     EDITTEXT        IDC_CHANNEL_NAME,88,2,83,12,ES_AUTOHSCROLL | ES_READONLY
-    RTEXT           "xx dB\nboost",IDC_VOLUME_TEXT,353,10,18,17,SS_NOTIFY
+    RTEXT           "+0.00 dB\nboost",IDC_VOLUME_TEXT,352,10,31,17,SS_NOTIFY
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "receive",IDC_SUBSCRIBE,"Button",BS_AUTOCHECKBOX | 
@@ -70,9 +70,9 @@ BEGIN
     PUSHBUTTON      "+",IDC_BUTTON4,0,127,18,14
 END
 
-IDD_PANEL_LOCALCHANNEL DIALOGEX 0, 0, 405, 27
+IDD_PANEL_LOCALCHANNEL DIALOGEX 0, 0, 420, 27
 STYLE WS_CHILD
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     EDITTEXT        IDC_CHANNEL_NAME,0,2,95,12,ES_AUTOHSCROLL
     CONTROL         "transmit",IDC_BROADCAST,"Button",BS_AUTOCHECKBOX | 
@@ -84,10 +84,10 @@ BEGIN
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,2,29,11
+                    389,2,29,11
     CONTROL         "solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,15,29,11
-    RTEXT           "xx dB\nboost",IDC_VOLUME_TEXT,353,10,18,17,SS_NOTIFY
+                    389,15,29,11
+    RTEXT           "+0.00 dB\nboost",IDC_VOLUME_TEXT,352,10,31,17,SS_NOTIFY
     CONTROL         "FX",IDC_FX,"Button",BS_AUTOCHECKBOX | BS_CENTER | 
                     WS_TABSTOP,118,2,21,12
     PUSHBUTTON      "edit fx...",IDC_EDIT_FX,142,2,30,12
@@ -101,7 +101,7 @@ BEGIN
                     165,18,6,6
 END
 
-IDD_PANEL_MASTER DIALOGEX 0, 0, 405, 31
+IDD_PANEL_MASTER DIALOGEX 0, 0, 420, 31
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -110,11 +110,11 @@ BEGIN
     LTEXT           "Master",IDC_STATIC,1,1,74,8
     CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",TBS_BOTH | 
                     WS_TABSTOP,174,1,56,25,WS_EX_STATICEDGE
-    RTEXT           "xx dB\nboost",IDC_VOLUME_TEXT,353,10,18,17,SS_NOTIFY
+    RTEXT           "+0.00 dB\nboost",IDC_VOLUME_TEXT,352,10,31,17,SS_NOTIFY
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,2,29,11
+                    389,2,29,11
     CONTROL         "Progress1",IDC_VUMETER,"msctls_progress32",PBS_SMOOTH,
                     45,18,119,6
     CONTROL         "Progress1",IDC_VUCLIP,"msctls_progress32",PBS_SMOOTH,
@@ -246,7 +246,7 @@ BEGIN
     RTEXT           "Output Device:",-1,1,19,55,8
 END
 
-IDD_PANEL_METRONOME DIALOGEX 0, 0, 405, 27
+IDD_PANEL_METRONOME DIALOGEX 0, 0, 420, 27
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -255,11 +255,11 @@ BEGIN
     CONTROL         "Slider2",IDC_PAN,"msctls_trackbar32",TBS_BOTH | 
                     WS_TABSTOP,174,1,56,25,WS_EX_STATICEDGE
     LTEXT           "Metronome",IDC_STATIC,1,1,36,8
-    RTEXT           "xx dB\nboost",IDC_VOLUME_TEXT,353,10,18,17,SS_NOTIFY
+    RTEXT           "+0.00 dB\nboost",IDC_VOLUME_TEXT,352,10,31,17,SS_NOTIFY
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,2,29,11
+                    389,2,29,11
 END
 
 IDD_PANEL_SWEEP DIALOG DISCARDABLE  0, 0, 349, 6
@@ -306,7 +306,7 @@ BEGIN
     DEFPUSHBUTTON   "Close",IDOK,326,216,50,14
 END
 
-IDD_PANEL_JESUS DIALOGEX 0, 0, 405, 27
+IDD_PANEL_JESUS DIALOGEX 0, 0, 420, 27
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -315,10 +315,10 @@ BEGIN
     CONTROL         "Slider2",IDC_VOLUME,"msctls_trackbar32",TBS_BOTH | 
                     WS_TABSTOP,256,1,95,25,WS_EX_STATICEDGE
     CONTROL         "mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,2,29,11
+                    389,2,29,11
     CONTROL         "solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    376,15,29,11
-    RTEXT           "xx dB\nboost",IDC_VOLUME_TEXT,353,10,18,17,SS_NOTIFY
+                    389,15,29,11
+    RTEXT           "+0.00 dB\nboost",IDC_VOLUME_TEXT,352,10,31,17,SS_NOTIFY
     CTEXT           "Center",IDC_PAN_TEXT,231,0,22,25,SS_NOTIFY | 
                     SS_CENTERIMAGE
     CONTROL         "",IDC_BROADCAST,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | 
@@ -404,7 +404,7 @@ BEGIN
     IDD_PANEL_CHANNEL, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 391
+        RIGHTMARGIN, 402
         TOPMARGIN, 7
         BOTTOMMARGIN, 18
     END

@@ -185,6 +185,8 @@ scaleval = DB2VAL(dbval);
       if (dbval<0) cutoff++;	//allow for -
       if (valtext.len() > cutoff) valtext.ncv()[cutoff] = 0;	// cut it off eh
 
+      valtext += " dB";
+
       if (dbval>=0) {
         valtext.prepend("+");
         if (dbval > 0.001) {
