@@ -35,11 +35,11 @@ const char *printfIfNotNull(const char *format, const char *str) {
 
 BasicPanel::BasicPanel(RackWnd *wnd, int dlgid, const char *cfgname)
   : PanelSlot(wnd, dlgid),
-  volume(printfIfNotNull("user settings/%s/volume", cfgname), DEF_VOLUME),
-  pan(printfIfNotNull("user settings/%s/pan", cfgname), DEF_PAN),
-  mute(printfIfNotNull("user settings/%s/mute", cfgname), FALSE),
-  solo(printfIfNotNull("user settings/%s/solo", cfgname), FALSE),
-  fx(printfIfNotNull("user settings/%s/fx", cfgname), FALSE)
+  volume(printfIfNotNull("%s/volume", cfgname), DEF_VOLUME),
+  pan(printfIfNotNull("%s/pan", cfgname), DEF_PAN),
+  mute(printfIfNotNull("%s/mute", cfgname), FALSE),
+  solo(printfIfNotNull("%s/solo", cfgname), FALSE),
+  fx(printfIfNotNull("%s/fx", cfgname), FALSE)
 {
 //CUT  if (cfgname != NULL) {
 //CUT    volume.setName(StringPrintf("%s volume"));

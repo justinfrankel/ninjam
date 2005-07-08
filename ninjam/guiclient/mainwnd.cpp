@@ -108,49 +108,27 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   }
 }
 
-static char *dev_name_in;
+//CUT static char *dev_name_in;
 
-#if 0
-static int asioStart(const char *new_dev_name_in=NULL) {
-  ASSERT(g_audio == NULL);
-  if (new_dev_name_in != NULL) dev_name_in = (char*)new_dev_name_in;
-
-//CUT  audioStreamer_ASIO *audio=new audioStreamer_ASIO;
-  g_audio=CreateConfiguredStreamer("ninjam.ini", TRUE, NULL);
-
-  if (audio->Open(&dev_name_in)) {
-      printf("Error opening audio!\n");
-      return 0;
-  }
-  DebugString("Opened %s (%dHz %d->%dch %dbps)\n",dev_name_in,
-    audio->m_srate, audio->m_innch, audio->m_outnch, audio->m_bps);
-  g_audio=audio;
-  g_audio_enable=1;
-
-  return 1;
-}
-#endif
-
-static void asioStop() {
+static void audioStop() {
   g_audio_enable=0;
   delete g_audio; g_audio = NULL;
 }
 
-int asioConfig(HWND parwnd) {
-  // init ASIO
-    
-  asioStop();
-
-#if 0
-  dev_name_in=get_asio_configstr("ninjam.ini",1,parwnd);
-
-  int r = asioStart();
-
-  asio_device = dev_name_in;
-#endif
-  g_audio=CreateConfiguredStreamer("ninjam.ini", TRUE, parwnd);
-
+static int audioStart() {
+  audioStop();
+  g_audio=CreateConfiguredStreamer("ninjam.ini", FALSE, NULL);
   return (g_audio != NULL);
+}
+
+// just config it
+int audioConfig(HWND parwnd) {
+    
+  audioStop();
+
+  CreateConfiguredStreamer("ninjam.ini", -1, parwnd);
+
+  return 1;
 }
 
 MainWnd::MainWnd() {
@@ -209,13 +187,7 @@ int MainWnd::onInit() {
   g_client->LicenseAgreement_User32=reinterpret_cast<int>(getOsWindowHandle());
   g_client->LicenseAgreementCallback=displayLicense;
 
-  if (!asioConfig(getOsWindowHandle())) {
-    StdWnd::messageBox(
-      "The audio device could not be opened. Maybe it's in use already? Or you"
-      " can try turning it off and on.",
-      "Error opening audio device",
-      MB_OK|MB_TASKMODAL);
-  }
+  audioConfig(getOsWindowHandle());
 
   // jesusonic init
   jesusInit();
@@ -286,55 +258,11 @@ int MainWnd::onResize() {
 int MainWnd::onMenuCommand(int cmd) {
   switch (cmd) {
     case CMD_CONNECT: {
-      rackwnd->onDisconnect();
-      Session::endSession();
-
-//FUCKO disconnect if connected, maybe pop up box
-      OSDialog dlg(IDD_USERPASS, getOsWindowHandle());
-      _string server("Last server"), username("Last username"), passwd("Last password");
-      _bool remember_passwd("Remember password"), anon("Login anonymously", TRUE);
-      dlg.registerAttribute(server, IDC_SERVER);
-      dlg.registerAttribute(username, IDC_USERNAME);
-      dlg.registerAttribute(passwd, IDC_PASSWD);
-      dlg.registerAttribute(remember_passwd, IDC_REMEMBER_PASSWD);
-      dlg.registerAttribute(anon, IDC_ANONYMOUS);
-
-//CUT      dlg.registerBoolDisable(anon, IDC_USERNAME, TRUE);
-      dlg.registerBoolDisable(anon, IDC_PASSWD, TRUE);
-      dlg.registerBoolDisable(anon, IDC_REMEMBER_PASSWD, TRUE);
-
-      if (dlg.createModal()) {
-//g_client->Disconnect();//FUCKO put back once it works
-
-//CUT        extern int g_id;
-//CUT        if (g_id == 0) rackwnd->addLocalChannel();
-
-        // handle anonymity weirdness
-        String connect_username = anon ? StringPrintf("%s:%s", ANONYMOUS, username.v()) : String(username);
-        String connect_passwd = anon ? "" : passwd;
-
-        // save off given values
-        g_server_address = server;
-        g_user_name = username;
-        g_passwd = passwd;
-
-        if (!remember_passwd) passwd = "";	// don't remember
-
-        g_client->Connect(g_server_address.ncv(), connect_username.ncv(), connect_passwd.ncv());
-
-        g_audio_enable=1;
-
-        //begin a new session
-        Session::newSession();
-      }
+      handleConnect();
     }
     break;
     case CMD_DISCONNECT: {
-      if (g_client) {
-//CUT        g_client->Disconnect();
-        rackwnd->onDisconnect();
-        Session::endSession();
-      }
+      handleDisconnect();
     }
     break;
     case CMD_ADDLOCAL: {
@@ -367,7 +295,17 @@ int MainWnd::onMenuCommand(int cmd) {
     }
     break;
     case CMD_ASIO_CFG: {
-      asioConfig(getOsWindowHandle());
+      if (g_audio) {
+        int r = StdWnd::messageBox("Session is in progress. You must disconnect if you wish to change your audio settings. Click OK to disconnect and open the configuration dialog or Cancel to continue with things are they are.",
+          "Cannot change audio during session",
+          MB_OKCANCEL|MB_TASKMODAL);
+        if (r == IDOK) {
+          handleDisconnect();
+          audioConfig(getOsWindowHandle());
+        }
+      } else {
+        audioConfig(getOsWindowHandle());
+      }
     }
     break;
     default:
@@ -482,5 +420,65 @@ DebugString("\tchannel id %d\n", id);
 //CUT      if (!us) DebugString("  <no users>\n");
     }
     break;
+  }
+}
+
+void MainWnd::handleConnect() {
+  handleDisconnect();
+
+//FUCKO disconnect if connected, maybe pop up box
+      OSDialog dlg(IDD_USERPASS, getOsWindowHandle());
+      _string server("Last server"), username("Last username"), passwd("Last password");
+      _bool remember_passwd("Remember password"), anon("Login anonymously", TRUE);
+      dlg.registerAttribute(server, IDC_SERVER);
+      dlg.registerAttribute(username, IDC_USERNAME);
+      dlg.registerAttribute(passwd, IDC_PASSWD);
+      dlg.registerAttribute(remember_passwd, IDC_REMEMBER_PASSWD);
+      dlg.registerAttribute(anon, IDC_ANONYMOUS);
+
+//CUT      dlg.registerBoolDisable(anon, IDC_USERNAME, TRUE);
+      dlg.registerBoolDisable(anon, IDC_PASSWD, TRUE);
+      dlg.registerBoolDisable(anon, IDC_REMEMBER_PASSWD, TRUE);
+
+      if (dlg.createModal()) {
+//g_client->Disconnect();//FUCKO put back once it works
+
+//CUT        extern int g_id;
+//CUT        if (g_id == 0) rackwnd->addLocalChannel();
+
+        // handle anonymity weirdness
+        String connect_username = anon ? StringPrintf("%s:%s", ANONYMOUS, username.v()) : String(username);
+        String connect_passwd = anon ? "" : passwd;
+
+        // save off given values
+        g_server_address = server;
+        g_user_name = username;
+        g_passwd = passwd;
+
+        if (!remember_passwd) passwd = "";	// don't remember
+
+        if (!audioStart()) { // gee I hope the config is ok
+          StdWnd::messageBox(
+            "The audio device could not be opened. Maybe it's in use already? Or you"
+            " can try turning it off and on.",
+            "Error opening audio device",
+            MB_OK|MB_TASKMODAL);
+        } else {
+
+          g_client->Connect(g_server_address.ncv(), connect_username.ncv(), connect_passwd.ncv());
+
+          g_audio_enable=1;
+
+          //begin a new session
+          Session::newSession();
+        }
+      }
+}
+
+void MainWnd::handleDisconnect() {
+  if (g_client) {
+    audioStop();
+    rackwnd->onDisconnect();
+    Session::endSession();	// disconnects g_client etc
   }
 }

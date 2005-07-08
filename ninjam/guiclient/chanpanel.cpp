@@ -22,8 +22,8 @@ int getUserIdFromName(const char *user_name) {
 }
 
 ChannelPanel::ChannelPanel(RackWnd *wnd, const char *username, int id)
-  : BasicPanel(wnd, IDD_PANEL_CHANNEL, StringPrintf("%s/channel %02d", username, id)),
-  subscribe(StringPrintf("user settings/%s/channel %02d/subscribe", username, id))
+  : BasicPanel(wnd, IDD_PANEL_CHANNEL, StringPrintf("remote user settings/%s/channel %02d", username, id)),
+  subscribe(StringPrintf("remote user settings/%s/channel %02d/subscribe", username, id))
 {
   addSizeBinding(IDC_CHANNEL_NAME, OSDialogSizeBind::RIGHTEDGETORIGHT);
 

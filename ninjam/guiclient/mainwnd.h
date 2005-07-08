@@ -25,6 +25,9 @@ public:
   virtual int getMinFrameWidth() { return 600; }
   virtual int getMinFrameHeight() { return 240; }
 
+  void handleConnect();
+  void handleDisconnect();
+
 private:
   NJRackWnd *rackwnd;
 };
