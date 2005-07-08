@@ -1451,7 +1451,12 @@ int main(int argc, char **argv)
   time_t nextupd=time(NULL)+1;
 #endif
 
-  while (g_client->GetStatus() >= 0 && !g_done)
+  while (g_client->GetStatus() >= 0 && !g_done
+#ifdef _WIN32
+  && IsWindow(CURSES_INSTANCE->cursesCtx.m_hwnd)
+#endif
+    
+    )
   {
     if (g_client->Run()) 
     {
