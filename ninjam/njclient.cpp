@@ -113,6 +113,15 @@ class BufferQueue
     BufferQueue() { }
     ~BufferQueue() 
     { 
+      Clear();
+    }
+
+    void AddBlock(float *samples, int len, float *samples2=NULL);
+    int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
+    void DisposeBlock(WDL_HeapBuf *b);
+
+    void Clear()
+    {
       int x;
       for (x = 0; x < m_emptybufs.GetSize(); x ++)
         delete m_emptybufs.Get(x);
@@ -127,10 +136,6 @@ class BufferQueue
       m_samplequeue.Advance(m_samplequeue.Available());
       m_samplequeue.Compact();
     }
-
-    void AddBlock(float *samples, int len, float *samples2=NULL);
-    int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
-    void DisposeBlock(WDL_HeapBuf *b);
 
   private:
     WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
@@ -543,7 +548,25 @@ void NJClient::Disconnect()
   if (x) m_userinfochange=1; // if we removed users, notify parent
 
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
+
+
+  for (x = 0; x < m_locchannels.GetSize(); x ++) 
+  {
+    Local_Channel *c=m_locchannels.Get(x);
+    delete c->m_wavewritefile;
+    c->m_wavewritefile=0;
+    c->m_curwritefile.Close();
+
+    delete c->m_enc;
+    c->m_enc=0;
+    delete c->m_enc_header_needsend;
+    c->m_enc_header_needsend=0;
+
+    c->m_bq.Clear();
+  }
   m_downloads.Empty();
+
+  m_wavebq->Clear();
 
   _reinit();
 }
