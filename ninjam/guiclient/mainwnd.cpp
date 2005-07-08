@@ -262,7 +262,7 @@ int MainWnd::onInit() {
   timerclient_setTimer(TIMER_CHECK_CONNECTION, 500);
   timerclient_timerCallback(TIMER_CHECK_CONNECTION);
   timerclient_setTimer(TIMER_RUN_CLIENT, 50);	// NJClient->Run()
-  timerclient_setTimer(TIMER_UPDATE_USERINFO, 1000);
+//CUT  timerclient_setTimer(TIMER_UPDATE_USERINFO, 1000);
 
 // chat
   if (chatwnd == NULL) {
@@ -418,27 +418,38 @@ void MainWnd::timerclient_timerCallback(int id) {
     }
     break;
     case TIMER_RUN_CLIENT: {
+       if (!g_client) break;
        if (g_client && !in_g_client_run) {
          in_g_client_run = 1;
+#if 0
          stdtimevalms then = Std::getTimeStampMS();
          while (Std::getTimeStampMS() - then < .1f) {
            if (g_client->Run()) break;
          }
+#else
+//      if (g_client->GetStatus() != NJClient::NJC_STATUS_OK) 
+         while (!g_client->Run()) { }
+#endif
          in_g_client_run = 0;
        }
-    }
-    break;
-    case TIMER_UPDATE_USERINFO: {
-      rackwnd->killDeadChannels();	//FUCKO, just mark em and remove later
+//    }
+//    break;
+//    case TIMER_UPDATE_USERINFO: {
 
       if (g_client == NULL || g_client->HasUserInfoChanged() == 0) break;
+
+      rackwnd->killDeadChannels();	//FUCKO, just mark em and remove later
+
       if (g_client->GetStatus() != NJClient::NJC_STATUS_OK) break;
 
       // update list of channels
       DebugString("\nUser, channel list:\n");
       for (int i = 0; ; i++) {
-        String un=safeify(g_client->GetUserState(i));
+        char *usernamept = g_client->GetUserState(i);
+        if (usernamept == NULL) break;
+        String un=safeify(usernamept);
         if (un.isempty()) break;
+
         DebugString(" %s\n",un.v());
 
         for (int ch = 0; ; ch++) {
