@@ -104,6 +104,7 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
   {
     DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),hwndParent,configDlgMainProc);
     save_config();
+    if (showcfg == -1) return NULL;
   }
 
   if (configdata.mode == 0)
