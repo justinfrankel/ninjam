@@ -868,7 +868,7 @@ int main(int argc, char **argv)
             }
             else
             {
-              printf("Listening on port %d...",g_config_port);    
+//              printf("Listening on port %d...",g_config_port);    
 
               onConfigChange();
             }
@@ -972,8 +972,8 @@ void onConfigChange()
 {
   logText("reloading config...\n");
 
-  delete m_listener;
-  m_listener = new JNL_Listen(g_config_port);
+//  delete m_listener;
+//  m_listener = new JNL_Listen(g_config_port);
   //m_group->SetConfig(g_config_bpi,g_config_bpm);
   enforceACL();
   m_group->SetLicenseText(g_config_license.Get());
