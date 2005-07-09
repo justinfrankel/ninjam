@@ -25,6 +25,7 @@
 
 const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005, Cockos, Inc.\n";
 
+int g_set_uid=-1;
 int g_default_bpm,g_default_bpi;
 FILE *g_logfp;
 WDL_String g_pidfilename;
@@ -234,6 +235,11 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 3) return -1;
     g_config_logpath.Set(lp->gettoken_str(1));    
     g_config_log_sessionlen = lp->gettoken_int(2);
+  }
+  else if (!stricmp(t,"SetUID"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_set_uid = lp->gettoken_int(1);
   }
   else if (!stricmp(t,"DefaultBPI"))
   {
@@ -585,6 +591,8 @@ void usage()
            "Options (override config file):\n"
            "  -pidfile <filename.pid>\n"
            "  -logfile <filename.log>\n"
+           "  -archive <path_to_archive>\n"
+           "  -setuid <uid>\n"
       );
     exit(1);
 }
@@ -639,6 +647,16 @@ int main(int argc, char **argv)
         if (++p >= argc) usage();
         g_logfilename.Set(argv[p]);
       }
+      else if (!strcmp(argv[p],"-archive"))
+      {
+        if (++p >= argc) usage();
+        g_config_logpath.Set(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-setuid"))
+      {
+        if (++p >= argc) usage();
+        g_set_uid=atoi(argv[p]);
+      }
       else usage();
 
   }
@@ -650,6 +668,9 @@ int main(int argc, char **argv)
   v=(DWORD)time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
 #else
+
+  if (g_set_uid != -1) setuid(g_set_uid);
+
   time_t v=time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
   int pid=getpid();
