@@ -46,7 +46,7 @@ public:
 class IUserInfoLookup // abstract base class, overridden by server
 {
 public:
-  IUserInfoLookup() { user_valid=0; reqpass=1; privs=0; max_channels=0; }
+  IUserInfoLookup() { is_status=0; user_valid=0; reqpass=1; privs=0; max_channels=0; }
   virtual ~IUserInfoLookup() { }
 
   virtual int Run()=0; // return 1 if run is complete, 0 if still needs to run more
@@ -55,6 +55,7 @@ public:
   int reqpass; // password required, 1 is default
   unsigned int privs;
   int max_channels;
+  int is_status;
   unsigned char sha1buf_user[WDL_SHA1SIZE];
 
   WDL_String hostmask;

@@ -30,6 +30,7 @@ int g_default_bpm,g_default_bpi;
 FILE *g_logfp;
 WDL_String g_pidfilename;
 WDL_String g_logfilename;
+WDL_String g_status_pass,g_status_user;
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange();
@@ -168,7 +169,22 @@ public:
     {
       int x;
       logText("got login request for '%s'\n",username.Get());
-      for (x = 0; x < g_userlist.GetSize(); x ++)
+      if (g_status_user.Get()[0] && !strcmp(username.Get(),g_status_user.Get()))
+      {
+        user_valid=1;
+        reqpass=1;
+        is_status=1;
+        privs=0; 
+        max_channels=0;
+
+        WDL_SHA1 shatmp;
+        shatmp.add(username.Get(),strlen(username.Get()));
+        shatmp.add(":",1);
+        shatmp.add(g_status_pass.Get(),strlen(g_status_pass.Get()));
+
+        shatmp.result(sha1buf_user);
+      }
+      else for (x = 0; x < g_userlist.GetSize(); x ++)
       {
         if (!strcmp(username.Get(),g_userlist.Get(x)->name.Get()))
         {
@@ -213,6 +229,12 @@ static int ConfigOnToken(LineParser *lp)
     int p=lp->gettoken_int(1);
     if (!p) return -2;
     g_config_port=p;
+  }
+  else if (!stricmp(t,"StatusUserPass"))
+  {
+    if (lp->getnumtokens() != 3) return -1;
+    g_status_user.Set(lp->gettoken_str(1));
+    g_status_pass.Set(lp->gettoken_str(2));
   }
   else if (!stricmp(t,"MaxUsers"))
   {
