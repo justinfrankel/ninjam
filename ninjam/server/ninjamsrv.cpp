@@ -592,6 +592,7 @@ void usage()
            "  -pidfile <filename.pid>\n"
            "  -logfile <filename.log>\n"
            "  -archive <path_to_archive>\n"
+           "  -port <port>\n"
            "  -setuid <uid>\n"
       );
     exit(1);
@@ -656,6 +657,11 @@ int main(int argc, char **argv)
       {
         if (++p >= argc) usage();
         g_set_uid=atoi(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-port"))
+      {
+        if (++p >= argc) usage();
+        g_config_port=atoi(argv[p]);
       }
       else usage();
 
