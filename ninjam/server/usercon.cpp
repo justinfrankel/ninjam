@@ -741,7 +741,7 @@ void User_Group::SetLogDir(char *path) // NULL to not log
 #ifdef _WIN32
     CreateDirectory(path,NULL);
 #else
-    mkdir(path,0700);
+    mkdir(path,0755);
 #endif
 
   m_logdir.Set(path);
@@ -761,7 +761,7 @@ void User_Group::SetLogDir(char *path) // NULL to not log
 #ifdef _WIN32
     CreateDirectory(tmp.Get(),NULL);
 #else
-    mkdir(tmp.Get(),0700);
+    mkdir(tmp.Get(),0755);
 #endif
   }
 }

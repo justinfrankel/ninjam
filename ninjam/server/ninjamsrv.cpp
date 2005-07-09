@@ -898,7 +898,7 @@ int main(int argc, char **argv)
                 #ifdef _WIN32
                 if (CreateDirectory(tmp.Get(),NULL)) break;
                 #else
-                if (!mkdir(tmp.Get(),0700)) break;
+                if (!mkdir(tmp.Get(),0755)) break;
                 #endif
 
                 cnt++;
