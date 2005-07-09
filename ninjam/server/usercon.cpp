@@ -165,7 +165,18 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   if (m_lookup->is_status)
   {
+
+    SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
     SendUserList(group);
+
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="TOPIC";
+      newmsg.parms[1]="";
+      newmsg.parms[2]=group->m_topictext.Get();
+      Send(newmsg.build());
+    }
+
     return 0;
   }
 
