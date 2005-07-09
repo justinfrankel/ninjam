@@ -106,6 +106,8 @@ class User_Connection
 
     int OnRunAuth(User_Group *group);
 
+    void SendUserList(User_Group *group);
+
     Net_Connection m_netcon;
     WDL_String m_username;
     

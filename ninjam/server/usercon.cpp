@@ -163,6 +163,12 @@ int User_Connection::OnRunAuth(User_Group *group)
     }
   }
 
+  if (m_lookup->is_status)
+  {
+    SendUserList(group);
+    return 0;
+  }
+
   m_auth_privs=m_lookup->privs;
   m_max_channels = m_lookup->max_channels;
 
@@ -256,35 +262,8 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
 
-  // send user list to user
-  {
-    mpb_server_userinfo_change_notify bh;
 
-    int user;
-    for (user = 0; user < group->m_users.GetSize(); user++)
-    {
-      User_Connection *u=group->m_users.Get(user);
-      int channel;
-      if (u && u->m_auth_state>0 && u != this) 
-      {
-        int acnt=0;
-        for (channel = 0; channel < u->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
-        {
-          if (u->m_channels[channel].active)
-          {
-            bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
-                              u->m_username.Get(),u->m_channels[channel].name.Get());
-            acnt++;
-          }
-        }
-        if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
-        {
-            bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
-        }
-      }
-    }       
-    Send(bh.build());
-  }
+  SendUserList(group);
 
 
   {
@@ -303,6 +282,38 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   return 1;
 }
+
+// send user list to user
+void User_Connection::SendUserList(User_Group *group)
+{
+  mpb_server_userinfo_change_notify bh;
+
+  int user;
+  for (user = 0; user < group->m_users.GetSize(); user++)
+  {
+    User_Connection *u=group->m_users.Get(user);
+    int channel;
+    if (u && u->m_auth_state>0 && u != this) 
+    {
+      int acnt=0;
+      for (channel = 0; channel < u->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
+      {
+        if (u->m_channels[channel].active)
+        {
+          bh.build_add_rec(1,channel,u->m_channels[channel].volume,u->m_channels[channel].panning,u->m_channels[channel].flags,
+                            u->m_username.Get(),u->m_channels[channel].name.Get());
+          acnt++;
+        }
+      }
+      if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
+      {
+          bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
+      }
+    }
+  }       
+  Send(bh.build());
+}
+
 
 int User_Connection::Run(User_Group *group, int *wantsleep)
 {
