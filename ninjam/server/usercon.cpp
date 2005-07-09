@@ -165,9 +165,14 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   if (m_lookup->is_status)
   {
-
-    SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
     SendUserList(group);
+
+    {
+      mpb_server_config_change_notify mk;
+      mk.beats_interval=group->m_last_bpi;
+      mk.beats_minute=group->m_last_bpm;
+      Send(mk.build());
+    }
 
     {
       mpb_chat_message newmsg;
