@@ -611,11 +611,15 @@ void usage()
 {
     printf("Usage: NINJAMserver config.cfg [options]\n"
            "Options (override config file):\n"
+#ifndef _WIN32
            "  -pidfile <filename.pid>\n"
+#endif
            "  -logfile <filename.log>\n"
            "  -archive <path_to_archive>\n"
            "  -port <port>\n"
+#ifndef _WIN32
            "  -setuid <uid>\n"
+#endif
       );
     exit(1);
 }
