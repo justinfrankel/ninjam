@@ -48,6 +48,10 @@ static void chatcb(int user32, NJClient *inst, char **parms, int nparms) {
   String p0 = parms[0];
   if (p0.isequal("MSG")) {
     chatwnd->addChatLine(parms[1], parms[2]);
+  } else if (p0.isequal("JOIN") || p0.isequal("PART")) {
+    if (parms[1] && *parms[1]) {
+      chatwnd->addChatLine(NULL,StringPrintf("*** %s has %s the server",parms[1],parms[0][0]=='P' ? "left" : "joined"));
+    }
   } else if (p0.isequal("TOPIC")) {
     String newtopic = parms[2];
     newtopic.trim();
@@ -62,6 +66,7 @@ static void chatcb(int user32, NJClient *inst, char **parms, int nparms) {
       chatwnd->setName(StringPrintf("NINJAM chat: %s", newtopic.v()));
     }
   }
+
 }
 
 ChatWnd::ChatWnd() : OSDialog(IDD_CHAT) {
