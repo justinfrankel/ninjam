@@ -1,4 +1,4 @@
 
 #define APPNAME "NINJAM"
-#define VERSION "v0.01a ALPHA"
+#define VERSION "v0.01b ALPHA"
 

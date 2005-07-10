@@ -14,6 +14,8 @@ extern audioStreamer *g_audio;
 
 #include "locchanpanel.h"
 
+#define DEFAULT_LOCCHAN_NAME "unnamed"
+
 enum {
   CMD_REMOVEME,
   CMD_AUDIOSELECT_VIRTUAL=99,
@@ -27,7 +29,7 @@ static PopupMenu *subpop;
 LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
   : BasicPanel(wnd, IDD_PANEL_LOCALCHANNEL, StringPrintf("local/channel %02d", id)),
   broadcasting(StringPrintf("user settings/local/channel %02d/broadcasting", id)),
-  channel_name(StringPrintf("user settings/local/channel %02d/name", id))
+  channel_name(StringPrintf("user settings/local/channel %02d/name", id), DEFAULT_LOCCHAN_NAME)
 //CUT  src_channel(StringPrintf("%d src_channel", id))
 {
   channel_id = id;
