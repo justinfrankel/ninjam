@@ -98,9 +98,9 @@ void ChatWnd::addChatLine(const char *from, const char *txt) {
   String *line = NULL;
   if (from == NULL) {
     line = new String(txt);
-  } else if (!STRNINCMP(txt, CMD_ME)) {
+  } else if (!STRNINCMP(txt, CMD_ME " ")) {
     txt += STRLEN(CMD_ME);
-    line = new StringPrintf("%s%s", from, txt);
+    line = new StringPrintf("* %s%s", from, txt);
   } else if (from == NULL || *from == '\0') {
     line = new StringPrintf("*** %s", txt);
   } else {
@@ -120,13 +120,13 @@ void ChatWnd::addChatLine(const char *from, const char *txt) {
 }
 
 void ChatWnd::processUserEntry(const char *ln) {
-  if (*ln == CMD_CHAR) {
-    if (!STRNINCMP(ln+1, CMD_HELP)) {
+  if (*ln == CMD_CHAR && STRNINCMP(ln, CMD_ME " ")) {
+    if ((!STRNINCMP(ln+1, CMD_HELP) && ln[1+strlen(CMD_HELP)] == 0 || ln[1+strlen(CMD_HELP)] == ' ')) {
       addChatLine(NULL, HELPTEXT);
-    } else if (!STRNINCMP(ln+1, CMD_BPI) ||
-               !STRNINCMP(ln+1, CMD_BPM) ||
-               !STRNINCMP(ln+1, CMD_KICK) ||
-               !STRNINCMP(ln+1, CMD_TOPIC)
+    } else if ((!STRNINCMP(ln+1, CMD_BPI) && ln[1+strlen(CMD_BPI)] == 0 || ln[1+strlen(CMD_BPI)] == ' ') ||
+               (!STRNINCMP(ln+1, CMD_BPM) && ln[1+strlen(CMD_BPM)] == 0 || ln[1+strlen(CMD_BPM)] == ' ') ||
+               (!STRNINCMP(ln+1, CMD_KICK) && ln[1+strlen(CMD_KICK)] == 0 || ln[1+strlen(CMD_KICK)] == ' ') ||
+               (!STRNINCMP(ln+1, CMD_TOPIC) && ln[1+strlen(CMD_TOPIC)] == 0 || ln[1+strlen(CMD_TOPIC)] == ' ')
               ) {
       g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
     } else {
