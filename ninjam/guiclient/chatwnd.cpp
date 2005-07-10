@@ -131,7 +131,7 @@ void ChatWnd::processUserEntry(const char *ln) {
       g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
     } else {
       // unknown command
-      chatwnd->addChatLine(NULL, "Unknown command. For a list of commands, type \"/help\".");
+      addChatLine(NULL, "Unknown command. For a list of commands, type \"/help\".");
     }
   } else {
     g_client->ChatMessage_Send("MSG", (char*)ln);
