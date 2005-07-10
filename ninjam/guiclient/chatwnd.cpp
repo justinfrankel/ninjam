@@ -12,14 +12,16 @@
 
 #define CHATHISTLEN 128	//FUCKO configable, minimum 40 or something
 
+#define CMD_CHAR '/'
+
 //builtin
-#define CMD_HELP "/help"
+#define CMD_HELP "help"
 
 //outgoing
-#define CMD_BPM "/bpm"
-#define CMD_BPI "/bpi"
-#define CMD_KICK "/kick"
-#define CMD_TOPIC "/topic"
+#define CMD_BPM "bpm"
+#define CMD_BPI "bpi"
+#define CMD_KICK "kick"
+#define CMD_TOPIC "topic"
 
 //incoming
 #define CMD_ME "/me"
@@ -118,14 +120,19 @@ void ChatWnd::addChatLine(const char *from, const char *txt) {
 }
 
 void ChatWnd::processUserEntry(const char *ln) {
-  if (!STRNINCMP(ln, CMD_HELP)) {
-    addChatLine(NULL, HELPTEXT);
-  } else if (!STRNINCMP(ln, CMD_BPI) ||
-             !STRNINCMP(ln, CMD_BPM) ||
-             !STRNINCMP(ln, CMD_KICK) ||
-             !STRNINCMP(ln, CMD_TOPIC)
-            ) {
-    g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
+  if (*ln == CMD_CHAR) {
+    if (!STRNINCMP(ln+1, CMD_HELP)) {
+      addChatLine(NULL, HELPTEXT);
+    } else if (!STRNINCMP(ln+1, CMD_BPI) ||
+               !STRNINCMP(ln+1, CMD_BPM) ||
+               !STRNINCMP(ln+1, CMD_KICK) ||
+               !STRNINCMP(ln+1, CMD_TOPIC)
+              ) {
+      g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
+    } else {
+      // unknown command
+      chatwnd->addChatLine(NULL, "Unknown command. For a list of commands, type \"/help\".");
+    }
   } else {
     g_client->ChatMessage_Send("MSG", (char*)ln);
   }
