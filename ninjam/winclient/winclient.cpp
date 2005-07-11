@@ -590,9 +590,110 @@ void updateMasterControlLabels(HWND hwndDlg)
 
 RECT g_last_wndpos;
 
+
+static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  return 0;
+}
+
+static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  static int m_wh, m_ww,m_nScrollPos;
+  static int m_num_children, m_h;
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+    case WM_USER+49:
+      {
+        RECT r;
+        GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
+        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
+        ScreenToClient(GetParent(hwndDlg),((LPPOINT)&r) + 1);
+
+        SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww=r.right-r.left,m_wh=r.bottom-r.top,SWP_NOZORDER|SWP_NOACTIVATE);
+        m_h=0;
+
+#if 0
+        RECT r2;
+        GetClientRect(hwndDlg,&r2);
+
+        DWORD ws=GetWindowLong(hwndDlg,GWL_STYLE);
+
+        if (r2.bottom < m_wh) ws &= ~WS_VSCROLL;
+        else ws |= WS_VSCROLL;
+        if (r2.right < m_ww) ws &= ~WS_HSCROLL;
+        else ws |= WS_HSCROLL;
+
+        SetWindowLong(hwndDlg,GWL_STYLE,ws);
+#endif
+
+        if (uMsg == WM_INITDIALOG) ShowWindow(hwndDlg,SW_SHOWNA);
+      }
+    break;
+    case WM_USER+50:
+      {
+        // add a new child, with wParam as the index
+        HWND h=CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_LOCALCHANNEL),hwndDlg,LocalChannelItemProc,wParam);
+        if (h)
+        {
+          RECT sz;
+          GetClientRect(h,&sz);
+          SetWindowPos(h,NULL,0,sz.bottom*m_num_children,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+          ShowWindow(h,SW_SHOWNA);
+          m_num_children++;
+
+          m_h=sz.right,sz.bottom*m_num_children;
+        }
+      }
+    break;
+    case WM_VSCROLL:
+      {
+        int nSBCode=LOWORD(wParam);
+	      int nDelta=0;
+
+	      int nMaxPos = m_h - m_wh;
+
+	      switch (nSBCode)
+	      {
+          case SB_TOP:
+            nDelta = - m_nScrollPos;
+          break;
+          case SB_BOTTOM:
+            nDelta = nMaxPos - m_nScrollPos;
+          break;
+	        case SB_LINEDOWN:
+		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos);
+		      break;
+	        case SB_LINEUP:
+		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/100,m_nScrollPos);
+          break;
+          case SB_PAGEDOWN:
+		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos);
+		      break;
+          case SB_THUMBTRACK:
+	        case SB_THUMBPOSITION:
+		        nDelta = (int)HIWORD(wParam) - m_nScrollPos;
+		      break;
+	        case SB_PAGEUP:
+		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/10,m_nScrollPos);
+		      break;
+	      }
+        if (nDelta) 
+        {
+          m_nScrollPos += nDelta;
+	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
+	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
+        }
+      }
+    break;
+  }
+  return 0;
+}
+
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_WndSizer resize;
+  static HWND m_locwnd;
   switch (uMsg)
   {
     case WM_INITDIALOG:
@@ -676,9 +777,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         updateMasterControlLabels(hwndDlg);
 
+        m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,LocalChannelListProc);
      
-        g_client->SetLocalChannelInfo(0,"poo",true,0,false,0,true,true);
-
+        int x;
+        for (x = 0; x < 20; x ++)
+        {
+          g_client->SetLocalChannelInfo(x,"poo",true,0,false,0,true,false);
+          SendMessage(m_locwnd,WM_USER+50,x,0);
+        }
         SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
         // this will change when the server info changes
@@ -700,6 +806,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         ShowWindow(g_hwnd,SW_SHOW);
      
         SetTimer(hwndDlg,1,33,NULL);
+
       }
     break;
     case WM_TIMER:
@@ -816,6 +923,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       if (wParam != SIZE_MINIMIZED) 
       {
         resize.onResize();
+        if (m_locwnd)
+          SendMessage(m_locwnd,WM_USER+49,0,0);
       }
       if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) return 0;
     case WM_MOVE:

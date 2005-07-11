@@ -248,28 +248,38 @@ BEGIN
                     IDC_CHNOTE,7,99,227,8
 END
 
-IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 316, 39
+IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 316, 49
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
     EDITTEXT        IDC_NAME,0,0,82,14,ES_AUTOHSCROLL
     CONTROL         "Transmit",IDC_TRANSMIT,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,85,2,43,10
-    COMBOBOX        IDC_AUDIOIN,130,0,112,30,CBS_DROPDOWN | CBS_SORT | 
+                    WS_TABSTOP,85,3,43,10
+    COMBOBOX        IDC_AUDIOIN,130,1,112,148,CBS_DROPDOWNLIST | CBS_SORT | 
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
-                    WS_BORDER,246,0,70,8
-    CTEXT           "-120.0 dB",IDC_VULBL,246,9,70,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,82,
+                    WS_BORDER,246,6,70,8
+    LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,81,
                     11
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,85,19,
-                    43,11
-    CTEXT           "+0.0 dB center",IDC_VOLLBL,130,20,54,8
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,19,
+                    39,11
+    CTEXT           "+0.0 dB center",IDC_VOLLBL,127,20,54,8
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    187,20,32,10
+                    186,20,30,10
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    221,20,30,10
-    PUSHBUTTON      "Remove",IDC_REMOVE,255,20,56,10
+                    219,20,30,10
+    PUSHBUTTON      "Remove",IDC_REMOVE,265,30,50,13
+    CONTROL         "Effects processor",IDC_JS,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,3,33,68,10
+    PUSHBUTTON      "config...",IDC_BUTTON2,75,33,38,10
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,45,315,1
+END
+
+IDD_EMPTY DIALOG DISCARDABLE  0, 0, 201, 93
+STYLE WS_CHILD | WS_VSCROLL | WS_HSCROLL
+FONT 8, "MS Sans Serif"
+BEGIN
 END
 
 
@@ -324,6 +334,19 @@ BEGIN
         RIGHTMARGIN, 234
         TOPMARGIN, 7
         BOTTOMMARGIN, 135
+    END
+
+    IDD_LOCALCHANNEL, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 47
+    END
+
+    IDD_EMPTY, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 184
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 76
     END
 END
 #endif    // APSTUDIO_INVOKED

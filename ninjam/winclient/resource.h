@@ -14,6 +14,7 @@
 #define IDD_LICENSE                     107
 #define IDD_PREFS                       108
 #define IDD_LOCALCHANNEL                110
+#define IDD_EMPTY                       111
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -80,6 +81,8 @@
 #define IDC_VOL                         1045
 #define IDC_PAN                         1046
 #define IDC_VOLLBL                      1047
+#define IDC_JS                          1048
+#define IDC_BUTTON2                     1049
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -92,9 +95,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        111
+#define _APS_NEXT_RESOURCE_VALUE        112
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1048
+#define _APS_NEXT_CONTROL_VALUE         1050
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
