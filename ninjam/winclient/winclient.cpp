@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <richedit.h>
 #include <commctrl.h>
 #include "../audiostream_asio.h"
 #define strncasecmp strnicmp
@@ -33,41 +34,11 @@ HICON g_hSmallIcon;
 HINSTANCE g_hInst;
 HWND g_hwnd;
 WDL_String g_topic;
-WDL_PtrList<char> g_chat_buffers;
 
-void addChatLine(char *src, char *text)
-{
-  while (g_chat_buffers.GetSize() > 256)
-  {
-    free(g_chat_buffers.Get(0));
-    g_chat_buffers.Delete(0);
-  }
-  WDL_String tmp;
-  if (src && *src && !strncmp(text,"/me ",4))
-  {
-    tmp.Set("* ");
-    tmp.Append(src);
-    tmp.Append(" ");
-    char *p=text+3;
-    while (*p == ' ') p++;
-    tmp.Append(p);
-  }
-  else
-  {
-   if (src&&*src)
-   {
-     tmp.Set("<");
-     tmp.Append(src);
-     tmp.Append("> ");
-   }
-   else if (src)
-   {
-     tmp.Set("*** ");
-   }
-   tmp.Append(text);
-  }
-  g_chat_buffers.Add(strdup(tmp.Get()));
-}
+
+extern void addChatLine(char *src, char *text);
+extern void chatInit(HWND hwndDlg);
+
 
 void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 {
@@ -81,13 +52,29 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
       if (parms[1] && *parms[1])
       {
         tmp.Set(parms[1]);
-        tmp.Append(" sets topic to: ");
+        if (parms[2][0])
+        {
+          tmp.Append(" sets topic to: ");
+          tmp.Append(parms[2]);
+        }
+        else
+        {
+          tmp.Append(" removes topic.");
+        }  
       }
-      else tmp.Set("Topic is: ");
-      tmp.Append(parms[2]);
+      else
+      {
+        if (parms[2][0])
+        {
+          tmp.Set("Topic is: ");
+          tmp.Append(parms[2]);
+        }
+        else tmp.Set("No topic is set.");
+      }
 
       g_topic.Set(parms[2]);
-      addChatLine("",tmp.Get());   
+      addChatLine("",tmp.Get());
+    
     }
   }
   else if (!strcmp(parms[0],"MSG"))
@@ -479,12 +466,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         resize.init_item(IDC_CHATDISP,     0.7f, 0.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATENT,      0.7f, 1.0f,  1.0f,  1.0f);
+        resize.init_item(IDC_CHATOK,       1.0f, 1.0f,  1.0f,  1.0f);
         
         resize.init_item(IDC_LOCALSCROLL,  0.7f, 0.0f,  0.7f,  0.5f);
         resize.init_item(IDC_REMOTESCROLL, 0.7f, 0.5f,  0.7f,  1.0f);
         
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.7f,  0.5f);
         resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);      
+
+        chatInit(hwndDlg);
 
         ShowWindow(g_hwnd,SW_SHOWNA);
      
@@ -574,6 +564,80 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         case ID_FILE_QUIT:
           PostMessage(hwndDlg,WM_CLOSE,0,0);
         break;
+        case IDC_CHATOK:
+          {
+            char str[256];
+            GetDlgItemText(hwndDlg,IDC_CHATENT,str,255);
+            if (str[0])
+            {
+              if (!strcasecmp(str,"/clear"))
+              {
+                    SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
+              }
+              else if (g_client->GetStatus() == NJClient::NJC_STATUS_OK)
+              {
+                if (str[0] == '/')
+                {
+                  if (!strncasecmp(str,"/me ",4))
+                  {
+                    g_client->ChatMessage_Send("MSG",str);
+                  }
+                  else if (!strncasecmp(str,"/topic ",7)||
+                           !strncasecmp(str,"/kick ",6) ||                        
+                           !strncasecmp(str,"/bpm ",5) ||
+                           !strncasecmp(str,"/bpi ",5)
+                    ) // alias to /admin *
+                  {
+                    g_client->ChatMessage_Send("ADMIN",str+1);
+                  }
+                  else if (!strncasecmp(str,"/admin ",7))
+                  {
+                    char *p=str+7;
+                    while (*p == ' ') p++;
+                    g_client->ChatMessage_Send("ADMIN",p);
+                  }
+                  else if (!strncasecmp(str,"/msg ",5))
+                  {
+                    char *p=str+5;
+                    while (*p == ' ') p++;
+                    char *n=p;
+                    while (*p && *p != ' ') p++;
+                    if (*p == ' ') *p++=0;
+                    while (*p == ' ') p++;
+                    if (*p)
+                    {
+                      g_client->ChatMessage_Send("PRIVMSG",n,p);
+                      WDL_String tmp;
+                      tmp.Set("-> *");
+                      tmp.Append(n);
+                      tmp.Append("* ");
+                      tmp.Append(p);
+                      addChatLine(NULL,tmp.Get());
+                    }
+                    else
+                    {
+                      addChatLine("","error: /msg requires a username and a message.");
+                    }
+                  }
+                  else
+                  {
+                    addChatLine("","error: unknown command.");
+                  }
+                }
+                else
+                {
+                  g_client->ChatMessage_Send("MSG",str);
+                }
+              }
+              else
+              {
+                addChatLine("","error: not connected to a server.");
+              }
+            }
+            SetDlgItemText(hwndDlg,IDC_CHATENT,"");
+            SetFocus(GetDlgItem(hwndDlg,IDC_CHATENT));
+          }
+        break;
       }
     break;
     case WM_CLOSE:
@@ -648,6 +712,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   g_client = new NJClient;
 
   g_client->LicenseAgreementCallback = licensecallback;
+  g_client->ChatMessage_Callback = chatmsg_cb;
 
 
   if (!CreateDialog(hInstance,MAKEINTRESOURCE(IDD_MAIN),GetDesktopWindow(),MainProc))

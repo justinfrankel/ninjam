@@ -277,6 +277,10 @@ SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbis_static.lib"
 # End Group
 # Begin Source File
 
+SOURCE=.\chat.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\winclient.cpp
 # End Source File
 # Begin Source File
