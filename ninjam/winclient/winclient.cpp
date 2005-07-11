@@ -21,10 +21,14 @@
 #include "../../jesusonic/jesusonic_dll.h"
 #endif
 
+#define CONFSEC "ninjam"
+
 #define VALIDATE_TEXT_CHAR(thischar) ((isspace(thischar) || isgraph(thischar)) && (thischar) < 256)
 
 int g_done=0;
 
+char g_exepath[1024];
+WDL_String g_ini_file;
 HICON g_hSmallIcon;
 HINSTANCE g_hInst;
 HWND g_hwnd;
@@ -230,7 +234,68 @@ int licensecallback(int user32, char *licensetext)
   return 1;
 }
 
+WDL_String g_connect_user,g_connect_pass,g_connect_host;
+int g_connect_anon;
 
+static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+      {
+        SetDlgItemText(hwndDlg,IDC_HOST,g_connect_host.Get());
+        SetDlgItemText(hwndDlg,IDC_USER,g_connect_user.Get());
+        SetDlgItemText(hwndDlg,IDC_PASS,g_connect_pass.Get());
+        if (!g_connect_anon)
+        {
+          ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
+          ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
+        }
+        else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
+      }
+    return 0;
+
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDC_ANON:
+          if (IsDlgButtonChecked(hwndDlg,IDC_ANON))
+          {
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_HIDE);
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_HIDE);
+          }
+          else
+          {
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
+          }
+        break;
+
+        case IDOK:
+          {
+            g_connect_anon=!!IsDlgButtonChecked(hwndDlg,IDC_ANON);
+            WritePrivateProfileString(CONFSEC,"anon",g_connect_anon?"1":"0",g_ini_file.Get());
+            char buf[512];
+            GetDlgItemText(hwndDlg,IDC_HOST,buf,sizeof(buf));
+            g_connect_host.Set(buf);
+            WritePrivateProfileString(CONFSEC,"host",buf,g_ini_file.Get());
+            GetDlgItemText(hwndDlg,IDC_USER,buf,sizeof(buf));
+            g_connect_user.Set(buf);
+            WritePrivateProfileString(CONFSEC,"user",buf,g_ini_file.Get());
+            GetDlgItemText(hwndDlg,IDC_PASS,buf,sizeof(buf));
+            g_connect_pass.Set(buf);
+            WritePrivateProfileString(CONFSEC,"pass",buf,g_ini_file.Get());
+            EndDialog(hwndDlg,1);
+          }
+        break;
+        case IDCANCEL:
+          EndDialog(hwndDlg,0);
+        break;
+      }
+    return 0;
+  }
+  return 0;
+}
 
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -240,7 +305,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_INITDIALOG:
       {
         g_hwnd=hwndDlg;
-        ShowWindow(g_hwnd,SW_SHOWNA);
 
         resize.init(hwndDlg);
 
@@ -272,10 +336,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_REMOTESCROLL, 0.7f, 0.5f,  0.7f,  1.0f);
         
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.7f,  0.5f);
-        resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);
+        resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);      
 
-        
-
+        ShowWindow(g_hwnd,SW_SHOWNA);
+     
       }
     break;
     case WM_GETMINMAXINFO:
@@ -295,6 +359,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case ID_FILE_CONNECT:
+          if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
+          {
+            // disconnect
+            // reconnect
+          }
+        break;
+        case ID_OPTIONS_AUDIOCONFIGURATION:
+          CreateConfiguredStreamer(g_ini_file.Get(),-1,hwndDlg);
+        break;
         case ID_FILE_QUIT:
           PostMessage(hwndDlg,WM_CLOSE,0,0);
         break;
@@ -315,6 +389,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   g_hInst=hInstance;
   InitCommonControls();
   CoInitialize(0);
+
+  {
+    GetModuleFileName(g_hInst,g_exepath,sizeof(g_exepath));
+    char *p=g_exepath;
+    while (*p) p++;
+    while (p >= g_exepath && *p != '\\') p--; *++p=0;
+    g_ini_file.Set(g_exepath);
+    g_ini_file.Append("ninjam.ini");
+  }
+
+  // read config file
+  {
+    char buf[512];
+    GetPrivateProfileString(CONFSEC,"host","",buf,sizeof(buf),g_ini_file.Get());
+    g_connect_host.Set(buf);
+    GetPrivateProfileString(CONFSEC,"user","",buf,sizeof(buf),g_ini_file.Get());
+    g_connect_user.Set(buf);
+    GetPrivateProfileString(CONFSEC,"pass","",buf,sizeof(buf),g_ini_file.Get());
+    g_connect_pass.Set(buf);
+    g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
+  }
 
 
   { // load richedit DLL

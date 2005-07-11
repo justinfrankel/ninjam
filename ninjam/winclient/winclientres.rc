@@ -192,6 +192,24 @@ BEGIN
                     7,150,288,151
 END
 
+IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 105
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NINJAM Connection Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Connect",IDOK,112,84,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,168,84,50,14
+    LTEXT           "Connect to host:",IDC_STATIC,7,16,53,8
+    EDITTEXT        IDC_HOST,63,15,155,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_USER,63,32,155,12,ES_AUTOHSCROLL
+    LTEXT           "Username:",IDC_STATIC,7,34,35,8
+    CONTROL         "Connect anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,64,49,85,10
+    LTEXT           "Password:",IDC_PASSLBL,7,63,34,8,NOT WS_VISIBLE
+    EDITTEXT        IDC_PASS,63,61,155,12,ES_PASSWORD | ES_AUTOHSCROLL | NOT 
+                    WS_VISIBLE
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -221,6 +239,14 @@ BEGIN
         TOPMARGIN, 6
         BOTTOMMARGIN, 322
     END
+
+    IDD_CONNECT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 218
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 98
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -242,6 +268,8 @@ BEGIN
     POPUP "&Options"
     BEGIN
         MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
+        MENUITEM "&Audio configuration...",     ID_OPTIONS_AUDIOCONFIGURATION
+
     END
     POPUP "&Help"
     BEGIN

@@ -10,6 +10,7 @@
 #define IDD_CFG_ASIO                    104
 #define IDB_BITMAP1                     104
 #define IDD_CFG_KS                      105
+#define IDD_CONNECT                     106
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -40,6 +41,7 @@
 #define IDC_DIV2                        1012
 #define IDC_CHECK1                      1013
 #define IDC_MASTERMUTE                  1013
+#define IDC_ANON                        1013
 #define IDC_BUTTON1                     1014
 #define IDC_METROMUTE                   1014
 #define IDC_CHATDISP                    1017
@@ -49,20 +51,25 @@
 #define IDC_REMOTESCROLL                1020
 #define IDC_LOCRECT                     1021
 #define IDC_REMOTERECT                  1022
+#define IDC_PASSLBL                     1022
+#define IDC_PASS                        1023
+#define IDC_USER                        1024
+#define IDC_HOST                        1025
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
 #define ID_HELP_ABOUTNINJAM             40004
 #define ID_OPTIONS_PREFERENCES          40005
 #define ID_OPTIONS_ALWAYSONTOP          40006
+#define ID_OPTIONS_AUDIOCONFIGURATION   40007
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        105
-#define _APS_NEXT_COMMAND_VALUE         40007
-#define _APS_NEXT_CONTROL_VALUE         1022
+#define _APS_NEXT_RESOURCE_VALUE        107
+#define _APS_NEXT_COMMAND_VALUE         40008
+#define _APS_NEXT_CONTROL_VALUE         1026
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
