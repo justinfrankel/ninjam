@@ -215,7 +215,9 @@ STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Server License Agreement"
 FONT 8, "MS Sans Serif"
 BEGIN
-    PUSHBUTTON      "Accept",IDOK,206,194,50,14
+    CONTROL         "I &agree to the above license terms",IDC_CHECK1,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,82,195,119,10
+    PUSHBUTTON      "Accept",IDOK,206,194,50,14,WS_DISABLED
     PUSHBUTTON      "Decline",IDCANCEL,259,194,50,14
     CONTROL         "",IDC_LICENSETEXT,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,7,7,302,183
@@ -241,7 +243,9 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,43,148,10
     LTEXT           "Save session files in:",IDC_STATIC,7,59,66,8
     EDITTEXT        IDC_SESSIONDIR,7,69,182,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse...",IDC_BUTTON1,192,69,42,12
+    PUSHBUTTON      "Browse...",IDC_BROWSE,192,69,42,12
+    LTEXT           "Changes to the above settings will take effect on the next connection.",
+                    IDC_CHNOTE,7,99,227,8
 END
 
 

@@ -66,6 +66,8 @@
 #define IDC_SAVELOCALWAV                1032
 #define IDC_SAVEOGGBR                   1033
 #define IDC_SESSIONDIR                  1034
+#define IDC_BROWSE                      1035
+#define IDC_CHNOTE                      1036
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -80,7 +82,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        109
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1035
+#define _APS_NEXT_CONTROL_VALUE         1037
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

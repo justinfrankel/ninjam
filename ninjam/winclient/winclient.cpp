@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <richedit.h>
+#include <shlobj.h>
 #include <commctrl.h>
 #include "../audiostream_asio.h"
 #define strncasecmp strnicmp
@@ -242,6 +243,9 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_CHECK1:
+          EnableWindow(GetDlgItem(hwndDlg,IDOK),!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
+        break;
         case IDOK:
           EndDialog(hwndDlg,1);
         break;
@@ -285,12 +289,35 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
         else 
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
         
+        if (g_client->GetStatus() != NJClient::NJC_STATUS_OK)
+          ShowWindow(GetDlgItem(hwndDlg,IDC_CHNOTE),SW_HIDE);
       }
     return 0;
 
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_BROWSE:
+          {
+            BROWSEINFO bi={0,};
+			      ITEMIDLIST *idlist;
+			      char name[2048];
+			      GetDlgItemText(hwndDlg,IDC_SESSIONDIR,name,sizeof(name));
+			      bi.hwndOwner = hwndDlg;
+			      bi.pszDisplayName = name;
+			      bi.lpszTitle = "Select a directory:";
+			      bi.ulFlags = BIF_RETURNONLYFSDIRS;
+			      idlist = SHBrowseForFolder( &bi );
+			      if (idlist) 
+            {
+				      SHGetPathFromIDList( idlist, name );        
+	            IMalloc *m;
+	            SHGetMalloc(&m);
+	            m->Free(idlist);
+				      SetDlgItemText(hwndDlg,IDC_SESSIONDIR,name);
+			      }
+          }
+        break;
         case IDOK:
           {
             WritePrivateProfileString(CONFSEC,"savelocal",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCAL)?"1":"0",g_ini_file.Get());
@@ -460,7 +487,22 @@ void do_connect()
 
   char buf[2048];
   int cnt=0;
-  
+
+  char sroot[2048];
+  GetPrivateProfileString(CONFSEC,"sessiondir","",sroot,sizeof(sroot),g_ini_file.Get());
+
+  if (!sroot[0])
+    strcpy(sroot,g_exepath);
+
+  {
+    char *p=sroot;
+    while (*p) p++;
+    p--;
+    while (p >= sroot && (*p == '/' || *p == '\\')) p--;
+    p[1]=0;
+  }
+
+  CreateDirectory(sroot,NULL);
   while (cnt < 16)
   {
     time_t tv;
@@ -468,7 +510,8 @@ void do_connect()
     struct tm *t=localtime(&tv);
   
     buf[0]=0;
-    strcpy(buf,g_exepath);
+
+    strcpy(buf,sroot);
     sprintf(buf+strlen(buf),"\\%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
