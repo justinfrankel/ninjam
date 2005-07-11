@@ -31,7 +31,7 @@
 #define WM_LCUSER_REPOP_CH WM_USER+53
 #define WM_RCUSER_UPDATE WM_USER+54
 
-#define VERSION "0.0a"
+#define VERSION "0.02a"
 
 #define CONFSEC "ninjam"
 
