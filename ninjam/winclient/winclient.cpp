@@ -686,7 +686,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
-        SendDlgItemMessage(hwndDlg,IDC_VU,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
@@ -1734,7 +1734,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         ShowWindow(g_hwnd,SW_SHOW);
      
-        SetTimer(hwndDlg,1,33,NULL);
+        SetTimer(hwndDlg,1,50,NULL);
 
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
