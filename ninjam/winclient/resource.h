@@ -82,7 +82,7 @@
 #define IDC_PAN                         1046
 #define IDC_VOLLBL                      1047
 #define IDC_JS                          1048
-#define IDC_BUTTON2                     1049
+#define IDC_JSCFG                       1049
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003

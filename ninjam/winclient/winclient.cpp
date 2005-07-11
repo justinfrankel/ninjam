@@ -23,6 +23,12 @@
 #include "../../jesusonic/jesusonic_dll.h"
 #endif
 
+#define WM_LCUSER_ADDCHILD WM_USER+50
+#define WM_LCUSER_REMCHILD WM_USER+51
+#define WM_LCUSER_RESIZE WM_USER+49
+#define WM_LCUSER_VUUPDATE WM_USER+52
+
+
 #define CONFSEC "ninjam"
 
 #define VALIDATE_TEXT_CHAR(thischar) ((isspace(thischar) || isgraph(thischar)) && (thischar) < 256)
@@ -135,7 +141,7 @@ double VAL2DB(double x)
 #define MAX_JESUS_INST 32
 jesusonicAPI *JesusonicAPI;  
 HINSTANCE hDllInst;
-char *jesusdir=NULL;
+char *jesusdir="C:\\mhc\\jesusonic";
 #endif
 
 
@@ -191,21 +197,37 @@ void jesusonic_processor(float *buf, int len, void *inst)
   }
 #endif
 }
+
+
+
 #ifdef _WIN32
-void CreateJesusInstance(int a)
+
+void JesusUpdateInfo(void *myInst, char *chdesc)
+{
+  if (myInst)
+  {
+    JesusonicAPI->set_sample_fmt(myInst,g_audio?g_audio->m_srate:44100,1,33);
+    WDL_String tmp("NINJAM embedded: ");
+    tmp.Append(chdesc);
+    JesusonicAPI->set_status(myInst,"",tmp.Get());
+  }
+}
+
+int CreateJesusInstance(int a, char *chdesc)
 {
   if (JesusonicAPI)
   {
     void *myInst=JesusonicAPI->createInstance();
+    if (!myInst) return 0;
     JesusonicAPI->set_rootdir(myInst,jesusdir);
     JesusonicAPI->ui_init(myInst);
     JesusonicAPI->set_opts(myInst,1,1,-1);
-    JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,1,33);
-    JesusonicAPI->set_status(myInst,"","NINJAM embedded");
-    HWND h=JesusonicAPI->ui_wnd_create(myInst);
-    ShowWindow(h,SW_SHOWNA);
-    SetTimer(h,1,40,NULL);
-    SetForegroundWindow(h);
+
+    JesusUpdateInfo(myInst,chdesc);
+//    HWND h=JesusonicAPI->ui_wnd_create(myInst);
+//    ShowWindow(h,SW_SHOWNA);
+//    SetTimer(h,1,40,NULL);
+ //   SetForegroundWindow(h);
 
     char buf[4096];
     sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",a);
@@ -213,7 +235,9 @@ void CreateJesusInstance(int a)
     JesusonicAPI->preset_load(myInst,buf);
 
     g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
+    return 1;
   }
+  return 0;
 }
 #endif
 
@@ -222,7 +246,7 @@ void mkvolpanstr(char *str, double vol, double pan)
 {
   double v=VAL2DB(vol);
   if (vol < 0.0000001 || v < -120.0) v=-120.0;
-    sprintf(str,"%2.1fdB ",v);   
+    sprintf(str,"%s%2.1fdB ",v>0.0?"+":"",v);   
     if (fabs(pan) < 0.0001) strcat(str,"center");
     else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
 }
@@ -535,6 +559,8 @@ void do_connect()
     SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR OPENING AUDIO");
     return;
   }
+
+  // todo: configure any running jesusonic instances with new samplerate
   
   g_client->SetWorkDir(buf);
 
@@ -593,8 +619,176 @@ RECT g_last_wndpos;
 
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+      m_idx=lParam;
+      SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
+
+      {
+        int sch;
+        bool bc;
+        char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc);
+        float vol=0.0,pan=0.0 ;
+        bool ismute=0,issolo=0;
+        g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
+        void *jesinst=0;
+        g_client->GetLocalChannelProcessor(m_idx,NULL,&jesinst);
+
+        if (buf) SetDlgItemText(hwndDlg,IDC_NAME,buf);
+        if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
+        if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
+        if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
+        if (jesinst) CheckDlgButton(hwndDlg,IDC_JS,BST_CHECKED);
+
+        // todo: populate IDC_AUDIOIN
+
+        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
+        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
+
+        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
+        int t=(int)(pan*50.0) + 50;
+        if (t < 0) t=0; else if (t > 100)t=100;
+        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
+
+        {
+         char tmp[512];
+         mkvolpanstr(tmp,vol,pan);
+         SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+        }
+
+      }
+    return 0;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDC_TRANSMIT:
+          g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
+          g_client->NotifyServerOfChannelChange();
+        break;
+        case IDC_SOLO:
+          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,false,false,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
+          g_client->NotifyServerOfChannelChange();
+        break;
+        case IDC_MUTE:
+          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
+          g_client->NotifyServerOfChannelChange();
+        break;
+        case IDC_NAME:
+          if (HIWORD(wParam) == EN_CHANGE)
+          {
+            char buf[512];
+            GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
+            g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
+            g_client->NotifyServerOfChannelChange();
+            void *i=0;
+            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+            if (i)
+            {
+              JesusUpdateInfo(i,buf);
+            }
+          }
+        break;
+        case IDC_REMOVE:
+          {
+            // remove JS for this channel
+            void *i=0;
+            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+            if (i) deleteJesusonicProc(i,m_idx);
+            g_client->SetLocalChannelProcessor(m_idx,NULL,NULL);
+
+            // remove the channel
+            g_client->DeleteLocalChannel(m_idx);
+            SendMessage(GetParent(hwndDlg),WM_LCUSER_REMCHILD,0,(LPARAM)hwndDlg);
+            DestroyWindow(hwndDlg);
+          }
+        break;
+        case IDC_JS:
+          if (IsDlgButtonChecked(hwndDlg,IDC_JS))
+          {
+            char buf[512];
+            GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
+            if (CreateJesusInstance(m_idx,buf))
+            {
+              EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),1);
+            }
+          }
+          else
+          {
+            void *i=0;
+            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+            if (i)
+            {
+              deleteJesusonicProc(i,m_idx);
+              g_client->SetLocalChannelProcessor(m_idx,NULL,NULL);
+            }
+            EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),0);
+          }
+        break;
+        case IDC_JSCFG:
+          {
+            void *i=0;
+            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+            HWND h=JesusonicAPI->ui_wnd_gethwnd(i);
+            if (h && IsWindow(h))
+            {
+              ShowWindow(h,SW_SHOWNA);
+              SetForegroundWindow(h);
+            }
+            else
+            {
+              HWND h=JesusonicAPI->ui_wnd_create(i);
+              ShowWindow(h,SW_SHOWNA);
+              SetTimer(h,1,40,NULL);
+              SetForegroundWindow(h);
+            }
+          }
+        break;
+        //todo: IDC_AUDIOIN
+
+      }
+    return 0;
+    case WM_HSCROLL:
+      {
+        double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
+
+		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
+          g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(SLIDER2DB(pos)),false,0.0,false,false,false,false);
+		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
+        {
+          if (fabs(pos) < 0.08) pos=0.0;
+          g_client->SetLocalChannelMonitoring(m_idx,false,false,true,((float)pos-50.0f)/50.0f,false,false,false,false);
+        }
+        else return 0;
+
+        float vol,pan;
+        g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, NULL, NULL);
+        char tmp[512];
+        mkvolpanstr(tmp,vol,pan);
+        SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+      }
+    return 0;
+    case WM_LCUSER_VUUPDATE:
+      {
+        double val=VAL2DB(g_client->GetLocalChannelPeak(m_idx));
+        int ival=(int)((val+100.0)/1.2);
+        if (ival < 0) ival=0;
+        else if (ival > 100) ival=100;
+        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
+
+        char buf[128];
+        sprintf(buf,"%.2f dB",val);
+        SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
+      }
+    return 0;
+
+  };
   return 0;
 }
+
 
 static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -602,8 +796,9 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
   static int m_num_children, m_h;
   switch (uMsg)
   {
+
     case WM_INITDIALOG:
-    case WM_USER+49:
+    case WM_LCUSER_RESIZE:
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
@@ -630,7 +825,18 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (uMsg == WM_INITDIALOG) ShowWindow(hwndDlg,SW_SHOWNA);
       }
     break;
-    case WM_USER+50:
+    case WM_LCUSER_VUUPDATE:
+      {
+        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
+
+        while (hwnd)
+        {
+          SendMessage(hwnd,WM_LCUSER_VUUPDATE,0,0);
+          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
+        }        
+      }
+    break;
+    case WM_LCUSER_ADDCHILD:
       {
         // add a new child, with wParam as the index
         HWND h=CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_LOCALCHANNEL),hwndDlg,LocalChannelItemProc,wParam);
@@ -644,6 +850,39 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
           m_h=sz.right,sz.bottom*m_num_children;
         }
+      }
+    break;
+    case WM_LCUSER_REMCHILD:
+      // remove a child, move everything up
+      if (lParam) 
+      {
+        HWND h=(HWND)lParam;
+        RECT cr;
+        GetWindowRect(h,&cr);
+        ScreenToClient(hwndDlg,(LPPOINT)&cr);
+        ScreenToClient(hwndDlg,((LPPOINT)&cr) + 1);
+
+        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
+
+        while (hwnd)
+        {
+          if (hwnd != h)
+          {
+            RECT tr;
+            GetWindowRect(hwnd,&tr);
+            ScreenToClient(hwndDlg,(LPPOINT)&tr);
+            ScreenToClient(hwndDlg,((LPPOINT)&tr) + 1);
+
+            if (tr.top > cr.top)
+            {
+              tr.top -= cr.bottom-cr.top;
+              SetWindowPos(hwnd,NULL,tr.left,tr.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            }
+          }
+
+          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
+        }        
+        m_num_children--;
       }
     break;
     case WM_VSCROLL:
@@ -782,14 +1021,12 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         int x;
         for (x = 0; x < 20; x ++)
         {
-          g_client->SetLocalChannelInfo(x,"poo",true,0,false,0,true,false);
-          SendMessage(m_locwnd,WM_USER+50,x,0);
+          char buf[64];
+          sprintf(buf, " ch %d ",x);
+          g_client->SetLocalChannelInfo(x,buf,true,0,false,0,true,false);
+          SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,x,0);
         }
         SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
-
-        // this will change when the server info changes
-        SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,16));
-
 
         g_last_wndpos.left = GetPrivateProfileInt(CONFSEC,"wnd_x",0,g_ini_file.Get());
         g_last_wndpos.top = GetPrivateProfileInt(CONFSEC,"wnd_y",0,g_ini_file.Get());
@@ -800,7 +1037,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         {
           SetWindowPos(hwndDlg,NULL,g_last_wndpos.left,g_last_wndpos.top,g_last_wndpos.right-g_last_wndpos.left,g_last_wndpos.bottom-g_last_wndpos.top,SWP_NOZORDER);
         }
-        // get window position from cfg
         else GetWindowRect(hwndDlg,&g_last_wndpos);
 
         ShowWindow(g_hwnd,SW_SHOW);
@@ -822,7 +1058,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
           if (g_client->HasUserInfoChanged())
           {
-            // update remote user list
+            // todo: update remote user list
           }
 
           int ns=g_client->GetStatus();
@@ -903,9 +1139,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
             }
 
+            SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
           }
 
-          // update local/remote VU meters
+          // todo: update remote VU meters
 
           in_t=0;
         }
@@ -924,7 +1161,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       {
         resize.onResize();
         if (m_locwnd)
-          SendMessage(m_locwnd,WM_USER+49,0,0);
+          SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
       }
       if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) return 0;
     case WM_MOVE:
@@ -1172,6 +1409,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     wc.lpszClassName = "NINJAMwnd";
     RegisterClass(&wc);
   }
+
+  // todo: jesusdir config
+#ifdef _WIN32
+  WDL_String jesusonic_configfile;
+  if (jesusdir)
+  {
+    jesusonic_configfile.Set(jesusdir);
+    jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
+    WDL_String dll;
+    dll.Set(jesusdir);
+    dll.Append("\\jesus.dll");
+
+    hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
+    if (!hDllInst) hDllInst = LoadLibrary(dll.Get());
+    if (hDllInst) 
+    {
+      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
+      if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
+      {
+      }
+      else JesusonicAPI = 0;
+    }
+  }
+
+#endif
 
 
 

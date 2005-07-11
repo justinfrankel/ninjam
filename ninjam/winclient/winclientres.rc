@@ -272,7 +272,7 @@ BEGIN
     PUSHBUTTON      "Remove",IDC_REMOVE,265,30,50,13
     CONTROL         "Effects processor",IDC_JS,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,3,33,68,10
-    PUSHBUTTON      "config...",IDC_BUTTON2,75,33,38,10
+    PUSHBUTTON      "config...",IDC_JSCFG,75,33,38,10,WS_DISABLED
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,45,315,1
 END
 
