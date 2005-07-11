@@ -8,7 +8,6 @@
 #define IDD_CFG_WAVEOUT                 103
 #define IDI_ICON1                       103
 #define IDD_CFG_ASIO                    104
-#define IDB_BITMAP1                     104
 #define IDD_CFG_KS                      105
 #define IDD_CONNECT                     106
 #define IDD_LICENSE                     107
