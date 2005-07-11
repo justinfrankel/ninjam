@@ -282,6 +282,13 @@ FONT 8, "MS Sans Serif"
 BEGIN
 END
 
+IDD_LOCALLIST DIALOG DISCARDABLE  0, 0, 201, 93
+STYLE WS_CHILD | WS_VSCROLL | WS_HSCROLL
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Add Local Channel",IDC_ADDCH,0,0,76,14
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -346,6 +353,12 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 184
         TOPMARGIN, 7
+        BOTTOMMARGIN, 76
+    END
+
+    IDD_LOCALLIST, DIALOG
+    BEGIN
+        RIGHTMARGIN, 184
         BOTTOMMARGIN, 76
     END
 END

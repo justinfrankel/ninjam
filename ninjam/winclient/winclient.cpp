@@ -224,10 +224,6 @@ int CreateJesusInstance(int a, char *chdesc)
     JesusonicAPI->set_opts(myInst,1,1,-1);
 
     JesusUpdateInfo(myInst,chdesc);
-//    HWND h=JesusonicAPI->ui_wnd_create(myInst);
-//    ShowWindow(h,SW_SHOWNA);
-//    SetTimer(h,1,40,NULL);
- //   SetForegroundWindow(h);
 
     char buf[4096];
     sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",a);
@@ -560,7 +556,18 @@ void do_connect()
     return;
   }
 
-  // todo: configure any running jesusonic instances with new samplerate
+  // configure any running jesusonic instances with new samplerate
+  {
+    int x=0;
+    for (x = 0;;x++)
+    {
+      int a=g_client->EnumLocalChannels(x);
+      if (a<0) break;
+      void *i=0;
+      g_client->GetLocalChannelProcessor(a,NULL,&i);
+      if (i) JesusUpdateInfo(i,g_client->GetLocalChannelInfo(a,NULL,NULL,NULL));
+    }
+  }
   
   g_client->SetWorkDir(buf);
 
@@ -794,10 +801,12 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 {
   static int m_wh, m_ww,m_nScrollPos;
   static int m_num_children, m_h;
+  static HWND hwndAddButton;
   switch (uMsg)
   {
 
     case WM_INITDIALOG:
+      hwndAddButton=GetDlgItem(hwndDlg,IDC_ADDCH);
     case WM_LCUSER_RESIZE:
       {
         RECT r;
@@ -831,11 +840,23 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         while (hwnd)
         {
-          SendMessage(hwnd,WM_LCUSER_VUUPDATE,0,0);
+          if (hwnd != hwndAddButton) SendMessage(hwnd,WM_LCUSER_VUUPDATE,0,0);
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
       }
     break;
+    case WM_COMMAND:
+      if (LOWORD(wParam) != IDC_ADDCH) return 0;
+      {
+        int idx;
+        int maxc=g_client->GetMaxLocalChannels();
+        for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
+        if (idx >= maxc) return 0;
+        g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
+        g_client->NotifyServerOfChannelChange();  
+        wParam = (WPARAM)idx;
+      }
+
     case WM_LCUSER_ADDCHILD:
       {
         // add a new child, with wParam as the index
@@ -848,7 +869,12 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           ShowWindow(h,SW_SHOWNA);
           m_num_children++;
 
-          m_h=sz.right,sz.bottom*m_num_children;
+          m_h=sz.bottom*m_num_children;
+
+          SetWindowPos(hwndAddButton,NULL,0,m_h,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+
+          GetWindowRect(hwndAddButton,&sz);
+          m_h += sz.bottom - sz.top + 3;
         }
       }
     break;
@@ -1016,13 +1042,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         updateMasterControlLabels(hwndDlg);
 
-        m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,LocalChannelListProc);
+        m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
      
         int x;
-        for (x = 0; x < 20; x ++)
+        for (x = 0; x < 2; x ++)
         {
           char buf[64];
-          sprintf(buf, " ch %d ",x);
+          sprintf(buf, "ch %d",x+1);
           g_client->SetLocalChannelInfo(x,buf,true,0,false,0,true,false);
           SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,x,0);
         }
