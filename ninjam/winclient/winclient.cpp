@@ -107,6 +107,19 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
   } 
 }
 
+
+double DB2SLIDER(double x)
+{
+double d=pow(2110.54*fabs(x),1.0/3.0);
+if (x < 0.0) d=-d;
+return d + 63.0;
+}
+
+double SLIDER2DB(double y)
+{
+return pow(y-63.0,3.0) * (1.0/2110.54);
+}
+
 double g_ilog2x6;
 double VAL2DB(double x)
 {
@@ -393,7 +406,7 @@ void do_connect()
   g_client->SetWorkDir(buf);
 
   g_client->config_savelocalaudio=0;
-  if (1) // save local [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"])
+  if (0) // save local [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"])
   {
     g_client->config_savelocalaudio|=1;
     if (0) // save local wav [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"])
@@ -407,7 +420,7 @@ void do_connect()
     g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
   }
   
-  if (1) // save ogg [[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"])
+  if (0) // save ogg [[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"])
   {
     WDL_String wf;
     wf.Set(g_client->GetWorkDir());
@@ -431,6 +444,16 @@ void do_connect()
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_GRAYED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
 }
+
+void updateMasterControlLabels(HWND hwndDlg)
+{
+   char buf[512];
+   mkvolpanstr(buf,g_client->config_mastervolume,g_client->config_masterpan);
+   SetDlgItemText(hwndDlg,IDC_MASTERLBL,buf);
+   mkvolpanstr(buf,g_client->config_metronome,g_client->config_metronome_pan);
+   SetDlgItemText(hwndDlg,IDC_METROLBL,buf);
+}
+
 
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -475,6 +498,59 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);      
 
         chatInit(hwndDlg);
+
+
+        char tmp[512];
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,63);       
+        GetPrivateProfileString(CONFSEC,"mastervol","1.0",tmp,sizeof(tmp),g_ini_file.Get());
+        g_client->config_mastervolume=(float)atof(tmp);
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
+
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,63);       
+        GetPrivateProfileString(CONFSEC,"metrovol","0.5",tmp,sizeof(tmp),g_ini_file.Get());
+        g_client->config_metronome=(float)atof(tmp);
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
+
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETTIC,FALSE,50);       
+        GetPrivateProfileString(CONFSEC,"masterpan","0.0",tmp,sizeof(tmp),g_ini_file.Get());
+        g_client->config_masterpan=(float)atof(tmp);
+        int t=(int)(g_client->config_masterpan*50.0) + 50;
+        if (t < 0) t=0; else if (t > 100)t=100;
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETPOS,TRUE,t);
+
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETTIC,FALSE,50);       
+        GetPrivateProfileString(CONFSEC,"metropan","0.0",tmp,sizeof(tmp),g_ini_file.Get());
+        g_client->config_metronome_pan=(float)atof(tmp);
+        t=(int)(g_client->config_metronome_pan*50.0) + 50;
+        if (t < 0) t=0; else if (t > 100)t=100;
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETPOS,TRUE,t);
+
+        if (GetPrivateProfileInt(CONFSEC,"mastermute",0,g_ini_file.Get()))
+        {
+          CheckDlgButton(hwndDlg,IDC_MASTERMUTE,BST_CHECKED);
+          g_client->config_mastermute=true;
+        }
+        if (GetPrivateProfileInt(CONFSEC,"metromute",0,g_ini_file.Get()))
+        {
+          CheckDlgButton(hwndDlg,IDC_METROMUTE,BST_CHECKED);
+          g_client->config_metronome_mute=true;
+        }
+
+        updateMasterControlLabels(hwndDlg);
+
+     
+        g_client->SetLocalChannelInfo(0,"poo",true,0,false,0,true,true);
+
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
+
+        // this will change when the server info changes
+        SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,16));
+
+
 
         ShowWindow(g_hwnd,SW_SHOWNA);
      
@@ -523,6 +599,20 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
             }
           }
+          static int vu_cnt;
+          if (vu_cnt++ > 1)
+          {
+            vu_cnt=0;
+            double val=VAL2DB(g_client->GetOutputPeak());
+            int ival=(int)((val+100.0)/1.2);
+            if (ival < 0) ival=0;
+            else if (ival > 100) ival=100;
+            SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETPOS,ival,0);
+
+            char buf[128];
+            sprintf(buf,"%.2f dB",val);
+            SetDlgItemText(hwndDlg,IDC_MASTERVULBL,buf);
+          }
 
           // update VU meters
 
@@ -544,9 +634,40 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.onResize();
       }
     break;
+
+    case WM_HSCROLL:
+      {
+        double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
+
+		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERVOL))
+          g_client->config_mastervolume=(float)DB2VAL(SLIDER2DB(pos));
+		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_METROVOL))
+          g_client->config_metronome=(float)DB2VAL(SLIDER2DB(pos));
+		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERPAN))
+        {
+          if (fabs(pos) < 0.08) pos=0.0;
+          g_client->config_masterpan=((float)pos-50.0f)/50.0f;
+        }
+		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_METROPAN))
+        {
+          if (fabs(pos) < 0.08) pos=0.0;
+          g_client->config_metronome_pan=((float)pos-50.0f)/50.0f;
+        }
+        else return 0;
+
+        updateMasterControlLabels(hwndDlg);
+      }
+    return 0;
+
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_MASTERMUTE:
+          g_client->config_mastermute=!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+        break;
+        case IDC_METROMUTE:
+          g_client->config_metronome_mute =!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+        break;
         case ID_FILE_DISCONNECT:
           do_disconnect();
         break;
@@ -643,7 +764,46 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_CLOSE:
       if (1) DestroyWindow(hwndDlg);
     break;
+    case WM_ENDSESSION:
     case WM_DESTROY:
+
+      do_disconnect();
+
+      // save config
+
+      {
+        char buf[256];
+        sprintf(buf,"%f",g_client->config_mastervolume);
+        WritePrivateProfileString(CONFSEC,"mastervol",buf,g_ini_file.Get());
+        sprintf(buf,"%f",g_client->config_masterpan);
+        WritePrivateProfileString(CONFSEC,"masterpan",buf,g_ini_file.Get());
+        sprintf(buf,"%f",g_client->config_metronome);
+        WritePrivateProfileString(CONFSEC,"metrovol",buf,g_ini_file.Get());
+        sprintf(buf,"%f",g_client->config_metronome_pan);
+        WritePrivateProfileString(CONFSEC,"metropan",buf,g_ini_file.Get());
+
+        WritePrivateProfileString(CONFSEC,"mastermute",g_client->config_mastermute?"1":"0",g_ini_file.Get());
+        WritePrivateProfileString(CONFSEC,"metromute",g_client->config_metronome_mute?"1":"0",g_ini_file.Get());
+
+      }
+
+      // delete all effects processors in g_client
+      {
+        int x=0;
+        for (x = 0;;x++)
+        {
+          int a=g_client->EnumLocalChannels(x);
+          if (a<0) break;
+          void *i=0;
+          g_client->GetLocalChannelProcessor(a,NULL,&i);
+          if (i) deleteJesusonicProc(i,a);
+          g_client->SetLocalChannelProcessor(a,NULL,NULL);
+        }
+      }
+
+
+      delete g_client;
+
       PostQuitMessage(0);
     return 0;
   }
@@ -732,28 +892,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
       DispatchMessage(&msg);
     }
   }
-
-
-
-  do_disconnect();
-
-
-  // delete all effects processors in g_client
-  {
-    int x=0;
-    for (x = 0;;x++)
-    {
-      int a=g_client->EnumLocalChannels(x);
-      if (a<0) break;
-      void *i=0;
-      g_client->GetLocalChannelProcessor(a,NULL,&i);
-      if (i) deleteJesusonicProc(i,a);
-      g_client->SetLocalChannelProcessor(a,NULL,NULL);
-    }
-  }
-
-
-  delete g_client;
 
 
 #ifdef _WIN32
