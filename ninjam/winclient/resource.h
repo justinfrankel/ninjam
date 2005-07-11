@@ -11,6 +11,7 @@
 #define IDB_BITMAP1                     104
 #define IDD_CFG_KS                      105
 #define IDD_CONNECT                     106
+#define IDD_LICENSE                     107
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -57,6 +58,7 @@
 #define IDC_HOST                        1025
 #define IDC_CHATOK                      1026
 #define IDC_STATUS2                     1028
+#define IDC_LICENSETEXT                 1029
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -69,9 +71,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        107
+#define _APS_NEXT_RESOURCE_VALUE        108
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1029
+#define _APS_NEXT_CONTROL_VALUE         1030
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

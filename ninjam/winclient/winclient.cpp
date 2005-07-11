@@ -229,10 +229,34 @@ void mkvolpanstr(char *str, double vol, double pan)
 
 
 
+static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+      SetDlgItemText(hwndDlg,IDC_LICENSETEXT,(char *)lParam);
+    return 0;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDOK:
+          EndDialog(hwndDlg,1);
+        break;
+        case IDCANCEL:
+          EndDialog(hwndDlg,0);
+        break;
+      }
+    return 0;
+
+  }
+  return 0;
+}
+
 int licensecallback(int user32, char *licensetext)
 {
-  MessageBox(g_hwnd,licensetext,"license agree",MB_OK);
-  return 1;
+  if (!licensetext || !*licensetext) return 1;
+
+  return DialogBoxParam(g_hInst,MAKEINTRESOURCE(IDD_LICENSE),g_hwnd,LicenseProc,(LPARAM)licensetext);
 }
 
 WDL_String g_connect_user,g_connect_pass,g_connect_host;
@@ -629,28 +653,30 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             static int last_interval_len=-1;
             static int last_interval_pos=-1;
             static int last_bpm_i=-1;
-            if (intl != last_interval_len || last_bpm_i != bpm)
-            {
-              last_bpm_i = bpm;
-              char buf[128];
-              if (bpm)
-                sprintf(buf,"%d BPM, %d BPI",bpm,intl);
-              else buf[0]=0;
-              SetDlgItemText(hwndDlg,IDC_STATUS2,buf);
-            }
             if (intl != last_interval_len)
             {
               last_interval_len=intl;
               SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));             
             }
+            if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
+            {
+              last_bpm_i = bpm;
+              char buf[128];
+              if (bpm)
+                sprintf(buf,"%d/%d @ %d BPM",intp,intl,bpm);
+              else buf[0]=0;
+              SetDlgItemText(hwndDlg,IDC_STATUS2,buf);
+            }
+
             if (intp != last_interval_pos)
             {
               last_interval_pos = intp;
               SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
             }
+
           }
 
-          // update VU meters
+          // update local/remote VU meters
 
           in_t=0;
         }
