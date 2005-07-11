@@ -26,6 +26,7 @@
 enum {
   CMD_CONNECT,
   CMD_DISCONNECT,
+  CMD_EXIT,
   CMD_ADDLOCAL,
   CMD_KILLDEADCHANNELS,
   CMD_ASIO_CFG,
@@ -206,6 +207,8 @@ int MainWnd::onInit() {
   p->addCommand("&Connect to server...", CMD_CONNECT);
   //CUTp->addCommand("Disconnect", CMD_DISCONNECT, FALSE, TRUE);
   p->addCommand("&Disconnect", CMD_DISCONNECT);
+  p->addSeparator();
+  p->addCommand("&Exit", CMD_EXIT);
   addMenu("&Connection", 1, p);
 
   p = new PopupMenu;
@@ -275,6 +278,10 @@ int MainWnd::onMenuCommand(int cmd) {
     break;
     case CMD_DISCONNECT: {
       handleDisconnect();
+    }
+    break;
+    case CMD_EXIT: {
+      onUserClose();
     }
     break;
     case CMD_ADDLOCAL: {

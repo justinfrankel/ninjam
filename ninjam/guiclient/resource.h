@@ -115,6 +115,8 @@
 #define IDC_SESSION_LEN                 1077
 #define IDC_SEPTEXT                     1078
 #define IDC_CHAT_TOPIC                  1079
+#define IDC_VOLTEXT                     1080
+#define IDC_VUTEXT                      1081
 
 // Next default values for new objects
 // 
@@ -122,7 +124,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        122
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1080
+#define _APS_NEXT_CONTROL_VALUE         1082
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

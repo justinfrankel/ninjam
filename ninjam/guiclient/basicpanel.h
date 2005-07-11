@@ -52,8 +52,10 @@ private:
   _string vol_text, pan_text;
 
 //VU meter
+  float last_vu;
   _int vumeter;
   int vumeter_avg;
+  _string vutext;
   _int clip;
 };
 

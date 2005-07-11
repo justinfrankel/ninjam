@@ -58,7 +58,10 @@ BasicPanel::BasicPanel(RackWnd *wnd, int dlgid, const char *cfgname)
 //CUT  addSizeBinding(IDC_VU, OSDialogSizeBind::RIGHTEDGETORIGHT);
 
   addSizeBinding(IDC_VUMETER, OSDialogSizeBind::RIGHTEDGETORIGHT);
+  addSizeBinding(IDC_VUTEXT, OSDialogSizeBind::RIGHTEDGETORIGHT);
   registerAttribute(&vumeter, IDC_VUMETER);
+  registerAttribute(&vutext, IDC_VUTEXT);
+  last_vu = 0;
   vumeter_avg = 0;
 
   addSizeBinding(IDC_VUCLIP, OSDialogSizeBind::RIGHT);
@@ -309,8 +312,17 @@ void BasicPanel::onRefresh() {
     clip = 101;
   }
 
+  float sav = last_vu;	// smooth it out
+  last_vu = amt;
+  amt = (amt + sav)/2.f;
+
 //      amt *= 100;
   amt = VAL2DB(amt);
+
+String vt = StringPrintf("%3.2f", amt);
+vt += " dB";
+if (amt >= 0) vt.prepend("+");
+vutext = vt;
 
 #define MAXVU 0.f
 #define MINVU -80.f
