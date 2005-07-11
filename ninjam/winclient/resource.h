@@ -14,9 +14,10 @@
 #define IDD_LICENSE                     107
 #define IDD_PREFS                       108
 #define IDD_LOCALCHANNEL                110
-#define IDD_EMPTY                       111
+#define IDD_EMPTY_SCROLL                111
 #define IDD_LOCALLIST                   112
 #define IDD_REMOTECHANNEL               113
+#define IDD_EMPTY                       114
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
