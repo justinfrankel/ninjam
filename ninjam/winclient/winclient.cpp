@@ -483,6 +483,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_DIV1,        0.0,  0.0,  1.0f,  0.0);
         resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
         resize.init_item(IDC_STATUS, 0.0,  1.0,  1.0f,  1.0);
+        resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
+    
         
         resize.init_item(IDC_DIV2,        0.0,  0.5f,  0.7f,  0.5f);
         resize.init_item(IDC_CHATDIV,     0.7f, 0.0f,  0.7f,  1.0f);
@@ -490,10 +492,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_CHATDISP,     0.7f, 0.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATENT,      0.7f, 1.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATOK,       1.0f, 1.0f,  1.0f,  1.0f);
-        
-        resize.init_item(IDC_LOCALSCROLL,  0.7f, 0.0f,  0.7f,  0.5f);
-        resize.init_item(IDC_REMOTESCROLL, 0.7f, 0.5f,  0.7f,  1.0f);
-        
+                
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.7f,  0.5f);
         resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);      
 
@@ -552,7 +551,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 
 
-        ShowWindow(g_hwnd,SW_SHOWNA);
+        ShowWindow(g_hwnd,SW_SHOW);
      
         SetTimer(hwndDlg,1,33,NULL);
       }
@@ -612,6 +611,43 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             char buf[128];
             sprintf(buf,"%.2f dB",val);
             SetDlgItemText(hwndDlg,IDC_MASTERVULBL,buf);
+
+            int intp, intl;
+            int pos, len;
+            g_client->GetPosition(&pos,&len);
+            if (!len) len=1;
+            intl=g_client->GetBPI();
+            intp = (pos * intl)/len + 1;
+
+            int bpm=(int)g_client->GetActualBPM();
+            if (ns != NJClient::NJC_STATUS_OK)
+            {
+              bpm=0;
+              intp=0;
+            }
+
+            static int last_interval_len=-1;
+            static int last_interval_pos=-1;
+            static int last_bpm_i=-1;
+            if (intl != last_interval_len || last_bpm_i != bpm)
+            {
+              last_bpm_i = bpm;
+              char buf[128];
+              if (bpm)
+                sprintf(buf,"%d BPM, %d BPI",bpm,intl);
+              else buf[0]=0;
+              SetDlgItemText(hwndDlg,IDC_STATUS2,buf);
+            }
+            if (intl != last_interval_len)
+            {
+              last_interval_len=intl;
+              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));             
+            }
+            if (intp != last_interval_pos)
+            {
+              last_interval_pos = intp;
+              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
+            }
           }
 
           // update VU meters

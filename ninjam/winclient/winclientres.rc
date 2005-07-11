@@ -175,7 +175,7 @@ BEGIN
     CTEXT           "-120.0 dB",IDC_MASTERVULBL,359,18,93,8
     CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,36,445,1
     CONTROL         "Status: No connection.",IDC_STATUS,"Static",
-                    SS_LEFTNOWORDWRAP | WS_GROUP,7,314,445,8
+                    SS_LEFTNOWORDWRAP | WS_GROUP,7,314,356,8
     CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
                     WS_BORDER,7,304,445,9
     CONTROL         "",IDC_CHATDIV,"Static",SS_ETCHEDVERT,312,41,1,260
@@ -184,13 +184,12 @@ BEGIN
                     WS_TABSTOP | 0x2804,315,41,137,243
     CONTROL         "",IDC_CHATENT,"RichEdit20A",WS_BORDER | WS_TABSTOP | 
                     0xc4,315,287,137,14
-    SCROLLBAR       IDC_LOCALSCROLL,297,41,12,102,SBS_VERT
-    SCROLLBAR       IDC_REMOTESCROLL,297,148,12,153,SBS_VERT
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,7,
-                    42,288,101
+                    42,302,101
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
-                    7,150,288,151
+                    7,150,301,151
     DEFPUSHBUTTON   "Send",IDC_CHATOK,438,289,14,9,NOT WS_VISIBLE
+    RTEXT           "",IDC_STATUS2,376,314,76,8
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 105
