@@ -23,10 +23,11 @@
 #include "../../jesusonic/jesusonic_dll.h"
 #endif
 
+#define WM_LCUSER_RESIZE WM_USER+49
 #define WM_LCUSER_ADDCHILD WM_USER+50
 #define WM_LCUSER_REMCHILD WM_USER+51
-#define WM_LCUSER_RESIZE WM_USER+49
 #define WM_LCUSER_VUUPDATE WM_USER+52
+#define WM_LCUSER_REPOP_CH WM_USER+53
 
 
 #define CONFSEC "ninjam"
@@ -42,6 +43,7 @@ HINSTANCE g_hInst;
 HWND g_hwnd;
 WDL_String g_topic;
 
+static HWND m_locwnd;
 
 extern void addChatLine(char *src, char *text);
 extern void chatInit(HWND hwndDlg);
@@ -569,6 +571,8 @@ void do_connect()
     }
   }
   
+  SendMessage(m_locwnd,WM_LCUSER_REPOP_CH,0,0);
+
   g_client->SetWorkDir(buf);
 
   g_client->config_savelocalaudio=0;
@@ -632,7 +636,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_INITDIALOG:
       m_idx=lParam;
       SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
-
+  
       {
         int sch;
         bool bc;
@@ -649,7 +653,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
         if (jesinst) CheckDlgButton(hwndDlg,IDC_JS,BST_CHECKED);
 
-        // todo: populate IDC_AUDIOIN
+        SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);
 
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
@@ -672,6 +676,17 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_AUDIOIN:
+          if (HIWORD(wParam) == CBN_SELCHANGE)
+          {
+            int a=SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCURSEL,0,0);
+            if (a != CB_ERR)
+            {
+              if (a == SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCOUNT,0,0)-1) a=-1;
+              g_client->SetLocalChannelInfo(m_idx,NULL,true,a,false,0,false,false);
+            }
+          }
+        break;
         case IDC_TRANSMIT:
           g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
           g_client->NotifyServerOfChannelChange();
@@ -754,7 +769,6 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             }
           }
         break;
-        //todo: IDC_AUDIOIN
 
       }
     return 0;
@@ -776,6 +790,35 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         char tmp[512];
         mkvolpanstr(tmp,vol,pan);
         SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+      }
+    return 0;
+    case WM_LCUSER_REPOP_CH:
+      {
+        int sch;
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_RESETCONTENT,0,0);
+        g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
+        int chcnt=0;
+        if (g_audio)
+        {
+          for (;;)
+          {
+            const char *p=g_audio->GetChannelName(chcnt);
+            if (!p) break;
+            SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)p);         
+            chcnt++;
+          }
+        }
+        else
+        {
+          for (chcnt = 0; chcnt < max(sch,8); chcnt++)
+          {
+            char buf[128];
+            sprintf(buf,"Input Channel %d",chcnt+1);
+            SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
+          }
+        }
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Silence");         
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,sch >= 0 ? sch : chcnt,0);
       }
     return 0;
     case WM_LCUSER_VUUPDATE:
@@ -834,13 +877,14 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (uMsg == WM_INITDIALOG) ShowWindow(hwndDlg,SW_SHOWNA);
       }
     break;
+    case WM_LCUSER_REPOP_CH:
     case WM_LCUSER_VUUPDATE:
       {
         HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
 
         while (hwnd)
         {
-          if (hwnd != hwndAddButton) SendMessage(hwnd,WM_LCUSER_VUUPDATE,0,0);
+          if (hwnd != hwndAddButton) SendMessage(hwnd,uMsg,0,0);
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
       }
@@ -958,7 +1002,6 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_WndSizer resize;
-  static HWND m_locwnd;
   switch (uMsg)
   {
     case WM_INITDIALOG:
