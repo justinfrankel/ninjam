@@ -236,6 +236,9 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
     case WM_INITDIALOG:
       SetDlgItemText(hwndDlg,IDC_LICENSETEXT,(char *)lParam);
     return 0;
+    case WM_CLOSE:
+      EndDialog(hwndDlg,0);
+    return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
@@ -257,6 +260,66 @@ int licensecallback(int user32, char *licensetext)
   if (!licensetext || !*licensetext) return 1;
 
   return DialogBoxParam(g_hInst,MAKEINTRESOURCE(IDD_LICENSE),g_hwnd,LicenseProc,(LPARAM)licensetext);
+}
+
+static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+      {
+        if (GetPrivateProfileInt(CONFSEC,"savelocal",1,g_ini_file.Get()))
+          CheckDlgButton(hwndDlg,IDC_SAVELOCAL,BST_CHECKED);
+        if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
+          CheckDlgButton(hwndDlg,IDC_SAVELOCALWAV,BST_CHECKED);
+        if (GetPrivateProfileInt(CONFSEC,"savewave",0,g_ini_file.Get()))
+          CheckDlgButton(hwndDlg,IDC_SAVEWAVE,BST_CHECKED);
+        if (GetPrivateProfileInt(CONFSEC,"saveogg",0,g_ini_file.Get()))
+          CheckDlgButton(hwndDlg,IDC_SAVEOGG,BST_CHECKED);
+        SetDlgItemInt(hwndDlg,IDC_SAVEOGGBR,GetPrivateProfileInt(CONFSEC,"saveoggbr",128,g_ini_file.Get()),FALSE);
+
+        char str[2048];
+        GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
+        if (!str[0])
+          SetDlgItemText(hwndDlg,IDC_SESSIONDIR,g_exepath);
+        else 
+          SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
+        
+      }
+    return 0;
+
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDOK:
+          {
+            WritePrivateProfileString(CONFSEC,"savelocal",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCAL)?"1":"0",g_ini_file.Get());
+            WritePrivateProfileString(CONFSEC,"savelocalwav",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCALWAV)?"1":"0",g_ini_file.Get());
+            WritePrivateProfileString(CONFSEC,"savewave",IsDlgButtonChecked(hwndDlg,IDC_SAVEWAVE)?"1":"0",g_ini_file.Get());
+            WritePrivateProfileString(CONFSEC,"saveogg",IsDlgButtonChecked(hwndDlg,IDC_SAVEOGG)?"1":"0",g_ini_file.Get());
+
+            char buf[2048];
+            GetDlgItemText(hwndDlg,IDC_SAVEOGGBR,buf,sizeof(buf));
+            if (atoi(buf)) WritePrivateProfileString(CONFSEC,"saveoggbr",buf,g_ini_file.Get());
+
+            GetDlgItemText(hwndDlg,IDC_SESSIONDIR,buf,sizeof(buf));
+            if (!strcmp(g_exepath,buf))
+              buf[0]=0;
+            WritePrivateProfileString(CONFSEC,"sessiondir",buf,g_ini_file.Get());
+
+            EndDialog(hwndDlg,1);
+          }
+        break;
+        case IDCANCEL:
+          EndDialog(hwndDlg,0);
+        break;
+      }
+    return 0;
+    case WM_CLOSE:
+      EndDialog(hwndDlg,0);
+    return 0;
+  }
+  return 0;
 }
 
 WDL_String g_connect_user,g_connect_pass,g_connect_host;
@@ -317,6 +380,9 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           EndDialog(hwndDlg,0);
         break;
       }
+    return 0;
+    case WM_CLOSE:
+      EndDialog(hwndDlg,0);
     return 0;
   }
   return 0;
@@ -403,7 +469,7 @@ void do_connect()
   
     buf[0]=0;
     strcpy(buf,g_exepath);
-    sprintf(buf+strlen(buf),"%04d%02d%02d_%02d%02d",
+    sprintf(buf+strlen(buf),"\\%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
     if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
@@ -430,13 +496,13 @@ void do_connect()
   g_client->SetWorkDir(buf);
 
   g_client->config_savelocalaudio=0;
-  if (0) // save local [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"])
+  if (GetPrivateProfileInt(CONFSEC,"savelocal",1,g_ini_file.Get()))
   {
     g_client->config_savelocalaudio|=1;
-    if (0) // save local wav [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"])
+    if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get())) 
       g_client->config_savelocalaudio|=2;
   }
-  if (0) // save wave [[NSUserDefaults standardUserDefaults] integerForKey:@"savewave"])
+  if (GetPrivateProfileInt(CONFSEC,"savewave",0,g_ini_file.Get()))
   {
     WDL_String wf;
     wf.Set(g_client->GetWorkDir());
@@ -444,12 +510,12 @@ void do_connect()
     g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
   }
   
-  if (0) // save ogg [[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"])
+  if (GetPrivateProfileInt(CONFSEC,"saveogg",0,g_ini_file.Get()))
   {
     WDL_String wf;
     wf.Set(g_client->GetWorkDir());
     wf.Append("output.ogg");
-    int br=128; //[[NSUserDefaults standardUserDefaults] integerForKey:@"saveoggbr"]
+    int br=GetPrivateProfileInt(CONFSEC,"saveoggbr",128,g_ini_file.Get());
     g_client->SetOggOutFile(fopen(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,br);
   }
   
@@ -757,6 +823,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             do_connect();
           }
         break;
+        case ID_OPTIONS_PREFERENCES:
+          DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
+        break;
         case ID_OPTIONS_AUDIOCONFIGURATION:
           CreateConfiguredStreamer(g_ini_file.Get(),-1,hwndDlg);
         break;
@@ -909,9 +978,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     GetModuleFileName(g_hInst,g_exepath,sizeof(g_exepath));
     char *p=g_exepath;
     while (*p) p++;
-    while (p >= g_exepath && *p != '\\') p--; *++p=0;
+    while (p > g_exepath && *p != '\\') p--; *p=0;
     g_ini_file.Set(g_exepath);
-    g_ini_file.Append("ninjam.ini");
+    g_ini_file.Append("\\ninjam.ini");
   }
 
   // read config file

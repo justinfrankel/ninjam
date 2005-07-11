@@ -12,6 +12,7 @@
 #define IDD_CFG_KS                      105
 #define IDD_CONNECT                     106
 #define IDD_LICENSE                     107
+#define IDD_PREFS                       108
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -43,6 +44,7 @@
 #define IDC_CHECK1                      1013
 #define IDC_MASTERMUTE                  1013
 #define IDC_ANON                        1013
+#define IDC_SAVEWAVE                    1013
 #define IDC_BUTTON1                     1014
 #define IDC_METROMUTE                   1014
 #define IDC_CHATDISP                    1017
@@ -59,6 +61,11 @@
 #define IDC_CHATOK                      1026
 #define IDC_STATUS2                     1028
 #define IDC_LICENSETEXT                 1029
+#define IDC_SAVEOGG                     1030
+#define IDC_SAVELOCAL                   1031
+#define IDC_SAVELOCALWAV                1032
+#define IDC_SAVEOGGBR                   1033
+#define IDC_SESSIONDIR                  1034
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -71,9 +78,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        108
+#define _APS_NEXT_RESOURCE_VALUE        109
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_CONTROL_VALUE         1035
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
