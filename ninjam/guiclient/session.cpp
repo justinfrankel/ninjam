@@ -27,9 +27,22 @@ extern audioStreamer *g_audio;
 
 String makeSessionDirName(int cnt, time_t t) {
   String ret = StringStrftime(t, session_format);
-  if (cnt > 0)
-    ret.cat(StringPrintf("_%d",cnt));
-  ret.cat(".ninjam");
+  if (cnt > 0) {
+    String prev = ret;
+    char *pt = const_cast<char *>(Std::extension(prev));
+    if (pt != NULL) {
+      ASSERT(pt[-1] == '.');// really should be, just being paranoid
+
+      pt[-1] = 0;	// terminate front part
+      ret = prev;	// the front part
+      ret.cat(StringPrintf("_%d",cnt));
+      ret.cat(".");
+      ret.cat(pt);
+    } else {	// no ".", so just put on end
+      ret.cat(StringPrintf("_%d",cnt));
+    }
+  }
+//CUT  ret.cat(".ninjam");
   return ret;
 }
 
