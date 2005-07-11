@@ -479,6 +479,8 @@ void updateMasterControlLabels(HWND hwndDlg)
 }
 
 
+RECT g_last_wndpos;
+
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_WndSizer resize;
@@ -574,6 +576,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,16));
 
 
+        g_last_wndpos.left = GetPrivateProfileInt(CONFSEC,"wnd_x",0,g_ini_file.Get());
+        g_last_wndpos.top = GetPrivateProfileInt(CONFSEC,"wnd_y",0,g_ini_file.Get());
+        g_last_wndpos.right = g_last_wndpos.left+GetPrivateProfileInt(CONFSEC,"wnd_w",0,g_ini_file.Get());
+        g_last_wndpos.bottom = g_last_wndpos.top+GetPrivateProfileInt(CONFSEC,"wnd_h",0,g_ini_file.Get());
+        
+        if (g_last_wndpos.top || g_last_wndpos.left || g_last_wndpos.right || g_last_wndpos.bottom)
+        {
+          SetWindowPos(hwndDlg,NULL,g_last_wndpos.left,g_last_wndpos.top,g_last_wndpos.right-g_last_wndpos.left,g_last_wndpos.bottom-g_last_wndpos.top,SWP_NOZORDER);
+        }
+        // get window position from cfg
+        else GetWindowRect(hwndDlg,&g_last_wndpos);
 
         ShowWindow(g_hwnd,SW_SHOW);
      
@@ -695,6 +708,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       {
         resize.onResize();
       }
+      if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) return 0;
+    case WM_MOVE:
+      GetWindowRect(hwndDlg,&g_last_wndpos);
     break;
 
     case WM_HSCROLL:
@@ -835,6 +851,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
       {
         char buf[256];
+
+        sprintf(buf,"%d",g_last_wndpos.left);
+        WritePrivateProfileString(CONFSEC,"wnd_x",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_last_wndpos.top);
+        WritePrivateProfileString(CONFSEC,"wnd_y",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_last_wndpos.right - g_last_wndpos.left);
+        WritePrivateProfileString(CONFSEC,"wnd_w",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_last_wndpos.bottom - g_last_wndpos.top);
+        WritePrivateProfileString(CONFSEC,"wnd_h",buf,g_ini_file.Get());
+
+
         sprintf(buf,"%f",g_client->config_mastervolume);
         WritePrivateProfileString(CONFSEC,"mastervol",buf,g_ini_file.Get());
         sprintf(buf,"%f",g_client->config_masterpan);
