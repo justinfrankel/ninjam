@@ -149,7 +149,7 @@ double VAL2DB(double x)
 #define MAX_JESUS_INST 32
 jesusonicAPI *JesusonicAPI;  
 HINSTANCE hDllInst;
-char *jesusdir="C:\\mhc\\jesusonic";
+WDL_String jesusdir;
 #endif
 
 
@@ -183,7 +183,7 @@ void deleteJesusonicProc(void *i, int chi)
   if (JesusonicAPI && i)
   {
       char buf[4096];
-      sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",chi);
+      sprintf(buf,"%s\\ninjam.p%02d",jesusdir.Get()[0]?jesusdir.Get():".",chi);
       JesusonicAPI->preset_save(i,buf);
       JesusonicAPI->ui_wnd_destroy(i);
       JesusonicAPI->set_opts(i,-1,-1,1);
@@ -227,14 +227,14 @@ int CreateJesusInstance(int a, char *chdesc)
   {
     void *myInst=JesusonicAPI->createInstance();
     if (!myInst) return 0;
-    JesusonicAPI->set_rootdir(myInst,jesusdir);
+    JesusonicAPI->set_rootdir(myInst,jesusdir.Get());
     JesusonicAPI->ui_init(myInst);
     JesusonicAPI->set_opts(myInst,1,1,-1);
 
     JesusUpdateInfo(myInst,chdesc);
 
     char buf[4096];
-    sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",a);
+    sprintf(buf,"%s\\ninjam.p%02d",jesusdir.Get()[0]?jesusdir.Get():".",a);
 
     JesusonicAPI->preset_load(myInst,buf);
 
@@ -683,6 +683,15 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
         if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
         if (jesinst) CheckDlgButton(hwndDlg,IDC_JS,BST_CHECKED);
+
+        if (!JesusonicAPI)
+        {
+          EnableWindow(GetDlgItem(hwndDlg,IDC_JS),0);
+          EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),0);
+        }
+        else if (jesinst)
+          EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),1);
+
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
@@ -1776,7 +1785,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
 
       }
-    break;
+    return 0;
     case WM_TIMER:
       if (wParam == 1)
       {
@@ -2205,19 +2214,41 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     RegisterClass(&wc);
   }
 
-  // todo: jesusdir config
 #ifdef _WIN32
-  WDL_String jesusonic_configfile;
-  if (jesusdir)
+
+  // get jesusonic from registry
   {
-    jesusonic_configfile.Set(jesusdir);
+    HKEY k;
+    if (RegOpenKey(HKEY_LOCAL_MACHINE,"SOFTWARE\\Jesusonic",&k) == ERROR_SUCCESS)
+    {
+      char buf[1024];
+      LONG b=sizeof(buf);
+      RegQueryValue(k,NULL,buf,&b);
+      RegCloseKey(k);
+      jesusdir.Set(buf);
+    }
+  }
+
+
+
+  WDL_String jesusonic_configfile;
+  if (jesusdir.Get()[0])
+  {
+    jesusonic_configfile.Set(jesusdir.Get());
     jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
     WDL_String dll;
-    dll.Set(jesusdir);
+
+
+    dll.Set(g_exepath);
     dll.Append("\\jesus.dll");
 
-    hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
-    if (!hDllInst) hDllInst = LoadLibrary(dll.Get());
+    hDllInst = LoadLibrary(dll.Get()); // load from current dir
+    if (!hDllInst) 
+    {
+      dll.Set(jesusdir.Get());
+      dll.Append("\\jesus.dll");
+      hDllInst = LoadLibrary(dll.Get());
+    }
     if (hDllInst) 
     {
       *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
