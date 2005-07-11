@@ -674,6 +674,22 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
       }
     return 0;
+    case WM_TIMER:
+      if (wParam == 1)
+      {
+        KillTimer(hwndDlg,1);
+        char buf[512];
+        GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
+        g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
+        g_client->NotifyServerOfChannelChange();
+        void *i=0;
+        g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+        if (i)
+        {
+          JesusUpdateInfo(i,buf);
+        }
+      }
+    return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
@@ -703,16 +719,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         case IDC_NAME:
           if (HIWORD(wParam) == EN_CHANGE)
           {
-            char buf[512];
-            GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
-            g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
-            g_client->NotifyServerOfChannelChange();
-            void *i=0;
-            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-            if (i)
-            {
-              JesusUpdateInfo(i,buf);
-            }
+            KillTimer(hwndDlg,1);
+            SetTimer(hwndDlg,1,1000,NULL);
           }
         break;
         case IDC_REMOVE:
@@ -725,8 +733,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
             // remove the channel
             g_client->DeleteLocalChannel(m_idx);
-            SendMessage(GetParent(hwndDlg),WM_LCUSER_REMCHILD,0,(LPARAM)hwndDlg);
-            DestroyWindow(hwndDlg);
+            PostMessage(GetParent(hwndDlg),WM_LCUSER_REMCHILD,0,(LPARAM)hwndDlg);
           }
         break;
         case IDC_JS:
@@ -843,37 +850,60 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
 static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static int m_wh, m_ww,m_nScrollPos;
-  static int m_num_children, m_h;
-  static HWND hwndAddButton;
+  static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
+  static int m_num_children, m_h, m_maxpos_h, m_w,m_maxpos_w;
   switch (uMsg)
   {
 
     case WM_INITDIALOG:
-      hwndAddButton=GetDlgItem(hwndDlg,IDC_ADDCH);
     case WM_LCUSER_RESIZE:
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
+        m_wh=r.bottom-r.top;
+        m_ww=r.right-r.left;
+
         ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
-        ScreenToClient(GetParent(hwndDlg),((LPPOINT)&r) + 1);
 
-        SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww=r.right-r.left,m_wh=r.bottom-r.top,SWP_NOZORDER|SWP_NOACTIVATE);
+        SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
+
+        m_wh -= GetSystemMetrics(SM_CYHSCROLL);
+
+        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
+
         m_h=0;
+        m_w=0;
+        while (hwnd)
+        {
+          RECT tr;
+          GetWindowRect(hwnd,&tr);
+          ScreenToClient(hwndDlg,(LPPOINT)&tr);
+          ScreenToClient(hwndDlg,((LPPOINT)&tr) + 1);
 
-#if 0
-        RECT r2;
-        GetClientRect(hwndDlg,&r2);
+          if (tr.bottom > m_h) m_h=tr.bottom;
+          if (tr.right > m_w) m_w=tr.right;
 
-        DWORD ws=GetWindowLong(hwndDlg,GWL_STYLE);
+          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
+        }        
 
-        if (r2.bottom < m_wh) ws &= ~WS_VSCROLL;
-        else ws |= WS_VSCROLL;
-        if (r2.right < m_ww) ws &= ~WS_HSCROLL;
-        else ws |= WS_HSCROLL;
+        m_h+=3+m_nScrollPos;
+        m_w+=m_nScrollPos_w;
 
-        SetWindowLong(hwndDlg,GWL_STYLE,ws);
-#endif
+        m_maxpos_h=m_h - m_wh;
+        m_maxpos_w=m_w - m_ww;
+        if (m_maxpos_h <0) m_maxpos_h=0;
+        if (m_maxpos_w <0) m_maxpos_w=0;
+
+        {
+          SCROLLINFO si={sizeof(si),SIF_PAGE|SIF_RANGE,0,m_h,};
+          si.nPage=m_wh-GetSystemMetrics(SM_CYHSCROLL);
+          SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
+        }
+        {
+          SCROLLINFO si={sizeof(si),SIF_PAGE|SIF_RANGE,0,m_w,};
+          si.nPage=m_ww-GetSystemMetrics(SM_CXVSCROLL);
+          SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
+        }
 
         if (uMsg == WM_INITDIALOG) ShowWindow(hwndDlg,SW_SHOWNA);
       }
@@ -885,7 +915,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         while (hwnd)
         {
-          if (hwnd != hwndAddButton) SendMessage(hwnd,uMsg,0,0);
+          if (hwnd != GetDlgItem(hwndDlg,IDC_ADDCH)) SendMessage(hwnd,uMsg,0,0);
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
       }
@@ -910,16 +940,51 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         {
           RECT sz;
           GetClientRect(h,&sz);
-          SetWindowPos(h,NULL,0,sz.bottom*m_num_children,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+          SetWindowPos(h,NULL,0,sz.bottom*m_num_children-m_nScrollPos,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
           ShowWindow(h,SW_SHOWNA);
           m_num_children++;
 
           m_h=sz.bottom*m_num_children;
+          m_w=sz.right-sz.left;
 
-          SetWindowPos(hwndAddButton,NULL,0,m_h,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+          SetWindowPos(GetDlgItem(hwndDlg,IDC_ADDCH),NULL,-m_nScrollPos_w,m_h-m_nScrollPos,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
 
-          GetWindowRect(hwndAddButton,&sz);
+          GetWindowRect(GetDlgItem(hwndDlg,IDC_ADDCH),&sz);
           m_h += sz.bottom - sz.top + 3;
+
+          m_maxpos_h=m_h - m_wh;
+          if (m_maxpos_h<0) m_maxpos_h=0;
+          m_maxpos_w=m_w - m_ww;
+          if (m_maxpos_w<0) m_maxpos_w=0;
+
+          {
+            SCROLLINFO si={sizeof(si),SIF_PAGE|SIF_RANGE,0,m_w,};
+            si.nPage=m_ww;
+            if (uMsg == WM_COMMAND) 
+            {
+              si.fMask |= SIF_POS;
+              si.nPos = m_maxpos_w;
+            }
+            SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
+          }
+          {
+
+            SCROLLINFO si={sizeof(si),SIF_PAGE|SIF_RANGE,0,m_h,};
+            si.nPage=m_wh;
+            if (uMsg == WM_COMMAND) 
+            {
+              si.fMask |= SIF_POS;
+              si.nPos = m_maxpos_h;
+            }
+            SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
+          }
+          if (uMsg == WM_COMMAND)
+          {
+            ScrollWindow(hwndDlg,0,-(m_maxpos_h - m_nScrollPos),NULL,NULL);
+            m_nScrollPos=m_maxpos_h;
+            ScrollWindow(hwndDlg,-(m_maxpos_w - m_nScrollPos_w),0,NULL,NULL);
+            m_nScrollPos_w=m_maxpos_w;
+          }
         }
       }
     break;
@@ -933,27 +998,43 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         ScreenToClient(hwndDlg,(LPPOINT)&cr);
         ScreenToClient(hwndDlg,((LPPOINT)&cr) + 1);
 
+        DestroyWindow(h);
+
         HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
 
+        m_h=0;
         while (hwnd)
         {
-          if (hwnd != h)
-          {
-            RECT tr;
-            GetWindowRect(hwnd,&tr);
-            ScreenToClient(hwndDlg,(LPPOINT)&tr);
-            ScreenToClient(hwndDlg,((LPPOINT)&tr) + 1);
+          RECT tr;
+          GetWindowRect(hwnd,&tr);
+          ScreenToClient(hwndDlg,(LPPOINT)&tr);
+          ScreenToClient(hwndDlg,((LPPOINT)&tr) + 1);
 
-            if (tr.top > cr.top)
-            {
-              tr.top -= cr.bottom-cr.top;
-              SetWindowPos(hwnd,NULL,tr.left,tr.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-            }
+          if (tr.top > cr.top)
+          {
+            tr.top -= cr.bottom-cr.top;
+            tr.bottom -= cr.bottom-cr.top;
+            SetWindowPos(hwnd,NULL,tr.left,tr.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            if (tr.bottom > m_h) m_h=tr.bottom;
           }
 
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
         m_num_children--;
+
+        m_h+=3+m_nScrollPos;
+
+        m_maxpos_h=m_h - m_wh;
+        if (m_maxpos_h<0) m_maxpos_h=0;
+
+        SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE|SIF_POS,0,m_h,};
+        si.nPage=m_wh;
+        si.nPos = m_maxpos_h;
+
+        ScrollWindow(hwndDlg,0,-(si.nPos - m_nScrollPos),NULL,NULL);
+        SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
+        m_nScrollPos=si.nPos;
+
       }
     break;
     case WM_VSCROLL:
@@ -961,7 +1042,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         int nSBCode=LOWORD(wParam);
 	      int nDelta=0;
 
-	      int nMaxPos = m_h - m_wh;
+	      int nMaxPos = m_maxpos_h;
 
 	      switch (nSBCode)
 	      {
@@ -993,6 +1074,46 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           m_nScrollPos += nDelta;
 	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
 	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
+        }
+      }
+    break;
+    case WM_HSCROLL:
+      {
+        int nSBCode=LOWORD(wParam);
+	      int nDelta=0;
+
+	      int nMaxPos = m_maxpos_w;
+
+	      switch (nSBCode)
+	      {
+          case SB_TOP:
+            nDelta = - m_nScrollPos_w;
+          break;
+          case SB_BOTTOM:
+            nDelta = nMaxPos - m_nScrollPos_w;
+          break;
+	        case SB_LINEDOWN:
+		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos_w);
+		      break;
+	        case SB_LINEUP:
+		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/100,m_nScrollPos_w);
+          break;
+          case SB_PAGEDOWN:
+		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos_w);
+		      break;
+          case SB_THUMBTRACK:
+	        case SB_THUMBPOSITION:
+		        nDelta = (int)HIWORD(wParam) - m_nScrollPos_w;
+		      break;
+	        case SB_PAGEUP:
+		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/10,m_nScrollPos_w);
+		      break;
+	      }
+        if (nDelta) 
+        {
+          m_nScrollPos_w += nDelta;
+	        SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
+	        ScrollWindow(hwndDlg,-nDelta,0,NULL,NULL);
         }
       }
     break;

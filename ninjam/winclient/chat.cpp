@@ -9,7 +9,7 @@ extern HINSTANCE g_hInst;
 extern HWND g_hwnd;
 
 
-WNDPROC chatw_oldWndProc;
+WNDPROC chatw_oldWndProc,chate_oldWndProc;
 BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
   if (uMsg == WM_CHAR)
@@ -26,9 +26,22 @@ BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lPa
   }
   return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
 }
+BOOL CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
+{
+  if (uMsg == WM_CHAR)
+  {
+    if (wParam == VK_RETURN)
+    {
+      SendMessage(GetParent(hwndDlg),WM_COMMAND,IDC_CHATOK,0);
+      return 0;
+    }
+  }
+  return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
+}
 void chatInit(HWND hwndDlg)
 {
   chatw_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATDISP),GWL_WNDPROC,(LONG)chatw_newWndProc);
+  chate_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATENT),GWL_WNDPROC,(LONG)chate_newWndProc);
 }
 
 void addChatLine(char *src, char *text)
