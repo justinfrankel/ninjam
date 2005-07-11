@@ -29,6 +29,7 @@
 #define WM_LCUSER_VUUPDATE WM_USER+52
 #define WM_LCUSER_REPOP_CH WM_USER+53
 
+#define VERSION "0.0a"
 
 #define CONFSEC "ninjam"
 
@@ -1006,6 +1007,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   {
     case WM_INITDIALOG:
       {
+        SetWindowText(hwndDlg,"NINJAM v" VERSION);
         g_hwnd=hwndDlg;
 
         resize.init(hwndDlg);
@@ -1087,14 +1089,88 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         m_locwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
      
-        int x;
-        for (x = 0; x < 2; x ++)
+
+        // initialize local channels from config
         {
-          char buf[64];
-          sprintf(buf, "ch %d",x+1);
-          g_client->SetLocalChannelInfo(x,buf,true,0,false,0,true,false);
-          SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,x,0);
+          int cnt=GetPrivateProfileInt(CONFSEC,"lc_cnt",-1,g_ini_file.Get());
+          int x;
+          if (cnt < 0)
+          {
+            // add a default channel
+            g_client->SetLocalChannelInfo(0,"default channel",false,0,false,0,true,true);
+            SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,0,0);
+          }
+          for (x = 0; x < cnt; x ++)
+          {
+            char buf[1024];
+            char specbuf[64];
+            sprintf(specbuf,"lc_%d",x);
+
+            GetPrivateProfileString(CONFSEC,specbuf,"",buf,sizeof(buf),g_ini_file.Get());
+
+            if (!buf[0]) continue;
+
+            LineParser lp(false);
+
+            lp.parse(buf);
+
+            // process local line
+            if (lp.getnumtokens()>1)
+            {
+              int ch=lp.gettoken_int(0);
+              int n;
+              int wj=0, ok=0;
+              char *name=NULL;
+              if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
+              {
+                switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0jesus\0name\0"))
+                {
+                  case 0: // source 
+                    g_client->SetLocalChannelInfo(ch,NULL,true,lp.gettoken_int(n+1),false,0,false,false);
+                  break;
+                  case 1: //broadcast
+                    g_client->SetLocalChannelInfo(ch,NULL,false,false,false,0,true,!!lp.gettoken_int(n+1));
+                  break;
+                  case 2: //mute
+                    g_client->SetLocalChannelMonitoring(ch,false,false,false,false,true,!!lp.gettoken_int(n+1),false,false);
+                  break;
+                  case 3: //solo
+                    g_client->SetLocalChannelMonitoring(ch,false,false,false,false,false,false,true,!!lp.gettoken_int(n+1));
+                  break;
+                  case 4: //volume
+                    g_client->SetLocalChannelMonitoring(ch,true,(float)lp.gettoken_float(n+1),false,false,false,false,false,false);
+                  break;
+                  case 5: //pan
+                    g_client->SetLocalChannelMonitoring(ch,false,false,true,(float)lp.gettoken_float(n+1),false,false,false,false);
+                  break;
+                  case 6: //jesus
+                    if (lp.gettoken_int(n+1))
+                    {
+                      wj=1;
+                    }
+                  break;
+                  case 7: //name
+                    g_client->SetLocalChannelInfo(ch,name=lp.gettoken_str(n+1),false,false,false,0,false,false);
+                    ok|=1;
+                  break;
+                  default:
+                  break;
+                }
+              }
+              if (ok)
+              {
+                if (wj && name)
+                {
+                  CreateJesusInstance(ch,name);
+                }
+
+                SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,ch,0);
+
+              }
+            }
+          }
         }
+
         SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
         g_last_wndpos.left = GetPrivateProfileInt(CONFSEC,"wnd_x",0,g_ini_file.Get());
@@ -1264,6 +1340,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case ID_HELP_ABOUTNINJAM:
+          MessageBox(hwndDlg,"NINJAM v" VERSION "\r\nCopyright (C) 2005, Cockos, Inc.","About NINJAM", MB_OK);
+        break;
         case IDC_MASTERMUTE:
           g_client->config_mastermute=!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
         break;
@@ -1375,6 +1454,45 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       do_disconnect();
 
       // save config
+
+
+      {
+        int x;
+        int cnt=0;
+        for (x = 0;;x++)
+        {
+          int a=g_client->EnumLocalChannels(x);
+          if (a<0) break;
+
+
+          int sch=0;
+          bool bc=0;
+          void *has_jesus=0;
+          char *lcn;
+          float v=0.0f,p=0.0f;
+          bool m=0,s=0;
+      
+          lcn=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
+          g_client->GetLocalChannelMonitoring(a,&v,&p,&m,&s);
+          g_client->GetLocalChannelProcessor(a,NULL,&has_jesus);
+
+          char *ptr=lcn;
+          while (*ptr)
+          {
+            if (*ptr == '`') *ptr='\'';
+            ptr++;
+          }
+          if (strlen(lcn) > 128) lcn[127]=0;
+          char buf[1024];
+          sprintf(buf,"%d source %d bc %d mute %d solo %d volume %f pan %f jesus %d name `%s`",a,sch,bc,m,s,v,p,!!has_jesus,lcn);
+          char specbuf[64];
+          sprintf(specbuf,"lc_%d",cnt++);
+          WritePrivateProfileString(CONFSEC,specbuf,buf,g_ini_file.Get());
+        }
+        char buf[64];
+        sprintf(buf,"%d",cnt);
+        WritePrivateProfileString(CONFSEC,"lc_cnt",buf,g_ini_file.Get());
+      }
 
       {
         char buf[256];
