@@ -248,6 +248,30 @@ BEGIN
                     IDC_CHNOTE,7,99,227,8
 END
 
+IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 316, 39
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_NAME,0,0,82,14,ES_AUTOHSCROLL
+    CONTROL         "Transmit",IDC_TRANSMIT,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,85,2,43,10
+    COMBOBOX        IDC_AUDIOIN,130,0,112,30,CBS_DROPDOWN | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
+                    WS_BORDER,246,0,70,8
+    CTEXT           "-120.0 dB",IDC_VULBL,246,9,70,8
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,82,
+                    11
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,85,19,
+                    43,11
+    CTEXT           "+0.0 dB center",IDC_VOLLBL,130,20,54,8
+    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    187,20,32,10
+    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    221,20,30,10
+    PUSHBUTTON      "Remove",IDC_REMOVE,255,20,56,10
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

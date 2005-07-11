@@ -13,6 +13,7 @@
 #define IDD_CONNECT                     106
 #define IDD_LICENSE                     107
 #define IDD_PREFS                       108
+#define IDD_LOCALCHANNEL                110
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -68,6 +69,17 @@
 #define IDC_SESSIONDIR                  1034
 #define IDC_BROWSE                      1035
 #define IDC_CHNOTE                      1036
+#define IDC_NAME                        1037
+#define IDC_TRANSMIT                    1038
+#define IDC_MUTE                        1039
+#define IDC_SOLO                        1040
+#define IDC_REMOVE                      1041
+#define IDC_AUDIOIN                     1042
+#define IDC_VU                          1043
+#define IDC_VULBL                       1044
+#define IDC_VOL                         1045
+#define IDC_PAN                         1046
+#define IDC_VOLLBL                      1047
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -80,9 +92,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        109
+#define _APS_NEXT_RESOURCE_VALUE        111
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1037
+#define _APS_NEXT_CONTROL_VALUE         1048
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
