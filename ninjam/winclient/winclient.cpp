@@ -1090,7 +1090,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           h += sz.bottom - sz.top + 3;
 
           SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-          SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,0);
+          SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,uMsg == WM_COMMAND);
         }
       }
     break;
@@ -1385,6 +1385,19 @@ static BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wPa
           }
 
           SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
+        }
+      }
+      if (uMsg == WM_LCUSER_RESIZE && lParam == 1)
+      {
+        if (m_wh < m_h)
+        {
+          int npos=m_h-m_wh;
+          if (npos >= 0 && npos != m_nScrollPos)
+          {
+            SetScrollPos(hwndDlg,SB_VERT,npos,TRUE);
+            ScrollWindow(hwndDlg,0,m_nScrollPos-npos,NULL,NULL);
+            m_nScrollPos=npos;
+          }
         }
       }
 
