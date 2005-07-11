@@ -2,6 +2,7 @@
 #include <richedit.h>
 #include <commctrl.h>
 #include "../../WDL/string.h"
+#include "../../WDL/mutex.h"
 
 #include "resource.h"
 
@@ -44,6 +45,9 @@ void chatInit(HWND hwndDlg)
   chate_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATENT),GWL_WNDPROC,(LONG)chate_newWndProc);
 }
 
+WDL_String m_append_text;
+extern WDL_Mutex g_client_mutex;
+
 void addChatLine(char *src, char *text)
 {
   WDL_String tmp;
@@ -71,7 +75,21 @@ void addChatLine(char *src, char *text)
    tmp.Append(text);
   }
 
+  g_client_mutex.Enter();
+  m_append_text.Append(tmp.Get());
+  g_client_mutex.Leave();
 
+}
+
+void chat_run()
+{
+  WDL_String tmp;
+  g_client_mutex.Enter();
+  tmp.Set(m_append_text.Get());
+  m_append_text.Set("");
+  g_client_mutex.Leave();
+
+  if (!tmp.Get()[0]) return;
   HWND m_hwnd=GetDlgItem(g_hwnd,IDC_CHATDISP);
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
   GetScrollInfo(m_hwnd,SB_VERT,&si);

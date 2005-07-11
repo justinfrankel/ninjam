@@ -288,6 +288,31 @@ BEGIN
     PUSHBUTTON      "Add Local Channel",IDC_ADDCH,0,0,76,14
 END
 
+IDD_REMOTECHANNEL DIALOG DISCARDABLE  0, 0, 316, 37
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_USERNAME,0,0,90,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    ES_WANTRETURN
+    EDITTEXT        IDC_CHANNELNAME,92,0,103,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    ES_WANTRETURN
+    CONTROL         "Receive",IDC_RECV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    199,3,43,10
+    CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
+                    WS_BORDER,246,6,70,8
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,81,
+                    11
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,19,
+                    39,11
+    CTEXT           "+0.0 dB center",IDC_VOLLBL,127,20,54,8
+    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    186,20,30,10
+    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    219,20,30,10
+    LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,33,316,1
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -359,6 +384,11 @@ BEGIN
     BEGIN
         RIGHTMARGIN, 184
         BOTTOMMARGIN, 76
+    END
+
+    IDD_REMOTECHANNEL, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 35
     END
 END
 #endif    // APSTUDIO_INVOKED

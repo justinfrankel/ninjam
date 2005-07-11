@@ -16,6 +16,7 @@
 #define IDD_LOCALCHANNEL                110
 #define IDD_EMPTY                       111
 #define IDD_LOCALLIST                   112
+#define IDD_REMOTECHANNEL               113
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -85,6 +86,9 @@
 #define IDC_JS                          1048
 #define IDC_JSCFG                       1049
 #define IDC_ADDCH                       1050
+#define IDC_RECV                        1051
+#define IDC_USERNAME                    1053
+#define IDC_CHANNELNAME                 1054
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -99,7 +103,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        112
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1051
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
