@@ -18,6 +18,7 @@
 #define IDD_LOCALLIST                   112
 #define IDD_REMOTECHANNEL               113
 #define IDD_EMPTY                       114
+#define IDD_ABOUT                       115
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -93,6 +94,7 @@
 #define IDC_LOCGRP                      1054
 #define IDC_REMGRP                      1055
 #define IDC_CHATGRP                     1056
+#define IDC_VER                         1057
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -105,9 +107,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        112
+#define _APS_NEXT_RESOURCE_VALUE        116
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1057
+#define _APS_NEXT_CONTROL_VALUE         1058
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

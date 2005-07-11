@@ -51,9 +51,36 @@ WDL_String g_topic;
 
 static HWND m_locwnd,m_remwnd;
 
+
+static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+      SetDlgItemText(hwndDlg,IDC_VER,"Version " VERSION " compiled on " __DATE__ " at " __TIME__);
+    break;
+    case WM_CLOSE:
+      EndDialog(hwndDlg,0);
+    break;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDOK:
+        case IDCANCEL:
+          EndDialog(hwndDlg,0);
+        break;
+      }
+    break;
+  }
+  return 0;
+}
+
+
 extern void addChatLine(char *src, char *text);
 extern void chatInit(HWND hwndDlg);
 extern void chat_run();
+
+
 
 void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 {
@@ -1955,7 +1982,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       switch (LOWORD(wParam))
       {
         case ID_HELP_ABOUTNINJAM:
-          MessageBox(hwndDlg,"NINJAM v" VERSION "\r\nCopyright (C) 2005, Cockos, Inc.","About NINJAM", MB_OK);
+          DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
         break;
         case IDC_MASTERMUTE:
           g_client->config_mastermute=!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
