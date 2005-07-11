@@ -261,7 +261,7 @@ BEGIN
     POPUP "&File"
     BEGIN
         MENUITEM "&Connect...",                 ID_FILE_CONNECT
-        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT
+        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "&Quit",                       ID_FILE_QUIT
     END

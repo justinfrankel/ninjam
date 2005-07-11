@@ -231,6 +231,7 @@ void mkvolpanstr(char *str, double vol, double pan)
 
 int licensecallback(int user32, char *licensetext)
 {
+  MessageBox(g_hwnd,licensetext,"license agree",MB_OK);
   return 1;
 }
 
@@ -297,6 +298,153 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
   return 0;
 }
 
+void do_disconnect()
+{
+  delete g_audio;
+  g_audio=0;
+  g_audio_enable=0;
+
+
+  EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_ENABLED);
+  EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_GRAYED);
+
+  WDL_String sessiondir(g_client->GetWorkDir()); // save a copy of the work dir before we blow it away
+  
+  g_client->Disconnect();
+  delete g_client->waveWrite;
+  g_client->waveWrite=0;
+  g_client->SetWorkDir(NULL);
+  g_client->SetOggOutFile(NULL,0,0,0);
+  g_client->SetLogFile(NULL);
+  
+  if (sessiondir.Get()[0])
+  {
+    addChatLine("","Disconnected from server");
+    if (!g_client->config_savelocalaudio)
+    {
+      int n;
+      for (n = 0; n < 16; n ++)
+      {
+        WDL_String s(sessiondir.Get());
+        char buf[32];
+        sprintf(buf,"%x",n);
+        s.Append(buf);
+    
+        {
+          WDL_DirScan ds;
+          if (!ds.First(s.Get()))
+          {
+            do
+            {
+              if (ds.GetCurrentFN()[0] != '.')
+              {
+                WDL_String t;
+                ds.GetCurrentFullFN(&t);
+                unlink(t.Get());          
+              }
+            }
+            while (!ds.Next());
+          }
+        }
+        RemoveDirectory(s.Get());
+      }
+      RemoveDirectory(sessiondir.Get());
+    }
+    
+  }
+}
+
+
+void do_connect()
+{
+  WDL_String userstr;
+  if (g_connect_anon)
+  {
+    userstr.Set("anonymous:");
+    userstr.Append(g_connect_user.Get());
+  }
+  else
+  {
+    userstr.Set(g_connect_user.Get());
+  }
+
+  char buf[2048];
+  int cnt=0;
+  
+  while (cnt < 16)
+  {
+    time_t tv;
+    time(&tv);
+    struct tm *t=localtime(&tv);
+  
+    buf[0]=0;
+    strcpy(buf,g_exepath);
+    sprintf(buf+strlen(buf),"%04d%02d%02d_%02d%02d",
+        t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+
+    if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
+    strcat(buf,".ninjam");
+
+    if (CreateDirectory(buf,NULL)) break;
+
+    cnt++;
+  }
+  if (cnt >= 16)
+  {      
+    SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR CREATING SESSION DIRECTORY");
+    return;
+  }
+
+  g_audio=CreateConfiguredStreamer(g_ini_file.Get(), 0, g_hwnd);
+  if (!g_audio)
+  {
+    RemoveDirectory(buf);
+    SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR OPENING AUDIO");
+    return;
+  }
+  
+  g_client->SetWorkDir(buf);
+
+  g_client->config_savelocalaudio=0;
+  if (1) // save local [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocal"])
+  {
+    g_client->config_savelocalaudio|=1;
+    if (0) // save local wav [[NSUserDefaults standardUserDefaults] integerForKey:@"savelocalwav"])
+      g_client->config_savelocalaudio|=2;
+  }
+  if (0) // save wave [[NSUserDefaults standardUserDefaults] integerForKey:@"savewave"])
+  {
+    WDL_String wf;
+    wf.Set(g_client->GetWorkDir());
+    wf.Append("output.wav");
+    g_client->waveWrite = new WaveWriter(wf.Get(),24,g_audio->m_outnch>1?2:1,g_audio->m_srate);
+  }
+  
+  if (1) // save ogg [[NSUserDefaults standardUserDefaults] integerForKey:@"saveogg"])
+  {
+    WDL_String wf;
+    wf.Set(g_client->GetWorkDir());
+    wf.Append("output.ogg");
+    int br=128; //[[NSUserDefaults standardUserDefaults] integerForKey:@"saveoggbr"]
+    g_client->SetOggOutFile(fopen(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,br);
+  }
+  
+  if (g_client->config_savelocalaudio)
+  {
+    WDL_String lf;
+    lf.Set(g_client->GetWorkDir());
+    lf.Append("clipsort.log");
+    g_client->SetLogFile(lf.Get());
+  }
+
+  g_client->Connect(g_connect_host.Get(),userstr.Get(),g_connect_pass.Get());
+  g_audio_enable=1;
+  SetDlgItemText(g_hwnd,IDC_STATUS,"Status: Connecting...");
+
+  EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_GRAYED);
+  EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
+}
+
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_WndSizer resize;
@@ -340,6 +488,56 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         ShowWindow(g_hwnd,SW_SHOWNA);
      
+        SetTimer(hwndDlg,1,33,NULL);
+      }
+    break;
+    case WM_TIMER:
+      if (wParam == 1)
+      {
+        static int in_t;
+        static int m_last_status = 0xdeadbeef;
+        if (!in_t)
+        {
+          in_t=1;
+
+          while (!g_client->Run());
+
+          if (g_client->HasUserInfoChanged())
+          {
+            // update remote user list
+          }
+
+          int ns=g_client->GetStatus();
+          if (ns != m_last_status)
+          {
+            m_last_status=ns;
+            if (ns < 0)
+            {
+              do_disconnect();
+            }
+
+            if (ns == NJClient::NJC_STATUS_DISCONNECTED)
+              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
+            if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
+              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: invalid authentication info.");
+            if (ns == NJClient::NJC_STATUS_CANTCONNECT)
+              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
+            if (ns == NJClient::NJC_STATUS_OK)
+            {
+              WDL_String tmp;
+              tmp.Set("Status: Connected to ");
+              tmp.Append(g_client->GetHostName());
+              tmp.Append(" as ");
+              tmp.Append(g_client->GetUserName());
+
+              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+            }
+          }
+
+          // update VU meters
+
+          in_t=0;
+        }
       }
     break;
     case WM_GETMINMAXINFO:
@@ -359,11 +557,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case ID_FILE_DISCONNECT:
+          do_disconnect();
+        break;
         case ID_FILE_CONNECT:
           if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
           {
-            // disconnect
-            // reconnect
+            do_disconnect();
+
+            do_connect();
           }
         break;
         case ID_OPTIONS_AUDIOCONFIGURATION:
@@ -445,6 +647,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
   g_client = new NJClient;
 
+  g_client->LicenseAgreementCallback = licensecallback;
+
 
   if (!CreateDialog(hInstance,MAKEINTRESOURCE(IDD_MAIN),GetDesktopWindow(),MainProc))
   {
@@ -464,6 +668,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     }
   }
 
+
+
+  do_disconnect();
 
 
   // delete all effects processors in g_client
