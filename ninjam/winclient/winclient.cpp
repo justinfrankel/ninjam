@@ -1624,15 +1624,21 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
     
         
-        resize.init_item(IDC_DIV2,        0.0,  0.5f,  0.7f,  0.5f);
-        resize.init_item(IDC_CHATDIV,     0.7f, 0.0f,  0.7f,  1.0f);
+        float chat_ratio=0.0f;
 
-        resize.init_item(IDC_CHATDISP,     0.7f, 0.0f,  1.0f,  1.0f);
-        resize.init_item(IDC_CHATENT,      0.7f, 1.0f,  1.0f,  1.0f);
+        resize.init_item(IDC_DIV2,        0.0,  0.5f,  chat_ratio,  0.5f);
+
+        resize.init_item(IDC_CHATGRP,     chat_ratio, 0.0f,  1.0f,  1.0f);
+
+        resize.init_item(IDC_CHATDISP,     chat_ratio, 0.0f,  1.0f,  1.0f);
+        resize.init_item(IDC_CHATENT,      chat_ratio, 1.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATOK,       1.0f, 1.0f,  1.0f,  1.0f);
                 
-        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.7f,  0.5f);
-        resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  0.7f,  1.0f);      
+        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  chat_ratio,  0.5f);
+        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  0.5f);
+        
+        resize.init_item(IDC_REMOTERECT,  0.0f, 0.5f,  chat_ratio,  1.0f);      
+        resize.init_item(IDC_REMGRP,  0.0f, 0.5f,  chat_ratio,  1.0f);      
 
         chatInit(hwndDlg);
 
@@ -1898,7 +1904,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_GETMINMAXINFO:
       {
         LPMINMAXINFO p=(LPMINMAXINFO)lParam;
-        p->ptMinTrackSize.x = 600;
+        p->ptMinTrackSize.x = 620;
         p->ptMinTrackSize.y = 400;
       }
     return 0;
@@ -1914,7 +1920,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       }
       if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) return 0;
     case WM_MOVE:
-      GetWindowRect(hwndDlg,&g_last_wndpos);
+      {
+        WINDOWPLACEMENT wp={sizeof(wp)};
+        GetWindowPlacement(hwndDlg,&wp);
+        g_last_wndpos=wp.rcNormalPosition;
+      }
     break;
 
     case WM_HSCROLL:

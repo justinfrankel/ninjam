@@ -146,7 +146,7 @@ BEGIN
     RTEXT           "Output Device:",-1,1,19,55,8
 END
 
-IDD_MAIN DIALOG DISCARDABLE  0, 0, 459, 329
+IDD_MAIN DIALOGEX 0, 0, 459, 329
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
 CAPTION "NINJAM v0.666"
@@ -178,17 +178,21 @@ BEGIN
                     SS_LEFTNOWORDWRAP | WS_GROUP,7,314,356,8
     CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
                     WS_BORDER,7,304,445,9
-    CONTROL         "",IDC_CHATDIV,"Static",SS_ETCHEDVERT,312,41,1,260
-    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,146,302,1
     CONTROL         "",IDC_CHATDISP,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
-                    WS_TABSTOP | 0x2804,315,41,137,243
+                    WS_TABSTOP | 0x2804,351,52,96,227
     CONTROL         "",IDC_CHATENT,"RichEdit20A",WS_BORDER | WS_TABSTOP | 
-                    0xc4,315,287,137,14
-    CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,7,
-                    42,302,101
+                    0xc4,351,283,96,14
+    CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,13,
+                    52,327,88
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
-                    7,150,301,151
+                    13,162,327,135
     RTEXT           "",IDC_STATUS2,376,314,76,8
+    GROUPBOX        "Local Channels",IDC_LOCGRP,7,41,337,103,0,
+                    WS_EX_TRANSPARENT
+    GROUPBOX        "Remote Channels",IDC_REMGRP,7,151,337,150,0,
+                    WS_EX_TRANSPARENT
+    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,148,337,1
+    GROUPBOX        "Chat",IDC_CHATGRP,347,41,105,260
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 105
