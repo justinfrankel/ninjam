@@ -2096,7 +2096,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     break;
     case WM_CLOSE:
       if (1) DestroyWindow(hwndDlg);
-    break;
+    break;  
     case WM_ENDSESSION:
     case WM_DESTROY:
 
