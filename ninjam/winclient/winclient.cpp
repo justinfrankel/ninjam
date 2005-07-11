@@ -35,8 +35,6 @@
 
 #define CONFSEC "ninjam"
 
-#define VALIDATE_TEXT_CHAR(thischar) ((isspace(thischar) || isgraph(thischar)) && (thischar) < 256)
-
 int g_done=0;
 HANDLE g_hThread;
 
