@@ -42,6 +42,7 @@ extern NJClient *g_client;
 extern String g_user_name;
 
 static PtrList<String> chathist;
+static String cur_topic;
 
 static void chatcb(int user32, NJClient *inst, char **parms, int nparms) {
   ChatWnd *chatwnd = reinterpret_cast<ChatWnd *>(user32);
@@ -65,19 +66,21 @@ static void chatcb(int user32, NJClient *inst, char **parms, int nparms) {
       } else {
         chatwnd->addChatLine(NULL, StringPrintf("*** Topic is '%s'", newtopic.v()));
       }
-      chatwnd->setName(StringPrintf("NINJAM chat: %s", newtopic.v()));
+      cur_topic = newtopic;
+      chatwnd->setTopic(cur_topic);
     }
   }
 
 }
 
-ChatWnd::ChatWnd() : OSDialog(IDD_CHAT) {
+ChatWnd::ChatWnd(OSWINDOWHANDLE parwnd) : OSDialog(IDD_CHAT, parwnd) {
   ASSERT(g_client != NULL);
   g_client->ChatMessage_User32 = reinterpret_cast<int>(this);
   g_client->ChatMessage_Callback = chatcb;
 
   registerAttribute(chat_disp, IDC_CHAT_DISP);
   registerAttribute(chat_entry, IDC_CHAT_ENTRY);
+  registerAttribute(chat_topic, IDC_CHAT_TOPIC);
 
   addSizeBinding(IDC_CHAT_HIST, OSDialogSizeBind::RIGHTEDGETORIGHT|OSDialogSizeBind::BOTTOMEDGETOBOTTOM);
   addSizeBinding(IDC_CHAT_EDIT, OSDialogSizeBind::RIGHTEDGETORIGHT|OSDialogSizeBind::BOTTOM);
@@ -138,6 +141,14 @@ void ChatWnd::processUserEntry(const char *ln) {
   }
 }
 
+void ChatWnd::setTopic(const char *topic) {
+  String t(topic);
+  String s = "NINJAM chat";
+  if (t.notempty()) s += StringPrintf(" - %s", t.vs());
+  setName(s);
+  chat_topic = s;
+}
+
 void ChatWnd::setDisp() {
   BigString ploo;
   int needcr = 0;
@@ -164,6 +175,8 @@ void ChatWnd::onCreate() {
   m_icon_big = (HICON) LoadImage(WASABI_API_APP->main_gethInstance(), MAKEINTRESOURCE(resourceid), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR);
   SendMessage(getOsWindowHandle(), WM_SETICON, ICON_SMALL, (int)m_icon_small);
   SendMessage(getOsWindowHandle(), WM_SETICON, ICON_BIG, (int)m_icon_big);
+
+  setTopic(cur_topic);
 }
 
 void ChatWnd::onUserClose() {

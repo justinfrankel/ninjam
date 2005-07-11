@@ -9,12 +9,14 @@
 #define CHATWND_PARENT OSDialog
 class ChatWnd : public CHATWND_PARENT, public TimerClientDI, public SubClasser {
 public:
-  ChatWnd();
+  ChatWnd(OSWINDOWHANDLE parwnd);
   ~ChatWnd();
 
   void addChatLine(const char *from, const char *txt);
 
   void processUserEntry(const char *txt);
+
+  void setTopic(const char *topic);
 
 protected:
   void setDisp();
@@ -31,7 +33,7 @@ protected:
 private:
   HICON m_icon_small, m_icon_big;
   _string chat_disp, chat_entry;
-  String topic;
+  _string chat_topic;
 };
 
 #endif

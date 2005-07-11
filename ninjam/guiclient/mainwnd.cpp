@@ -5,6 +5,7 @@
 #include <bfc/attrib/attribs.h>
 #include <bfc/std_wnd.h>
 #include <wnd/wnds/os/osdialog.h>
+#include <wnd/wnds/os/osdockwnd.h>
 
 #include "../audiostream_asio.h"
 #include "../njclient.h"
@@ -215,10 +216,12 @@ int MainWnd::onInit() {
 // remove dead inbound channels
   addMenu("C&hannels", 2, p);
 
+#if 0
   p = new PopupMenu;
 //  p->addCommand("Show/Hide JesuSonic console", CMD_SHOW_JESUS, jesus_showing);
   p->addCommand("Show &Chat", CMD_SHOW_CHAT);
   addMenu("&Windows", 3, p);
+#endif
 
   p = new PopupMenu;
   p->addCommand("&Settings...", CMD_SETTINGS);
@@ -239,8 +242,17 @@ int MainWnd::onInit() {
 
 // chat
   if (chatwnd == NULL) {
-    chatwnd = new ChatWnd;
-    chatwnd->createModeless(FALSE, chat_was_showing);
+    OSDockWndHoster *hoser = new OSDockWndHoster();
+    hoser->setDockedWidth(200);
+    hoser->setDockedHeight(140);
+    //hoser->setDockResizable(FALSE);
+    hoser->setDockResizable(TRUE);
+    dockWindow(hoser, DOCK_RIGHT);
+
+    chatwnd = new ChatWnd(hoser->getOsWindowHandle());
+    chatwnd->createModeless(FALSE, TRUE);
+    hoser->setWindowHandle(chatwnd->getOsWindowHandle());
+
     StdWnd::setFocus(getOsWindowHandle());
   }
 

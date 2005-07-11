@@ -22,8 +22,8 @@ public:
 
   virtual void timerclient_timerCallback(int id);
 
-  virtual int getMinFrameWidth() { return 600; }
-  virtual int getMinFrameHeight() { return 240; }
+  virtual int getMinFrameWidth() { return 800; }
+  virtual int getMinFrameHeight() { return 360; }
 
   void handleConnect();
   void handleDisconnect();
