@@ -39,11 +39,13 @@ void deleteJesusonicProc(void *i, int chi);
 BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 
+// remchn.cpp
+BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // chat.cpp
-extern void addChatLine(char *src, char *text);
-extern void chatInit(HWND hwndDlg);
-extern void chat_run();
+void addChatLine(char *src, char *text);
+void chatInit(HWND hwndDlg);
+void chatRun(HWND hwndDlg);
 
 
 #endif//_WINCLIENT_H_
