@@ -153,7 +153,7 @@ void Session::endSession() {
 
   _string sesslen;
   int64 sp = g_client->GetSessionPosition();
-DebugString("sp is %d", sp);
+//DebugString("sp is %d", sp);
   int ms = sp % 1000;
   sp /= 1000;
   int sec = sp % 60;

@@ -20,6 +20,12 @@ public:
   virtual void onVol(float vol);
   virtual void onMute(bool mut);
   virtual float getVU();
+
+  virtual void onRefresh();
+
+private:
+  int refresh_count;
+  _string sessionpos;
 };
 
 #endif

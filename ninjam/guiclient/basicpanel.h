@@ -42,12 +42,14 @@ protected:
   _bool solo;
   _bool fx;
 
+protected:
+  virtual void onRefresh();
+
 private:
   virtual int timerclient_onDeferredCallback(int param1, int param2);
   virtual void onDlgContextMenu();
   virtual void onUserDblClick(int id);
   virtual int onSubclassWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT &retval);
-  virtual void onRefresh();
 
   _string vol_text, pan_text;
 

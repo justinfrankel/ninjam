@@ -18,7 +18,7 @@ _string asio_device("ASIO config");
 
 _string main_session_dir("Session dir");
 //
-_string session_format("Session format(2)", "%Y%m%d_%H%M");
+_string session_format("Session format(2)", "%Y%m%d_%H%M.ninjam");
 
 _bool write_ogg("Write OGG", FALSE);
 _int ogg_bitrate("OGG bitrate", 128);
