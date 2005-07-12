@@ -12,41 +12,37 @@
 
 #include "resource.h"
 
-#include "../audiostream_asio.h"
-
-#include "../njclient.h"
 #include "../../WDL/wingui/wndsize.h"
 #include "../../WDL/dirscan.h"
 #include "../../WDL/lineparse.h"
-#include "../../WDL/mutex.h"
 
-#ifdef _WIN32
-#include "../../jesusonic/jesusonic_dll.h"
-#endif
-
-#define WM_LCUSER_RESIZE WM_USER+49
-#define WM_LCUSER_ADDCHILD WM_USER+50
-#define WM_LCUSER_REMCHILD WM_USER+51
-#define WM_LCUSER_VUUPDATE WM_USER+52
-#define WM_LCUSER_REPOP_CH WM_USER+53
-#define WM_RCUSER_UPDATE WM_USER+54
+#include "winclient.h"
 
 #define VERSION "0.02a"
 
 #define CONFSEC "ninjam"
 
-int g_done=0;
-HANDLE g_hThread;
 
-WDL_Mutex g_client_mutex;
-
-char g_exepath[1024];
 WDL_String g_ini_file;
-HICON g_hSmallIcon;
+WDL_Mutex g_client_mutex;
+audioStreamer *g_audio;
+NJClient *g_client;
+jesusonicAPI *JesusonicAPI;  
 HINSTANCE g_hInst;
 HWND g_hwnd;
-WDL_String g_topic;
 
+
+
+
+
+
+int g_done=0;
+HANDLE g_hThread;
+char g_exepath[1024];
+HICON g_hSmallIcon;
+WDL_String g_topic;
+HINSTANCE hDllInst;
+WDL_String jesusdir;
 static HWND m_locwnd,m_remwnd;
 
 
@@ -72,11 +68,6 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
   }
   return 0;
 }
-
-
-extern void addChatLine(char *src, char *text);
-extern void chatInit(HWND hwndDlg);
-extern void chat_run();
 
 
 
@@ -160,35 +151,19 @@ double SLIDER2DB(double y)
 return pow(y-63.0,3.0) * (1.0/2110.54);
 }
 
-double g_ilog2x6;
+static double g_ilog2x6;
 double VAL2DB(double x)
 {
   double v=(log10(x)*g_ilog2x6);
   if (v < -120.0) v=-120.0;
   return v;
 }
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
-
-#ifdef _WIN32
-// jesusonic stuff
-#define MAX_JESUS_INST 32
-jesusonicAPI *JesusonicAPI;  
-HINSTANCE hDllInst;
-WDL_String jesusdir;
-#endif
-
-
-#ifdef _WIN32
-audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
-#endif
-audioStreamer *g_audio;
-NJClient *g_client;
-
-
-void audiostream_onunder() { }
-void audiostream_onover() { }
 
 int g_audio_enable=0;
+
+audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
+void audiostream_onunder() { }
+void audiostream_onover() { }
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
@@ -204,7 +179,6 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 
 void deleteJesusonicProc(void *i, int chi)
 {
-#ifdef _WIN32
   if (JesusonicAPI && i)
   {
       char buf[4096];
@@ -215,25 +189,19 @@ void deleteJesusonicProc(void *i, int chi)
       JesusonicAPI->ui_quit(i);
       JesusonicAPI->destroyInstance(i);
   }
-#endif
 }
 
 
 void jesusonic_processor(float *buf, int len, void *inst)
 {
-#ifdef _WIN32
   if (inst)
   {
     _controlfp(_RC_CHOP,_MCW_RC);
     JesusonicAPI->jesus_process_samples(inst,(char*)buf,len*sizeof(float));
     JesusonicAPI->osc_run(inst,(char*)buf,len);
   }
-#endif
 }
 
-
-
-#ifdef _WIN32
 
 void JesusUpdateInfo(void *myInst, char *chdesc)
 {
@@ -270,8 +238,6 @@ int CreateJesusInstance(int a, char *chdesc)
   }
   return 0;
 }
-#endif
-
 
 void mkvolpanstr(char *str, double vol, double pan)
 {
@@ -679,929 +645,6 @@ void updateMasterControlLabels(HWND hwndDlg)
 RECT g_last_wndpos;
 
 
-static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-      m_idx=lParam;
-      SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
-  
-      {
-        int sch;
-        bool bc;
-
-        g_client_mutex.Enter();
-
-        char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc);
-        float vol=0.0,pan=0.0 ;
-        bool ismute=0,issolo=0;
-        g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
-        void *jesinst=0;
-        g_client->GetLocalChannelProcessor(m_idx,NULL,&jesinst);
-
-        g_client_mutex.Leave();
-
-        if (buf) SetDlgItemText(hwndDlg,IDC_NAME,buf);
-        if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
-        if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
-        if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
-        if (jesinst) CheckDlgButton(hwndDlg,IDC_JS,BST_CHECKED);
-
-        if (!JesusonicAPI)
-        {
-          EnableWindow(GetDlgItem(hwndDlg,IDC_JS),0);
-          EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),0);
-        }
-        else if (jesinst)
-          EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),1);
-
-
-        SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
-
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
-
-        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
-        int t=(int)(pan*50.0) + 50;
-        if (t < 0) t=0; else if (t > 100)t=100;
-        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
-
-        {
-         char tmp[512];
-         mkvolpanstr(tmp,vol,pan);
-         SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
-        }
-
-      }
-    return 0;
-    case WM_TIMER:
-      if (wParam == 1)
-      {
-        KillTimer(hwndDlg,1);
-        char buf[512];
-        GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
-        g_client_mutex.Enter();
-        g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
-        g_client->NotifyServerOfChannelChange();
-        void *i=0;
-        g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-        g_client_mutex.Leave();
-        if (i)
-        {
-          JesusUpdateInfo(i,buf);
-        }
-      }
-    return 0;
-    case WM_COMMAND:
-      switch (LOWORD(wParam))
-      {
-        case IDC_AUDIOIN:
-          if (HIWORD(wParam) == CBN_SELCHANGE)
-          {
-            int a=SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCURSEL,0,0);
-            if (a != CB_ERR)
-            {
-              if (a == SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCOUNT,0,0)-1) a=-1;
-              g_client_mutex.Enter();
-              g_client->SetLocalChannelInfo(m_idx,NULL,true,a,false,0,false,false);
-              g_client_mutex.Leave();
-            }
-          }
-        break;
-        case IDC_TRANSMIT:
-          g_client_mutex.Enter();
-          g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client->NotifyServerOfChannelChange();
-          g_client_mutex.Leave();
-        break;
-        case IDC_SOLO:
-          g_client_mutex.Enter();
-          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,false,false,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client->NotifyServerOfChannelChange();
-          g_client_mutex.Leave();
-        break;
-        case IDC_MUTE:
-          g_client_mutex.Enter();
-          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
-          g_client->NotifyServerOfChannelChange();
-          g_client_mutex.Leave();
-        break;
-        case IDC_NAME:
-          if (HIWORD(wParam) == EN_CHANGE)
-          {
-            KillTimer(hwndDlg,1);
-            SetTimer(hwndDlg,1,1000,NULL);
-          }
-        break;
-        case IDC_REMOVE:
-          {
-            // remove JS for this channel
-            void *i=0;
-            g_client_mutex.Enter();
-            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-            if (i) deleteJesusonicProc(i,m_idx);
-            g_client->SetLocalChannelProcessor(m_idx,NULL,NULL);
-
-            // remove the channel
-            g_client->DeleteLocalChannel(m_idx);
-            g_client_mutex.Leave();
-            PostMessage(GetParent(hwndDlg),WM_LCUSER_REMCHILD,0,(LPARAM)hwndDlg);
-          }
-        break;
-        case IDC_JS:
-          if (IsDlgButtonChecked(hwndDlg,IDC_JS))
-          {
-            char buf[512];
-            GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
-            if (CreateJesusInstance(m_idx,buf))
-            {
-              EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),1);
-            }
-          }
-          else
-          {
-            void *i=0;
-            g_client_mutex.Enter();
-            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-            if (i)
-            {
-              deleteJesusonicProc(i,m_idx);
-              g_client->SetLocalChannelProcessor(m_idx,NULL,NULL);
-            }
-            g_client_mutex.Leave();
-            EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),0);
-          }
-        break;
-        case IDC_JSCFG:
-          {
-            void *i=0;
-            g_client_mutex.Enter();
-            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-            HWND h=JesusonicAPI->ui_wnd_gethwnd(i);
-            g_client_mutex.Leave();
-            if (h && IsWindow(h))
-            {
-              ShowWindow(h,SW_SHOWNA);
-              SetForegroundWindow(h);
-            }
-            else
-            {
-              HWND h=JesusonicAPI->ui_wnd_create(i);
-              ShowWindow(h,SW_SHOWNA);
-              SetTimer(h,1,40,NULL);
-              SetForegroundWindow(h);
-            }
-          }
-        break;
-
-      }
-    return 0;
-    case WM_HSCROLL:
-      {
-        double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
-
-        g_client_mutex.Enter();
-
-		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
-          g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(SLIDER2DB(pos)),false,0.0,false,false,false,false);
-		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
-        {
-          if (fabs(pos) < 0.08) pos=0.0;
-          g_client->SetLocalChannelMonitoring(m_idx,false,false,true,((float)pos-50.0f)/50.0f,false,false,false,false);
-        }
-        else 
-        {
-          g_client_mutex.Leave();
-          return 0;
-        }
-
-        float vol,pan;
-        g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, NULL, NULL);
-
-        g_client_mutex.Leave();
-
-        char tmp[512];
-        mkvolpanstr(tmp,vol,pan);
-        SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
-      }
-    return 0;
-    case WM_LCUSER_REPOP_CH:
-      {
-        int sch;
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_RESETCONTENT,0,0);
-
-        g_client_mutex.Enter();
-        g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
-        g_client_mutex.Leave();
-        int chcnt=0;
-        if (g_audio)
-        {
-          for (;;)
-          {
-            const char *p=g_audio->GetChannelName(chcnt);
-            if (!p) break;
-            SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)p);         
-            chcnt++;
-          }
-        }
-        else
-        {
-          for (chcnt = 0; chcnt < max(sch,8); chcnt++)
-          {
-            char buf[128];
-            sprintf(buf,"Input Channel %d",chcnt+1);
-            SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
-          }
-        }
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Silence");         
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,sch >= 0 ? sch : chcnt,0);
-      }
-    return 0;
-    case WM_LCUSER_VUUPDATE:
-      {
-        double val=VAL2DB(g_client->GetLocalChannelPeak(m_idx));
-        int ival=(int)(val+100.0);
-        if (ival < 0) ival=0;
-        else if (ival > 100) ival=100;
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
-
-        char buf[128];
-        sprintf(buf,"%.2f dB",val);
-        SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
-      }
-    return 0;
-
-  };
-  return 0;
-}
-
-static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-      SetWindowLong(hwndDlg,GWL_USERDATA,0xffffffff);
-
-      SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,0,MAKELPARAM(0,100));
-
-      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
-      SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-      SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
-
-    return 0;
-    case WM_RCUSER_UPDATE:
-      m_userch=((int)LOWORD(wParam) << 16) | LOWORD(lParam);
-      SetWindowLong(hwndDlg,GWL_USERDATA,m_userch);
-    break;
-  }
-  int user=m_userch>>16;
-  int chan=m_userch&0xffff;
-  switch (uMsg)
-  {
-    case WM_RCUSER_UPDATE: // update the items
-      {
-        g_client_mutex.Enter();
-        char *un=g_client->GetUserState(user,NULL,NULL,NULL);
-        SetDlgItemText(hwndDlg,IDC_USERNAME,un?un:"");
-
-        bool sub=0,m=0,s=0;
-        float v=0,p=0;
-        char *cn=g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s);
-        g_client_mutex.Leave();
-
-        SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
-
-        CheckDlgButton(hwndDlg,IDC_RECV,sub?BST_CHECKED:0);
-        CheckDlgButton(hwndDlg,IDC_MUTE,m?BST_CHECKED:0);
-        CheckDlgButton(hwndDlg,IDC_SOLO,s?BST_CHECKED:0);
-
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(v)));
-
-        int t=(int)(p*50.0) + 50;
-        if (t < 0) t=0; else if (t > 100)t=100;
-        SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
-
-        {
-         char tmp[512];
-         mkvolpanstr(tmp,v,p);
-         SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
-        }
-
-      }
-    break;
-    case WM_LCUSER_VUUPDATE:
-      {
-        double val=VAL2DB(g_client->GetUserChannelPeak(user,chan));
-        int ival=(int)((val+100.0));
-        if (ival < 0) ival=0;
-        else if (ival > 100) ival=100;
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
-
-        char buf[128];
-        sprintf(buf,"%.2f dB",val);
-        SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
-      }
-    return 0;
-    case WM_HSCROLL:
-      {
-        double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
-
-        g_client_mutex.Enter();
-		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
-          g_client->SetUserChannelState(user,chan,false,false,true,(float)DB2VAL(SLIDER2DB(pos)),false,0.0,false,false,false,false);
-		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
-        {
-          if (fabs(pos) < 0.08) pos=0.0;
-          g_client->SetUserChannelState(user,chan,false,false,false,0.0,true,((float)pos-50.0f)/50.0f,false,false,false,false);
-        }
-        else 
-        {
-          g_client_mutex.Leave();
-          return 0;
-        }
-
-        float vol,pan;
-        g_client->GetUserChannelState(user,chan,NULL,&vol,&pan,NULL,NULL);
-
-        g_client_mutex.Leave();
-
-        char tmp[512];
-        mkvolpanstr(tmp,vol,pan);
-        SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
-      }
-    return 0;
-    case WM_COMMAND:
-      switch (LOWORD(wParam))
-      {
-        case IDC_RECV:
-          g_client_mutex.Enter();
-          g_client->SetUserChannelState(user,chan,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,0.0,false,0.0,false,false,false,false);
-          g_client_mutex.Leave();
-        break;
-        case IDC_SOLO:
-          g_client_mutex.Enter();
-          g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,false,false,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client_mutex.Leave();
-        break;
-        case IDC_MUTE:
-          g_client_mutex.Enter();
-          g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
-          g_client_mutex.Leave();
-        break;
-      }
-    return 0;
-  }
-  return 0;
-}
-
-
-static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  static int m_num_children;
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-    case WM_LCUSER_RESIZE:
-      {
-      }
-    break;
-    case WM_LCUSER_REPOP_CH:
-    case WM_LCUSER_VUUPDATE:
-      {
-        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
-
-        while (hwnd)
-        {
-          if (hwnd != GetDlgItem(hwndDlg,IDC_ADDCH)) SendMessage(hwnd,uMsg,0,0);
-          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
-        }        
-      }
-    break;
-    case WM_COMMAND:
-      if (LOWORD(wParam) != IDC_ADDCH) return 0;
-      {
-        int idx;
-        g_client_mutex.Enter();
-        int maxc=g_client->GetMaxLocalChannels();
-        for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
-
-        if (idx < maxc) 
-        {
-          g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
-          g_client->NotifyServerOfChannelChange();  
-        }
-        g_client_mutex.Leave();
-
-        if (idx >= maxc) return 0;
-        wParam = (WPARAM)idx;
-      }
-
-    case WM_LCUSER_ADDCHILD:
-      {
-        // add a new child, with wParam as the index
-        HWND hwnd=CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_LOCALCHANNEL),hwndDlg,LocalChannelItemProc,wParam);
-        if (hwnd)
-        {
-          RECT sz;
-          GetClientRect(hwnd,&sz);
-          SetWindowPos(hwnd,NULL,0,sz.bottom*m_num_children,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-          ShowWindow(hwnd,SW_SHOWNA);
-          m_num_children++;
-
-          int h=sz.bottom*m_num_children;
-          int w=sz.right-sz.left;
-
-          SetWindowPos(GetDlgItem(hwndDlg,IDC_ADDCH),NULL,0,h,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-
-          GetWindowRect(GetDlgItem(hwndDlg,IDC_ADDCH),&sz);
-          h += sz.bottom - sz.top + 3;
-
-          SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-          SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,uMsg == WM_COMMAND);
-        }
-      }
-    break;
-    case WM_LCUSER_REMCHILD:
-      // remove a child, move everything up
-      if (lParam) 
-      {
-        HWND hwndDel=(HWND)lParam;
-        RECT cr;
-        GetWindowRect(hwndDel,&cr);
-        ScreenToClient(hwndDlg,(LPPOINT)&cr);
-        ScreenToClient(hwndDlg,((LPPOINT)&cr) + 1);
-
-        DestroyWindow(hwndDel);
-
-        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
-
-        int w=0;
-        int h=0;
-        while (hwnd)
-        {
-          RECT tr;
-          GetWindowRect(hwnd,&tr);
-          ScreenToClient(hwndDlg,(LPPOINT)&tr);
-          ScreenToClient(hwndDlg,((LPPOINT)&tr) + 1);
-
-          if (tr.top > cr.top)
-          {
-            tr.top -= cr.bottom-cr.top;
-            tr.bottom -= cr.bottom-cr.top;
-            SetWindowPos(hwnd,NULL,tr.left,tr.top,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-            if (tr.bottom > h) h=tr.bottom;
-          }
-          if (tr.right > w) w=tr.right;
-
-          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
-        }        
-        m_num_children--;
-
-        h+=3;
-
-        SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-        SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,0);
-      }
-    break;
-  }
-  return 0;
-}
-
-
-static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-
-static BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
-  static int m_h, m_maxpos_h, m_w,m_maxpos_w; 
-  static HWND m_child;
-  switch (uMsg)
-  {
-
-    case WM_RCUSER_UPDATE:
-    case WM_LCUSER_RESIZE:
-    case WM_INITDIALOG:
-      {
-        RECT r;
-        GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_REMOTERECT),&r);
-        m_wh=r.bottom-r.top;
-        m_ww=r.right-r.left;
-
-        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
-
-        SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
-
-        m_wh -= GetSystemMetrics(SM_CYHSCROLL);
-
-        if (uMsg == WM_INITDIALOG)
-        {
-          m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,RemoteChannelListProc);
-          ShowWindow(m_child,SW_SHOWNA);
-          ShowWindow(hwndDlg,SW_SHOWNA);
-        }
-      }
-
-      {
-        SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
-        RECT r;
-        GetWindowRect(m_child,&r);
-        m_h=r.bottom-r.top;
-        m_w=r.right-r.left;
-        m_maxpos_h=m_wh-m_h;
-        m_maxpos_w=m_ww-m_w;
-
-        if (m_maxpos_h < 0) m_maxpos_h=0;
-        if (m_maxpos_w < 0) m_maxpos_w=0;
-
-        {
-          SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_h,};
-          si.nPage=m_wh;
-
-          if (m_nScrollPos+m_wh > m_h)
-          {
-            int np=m_h-m_wh;
-            if (np<0)np=0;
-            si.nPos=np;
-            si.fMask |= SIF_POS;
-
-            ScrollWindow(hwndDlg,0,m_nScrollPos-np,NULL,NULL);
-            m_nScrollPos=np;
-          }
-          SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
-        }
-        {
-          SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_w,};
-          si.nPage=m_ww;
-          if (m_nScrollPos_w+m_ww > m_w)
-          {
-            int np=m_w-m_ww;
-            if (np<0)np=0;
-            si.nPos=np;
-            si.fMask |= SIF_POS;
-
-            ScrollWindow(hwndDlg,m_nScrollPos_w-np,0,NULL,NULL);
-            m_nScrollPos_w=np;
-          }
-
-          SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
-        }
-      }
-
-      // update scrollbars and shit
-    return 0;
-    case WM_LCUSER_VUUPDATE:
-      SendMessage(m_child,uMsg,wParam,lParam);
-    break;
-    case WM_VSCROLL:
-      {
-        int nSBCode=LOWORD(wParam);
-	      int nDelta=0;
-
-	      int nMaxPos = m_maxpos_h;
-
-	      switch (nSBCode)
-	      {
-          case SB_TOP:
-            nDelta = - m_nScrollPos;
-          break;
-          case SB_BOTTOM:
-            nDelta = nMaxPos - m_nScrollPos;
-          break;
-	        case SB_LINEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos);
-		      break;
-	        case SB_LINEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/100,m_nScrollPos);
-          break;
-          case SB_PAGEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos);
-		      break;
-          case SB_THUMBTRACK:
-	        case SB_THUMBPOSITION:
-		        nDelta = (int)HIWORD(wParam) - m_nScrollPos;
-		      break;
-	        case SB_PAGEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/10,m_nScrollPos);
-		      break;
-	      }
-        if (nDelta) 
-        {
-          m_nScrollPos += nDelta;
-	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
-	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
-        }
-      }
-    break;
-    case WM_HSCROLL:
-      {
-        int nSBCode=LOWORD(wParam);
-	      int nDelta=0;
-
-	      int nMaxPos = m_maxpos_w;
-
-	      switch (nSBCode)
-	      {
-          case SB_TOP:
-            nDelta = - m_nScrollPos_w;
-          break;
-          case SB_BOTTOM:
-            nDelta = nMaxPos - m_nScrollPos_w;
-          break;
-	        case SB_LINEDOWN:
-		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos_w);
-		      break;
-	        case SB_LINEUP:
-		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/100,m_nScrollPos_w);
-          break;
-          case SB_PAGEDOWN:
-		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos_w);
-		      break;
-          case SB_THUMBTRACK:
-	        case SB_THUMBPOSITION:
-		        nDelta = (int)HIWORD(wParam) - m_nScrollPos_w;
-		      break;
-	        case SB_PAGEUP:
-		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/10,m_nScrollPos_w);
-		      break;
-	      }
-        if (nDelta) 
-        {
-          m_nScrollPos_w += nDelta;
-	        SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
-	        ScrollWindow(hwndDlg,-nDelta,0,NULL,NULL);
-        }
-      }
-    break; 
-  }
-  return 0;
-}
-
-
-static BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
-  static int m_h, m_maxpos_h, m_w,m_maxpos_w; 
-  static HWND m_child;
-  switch (uMsg)
-  {
-
-    case WM_RCUSER_UPDATE:
-    case WM_LCUSER_RESIZE:
-    case WM_INITDIALOG:
-      {
-        RECT r;
-        GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
-        m_wh=r.bottom-r.top;
-        m_ww=r.right-r.left;
-
-        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
-
-        SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
-
-        m_wh -= GetSystemMetrics(SM_CYHSCROLL);
-
-        if (uMsg == WM_INITDIALOG)
-        {
-          m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
-          ShowWindow(m_child,SW_SHOWNA);
-          ShowWindow(hwndDlg,SW_SHOWNA);
-        }
-      }
-
-      {
-        SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
-        RECT r;
-        GetWindowRect(m_child,&r);
-        m_h=r.bottom-r.top;
-        m_w=r.right-r.left;
-        m_maxpos_h=m_wh-m_h;
-        m_maxpos_w=m_ww-m_w;
-
-        if (m_maxpos_h < 0) m_maxpos_h=0;
-        if (m_maxpos_w < 0) m_maxpos_w=0;
-
-        {
-          SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_h,};
-          si.nPage=m_wh;
-
-          if (m_nScrollPos+m_wh > m_h)
-          {
-            int np=m_h-m_wh;
-            if (np<0)np=0;
-            si.nPos=np;
-            si.fMask |= SIF_POS;
-
-            ScrollWindow(hwndDlg,0,m_nScrollPos-np,NULL,NULL);
-            m_nScrollPos=np;
-          }
-          SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
-        }
-        {
-          SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_w,};
-          si.nPage=m_ww;
-          if (m_nScrollPos_w+m_ww > m_w)
-          {
-            int np=m_w-m_ww;
-            if (np<0)np=0;
-            si.nPos=np;
-            si.fMask |= SIF_POS;
-
-            ScrollWindow(hwndDlg,m_nScrollPos_w-np,0,NULL,NULL);
-            m_nScrollPos_w=np;
-          }
-
-          SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
-        }
-      }
-      if (uMsg == WM_LCUSER_RESIZE && lParam == 1)
-      {
-        if (m_wh < m_h)
-        {
-          int npos=m_h-m_wh;
-          if (npos >= 0 && npos != m_nScrollPos)
-          {
-            SetScrollPos(hwndDlg,SB_VERT,npos,TRUE);
-            ScrollWindow(hwndDlg,0,m_nScrollPos-npos,NULL,NULL);
-            m_nScrollPos=npos;
-          }
-        }
-      }
-
-      // update scrollbars and shit
-    return 0;
-    case WM_LCUSER_ADDCHILD:
-    case WM_LCUSER_VUUPDATE:
-      SendMessage(m_child,uMsg,wParam,lParam);
-    break;
-    case WM_VSCROLL:
-      {
-        int nSBCode=LOWORD(wParam);
-	      int nDelta=0;
-
-	      int nMaxPos = m_maxpos_h;
-
-	      switch (nSBCode)
-	      {
-          case SB_TOP:
-            nDelta = - m_nScrollPos;
-          break;
-          case SB_BOTTOM:
-            nDelta = nMaxPos - m_nScrollPos;
-          break;
-	        case SB_LINEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos);
-		      break;
-	        case SB_LINEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/100,m_nScrollPos);
-          break;
-          case SB_PAGEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos);
-		      break;
-          case SB_THUMBTRACK:
-	        case SB_THUMBPOSITION:
-		        nDelta = (int)HIWORD(wParam) - m_nScrollPos;
-		      break;
-	        case SB_PAGEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/10,m_nScrollPos);
-		      break;
-	      }
-        if (nDelta) 
-        {
-          m_nScrollPos += nDelta;
-	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
-	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
-        }
-      }
-    break;
-    case WM_HSCROLL:
-      {
-        int nSBCode=LOWORD(wParam);
-	      int nDelta=0;
-
-	      int nMaxPos = m_maxpos_w;
-
-	      switch (nSBCode)
-	      {
-          case SB_TOP:
-            nDelta = - m_nScrollPos_w;
-          break;
-          case SB_BOTTOM:
-            nDelta = nMaxPos - m_nScrollPos_w;
-          break;
-	        case SB_LINEDOWN:
-		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos_w);
-		      break;
-	        case SB_LINEUP:
-		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/100,m_nScrollPos_w);
-          break;
-          case SB_PAGEDOWN:
-		        if (m_nScrollPos_w < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos_w);
-		      break;
-          case SB_THUMBTRACK:
-	        case SB_THUMBPOSITION:
-		        nDelta = (int)HIWORD(wParam) - m_nScrollPos_w;
-		      break;
-	        case SB_PAGEUP:
-		        if (m_nScrollPos_w > 0) nDelta = -min(nMaxPos/10,m_nScrollPos_w);
-		      break;
-	      }
-        if (nDelta) 
-        {
-          m_nScrollPos_w += nDelta;
-	        SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
-	        ScrollWindow(hwndDlg,-nDelta,0,NULL,NULL);
-        }
-      }
-    break; 
-  }
-  return 0;
-}
-
-
-static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  static WDL_PtrList<void> m_children;
-  switch (uMsg)
-  {
-
-    case WM_INITDIALOG:
-      {
-      }
-    break;
-    case WM_LCUSER_VUUPDATE:
-      {
-        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
-
-        while (hwnd)
-        {
-          SendMessage(hwnd,uMsg,0,0);
-          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
-        }        
-      }
-    break;
-    case WM_RCUSER_UPDATE:
-      {
-        int pos=0;
-        int us;
-        int did_sizing=0;
-        RECT lastr={0,0,0,0};
-        g_client_mutex.Enter();
-        for (us = 0; us < g_client->GetNumUsers(); us ++)
-        {
-          int ch=0;
-          for (;;)
-          {
-            int i=g_client->EnumUserChannels(us,ch++);
-            if (i < 0) break;
-            HWND h=NULL;
-            if (pos < m_children.GetSize()) h=(HWND)m_children.Get(pos);
-            else
-            {
-              h=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_REMOTECHANNEL),hwndDlg,RemoteChannelItemProc);
-              SetWindowPos(h,0,0,lastr.bottom,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-              did_sizing=1;
-              ShowWindow(h,SW_SHOWNA);
-              m_children.Add((void *)h);
-            }
-            GetWindowRect(h,&lastr);
-            ScreenToClient(hwndDlg,(LPPOINT)&lastr);
-            ScreenToClient(hwndDlg,((LPPOINT)&lastr)+1);
-            SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,(LPARAM)i);
-      
-            pos++;
-          }
-        }
-
-        g_client_mutex.Leave();
-
-        for (; pos < m_children.GetSize(); )
-        {
-          DestroyWindow((HWND)m_children.Get(pos));
-          m_children.Delete(pos);
-          did_sizing=1;
-        }
-
-        if (did_sizing)
-        {
-          SetWindowPos(hwndDlg,NULL,0,0,lastr.right,lastr.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE); // size ourself
-
-        }
-        
-      }
-      // update channel list, creating and destroying window as necessary
-    break;
-  }
-  return 0;
-}
-
 
 
 DWORD WINAPI ThreadFunc(LPVOID p)
@@ -1920,7 +963,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
             SendMessage(m_remwnd,WM_LCUSER_VUUPDATE,0,0);
           }
-          chat_run();
+          chatRun(hwndDlg);
 
           in_t=0;
         }

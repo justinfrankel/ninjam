@@ -281,11 +281,19 @@ SOURCE=.\chat.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\locchn.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\remchn.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\winclient.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\winclientinst.h
+SOURCE=.\winclient.h
 # End Source File
 # Begin Source File
 
