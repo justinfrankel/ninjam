@@ -281,7 +281,15 @@ SOURCE=.\chat.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\license.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\locchn.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\misc.cpp
 # End Source File
 # Begin Source File
 

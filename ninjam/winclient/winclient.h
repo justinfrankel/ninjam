@@ -22,15 +22,21 @@ extern audioStreamer *g_audio;
 extern NJClient *g_client;
 extern jesusonicAPI *JesusonicAPI;  
 extern HINSTANCE g_hInst;
-extern HWND g_hwnd;
+extern int g_done;
+extern WDL_String jesusdir;
+extern WDL_String g_topic;
 
 
-// winclient.cpp
+// audioconfig.cpp
+audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
+
+// misc.cpp
 double DB2SLIDER(double x);
 double SLIDER2DB(double y);
 double VAL2DB(double x);
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
 void mkvolpanstr(char *str, double vol, double pan);
+
 int CreateJesusInstance(int a, char *chdesc);
 void JesusUpdateInfo(void *myInst, char *chdesc);
 void deleteJesusonicProc(void *i, int chi);
@@ -43,9 +49,13 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // chat.cpp
-void addChatLine(char *src, char *text);
+void chat_addline(char *src, char *text);
 void chatInit(HWND hwndDlg);
 void chatRun(HWND hwndDlg);
+void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms);
 
+// license.cpp
+int licensecallback(int user32, char *licensetext);
+void licenseRun(HWND hwndDlg);
 
 #endif//_WINCLIENT_H_

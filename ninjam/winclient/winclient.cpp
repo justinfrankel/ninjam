@@ -7,8 +7,6 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <signal.h>
-#include <float.h>
 
 #include "resource.h"
 
@@ -29,22 +27,21 @@ audioStreamer *g_audio;
 NJClient *g_client;
 jesusonicAPI *JesusonicAPI;  
 HINSTANCE g_hInst;
-HWND g_hwnd;
-
-
-
-
-
-
-int g_done=0;
-HANDLE g_hThread;
-char g_exepath[1024];
-HICON g_hSmallIcon;
-WDL_String g_topic;
-HINSTANCE hDllInst;
+int g_done;
 WDL_String jesusdir;
-static HWND m_locwnd,m_remwnd;
+WDL_String g_topic;
 
+
+static HINSTANCE jesus_hDllInst;
+static HWND g_hwnd;
+static HANDLE g_hThread;
+static char g_exepath[1024];
+static HICON g_hSmallIcon;
+static HWND m_locwnd,m_remwnd;
+static int g_audio_enable=0;
+static WDL_String g_connect_user,g_connect_pass,g_connect_host;
+static int g_connect_anon;
+static RECT g_last_wndpos;
 
 static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -70,101 +67,8 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 }
 
 
-
-void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
-{
-  if (!parms[0]) return;
-
-  if (!strcmp(parms[0],"TOPIC"))
-  {
-    if (parms[2])
-    {
-      WDL_String tmp;
-      if (parms[1] && *parms[1])
-      {
-        tmp.Set(parms[1]);
-        if (parms[2][0])
-        {
-          tmp.Append(" sets topic to: ");
-          tmp.Append(parms[2]);
-        }
-        else
-        {
-          tmp.Append(" removes topic.");
-        }  
-      }
-      else
-      {
-        if (parms[2][0])
-        {
-          tmp.Set("Topic is: ");
-          tmp.Append(parms[2]);
-        }
-        else tmp.Set("No topic is set.");
-      }
-
-      g_topic.Set(parms[2]);
-      addChatLine("",tmp.Get());
-    
-    }
-  }
-  else if (!strcmp(parms[0],"MSG"))
-  {
-    if (parms[1] && parms[2])
-      addChatLine(parms[1],parms[2]);
-  } 
-  else if (!strcmp(parms[0],"PRIVMSG"))
-  {
-    if (parms[1] && parms[2])
-    {
-      WDL_String tmp;
-      tmp.Set("*");
-      tmp.Append(parms[1]);
-      tmp.Append("* ");
-      tmp.Append(parms[2]);
-      addChatLine(NULL,tmp.Get());
-    }
-  } 
-  else if (!strcmp(parms[0],"JOIN") || !strcmp(parms[0],"PART"))
-  {
-    if (parms[1] && *parms[1])
-    {
-      WDL_String tmp(parms[1]);
-      tmp.Append(" has ");
-      tmp.Append(parms[0][0]=='P' ? "left" : "joined");
-      tmp.Append(" the server");
-      addChatLine("",tmp.Get());
-    }
-  } 
-}
-
-
-double DB2SLIDER(double x)
-{
-double d=pow(2110.54*fabs(x),1.0/3.0);
-if (x < 0.0) d=-d;
-return d + 63.0;
-}
-
-double SLIDER2DB(double y)
-{
-return pow(y-63.0,3.0) * (1.0/2110.54);
-}
-
-static double g_ilog2x6;
-double VAL2DB(double x)
-{
-  double v=(log10(x)*g_ilog2x6);
-  if (v < -120.0) v=-120.0;
-  return v;
-}
-
-int g_audio_enable=0;
-
-audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
 void audiostream_onunder() { }
 void audiostream_onover() { }
-
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
   if (!g_audio_enable) 
@@ -177,123 +81,6 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
 }
 
-void deleteJesusonicProc(void *i, int chi)
-{
-  if (JesusonicAPI && i)
-  {
-      char buf[4096];
-      sprintf(buf,"%s\\ninjam.p%02d",jesusdir.Get()[0]?jesusdir.Get():".",chi);
-      JesusonicAPI->preset_save(i,buf);
-      JesusonicAPI->ui_wnd_destroy(i);
-      JesusonicAPI->set_opts(i,-1,-1,1);
-      JesusonicAPI->ui_quit(i);
-      JesusonicAPI->destroyInstance(i);
-  }
-}
-
-
-void jesusonic_processor(float *buf, int len, void *inst)
-{
-  if (inst)
-  {
-    _controlfp(_RC_CHOP,_MCW_RC);
-    JesusonicAPI->jesus_process_samples(inst,(char*)buf,len*sizeof(float));
-    JesusonicAPI->osc_run(inst,(char*)buf,len);
-  }
-}
-
-
-void JesusUpdateInfo(void *myInst, char *chdesc)
-{
-  if (myInst)
-  {
-    JesusonicAPI->set_sample_fmt(myInst,g_audio?g_audio->m_srate:44100,1,33);
-    WDL_String tmp("NINJAM embedded: ");
-    tmp.Append(chdesc);
-    JesusonicAPI->set_status(myInst,"",tmp.Get());
-  }
-}
-
-int CreateJesusInstance(int a, char *chdesc)
-{
-  if (JesusonicAPI)
-  {
-    void *myInst=JesusonicAPI->createInstance();
-    if (!myInst) return 0;
-    JesusonicAPI->set_rootdir(myInst,jesusdir.Get());
-    JesusonicAPI->ui_init(myInst);
-    JesusonicAPI->set_opts(myInst,1,1,-1);
-
-    JesusUpdateInfo(myInst,chdesc);
-
-    char buf[4096];
-    sprintf(buf,"%s\\ninjam.p%02d",jesusdir.Get()[0]?jesusdir.Get():".",a);
-
-    JesusonicAPI->preset_load(myInst,buf);
-
-    g_client_mutex.Enter();
-    g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
-    g_client_mutex.Leave();
-    return 1;
-  }
-  return 0;
-}
-
-void mkvolpanstr(char *str, double vol, double pan)
-{
-  double v=VAL2DB(vol);
-  if (vol < 0.0000001 || v < -120.0) v=-120.0;
-    sprintf(str,"%s%2.1fdB ",v>0.0?"+":"",v);   
-    if (fabs(pan) < 0.0001) strcat(str,"center");
-    else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
-}
-
-
-
-
-static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-      SetDlgItemText(hwndDlg,IDC_LICENSETEXT,(char *)lParam);
-    return 0;
-    case WM_CLOSE:
-      EndDialog(hwndDlg,0);
-    return 0;
-    case WM_COMMAND:
-      switch (LOWORD(wParam))
-      {
-        case IDC_CHECK1:
-          EnableWindow(GetDlgItem(hwndDlg,IDOK),!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-        break;
-        case IDOK:
-          EndDialog(hwndDlg,1);
-        break;
-        case IDCANCEL:
-          EndDialog(hwndDlg,0);
-        break;
-      }
-    return 0;
-
-  }
-  return 0;
-}
-
-char *g_need_license;
-int g_license_result;
-
-int licensecallback(int user32, char *licensetext)
-{
-  if (!licensetext || !*licensetext) return 1;
-
-  g_need_license=licensetext;
-  g_license_result=0;
-  g_client_mutex.Leave();
-  while (g_need_license && !g_done) Sleep(100);
-  g_client_mutex.Enter();
-  return g_license_result;
-}
 
 static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -378,9 +165,6 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
   return 0;
 }
 
-WDL_String g_connect_user,g_connect_pass,g_connect_host;
-int g_connect_anon;
-
 static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
@@ -444,7 +228,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
   return 0;
 }
 
-void do_disconnect()
+static void do_disconnect()
 {
   delete g_audio;
   g_audio=0;
@@ -469,7 +253,7 @@ void do_disconnect()
 
   if (sessiondir.Get()[0])
   {
-    addChatLine("","Disconnected from server");
+    chat_addline("","Disconnected from server");
     if (!g_client->config_savelocalaudio)
     {
       int n;
@@ -505,7 +289,7 @@ void do_disconnect()
 }
 
 
-void do_connect()
+static void do_connect()
 {
   WDL_String userstr;
   if (g_connect_anon)
@@ -632,7 +416,7 @@ void do_connect()
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
 }
 
-void updateMasterControlLabels(HWND hwndDlg)
+static void updateMasterControlLabels(HWND hwndDlg)
 {
    char buf[512];
    mkvolpanstr(buf,g_client->config_mastervolume,g_client->config_masterpan);
@@ -642,12 +426,7 @@ void updateMasterControlLabels(HWND hwndDlg)
 }
 
 
-RECT g_last_wndpos;
-
-
-
-
-DWORD WINAPI ThreadFunc(LPVOID p)
+static DWORD WINAPI ThreadFunc(LPVOID p)
 {
   while (!g_done)
   {
@@ -871,11 +650,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
           g_client_mutex.Enter();
 
-          if (g_need_license)
-          {
-            g_license_result=DialogBoxParam(g_hInst,MAKEINTRESOURCE(IDD_LICENSE),g_hwnd,LicenseProc,(LPARAM)g_need_license);
-            g_need_license=0;
-          }
+          licenseRun(hwndDlg);
 
 
           if (g_client->HasUserInfoChanged())
@@ -1107,16 +882,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                       tmp.Append(n);
                       tmp.Append("* ");
                       tmp.Append(p);
-                      addChatLine(NULL,tmp.Get());
+                      chat_addline(NULL,tmp.Get());
                     }
                     else
                     {
-                      addChatLine("","error: /msg requires a username and a message.");
+                      chat_addline("","error: /msg requires a username and a message.");
                     }
                   }
                   else
                   {
-                    addChatLine("","error: unknown command.");
+                    chat_addline("","error: unknown command.");
                   }
                 }
                 else
@@ -1128,7 +903,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               }
               else
               {
-                addChatLine("","error: not connected to a server.");
+                chat_addline("","error: not connected to a server.");
               }
             }
             SetDlgItemText(hwndDlg,IDC_CHATENT,"");
@@ -1292,8 +1067,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     RegisterClass(&wc);
   }
 
-#ifdef _WIN32
-
   // get jesusonic from registry
   {
     HKEY k;
@@ -1320,28 +1093,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     dll.Set(g_exepath);
     dll.Append("\\jesus.dll");
 
-    hDllInst = LoadLibrary(dll.Get()); // load from current dir
-    if (!hDllInst) 
+    jesus_hDllInst = LoadLibrary(dll.Get()); // load from current dir
+    if (!jesus_hDllInst) 
     {
       dll.Set(jesusdir.Get());
       dll.Append("\\jesus.dll");
-      hDllInst = LoadLibrary(dll.Get());
+      jesus_hDllInst = LoadLibrary(dll.Get());
     }
-    if (hDllInst) 
+    if (jesus_hDllInst) 
     {
-      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
+      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(jesus_hDllInst,"JesusonicAPI");
       if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
       {
       }
       else JesusonicAPI = 0;
     }
   }
-
-#endif
-
-
-
-  g_ilog2x6 = 6.0/log10(2.0);
 
   JNL::open_socketlib();
 
@@ -1368,13 +1135,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   }
 
 
-#ifdef _WIN32
   ///// jesusonic stuff
-  if (hDllInst) FreeLibrary(hDllInst);
-  hDllInst=0;
+  if (jesus_hDllInst) FreeLibrary(jesus_hDllInst);
+  jesus_hDllInst=0;
   JesusonicAPI=0;
-
-#endif
 
   JNL::close_socketlib();
   return 0;

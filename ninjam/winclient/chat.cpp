@@ -6,6 +6,74 @@
 #include "resource.h"
 
 
+void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+{
+  if (!parms[0]) return;
+
+  if (!strcmp(parms[0],"TOPIC"))
+  {
+    if (parms[2])
+    {
+      WDL_String tmp;
+      if (parms[1] && *parms[1])
+      {
+        tmp.Set(parms[1]);
+        if (parms[2][0])
+        {
+          tmp.Append(" sets topic to: ");
+          tmp.Append(parms[2]);
+        }
+        else
+        {
+          tmp.Append(" removes topic.");
+        }  
+      }
+      else
+      {
+        if (parms[2][0])
+        {
+          tmp.Set("Topic is: ");
+          tmp.Append(parms[2]);
+        }
+        else tmp.Set("No topic is set.");
+      }
+
+      g_topic.Set(parms[2]);
+      chat_addline("",tmp.Get());
+    
+    }
+  }
+  else if (!strcmp(parms[0],"MSG"))
+  {
+    if (parms[1] && parms[2])
+      chat_addline(parms[1],parms[2]);
+  } 
+  else if (!strcmp(parms[0],"PRIVMSG"))
+  {
+    if (parms[1] && parms[2])
+    {
+      WDL_String tmp;
+      tmp.Set("*");
+      tmp.Append(parms[1]);
+      tmp.Append("* ");
+      tmp.Append(parms[2]);
+      chat_addline(NULL,tmp.Get());
+    }
+  } 
+  else if (!strcmp(parms[0],"JOIN") || !strcmp(parms[0],"PART"))
+  {
+    if (parms[1] && *parms[1])
+    {
+      WDL_String tmp(parms[1]);
+      tmp.Append(" has ");
+      tmp.Append(parms[0][0]=='P' ? "left" : "joined");
+      tmp.Append(" the server");
+      chat_addline("",tmp.Get());
+    }
+  } 
+}
+
+
 WNDPROC chatw_oldWndProc,chate_oldWndProc;
 BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
@@ -44,7 +112,7 @@ void chatInit(HWND hwndDlg)
 WDL_String m_append_text;
 extern WDL_Mutex g_client_mutex;
 
-void addChatLine(char *src, char *text)
+void chat_addline(char *src, char *text)
 {
   WDL_String tmp;
   if (src && *src && !strncmp(text,"/me ",4))
