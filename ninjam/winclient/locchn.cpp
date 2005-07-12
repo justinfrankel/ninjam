@@ -420,8 +420,8 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         GetWindowRect(m_child,&r);
         m_h=r.bottom-r.top;
         m_w=r.right-r.left;
-        m_maxpos_h=m_wh-m_h;
-        m_maxpos_w=m_ww-m_w;
+        m_maxpos_h=m_h-m_wh;
+        m_maxpos_w=m_w-m_ww;
 
         if (m_maxpos_h < 0) m_maxpos_h=0;
         if (m_maxpos_w < 0) m_maxpos_w=0;
@@ -475,6 +475,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 
       // update scrollbars and shit
     return 0;
+    case WM_LCUSER_REPOP_CH:
     case WM_LCUSER_ADDCHILD:
     case WM_LCUSER_VUUPDATE:
       SendMessage(m_child,uMsg,wParam,lParam);
@@ -495,20 +496,20 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
             nDelta = nMaxPos - m_nScrollPos;
           break;
 	        case SB_LINEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/100,nMaxPos-m_nScrollPos);
+		        if (m_nScrollPos < nMaxPos) nDelta = min(4,nMaxPos-m_nScrollPos);
 		      break;
 	        case SB_LINEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/100,m_nScrollPos);
+		        if (m_nScrollPos > 0) nDelta = -min(4,m_nScrollPos);
           break;
           case SB_PAGEDOWN:
-		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/10,nMaxPos-m_nScrollPos);
+		        if (m_nScrollPos < nMaxPos) nDelta = min(nMaxPos/4,nMaxPos-m_nScrollPos);
 		      break;
           case SB_THUMBTRACK:
 	        case SB_THUMBPOSITION:
 		        nDelta = (int)HIWORD(wParam) - m_nScrollPos;
 		      break;
 	        case SB_PAGEUP:
-		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/10,m_nScrollPos);
+		        if (m_nScrollPos > 0) nDelta = -min(nMaxPos/4,m_nScrollPos);
 		      break;
 	      }
         if (nDelta) 
