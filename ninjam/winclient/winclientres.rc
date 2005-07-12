@@ -152,7 +152,7 @@ STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU |
 CAPTION "NINJAM v0.666"
 MENU IDR_MENU1
 CLASS "NINJAMwnd"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,6,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
@@ -445,15 +445,16 @@ IDR_MENU1 MENU DISCARDABLE
 BEGIN
     POPUP "&File"
     BEGIN
-        MENUITEM "&Connect...",                 ID_FILE_CONNECT
-        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
+        MENUITEM "&Connect...\tCtrl+K",         ID_FILE_CONNECT
+        MENUITEM "&Disconnect\tCtrl+D",         ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
-        MENUITEM "&Quit",                       ID_FILE_QUIT
+        MENUITEM "&Quit\tCtrl+Q",               ID_FILE_QUIT
     END
     POPUP "&Options"
     BEGIN
-        MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
-        MENUITEM "&Audio configuration...",     ID_OPTIONS_AUDIOCONFIGURATION
+        MENUITEM "&Preferences...\tCtrl+P",     ID_OPTIONS_PREFERENCES
+        MENUITEM "&Audio configuration...\tCtrl+O", 
+                                                ID_OPTIONS_AUDIOCONFIGURATION
 
     END
     POPUP "&Help"
@@ -471,6 +472,21 @@ END
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_ICON1               ICON    DISCARDABLE     "ninjam_gui_win.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_ACCELERATOR1 ACCELERATORS DISCARDABLE 
+BEGIN
+    "D",            ID_FILE_DISCONNECT,     VIRTKEY, CONTROL, NOINVERT
+    "K",            ID_FILE_CONNECT,        VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_OPTIONS_AUDIOCONFIGURATION, VIRTKEY, CONTROL, 
+                                                    NOINVERT
+    "P",            ID_OPTIONS_PREFERENCES, VIRTKEY, CONTROL, NOINVERT
+    "Q",            ID_FILE_QUIT,           VIRTKEY, CONTROL, NOINVERT
+END
 
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////

@@ -821,7 +821,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
         break;
         case ID_OPTIONS_AUDIOCONFIGURATION:
-          CreateConfiguredStreamer(g_ini_file.Get(),-1,hwndDlg);
+          if (!g_audio) CreateConfiguredStreamer(g_ini_file.Get(),-1,hwndDlg);
         break;
         case ID_FILE_QUIT:
           PostMessage(hwndDlg,WM_CLOSE,0,0);
@@ -1117,6 +1117,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   g_client->LicenseAgreementCallback = licensecallback;
   g_client->ChatMessage_Callback = chatmsg_cb;
 
+  HACCEL hAccel=LoadAccelerators(g_hInst,MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
   if (!CreateDialog(hInstance,MAKEINTRESOURCE(IDD_MAIN),GetDesktopWindow(),MainProc))
   {
@@ -1127,7 +1128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))
   {
-    if (!IsDialogMessage(g_hwnd,&msg))
+    if (!TranslateAccelerator(g_hwnd,hAccel,&msg) && !IsDialogMessage(g_hwnd,&msg))
     {
       TranslateMessage(&msg);
       DispatchMessage(&msg);
