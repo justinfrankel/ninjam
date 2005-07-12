@@ -296,5 +296,9 @@ SOURCE=.\icon1.ico
 SOURCE=.\ninjam_gui_win.ico
 # End Source File
 # End Group
+# Begin Source File
+
+SOURCE=.\wasabi.lib
+# End Source File
 # End Target
 # End Project
