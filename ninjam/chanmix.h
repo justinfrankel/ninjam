@@ -15,13 +15,19 @@ class ChanMixer
     void CreateWnd(HINSTANCE hInst, HWND parent);
     HWND GetWnd() { return m_hwnd; }
 
+    void SetDesc(char *desc)
+    {
+      m_desc.Set(desc?desc:"");
+      UpdateTitle();
+    }
+
     void SetNCH(int nch) 
     { 
       if (nch < 0) nch=0;
       else if (nch > MAX_CHANMIX_CHANS) nch=MAX_CHANMIX_CHANS;
       m_values_used=nch;  
     }
-    void SetCHName(int ch, char *name) 
+    void SetCHName(int ch, const char *name) 
     { 
       if (ch >= 0 && ch < MAX_CHANMIX_CHANS) 
         m_chname[ch].Set(name);
@@ -39,6 +45,19 @@ class ChanMixer
 
 
   private:
+
+    void UpdateTitle()
+    {
+      if (m_hwnd)
+      {
+        WDL_String a("NINJAM Channel Mixer: ");
+        a.Append(m_desc.Get());
+        SetWindowText(m_hwnd,a.Get());
+      }
+      
+    }
+
+    WDL_String m_desc;
 
     static BOOL WINAPI _DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
     BOOL DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
