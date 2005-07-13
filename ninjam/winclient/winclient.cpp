@@ -577,7 +577,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
           for (x = 0; x < cnt; x ++)
           {
-            char buf[1024];
+            char buf[4096];
             char specbuf[64];
             sprintf(specbuf,"lc_%d",x);
 

@@ -3,11 +3,12 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "../../WDL/lineparse.h"
 #include "njmisc.h" // for utility functions like DB2VOL, etc
 #include "chanmix.h"
 #include "resource.h"
 
-#define MIN_VOL 0.000001
+#define MIN_VOL 0.00001
 
 ChanMixer::ChanMixer()
 {
@@ -43,10 +44,47 @@ void ChanMixer::CreateWnd(HINSTANCE hInst, HWND parent)
 
 void ChanMixer::LoadConfig(const char *str)
 {
+  LineParser lp(false);
+
+  lp.parse((char *)str);
+
+  m_values_used = lp.getnumtokens();
+  if (m_values_used > MAX_CHANMIX_CHANS) m_values_used=MAX_CHANMIX_CHANS;
+
+  int x;
+  for (x = 0; x < m_values_used; x ++)
+  {
+    m_values[x]=(float)lp.gettoken_float(x);
+  }
+
 }
 
 void ChanMixer::SaveConfig(WDL_String *str)
 {
+  int x;
+  for (x = 0; x < m_values_used; x ++)
+  {
+    if (x) str->Append(" ");
+    if (fabs(m_values[x]) <= MIN_VOL)
+    {
+      str->Append("0");
+    }
+    else
+    {
+      char buf[128];
+      sprintf(buf,"%.4f",m_values[x]);
+      if (strstr(buf,"."))
+      {
+        char *p=buf;
+        while (*p) p++;
+        p--;
+        while (p > buf && *p == '0') p--;
+        if (*p == '.') p[0]=0;
+        else p[1]=0;
+      }
+      str->Append(buf);
+    }
+  }
 }
 
 void ChanMixer::MixData(float **inbuf, int in_offset, int innch, float *outbuf, int len)
@@ -67,7 +105,7 @@ void ChanMixer::MixData(float **inbuf, int in_offset, int innch, float *outbuf, 
         float f=*in++ * vol;
         if (f < -1.0f) f=-1.0f;
         else if (f > 1.0f) f=1.0f;
-        *out++ = f;
+        *out++ += f;
       }
     }
   }
