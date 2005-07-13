@@ -160,12 +160,17 @@ BOOL ChanMixer::DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
       }
     break; 
+    case WM_USER+32:
+      SendMessage(m_childwnd,WM_USER+32,0,0);
+    return 0;
   
     case WM_GETMINMAXINFO:
       {
         LPMINMAXINFO p=(LPMINMAXINFO)lParam;
-        p->ptMinTrackSize.x = 200;
-        p->ptMinTrackSize.y = 300;
+        p->ptMinTrackSize.x = 80;
+        p->ptMinTrackSize.y = 264;
+        p->ptMaxTrackSize.y = 264;
+        p->ptMaxTrackSize.x = m_w+16;
       }
     return 0;
     case WM_CLOSE:
@@ -179,6 +184,7 @@ BOOL ChanMixer::DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
 {
   switch (uMsg)
   {
+    case WM_USER+32:
     case WM_INITDIALOG:
       int x;
       {
@@ -196,6 +202,7 @@ BOOL ChanMixer::DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
             SetWindowPos(h,0,maxx=x*(r.right-r.left),0,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
             ShowWindow(h,SW_SHOWNA);
           }
+          else SendMessage(m_sliders[x],WM_USER+66,0,0);
         }
         SetWindowPos(hwndDlg,NULL,0,0,maxx,maxy,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         for (; x < MAX_CHANMIX_CHANS; x ++)
@@ -225,13 +232,15 @@ BOOL WINAPI ChanMixer::_DlgProc_item(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   {
     case WM_INITDIALOG:
       SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
-      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(_this->m_values[chid])));      
+      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,100-63);       
+      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,100-(LPARAM)DB2SLIDER(VAL2DB(_this->m_values[chid])));      
 
+    case WM_USER+66:
+      SetDlgItemText(hwndDlg,IDC_LABEL,_this->m_chname[chid].Get());
     break;
     case WM_VSCROLL:
       {
-        double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
+        double pos=(double)(100-SendMessage((HWND)lParam,TBM_GETPOS,0,0));
 
         _this->m_values[chid] = (float)DB2VAL(SLIDER2DB(pos));
       }
@@ -241,7 +250,7 @@ BOOL WINAPI ChanMixer::_DlgProc_item(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   if (uMsg == WM_INITDIALOG || uMsg == WM_VSCROLL)
   {
     char buf[128];
-    sprintf(buf,"%.2f dB",DB2VAL(SLIDER2DB(_this->m_values[chid])));
+    sprintf(buf,"%.2f dB",VAL2DB(_this->m_values[chid]));
     SetDlgItemText(hwndDlg,IDC_LABEL2,buf);      
   }
   return 0;

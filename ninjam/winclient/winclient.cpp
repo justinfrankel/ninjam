@@ -438,6 +438,7 @@ static DWORD WINAPI ThreadFunc(LPVOID p)
   return 0;
 }
 
+#include "../chanmix.h"
 
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {

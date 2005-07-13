@@ -15,7 +15,21 @@ class ChanMixer
     void CreateWnd(HINSTANCE hInst, HWND parent);
     HWND GetWnd() { return m_hwnd; }
 
-    void SetNCH(int nch) { if (m_values_used < nch) m_values_used=nch; }
+    void SetNCH(int nch) 
+    { 
+      if (nch < 0) nch=0;
+      else if (nch > MAX_CHANMIX_CHANS) nch=MAX_CHANMIX_CHANS;
+      if (m_values_used < nch)  m_values_used=nch;  
+    }
+    void SetCHName(int ch, char *name) 
+    { 
+      if (ch >= 0 && ch < MAX_CHANMIX_CHANS) 
+        m_chname[ch].Set(name);
+    }
+    void DoWndUpdate()
+    {
+      if (m_hwnd) PostMessage(m_hwnd,WM_USER+32,0,0);  
+    }
     int GetNCH() { return m_values_used; }
 
     void LoadConfig(const char *str);
@@ -36,6 +50,7 @@ class ChanMixer
 
     float m_values[MAX_CHANMIX_CHANS];
     HWND m_sliders[MAX_CHANMIX_CHANS];
+    WDL_String m_chname[MAX_CHANMIX_CHANS];
     int m_values_used;
     
     HWND m_hwnd;
