@@ -10,7 +10,7 @@
 
 #include "../audiostream_asio.h"
 #include "../njclient.h"
-#include "../../jesusonic/jesusonic_dll.h"
+#include "../njmisc.h"
 
 #include "../../WDL/mutex.h"
 #include "../../WDL/string.h"
@@ -20,26 +20,13 @@ extern WDL_Mutex g_client_mutex;
 extern WDL_String g_ini_file;
 extern audioStreamer *g_audio;
 extern NJClient *g_client;
-extern jesusonicAPI *JesusonicAPI;  
 extern HINSTANCE g_hInst;
 extern int g_done;
-extern WDL_String jesusdir;
 extern WDL_String g_topic;
 
 
 // audioconfig.cpp
 audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
-
-// misc.cpp
-double DB2SLIDER(double x);
-double SLIDER2DB(double y);
-double VAL2DB(double x);
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
-void mkvolpanstr(char *str, double vol, double pan);
-
-int CreateJesusInstance(int a, char *chdesc);
-void JesusUpdateInfo(void *myInst, char *chdesc);
-void deleteJesusonicProc(void *i, int chi);
 
 // locchn.cpp
 BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);

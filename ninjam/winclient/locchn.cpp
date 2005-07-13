@@ -80,7 +80,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         g_client_mutex.Leave();
         if (i)
         {
-          JesusUpdateInfo(i,buf);
+          JesusUpdateInfo(i,buf,g_audio?g_audio->m_srate:44100);
         }
       }
     return 0;
@@ -145,8 +145,10 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           {
             char buf[512];
             GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
-            if (CreateJesusInstance(m_idx,buf))
+            void *p=CreateJesusInstance(m_idx,buf,g_audio?g_audio->m_srate:44100);
+            if (p)
             {
+              g_client->SetLocalChannelProcessor(m_idx,jesusonic_processor,p);
               EnableWindow(GetDlgItem(hwndDlg,IDC_JSCFG),1);
             }
           }

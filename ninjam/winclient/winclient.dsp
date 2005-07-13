@@ -272,6 +272,14 @@ SOURCE=..\njclient.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\njmisc.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\njmisc.h
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbisenc_static.lib"
 # End Source File
 # Begin Source File
@@ -294,10 +302,6 @@ SOURCE=.\license.cpp
 # Begin Source File
 
 SOURCE=.\locchn.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\misc.cpp
 # End Source File
 # Begin Source File
 

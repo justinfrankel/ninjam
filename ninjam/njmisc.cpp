@@ -1,10 +1,12 @@
+#ifdef _WIN32
 #include <windows.h>
-#include <commctrl.h>
+#endif
+
+#include <stdio.h>
 #include <math.h>
 #include <float.h>
 
-#include "winclient.h"
-
+#include "njmisc.h"
 
 // dB related utilities
 
@@ -47,6 +49,8 @@ void mkvolpanstr(char *str, double vol, double pan)
 
 /// jesusonic interfacing
 
+#ifdef _WIN32
+
 void deleteJesusonicProc(void *i, int chi)
 {
   if (JesusonicAPI && i)
@@ -73,18 +77,18 @@ void jesusonic_processor(float *buf, int len, void *inst)
 }
 
 
-void JesusUpdateInfo(void *myInst, char *chdesc)
+void JesusUpdateInfo(void *myInst, char *chdesc, int srate)
 {
   if (myInst)
   {
-    JesusonicAPI->set_sample_fmt(myInst,g_audio?g_audio->m_srate:44100,1,33);
+    JesusonicAPI->set_sample_fmt(myInst,srate,1,33);
     WDL_String tmp("NINJAM embedded: ");
     tmp.Append(chdesc);
     JesusonicAPI->set_status(myInst,"",tmp.Get());
   }
 }
 
-int CreateJesusInstance(int a, char *chdesc)
+void *CreateJesusInstance(int a, char *chdesc, int srate)
 {
   if (JesusonicAPI)
   {
@@ -94,19 +98,18 @@ int CreateJesusInstance(int a, char *chdesc)
     JesusonicAPI->ui_init(myInst);
     JesusonicAPI->set_opts(myInst,1,1,-1);
 
-    JesusUpdateInfo(myInst,chdesc);
+    JesusUpdateInfo(myInst,chdesc,srate);
 
     char buf[4096];
     sprintf(buf,"%s\\ninjam.p%02d",jesusdir.Get()[0]?jesusdir.Get():".",a);
 
     JesusonicAPI->preset_load(myInst,buf);
 
-    g_client_mutex.Enter();
-    g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
-    g_client_mutex.Leave();
-    return 1;
+    return (void *)myInst;
   }
   return 0;
 }
 
 
+
+#endif

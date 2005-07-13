@@ -364,7 +364,7 @@ static void do_connect()
       if (a<0) break;
       void *i=0;
       g_client->GetLocalChannelProcessor(a,NULL,&i);
-      if (i) JesusUpdateInfo(i,g_client->GetLocalChannelInfo(a,NULL,NULL,NULL));
+      if (i) JesusUpdateInfo(i,g_client->GetLocalChannelInfo(a,NULL,NULL,NULL),g_audio?g_audio->m_srate:44100);
     }
   }
   
@@ -607,7 +607,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               {
                 if (wj && name)
                 {
-                  CreateJesusInstance(ch,name);
+                  void *p=CreateJesusInstance(ch,name,g_audio?g_audio->m_srate:44100);
+                  if (p)
+                  {
+                    g_client->SetLocalChannelProcessor(ch,jesusonic_processor,p);
+                  }
                 }
 
                 SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,ch,0);

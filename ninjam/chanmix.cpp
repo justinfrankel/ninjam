@@ -1,8 +1,9 @@
 #include <windows.h>
 #include <commctrl.h>
+#include <stdio.h>
 #include <math.h>
 
-#include "winclient.h" // for utility functions like DB2VOL, etc
+#include "njmisc.h" // for utility functions like DB2VOL, etc
 #include "chanmix.h"
 #include "resource.h"
 
