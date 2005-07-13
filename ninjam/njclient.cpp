@@ -462,7 +462,12 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
   // zero output
   int x;
   for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
-  if (!m_audio_enable) return;
+
+  if (!m_audio_enable)
+  {
+    process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1);
+    return;
+  }
 
   if (srate>0)
   {
@@ -1181,7 +1186,7 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset)
+void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor)
 {
                    // -36dB/sec
   double decay=pow(.25*0.25*0.25,len/(double)srate);
@@ -1212,7 +1217,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       }
     }
 
-    if (lc->bcast_active) 
+    if (!justmonitor && lc->bcast_active) 
     {
       lc->m_bq.AddBlock(src,len);
     }
@@ -1283,40 +1288,42 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   m_locchan_cs.Leave();
 
 
-  // mix in all active (subscribed) channels
-  m_users_cs.Enter();
-  for (u = 0; u < m_remoteusers.GetSize(); u ++)
+  if (!justmonitor)
   {
-    RemoteUser *user=m_remoteusers.Get(u);
-    int ch;
-    if (!user) continue;
-
-    for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+    // mix in all active (subscribed) channels
+    m_users_cs.Enter();
+    for (u = 0; u < m_remoteusers.GetSize(); u ++)
     {
-      float lpan=user->pan+user->channels[ch].pan;
-      if (lpan<-1.0)lpan=-1.0;
-      else if (lpan>1.0)lpan=1.0;
+      RemoteUser *user=m_remoteusers.Get(u);
+      int ch;
+      if (!user) continue;
 
-      bool muteflag;
-      if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
-      else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
+      for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+      {
+        float lpan=user->pan+user->channels[ch].pan;
+        if (lpan<-1.0)lpan=-1.0;
+        else if (lpan>1.0)lpan=1.0;
 
-      if (user->channels[ch].ds)
-        mixInChannel(muteflag,
-          user->volume*user->channels[ch].volume,lpan,
-            user->channels[ch].ds,outbuf,len,srate,outnch,offset,decay);
+        bool muteflag;
+        if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
+        else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
+
+        if (user->channels[ch].ds)
+          mixInChannel(muteflag,
+            user->volume*user->channels[ch].volume,lpan,
+              user->channels[ch].ds,outbuf,len,srate,outnch,offset,decay);
+      }
+    }
+    m_users_cs.Leave();
+
+
+    // write out wave if necessary
+
+    if (waveWrite||(m_oggWrite&&m_oggComp))
+    {
+      m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
     }
   }
-  m_users_cs.Leave();
-
-
-  // write out wave if necessary
-
-  if (waveWrite||(m_oggWrite&&m_oggComp))
-  {
-    m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
-  }
-
 
   // apply master volume, then
   {
@@ -1357,6 +1364,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   }
 
   // mix in (super shitty) metronome (fucko!!!!)
+  if (!justmonitor)
   {
     int metrolen=srate / 100;
     double sc=6000.0/(double)srate;
