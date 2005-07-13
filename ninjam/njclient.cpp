@@ -738,7 +738,9 @@ int NJClient::Run() // nonzero if sleep ok
               else 
               {
                 if (ar.errmsg)
+                {
                     m_errstr.Set(ar.errmsg);
+                }
                 m_status = 1001;
                 m_netcon->Kill();
               }
