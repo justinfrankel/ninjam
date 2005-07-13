@@ -318,6 +318,8 @@ NJClient::NJClient()
   LicenseAgreementCallback=0;
   ChatMessage_Callback=0;
   ChatMessage_User32=0;
+  ChannelMixer=0;
+  ChannelMixer_User32=0;
 
   waveWrite=0;
   m_oggWrite=0;
@@ -1200,12 +1202,16 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     float *src=NULL;
     if (sc >= 0 && sc < innch) src=inbuf[sc]+offset;
 
-    if (lc->cbf || !src)
+    if (lc->cbf || !src || ChannelMixer)
     {
       int bytelen=len*(int)sizeof(float);
       if (tmpblock.GetSize() < bytelen) tmpblock.Resize(bytelen);
 
-      if (src) memcpy(tmpblock.Get(),src,bytelen);
+      if (ChannelMixer && ChannelMixer(ChannelMixer_User32,sc,inbuf,innch,(float*)tmpblock.Get(),len,offset))
+      {
+        // channelmixer succeeded
+      }
+      else if (src) memcpy(tmpblock.Get(),src,bytelen);
       else memset(tmpblock.Get(),0,bytelen);
 
       src=(float* )tmpblock.Get();
