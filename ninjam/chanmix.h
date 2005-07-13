@@ -27,13 +27,20 @@ class ChanMixer
   private:
 
     static BOOL WINAPI _DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
     BOOL DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
+    static BOOL WINAPI _DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    BOOL DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+    static BOOL WINAPI _DlgProc_item(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
     float m_values[MAX_CHANMIX_CHANS];
+    HWND m_sliders[MAX_CHANMIX_CHANS];
     int m_values_used;
     
     HWND m_hwnd;
+    HWND m_childwnd;
+    int m_nScrollPos_w,m_ww,m_w,m_maxpos_w;
 };
 
 

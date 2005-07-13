@@ -248,6 +248,14 @@ SOURCE=..\audiostream_win32.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\chanmix.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\chanmix.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\mpb.cpp
 # End Source File
 # Begin Source File
@@ -301,10 +309,6 @@ SOURCE=.\winclient.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\winclient.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\winclientres.rc
 # End Source File
 # End Group
@@ -326,6 +330,10 @@ SOURCE=..\..\WDL\mutex.h
 # Begin Source File
 
 SOURCE=..\netmsg.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\winclient.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"
