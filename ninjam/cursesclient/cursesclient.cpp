@@ -28,11 +28,7 @@
 #include "../../WDL/dirscan.h"
 #include "../../WDL/lineparse.h"
 
-#ifdef _WIN32
-#include "../../jesusonic/jesusonic_dll.h"
-#endif
-
-
+#include "../njmisc.h"
 
 
 #define VALIDATE_TEXT_CHAR(thischar) ((isspace(thischar) || isgraph(thischar)) && (thischar) < 256)
@@ -46,6 +42,9 @@ void ninjamCursesClientInstance::Run()
 
 
 ninjamCursesClientInstance m_cursinst;
+
+jesusonicAPI *JesusonicAPI;
+WDL_String jesusdir;
 #endif
 
 int g_chat_scroll=0;
@@ -155,23 +154,6 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
   } 
 }
 
-double g_ilog2x6;
-double VAL2DB(double x)
-{
-  double v=(log10(x)*g_ilog2x6);
-  if (v < -120.0) v=-120.0;
-  return v;
-}
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
-
-#ifdef _WIN32
-// jesusonic stuff
-#define MAX_JESUS_INST 32
-jesusonicAPI *JesusonicAPI;  
-HINSTANCE hDllInst;
-char *jesusdir=NULL;
-#endif
-
 
 #ifdef _WIN32
 audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);
@@ -197,73 +179,11 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
 }
 
-void deleteJesusonicProc(void *i, int chi)
-{
-#ifdef _WIN32
-  if (JesusonicAPI && i)
-  {
-      char buf[4096];
-      sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",chi);
-      JesusonicAPI->preset_save(i,buf);
-      JesusonicAPI->ui_wnd_destroy(i);
-      JesusonicAPI->set_opts(i,-1,-1,1);
-      JesusonicAPI->ui_quit(i);
-      JesusonicAPI->destroyInstance(i);
-  }
-#endif
-}
-
-
-void jesusonic_processor(float *buf, int len, void *inst)
-{
-#ifdef _WIN32
-  if (inst)
-  {
-    _controlfp(_RC_CHOP,_MCW_RC);
-    JesusonicAPI->jesus_process_samples(inst,(char*)buf,len*sizeof(float));
-    JesusonicAPI->osc_run(inst,(char*)buf,len);
-  }
-#endif
-}
-#ifdef _WIN32
-void CreateJesusInstance(int a)
-{
-  if (JesusonicAPI)
-  {
-    void *myInst=JesusonicAPI->createInstance();
-    JesusonicAPI->set_rootdir(myInst,jesusdir);
-    JesusonicAPI->ui_init(myInst);
-    JesusonicAPI->set_opts(myInst,1,1,-1);
-    JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,1,33);
-    JesusonicAPI->set_status(myInst,"","NINJAM embedded");
-    HWND h=JesusonicAPI->ui_wnd_create(myInst);
-    ShowWindow(h,SW_SHOWNA);
-    SetTimer(h,1,40,NULL);
-    SetForegroundWindow(h);
-
-    char buf[4096];
-    sprintf(buf,"%s\\ninjam.p%02d",jesusdir?jesusdir:".",a);
-
-    JesusonicAPI->preset_load(myInst,buf);
-
-    g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
-  }
-}
-#endif
-
 
 int g_sel_x, g_sel_ypos,g_sel_ycat;
 
 #define COLORMAP(x) color_map[x]
 
-void mkvolpanstr(char *str, double vol, double pan)
-{
-  double v=VAL2DB(vol);
-  if (vol < 0.0000001 || v < -120.0) v=-120.0;
-    sprintf(str,"%2.1fdB ",v);   
-    if (fabs(pan) < 0.0001) strcat(str,"center");
-    else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
-}
 
 
 // highlights shit in []
@@ -496,7 +416,8 @@ void showmainview(bool action=false, int ymove=0)
         if (!i)
         {
           // start it up
-          CreateJesusInstance(a);
+          void *p=CreateJesusInstance(a,"",g_audio->m_srate);
+          if (p) g_client->SetLocalChannelProcessor(a,jesusonic_processor,p);
         }
         else 
         {
@@ -1003,8 +924,6 @@ int licensecallback(int user32, char *licensetext)
 
 int main(int argc, char **argv)
 {
-  g_ilog2x6 = 6.0/log10(2.0);
-
   char *parmuser=NULL;
   char *parmpass=NULL;
   WDL_String sessiondir;
@@ -1096,7 +1015,7 @@ int main(int argc, char **argv)
       else if (!stricmp(argv[p],"-jesusonic"))
       {
         if (++p >= argc) usage();
-        jesusdir=argv[p];
+        jesusdir.Set(argv[p]);
       }
 #endif
       else if (!stricmp(argv[p],"-sessiondir"))
@@ -1175,20 +1094,21 @@ int main(int argc, char **argv)
   // jesusonic init
 
 #ifdef _WIN32
+  HINSTANCE jesus_hDllInst;
   WDL_String jesusonic_configfile;
-  if (jesusdir)
+  if (jesusdir.Get()[0])
   {
-    jesusonic_configfile.Set(jesusdir);
+    jesusonic_configfile.Set(jesusdir.Get());
     jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
     WDL_String dll;
-    dll.Set(jesusdir);
+    dll.Set(jesusdir.Get());
     dll.Append("\\jesus.dll");
 
-    hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
-    if (!hDllInst) hDllInst = LoadLibrary(dll.Get());
-    if (hDllInst) 
+    jesus_hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
+    if (!jesus_hDllInst) jesus_hDllInst = LoadLibrary(dll.Get());
+    if (jesus_hDllInst) 
     {
-      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(hDllInst,"JesusonicAPI");
+      *(void **)(&JesusonicAPI) = (void *)GetProcAddress(jesus_hDllInst,"JesusonicAPI");
       if (JesusonicAPI && JesusonicAPI->ver == JESUSONIC_API_VERSION_CURRENT)
       {
       }
@@ -1253,7 +1173,8 @@ int main(int argc, char **argv)
                     if (lp.gettoken_int(n+1))
                     {
 #ifdef _WIN32
-                      CreateJesusInstance(ch);
+                      void *p=CreateJesusInstance(ch,"",g_audio->m_srate);
+                      if (p) g_client->SetLocalChannelProcessor(ch,jesusonic_processor,p);
 #endif
                     }
                   break;
@@ -1936,8 +1857,8 @@ time(NULL) >= nextupd
 
 #ifdef _WIN32
   ///// jesusonic stuff
-  if (hDllInst) FreeLibrary(hDllInst);
-  hDllInst=0;
+  if (jesus_hDllInst) FreeLibrary(jesus_hDllInst);
+  jesus_hDllInst=0;
   JesusonicAPI=0;
 
 #endif
