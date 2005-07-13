@@ -19,7 +19,7 @@ class ChanMixer
     { 
       if (nch < 0) nch=0;
       else if (nch > MAX_CHANMIX_CHANS) nch=MAX_CHANMIX_CHANS;
-      if (m_values_used < nch)  m_values_used=nch;  
+      m_values_used=nch;  
     }
     void SetCHName(int ch, char *name) 
     { 
@@ -35,7 +35,7 @@ class ChanMixer
     void LoadConfig(const char *str);
     void SaveConfig(WDL_String *str);
 
-    void MixData(float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len);
+    void MixData(float **inbuf, int in_offset, int innch, float *outbuf, int len);
 
 
   private:

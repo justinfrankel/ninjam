@@ -49,7 +49,7 @@ void ChanMixer::SaveConfig(WDL_String *str)
 {
 }
 
-void ChanMixer::MixData(float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len)
+void ChanMixer::MixData(float **inbuf, int in_offset, int innch, float *outbuf, int len)
 {
   memset(outbuf,0,len*sizeof(float));
   if (m_values_used < innch) innch=m_values_used;
