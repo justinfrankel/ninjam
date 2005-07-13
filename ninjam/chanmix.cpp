@@ -203,7 +203,14 @@ BOOL ChanMixer::DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
             SetWindowPos(h,0,maxx=x*(r.right-r.left),0,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
             ShowWindow(h,SW_SHOWNA);
           }
-          else SendMessage(m_sliders[x],WM_USER+66,0,0);
+          else 
+          {
+            RECT r;
+            GetClientRect(m_sliders[x],&r);
+            maxx=x*(r.right-r.left);
+            if (r.bottom-r.top > maxy) maxy=r.bottom-r.top;
+            SendMessage(m_sliders[x],WM_USER+66,0,0);
+          }
         }
         SetWindowPos(hwndDlg,NULL,0,0,maxx,maxy,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         for (; x < MAX_CHANMIX_CHANS; x ++)
