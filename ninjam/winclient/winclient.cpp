@@ -10,6 +10,8 @@
 
 #include "resource.h"
 
+#include "../chanmix.h"
+
 #include "../../WDL/wingui/wndsize.h"
 #include "../../WDL/dirscan.h"
 #include "../../WDL/lineparse.h"
@@ -79,6 +81,17 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     return;
   }
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
+}
+
+
+int CustomChannelMixer(int user32, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len)
+{
+  if (!IS_CMIX(chidx)) return 0;
+
+  ChanMixer *t = (ChanMixer *)chidx;
+  t->MixData(inbuf,in_offset,innch,outbuf,len);
+
+  return 1;
 }
 
 
@@ -362,6 +375,22 @@ static void do_connect()
     {
       int a=g_client->EnumLocalChannels(x);
       if (a<0) break;
+
+      int ch=0;
+      g_client->GetLocalChannelInfo(a,&ch,NULL,NULL);
+      if (IS_CMIX(ch))
+      {
+        ChanMixer *p=(ChanMixer *) ch;
+        p->SetNCH(g_audio->m_innch);
+        int i;
+        for (i = 0; i < g_audio->m_innch; i ++)
+        {
+          const char *n=g_audio->GetChannelName(i);
+          if (n) p->SetCHName(i,n);
+        }
+        p->DoWndUpdate();
+      }
+
       void *i=0;
       g_client->GetLocalChannelProcessor(a,NULL,&i);
       if (i) JesusUpdateInfo(i,g_client->GetLocalChannelInfo(a,NULL,NULL,NULL),g_audio?g_audio->m_srate:44100);
@@ -567,12 +596,27 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               int n;
               int wj=0, ok=0;
               char *name=NULL;
+              ChanMixer *newa=NULL;
               if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
               {
                 switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0jesus\0name\0"))
                 {
                   case 0: // source 
-                    g_client->SetLocalChannelInfo(ch,NULL,true,lp.gettoken_int(n+1),false,0,false,false);
+                    {
+                      if (!strncmp(lp.gettoken_str(n+1),"mix",3))
+                      {
+                        delete newa;
+                        newa=new ChanMixer;
+                        newa->CreateWnd(g_hInst,hwndDlg);
+                        newa->SetNCH(8);
+                        newa->LoadConfig(lp.gettoken_str(n+1)+3);
+                        g_client->SetLocalChannelInfo(ch,NULL,true,(int)newa,false,0,false,false);
+                      }
+                      else
+                      {
+                        g_client->SetLocalChannelInfo(ch,NULL,true,lp.gettoken_int(n+1),false,0,false,false);
+                      }
+                    }
                   break;
                   case 1: //broadcast
                     g_client->SetLocalChannelInfo(ch,NULL,false,false,false,0,true,!!lp.gettoken_int(n+1));
@@ -605,6 +649,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               }
               if (ok)
               {
+                if (newa)
+                {
+                  if (name) newa->SetDesc(name);
+                  newa->DoWndUpdate();
+                }
                 if (wj && name)
                 {
                   void *p=CreateJesusInstance(ch,name,g_audio?g_audio->m_srate:44100);
@@ -957,8 +1006,21 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             ptr++;
           }
           if (strlen(lcn) > 128) lcn[127]=0;
-          char buf[1024];
-          sprintf(buf,"%d source %d bc %d mute %d solo %d volume %f pan %f jesus %d name `%s`",a,sch,bc,m,s,v,p,!!has_jesus,lcn);
+          char buf[4096];
+          WDL_String sstr;
+          if (IS_CMIX(sch))
+          {
+            sstr.Set("mix");
+            ChanMixer *p=(ChanMixer *)sch;
+            p->SaveConfig(&sstr);
+          }
+          else
+          {
+            sprintf(buf,"%d",sch);
+            sstr.Set(buf);           
+          }
+          
+          sprintf(buf,"%d source '%s' bc %d mute %d solo %d volume %f pan %f jesus %d name `%s`",a,sstr.Get(),bc,m,s,v,p,!!has_jesus,lcn);
           char specbuf[64];
           sprintf(specbuf,"lc_%d",cnt++);
           WritePrivateProfileString(CONFSEC,specbuf,buf,g_ini_file.Get());
@@ -1002,6 +1064,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         {
           int a=g_client->EnumLocalChannels(x);
           if (a<0) break;
+          int ch=0;
+          g_client->GetLocalChannelInfo(a,&ch,NULL,NULL);
+          if (IS_CMIX(ch))
+          {
+            ChanMixer *t=(ChanMixer *)ch;
+            delete t;
+            g_client->SetLocalChannelInfo(a,NULL,true,0,false,false,false,false);
+          }
           void *i=0;
           g_client->GetLocalChannelProcessor(a,NULL,&i);
           if (i) deleteJesusonicProc(i,a);
@@ -1118,6 +1188,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
   g_client = new NJClient;
 
+  g_client->ChannelMixer=CustomChannelMixer;
   g_client->LicenseAgreementCallback = licensecallback;
   g_client->ChatMessage_Callback = chatmsg_cb;
 

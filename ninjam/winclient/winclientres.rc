@@ -356,7 +356,7 @@ BEGIN
                     WS_TABSTOP,7,4,19,104
     LTEXT           "+24 dB",IDC_STATIC,31,9,24,8
     LTEXT           "-120 dB",IDC_STATIC,31,95,26,8
-    LTEXT           "+0 dB",IDC_STATIC,31,39,20,8
+    LTEXT           "+0 dB",IDC_STATIC,31,40,20,8
     CTEXT           "+0.0 dB",IDC_LABEL2,0,115,67,8
 END
 

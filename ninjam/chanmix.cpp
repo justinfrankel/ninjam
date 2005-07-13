@@ -56,12 +56,19 @@ void ChanMixer::MixData(float **inbuf, int in_offset, int innch, float *outbuf, 
   int ch;
   for (ch = 0; ch < innch; ch ++)
   {
-    if (m_values[ch] >= MIN_VOL) // -100dB or so
+    float vol=m_values[ch];
+    if (vol >= MIN_VOL) // -100dB or so
     {
       int l=len;
       float *in=inbuf[ch]+in_offset;
       float *out=outbuf;
-      while (l--) *out++ += *in++;
+      while (l--) 
+      {
+        float f=*in++ * vol;
+        if (f < -1.0f) f=-1.0f;
+        else if (f > 1.0f) f=1.0f;
+        *out++ = f;
+      }
     }
   }
 }

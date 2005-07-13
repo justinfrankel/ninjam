@@ -24,6 +24,7 @@ extern HINSTANCE g_hInst;
 extern int g_done;
 extern WDL_String g_topic;
 
+#define IS_CMIX(x) (x < -1024 || x > 1024)
 
 // audioconfig.cpp
 audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent);

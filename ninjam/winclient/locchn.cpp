@@ -2,6 +2,7 @@
 #include <commctrl.h>
 #include <math.h>
 
+#include "../chanmix.h"
 #include "winclient.h"
 
 #include "resource.h"
@@ -76,8 +77,15 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
         g_client->NotifyServerOfChannelChange();
         void *i=0;
+        int sch=0;
         g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+        char *n=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
         g_client_mutex.Leave();
+        if (IS_CMIX(sch))
+        {
+          ChanMixer *p=(ChanMixer *)sch;
+          p->SetDesc(n?n:"");
+        }
         if (i)
         {
           JesusUpdateInfo(i,buf,g_audio?g_audio->m_srate:44100);
@@ -93,8 +101,44 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             int a=SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCURSEL,0,0);
             if (a != CB_ERR)
             {
-              if (a == SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCOUNT,0,0)-1) a=-1;
               g_client_mutex.Enter();
+              if (a == SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCOUNT,0,0)-1) 
+              {
+                char *name=g_client->GetLocalChannelInfo(m_idx,&a,NULL,NULL);
+                if (!IS_CMIX(a))
+                {
+                  ChanMixer *newa=new ChanMixer;
+                  newa->SetDesc(name);
+                  newa->CreateWnd(g_hInst,hwndDlg);
+                  newa->SetNCH(g_audio?g_audio->m_innch:8);
+                  if (g_audio)
+                  {
+                    int i;
+                    for (i = 0; i < g_audio->m_innch; i ++)
+                    {
+                      const char *n=g_audio->GetChannelName(i);
+                      if (n) newa->SetCHName(i,n);
+                    }
+                  }  
+                  newa->DoWndUpdate();
+                  ShowWindow(newa->GetWnd(),SW_SHOW);
+                  a=(int)newa;
+                  // set a to a cmix object
+                }
+                else
+                {
+                  ChanMixer *t=(ChanMixer *)a;
+                  ShowWindow(t->GetWnd(),SW_SHOW);
+                }
+              }
+              else
+              {
+                if (a == SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCOUNT,0,0)-2) a=-1;
+
+                int olda;
+                g_client->GetLocalChannelInfo(m_idx,&olda,NULL,NULL);
+                if (IS_CMIX(olda)) delete (ChanMixer *)olda;
+              }
               g_client->SetLocalChannelInfo(m_idx,NULL,true,a,false,0,false,false);
               g_client_mutex.Leave();
             }
@@ -240,7 +284,10 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         }
         else
         {
-          for (chcnt = 0; chcnt < max(sch,8); chcnt++)
+          int mch=max(sch,8);
+          if (IS_CMIX(sch)) mch=8;
+
+          for (chcnt = 0; chcnt < mch; chcnt++)
           {
             char buf[128];
             sprintf(buf,"Input Channel %d",chcnt+1);
@@ -248,7 +295,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           }
         }
         SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Silence");         
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,sch >= 0 ? sch : chcnt,0);
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Custom Mixer...");         
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,IS_CMIX(sch) ? chcnt+1 : (sch >= 0 ? sch : chcnt),0);
       }
     return 0;
     case WM_LCUSER_VUUPDATE:
