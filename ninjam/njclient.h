@@ -128,7 +128,7 @@ public:
 
   // set these if you want to mix multiple channels into the output channel
   // return 0 if you want the default behavior
-  int (*ChannelMixer)(int user32, int chi, float **inbuf, int innch, float *outbuf, int len, int offset);
+  int (*ChannelMixer)(int user32, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len);
   int ChannelMixer_User32;
 
 

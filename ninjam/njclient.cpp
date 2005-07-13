@@ -1207,7 +1207,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       int bytelen=len*(int)sizeof(float);
       if (tmpblock.GetSize() < bytelen) tmpblock.Resize(bytelen);
 
-      if (ChannelMixer && ChannelMixer(ChannelMixer_User32,sc,inbuf,innch,(float*)tmpblock.Get(),len,offset))
+      if (ChannelMixer && ChannelMixer(ChannelMixer_User32,inbuf,offset,innch,sc,(float*)tmpblock.Get(),len))
       {
         // channelmixer succeeded
       }
