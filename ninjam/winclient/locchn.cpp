@@ -285,7 +285,11 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         else
         {
           int mch=max(sch,8);
-          if (IS_CMIX(sch)) mch=8;
+          if (IS_CMIX(sch)) 
+          {
+            mch=((ChanMixer *)sch)->GetNCH();
+            if (mch < 2) mch=2;
+          }
 
           for (chcnt = 0; chcnt < mch; chcnt++)
           {

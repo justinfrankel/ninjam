@@ -714,18 +714,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           int ns=g_client->GetStatus();
           if (ns != m_last_status)
           {
+            WDL_String errstr(g_client->GetErrorStr());
             m_last_status=ns;
             if (ns < 0)
             {
               do_disconnect();
             }
 
-            if (ns == NJClient::NJC_STATUS_DISCONNECTED)
-              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
-            if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
-              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: invalid authentication info.");
-            if (ns == NJClient::NJC_STATUS_CANTCONNECT)
-              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
             if (ns == NJClient::NJC_STATUS_OK)
             {
               WDL_String tmp;
@@ -735,6 +730,21 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               tmp.Append(g_client->GetUserName());
 
               SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+            }
+            else if (errstr.Get()[0])
+            {
+              WDL_String tmp("Status: ");
+              tmp.Append(errstr.Get());
+              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+            }
+            else
+            {
+              if (ns == NJClient::NJC_STATUS_DISCONNECTED)
+                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
+              if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
+                SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
+              if (ns == NJClient::NJC_STATUS_CANTCONNECT)
+                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
             }
           }
           {
