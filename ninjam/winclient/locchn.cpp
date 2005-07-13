@@ -294,7 +294,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
           }
         }
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Silence");         
+        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Silent (effects only)");         
         SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)"Custom Mixer...");         
         SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,IS_CMIX(sch) ? chcnt+1 : (sch >= 0 ? sch : chcnt),0);
       }
