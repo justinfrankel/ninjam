@@ -479,7 +479,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         resize.init_item(IDC_CHATDISP,     chat_ratio, 0.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATENT,      chat_ratio, 1.0f,  1.0f,  1.0f);
-        resize.init_item(IDC_CHATOK,       1.0f, 1.0f,  1.0f,  1.0f);
                 
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  chat_ratio,  0.5f);
         resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  0.5f);
