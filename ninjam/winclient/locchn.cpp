@@ -61,8 +61,10 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         {
          char tmp[512];
-         mkvolpanstr(tmp,vol,pan);
+         mkvolstr(tmp,vol);
          SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+         mkpanstr(tmp,pan);
+         SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
         }
 
       }
@@ -231,6 +233,29 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             }
           }
         break;
+        case IDC_VOLLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            double vol = 1.0;
+            g_client->SetLocalChannelMonitoring(m_idx,true,(float)vol,false,0.0,false,false,false,false);
+            SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
+            char tmp[512];
+            mkvolstr(tmp,vol);
+            SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+          }
+        break;
+        case IDC_PANLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            double pan = 0.0;
+            int t=(int)(pan*50.0) + 50;
+            if (t < 0) t=0; else if (t > 100)t=100;
+            g_client->SetLocalChannelMonitoring(m_idx,false,0.0,true,(float)pan,false,false,false,false);
+            SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
+
+            char tmp[512];
+            mkpanstr(tmp,pan);
+            SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
+          }
+        break;
 
       }
     return 0;
@@ -238,35 +263,29 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
       {
         double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
 
-        g_client_mutex.Enter();
-
 		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
         {
           pos=SLIDER2DB(pos);
           if (fabs(pos- -6.0) < 0.5) pos=-6.0;
           else if (pos < -115.0) pos=-1000.0;
           g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(pos),false,0.0,false,false,false,false);
+
+          char tmp[512];
+          mkvolstr(tmp,pos);
+          SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+
         }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
         {
           pos=(pos-50.0)/50.0;
           if (fabs(pos) < 0.08) pos=0.0;
           g_client->SetLocalChannelMonitoring(m_idx,false,false,true,(float)pos,false,false,false,false);
+
+          char tmp[512];
+          mkpanstr(tmp,pos);
+          SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
+
         }
-        else 
-        {
-          g_client_mutex.Leave();
-          return 0;
-        }
-
-        float vol,pan;
-        g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, NULL, NULL);
-
-        g_client_mutex.Leave();
-
-        char tmp[512];
-        mkvolpanstr(tmp,vol,pan);
-        SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
       }
     return 0;
     case WM_LCUSER_REPOP_CH:

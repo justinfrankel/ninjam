@@ -1451,6 +1451,8 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       }
       chan->decode_peak_vol=maxf*vol;
     }
+    else 
+      chan->decode_peak_vol=0.0;
 
     if (!muted)
     {

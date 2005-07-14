@@ -56,8 +56,10 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
         {
          char tmp[512];
-         mkvolpanstr(tmp,v,p);
+         mkvolstr(tmp,v);
          SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+         mkpanstr(tmp,p);
+         SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
         }
 
       }
@@ -105,8 +107,10 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         g_client_mutex.Leave();
 
         char tmp[512];
-        mkvolpanstr(tmp,vol,pan);
+        mkvolstr(tmp,vol);
         SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+        mkpanstr(tmp,pan);
+        SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
       }
     return 0;
     case WM_COMMAND:
@@ -126,6 +130,33 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           g_client_mutex.Enter();
           g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
           g_client_mutex.Leave();
+        break;
+        case IDC_VOLLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            double vol = 1.0;
+            g_client_mutex.Enter();
+            g_client->SetUserChannelState(user,chan,false,false,true,(float)vol,false,0.0,false,false,false,false);
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
+            char tmp[512];
+            mkvolstr(tmp,vol);
+            SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
+          }
+        break;
+        case IDC_PANLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            double pan = 0.0;
+            int t=(int)(pan*50.0) + 50;
+            if (t < 0) t=0; else if (t > 100)t=100;
+            g_client_mutex.Enter();
+            g_client->SetUserChannelState(user,chan,false,false,false,0.0,true,(float)pan,false,false,false,false);
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
+
+            char tmp[512];
+            mkpanstr(tmp,pan);
+            SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
+          }
         break;
       }
     return 0;

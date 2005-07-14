@@ -95,6 +95,7 @@
 #define IDC_JS                          1048
 #define IDC_JSCFG                       1049
 #define IDC_ADDCH                       1050
+#define IDC_PANLBL                      1050
 #define IDC_RECV                        1051
 #define IDC_USERNAME                    1053
 #define IDC_CHANNELNAME                 1054
