@@ -241,11 +241,17 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         g_client_mutex.Enter();
 
 		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
-          g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(SLIDER2DB(pos)),false,0.0,false,false,false,false);
+        {
+          pos=SLIDER2DB(pos);
+          if (fabs(pos- -6.0) < 0.5) pos=-6.0;
+          else if (pos < -115.0) pos=-1000.0;
+          g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(pos),false,0.0,false,false,false,false);
+        }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
         {
+          pos=(pos-50.0)/50.0;
           if (fabs(pos) < 0.08) pos=0.0;
-          g_client->SetLocalChannelMonitoring(m_idx,false,false,true,((float)pos-50.0f)/50.0f,false,false,false,false);
+          g_client->SetLocalChannelMonitoring(m_idx,false,false,true,(float)pos,false,false,false,false);
         }
         else 
         {
