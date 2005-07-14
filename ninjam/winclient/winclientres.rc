@@ -157,7 +157,7 @@ BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,10,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
                     49,6,162,17
-    CTEXT           "+0.0 dB",IDC_MASTERVOLLBL,213,9,29,11,SS_NOTIFY
+    RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,213,9,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,6,45,17
     CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
@@ -167,7 +167,7 @@ BEGIN
     LTEXT           "Metronome:",IDC_STATIC,7,35,38,8
     CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,49,
                     31,162,17
-    CTEXT           "+0.0 dB",IDC_METROVOLLBL,213,34,29,11,SS_NOTIFY
+    RTEXT           "+0.0 dB",IDC_METROVOLLBL,213,34,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,31,45,17
     CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
@@ -194,8 +194,8 @@ BEGIN
     CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,162,336,1
     GROUPBOX        "Chat",IDC_CHATGRP,348,55,105,260
     CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,51,445,1
-    CTEXT           "center",IDC_MASTERPANLBL,246,9,23,11,SS_NOTIFY
-    CTEXT           "center",IDC_METROPANLBL,246,34,23,11,SS_NOTIFY
+    LTEXT           "center",IDC_MASTERPANLBL,244,9,23,11,SS_NOTIFY
+    LTEXT           "center",IDC_METROPANLBL,244,34,23,11,SS_NOTIFY
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 105
