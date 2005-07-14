@@ -152,7 +152,7 @@ STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU |
 CAPTION "NINJAM v0.666"
 MENU IDR_MENU1
 CLASS "NINJAMwnd"
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,6,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
@@ -263,19 +263,19 @@ BEGIN
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,246,6,70,8
     LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,81,
-                    11
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,19,
-                    39,11
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,14,81,
+                    18
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,15,
+                    39,18
     CTEXT           "+0.0 dB center",IDC_VOLLBL,127,20,54,8
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    186,20,30,10
+                    186,20,30,8
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    219,20,30,10
-    PUSHBUTTON      "Remove",IDC_REMOVE,265,30,50,13
+                    219,20,30,8
+    PUSHBUTTON      "Remove",IDC_REMOVE,264,32,50,13
     CONTROL         "Effects processor",IDC_JS,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,3,33,68,10
-    PUSHBUTTON      "config...",IDC_JSCFG,75,33,38,10,WS_DISABLED
+                    WS_TABSTOP,3,34,68,10
+    PUSHBUTTON      "config...",IDC_JSCFG,75,34,38,11,WS_DISABLED
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,46,316,1
 END
 
@@ -305,15 +305,15 @@ BEGIN
                     199,3,43,10
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,246,6,70,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,19,81,
-                    11
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,19,
-                    39,11
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,14,81,
+                    18
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,14,
+                    39,18
     CTEXT           "+0.0 dB center",IDC_VOLLBL,127,20,54,8
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    186,20,30,10
+                    186,20,30,8
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    219,20,30,10
+                    219,20,30,8
     LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,33,316,1
 END
