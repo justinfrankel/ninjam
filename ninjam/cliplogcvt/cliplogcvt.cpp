@@ -203,7 +203,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
 
 int main(int argc, char **argv)
 {
-  printf("ClipLogCvt v0.01a - Copyright (C) 2005, Cockos, Inc.\n"
+  printf("ClipLogCvt v0.01b - Copyright (C) 2005, Cockos, Inc.\n"
          "(Converts NINJAM log file to Vegas 4 compatible EDL text file)\n\n");
   if (argc <  2 || argv[1][0] == '-')
   {
