@@ -845,13 +845,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           g_client->config_metronome=(float)DB2VAL(SLIDER2DB(pos));
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERPAN))
         {
+          pos=(pos-50.0)/50.0;
           if (fabs(pos) < 0.08) pos=0.0;
-          g_client->config_masterpan=((float)pos-50.0f)/50.0f;
+          g_client->config_masterpan=(float) pos;
         }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_METROPAN))
         {
+          pos=(pos-50.0)/50.0;
           if (fabs(pos) < 0.08) pos=0.0;
-          g_client->config_metronome_pan=((float)pos-50.0f)/50.0f;
+          g_client->config_metronome_pan=(float) pos;
         }
         else return 0;
 
