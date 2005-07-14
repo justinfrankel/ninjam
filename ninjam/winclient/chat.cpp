@@ -140,6 +140,8 @@ void chat_addline(char *src, char *text)
   }
 
   g_client_mutex.Enter();
+  if (m_append_text.Get()[0])
+    m_append_text.Append("\n");
   m_append_text.Append(tmp.Get());
   g_client_mutex.Leave();
 
