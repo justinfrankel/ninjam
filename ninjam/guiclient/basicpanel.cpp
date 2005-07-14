@@ -17,7 +17,7 @@
 #define MAXX_VOLUME 100	// slider range
 #define ZERO_VOLUME 63	// 0 volume change at
 
-#define DEF_VOLUME ZERO_VOLUME	// starting volume
+#define DEF_VOLUME ZERO_VOLUME-24	// starting volume
 
 #define MIN_VOL_DB -100	// keep this negative, it's in dB
 #define MAX_VOL_DB 20	// and this one positive

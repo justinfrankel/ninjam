@@ -4,6 +4,7 @@
 #include <parse/pathparse.h>
 
 #include "attrs.h"
+#include "audiopanel.h"
 #include "chanpanel.h"
 #include "masterpanel.h"
 #include "metropanel.h"
@@ -21,6 +22,7 @@ extern NJClient *g_client;
 enum {
   CMD_MASTER,
   CMD_METRONOME,
+  CMD_AUDIO,
   CMD_ADDLOCAL,
 
   CMD_SORT,
@@ -30,6 +32,7 @@ const float default_monitor_vol=1.0;
 
 NJRackWnd::NJRackWnd() {
   bgColor = GetSysColor(COLOR_APPWORKSPACE);
+  setVirtual(FALSE);
 }
 
 NJRackWnd::~NJRackWnd() {
@@ -58,7 +61,8 @@ int NJRackWnd::onInit() {
 
   if (master_was_showing) addRackSlot(new MasterPanel(this));
   if (metro_was_showing) addRackSlot(new MetronomePanel(this));
-  if (sweep_was_showing) addRackSlot(new SweepPanel(this));
+//  if (audio_was_showing) addRackSlot(new AudioPanel(this));
+//  if (sweep_was_showing) addRackSlot(new SweepPanel(this));
   /*if (sweep_was_showing)*/ addRackSlot(new LocalSepPanel(this));
   /*if (sweep_was_showing)*/ addRackSlot(new ChanSepPanel(this));
 
@@ -178,6 +182,7 @@ void NJRackWnd::rackwndAppendToPopup(PopupMenu *pop, int ofs) {
   pop->addSeparator();
   pop->addCommand("Show Master", CMD_MASTER+ofs, (getNumPanels(RS_TYPE_MASTER) > 0));
   pop->addCommand("Show Metronome", CMD_METRONOME+ofs, (getNumPanels(RS_TYPE_METRONOME) > 0));
+  pop->addCommand("Show Audio controls", CMD_AUDIO+ofs, (getNumPanels(RS_TYPE_AUDIO) > 0));
 //  pop->addCommand("Sort panels", CMD_SORT+ofs);
 }
 
@@ -206,6 +211,19 @@ void NJRackWnd::rackwndOnPopupCommand(int cmd) {
       } else {
         addRackSlot(new MetronomePanel(this));
         metro_was_showing = 1;
+      }
+    }
+    break;
+    case CMD_AUDIO: {
+      PtrList<RackSlot> audios = getPanelList(RS_TYPE_AUDIO);
+      if (audios.n() > 0) {
+        foreach(audios)
+          killRackSlot(audios.getfor(), TRUE);
+        endfor
+        audio_was_showing = 0;
+      } else {
+        addRackSlot(new AudioPanel(this));
+        audio_was_showing = 1;
       }
     }
     break;

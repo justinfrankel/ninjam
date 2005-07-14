@@ -27,6 +27,6 @@ int PanelSlot::getHeight() {
 }
 
 void PanelSlot::resizeSlot(RECT *r) {
-  StdWnd::invalidateRect(getOsWindowHandle());
+//  StdWnd::invalidateRect(getOsWindowHandle());
   resizeToRect(r);
 }

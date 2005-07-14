@@ -34,6 +34,8 @@
 "\t/topic\tchanges the topic\r\n" \
 "\t/help\tshows this text\r\n"
 
+#define ERROR_NOTCONNECTED "*** Not connected to server."
+
 enum {
   TIMER_KILLME
 };
@@ -131,13 +133,20 @@ void ChatWnd::processUserEntry(const char *ln) {
                (!STRNINCMP(ln+1, CMD_KICK) && (ln[1+strlen(CMD_KICK)] == 0 || ln[1+strlen(CMD_KICK)] == ' ')) ||
                (!STRNINCMP(ln+1, CMD_TOPIC) && (ln[1+strlen(CMD_TOPIC)] == 0 || ln[1+strlen(CMD_TOPIC)] == ' '))
               ) {
-      g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
+
+      if (g_client->GetStatus() != NJClient::NJC_STATUS_OK) 
+        addChatLine(NULL, ERROR_NOTCONNECTED);
+      else
+        g_client->ChatMessage_Send("ADMIN", (char*)ln+1);
     } else {
       // unknown command
       addChatLine(NULL, "Unknown command. For a list of commands, type \"/help\".");
     }
   } else {
-    g_client->ChatMessage_Send("MSG", (char*)ln);
+    if (g_client->GetStatus() != NJClient::NJC_STATUS_OK) 
+      addChatLine(NULL, ERROR_NOTCONNECTED);
+    else
+      g_client->ChatMessage_Send("MSG", (char*)ln);
   }
 }
 
@@ -207,12 +216,9 @@ int ChatWnd::timerclient_onDeferredCallback(int param1, int param2) {
 int ChatWnd::onSubclassWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT &retval) {
   retval = 0;
   switch (uMsg) {
-    case WM_KEYDOWN:
-    case WM_KEYUP:
     case WM_CHAR:
+      if (lParam & (1<<23)) return 0;	// not if control/shift/alt is down
       SendMessage(GetDlgItem(getOsWindowHandle(), IDC_CHAT_ENTRY), uMsg, wParam, lParam);
-//    break;
-//no because we want to let them select text    case WM_SETFOCUS:
       SetFocus(GetDlgItem(getOsWindowHandle(), IDC_CHAT_ENTRY));
     break;
     default:

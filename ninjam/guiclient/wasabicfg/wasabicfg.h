@@ -16,7 +16,7 @@
 #define WASABI_COMPILE_TIMERS
 
 //this enables textmode windowing
-#define WASABI_COMPILE_TEXTMODE
+//#define WASABI_COMPILE_TEXTMODE
 
 //this allows component (external plugins)
 //#define WASABI_COMPILE_COMPONENTS

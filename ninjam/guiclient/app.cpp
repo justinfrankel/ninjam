@@ -13,6 +13,7 @@
 #include "resource.h"
 #endif
 
+#include "attrs.h"
 #include "mainwnd.h"
 #include "session.h"
 
@@ -45,7 +46,7 @@ void wasabiAppInit(OSWINDOWHANDLE parentwnd) {
 //  t->setVirtual(0);
   mainw->init(wasabiAppOSModuleHandle, parentwnd);
 //t->setVisible(TRUE);
-mainw->resize(70,70,640,480);
+  mainw->resize(mainwnd_x,mainwnd_y,mainwnd_w,mainwnd_h);
 }
 
 void wasabiAppShutdown() {

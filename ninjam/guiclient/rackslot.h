@@ -9,11 +9,12 @@ class RackWnd;
 enum {
   RS_TYPE_MASTER=		MK4CC(0,'m','s','t'),
   RS_TYPE_METRONOME=		MK4CC(10,'m','t','r'),
-  RS_TYPE_LOCAL_SEPARATOR=	MK4CC(20,'s','e','p'),
-  RS_TYPE_LOCAL_CHANNEL=	MK4CC(30,'l','c','h'),
-  RS_TYPE_CHAN_SEPARATOR=	MK4CC(40,'s','e','p'),
-  RS_TYPE_CHANNEL=		MK4CC(50,'c','h','n'),
-  RS_TYPE_SWEEP=		MK4CC(60,'s','w','p'),
+  RS_TYPE_AUDIO=		MK4CC(20,'a','u','d'),
+  RS_TYPE_LOCAL_SEPARATOR=	MK4CC(30,'s','e','p'),
+  RS_TYPE_LOCAL_CHANNEL=	MK4CC(40,'l','c','h'),
+  RS_TYPE_CHAN_SEPARATOR=	MK4CC(50,'s','e','p'),
+  RS_TYPE_CHANNEL=		MK4CC(60,'c','h','n'),
+  RS_TYPE_SWEEP=		MK4CC(70,'s','w','p'),
 };
 
 class RackSlot {

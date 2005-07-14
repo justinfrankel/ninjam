@@ -3,12 +3,18 @@
 
 #include <bfc/attrib/attribs.h>
 
+extern _int mainwnd_x;
+extern _int mainwnd_y;
+extern _int mainwnd_w;
+extern _int mainwnd_h;
+
 extern _bool timestamp_chat;
 extern _bool chat_was_showing;
 extern _string jesus_install_dir;
 
 extern _bool master_was_showing;
 extern _bool metro_was_showing;
+extern _bool audio_was_showing;
 extern _bool sweep_was_showing;
 
 extern _bool metronome_was_muted;

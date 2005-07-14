@@ -12,6 +12,7 @@
 
 #include "attrs.h"
 
+#include "audio.h"
 #include "njrackwnd.h"
 #include "chatwnd.h"
 #include "jesus.h"
@@ -33,6 +34,7 @@ enum {
   CMD_SHOW_JESUS,
   CMD_SHOW_CHAT,
   CMD_SETTINGS,
+  CMD_ABOUT,
 };
 
 enum {
@@ -42,6 +44,8 @@ enum {
 };
 
 static ChatWnd *chatwnd;
+
+extern MainWnd *mainw;
 
 //app jesusonic stuff
 HWND jesuswnd;
@@ -55,7 +59,7 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
 #endif
 audioStreamer *g_audio;
 String g_server_address, g_user_name, g_passwd;
-static int g_audio_enable=0;
+int g_audio_enable=0;
 static int in_g_client_run=0;
 
 void audiostream_onunder() { }
@@ -112,23 +116,33 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 
 //CUT static char *dev_name_in;
 
-static void audioStop() {
+void audioStop() {
   g_audio_enable=0;
   delete g_audio; g_audio = NULL;
 }
 
-static int audioStart() {
+int audioStart() {
   audioStop();
   g_audio=CreateConfiguredStreamer("ninjam.ini", FALSE, NULL);
   return (g_audio != NULL);
 }
 
 // just config it
-int audioConfig(HWND parwnd) {
+int audioConfig() {
+  int audio_was_running = 0;
+  if (g_audio) {
+    audio_was_running = 1;
+    int r = StdWnd::messageBox("Session is in progress. You must disconnect if you wish to change your audio settings. Click OK to disconnect and open the configuration dialog or Cancel to continue with things are they are.",
+      "Cannot change audio during session",
+      MB_OKCANCEL|MB_TASKMODAL);
+    if (r == IDCANCEL) return 0;
+    mainw->handleDisconnect();
+  }
     
   audioStop();
 
-  CreateConfiguredStreamer("ninjam.ini", -1, parwnd);
+  extern MainWnd *mainw;
+  CreateConfiguredStreamer("ninjam.ini", -1, mainw->getOsWindowHandle());
 
   return 1;
 }
@@ -189,7 +203,7 @@ int MainWnd::onInit() {
   g_client->LicenseAgreement_User32=reinterpret_cast<int>(getOsWindowHandle());
   g_client->LicenseAgreementCallback=displayLicense;
 
-  audioConfig(getOsWindowHandle());
+  audioConfig();	//FUCKO get rid of this
 
   // jesusonic init
   jesusInit();
@@ -219,17 +233,14 @@ int MainWnd::onInit() {
 // remove dead inbound channels
   addMenu("C&hannels", 2, p);
 
-#if 0
-  p = new PopupMenu;
-//  p->addCommand("Show/Hide JesuSonic console", CMD_SHOW_JESUS, jesus_showing);
-  p->addCommand("Show &Chat", CMD_SHOW_CHAT);
-  addMenu("&Windows", 3, p);
-#endif
-
   p = new PopupMenu;
   p->addCommand("&Settings...", CMD_SETTINGS);
   p->addCommand("&Audio configuration...", CMD_ASIO_CFG);
   addMenu("&Options", 4, p);
+
+  p = new PopupMenu;
+  p->addCommand("&About...", CMD_ABOUT);
+  addMenu("&Help", 5, p);
 
   setStatusBar(TRUE);
   OSStatusBarWnd *statusbar = getStatusBarWnd();
@@ -246,15 +257,18 @@ int MainWnd::onInit() {
 // chat
   if (chatwnd == NULL) {
     OSDockWndHoster *hoser = new OSDockWndHoster();
+    hoser->setName("Chat dock");
     hoser->setDockedWidth(200);
     hoser->setDockedHeight(140);
     //hoser->setDockResizable(FALSE);
     hoser->setDockResizable(TRUE);
+    hoser->setBorderVisible(FALSE);
     dockWindow(hoser, DOCK_RIGHT);
 
     chatwnd = new ChatWnd(hoser->getOsWindowHandle());
-    chatwnd->createModeless(FALSE, TRUE);
+    chatwnd->createModeless(FALSE, FALSE);
     hoser->setWindowHandle(chatwnd->getOsWindowHandle());
+    StdWnd::showWnd(chatwnd->getOsWindowHandle());
 
     StdWnd::setFocus(getOsWindowHandle());
   }
@@ -314,17 +328,15 @@ int MainWnd::onMenuCommand(int cmd) {
     }
     break;
     case CMD_ASIO_CFG: {
-      if (g_audio) {
-        int r = StdWnd::messageBox("Session is in progress. You must disconnect if you wish to change your audio settings. Click OK to disconnect and open the configuration dialog or Cancel to continue with things are they are.",
-          "Cannot change audio during session",
-          MB_OKCANCEL|MB_TASKMODAL);
-        if (r == IDOK) {
-          handleDisconnect();
-          audioConfig(getOsWindowHandle());
-        }
-      } else {
-        audioConfig(getOsWindowHandle());
-      }
+      audioConfig();
+    }
+    break;
+    case CMD_ABOUT: {
+      OSDialog dlg(IDD_ABOUT, getOsWindowHandle());
+      _string vstr;
+      vstr = StringPrintf("Version %s", VERSION);
+      dlg.registerAttribute(vstr, IDC_VERSION_TEXT);
+      dlg.createModal();
     }
     break;
     default:
@@ -345,6 +357,11 @@ void MainWnd::timerclient_timerCallback(int id) {
       if (g_client == NULL) break;	// no client
       int r = g_client->GetStatus();
 //CUT DebugString("status: %d", r);
+      String err = g_client->GetErrorStr();
+      if (r != NJClient::NJC_STATUS_OK && err.notempty()) {
+        status_text = StringPrintf("Status: %s", err.vs());
+      }
+      else
       switch (r) {
         case NJClient::NJC_STATUS_DISCONNECTED:
           status_text = "Disconnected.";
@@ -354,7 +371,7 @@ void MainWnd::timerclient_timerCallback(int id) {
           status_text = "Error: Can't connect to server: Invalid authorization.";
         break;
         case NJClient::NJC_STATUS_CANTCONNECT:
-          status_text = "Error: Can't connect to server. Dunno why.";
+          status_text = "Error: Can't connect to server.";
         break;
         case NJClient::NJC_STATUS_PRECONNECT:
           status_text = "Not connected.";
@@ -501,5 +518,26 @@ void MainWnd::handleDisconnect() {
     audioStop();
     rackwnd->onDisconnect();
     Session::endSession();	// disconnects g_client etc
+    chatwnd->addChatLine(NULL, "*** Disconnected from server.");
   }
+}
+
+LRESULT MainWnd::wndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  switch (uMsg) {
+    case WM_WINDOWPOSCHANGED: {
+      WINDOWPOS *wp = (WINDOWPOS*)lParam;
+      if (!(wp->flags & SWP_NOMOVE)) {
+        mainwnd_x = wp->x;
+        mainwnd_y = wp->y;
+//CUT DebugString("pos change");
+      }
+      if (!(wp->flags & SWP_NOSIZE)) {
+        mainwnd_w = wp->cx;
+        mainwnd_h = wp->cy;
+//CUT DebugString("size change");
+      }
+    }
+    break;
+  }
+  return MAINWND_PARENT::wndProc(hWnd, uMsg, wParam, lParam);
 }

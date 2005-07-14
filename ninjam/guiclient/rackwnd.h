@@ -1,12 +1,13 @@
 #ifndef _RACKWND_H
 #define _RACKWND_H
 
-#include <wnd/wnds/listwnd.h>
+//#include <wnd/wnds/listwnd.h>
+#include <wnd/scbkgwnd.h>
 
 class RackSlot;	// in rackslot.h
 class PopupMenu;
 
-#define RACKWND_PARENT ListWnd
+#define RACKWND_PARENT ScrlBkgWnd
 class RackWnd : public RACKWND_PARENT {
 public:
   RackWnd();
@@ -27,7 +28,14 @@ public:
   int getNumPanels(int type=-1);
   PtrList<RackSlot> getPanelList(int type=-1);
 
+  virtual int wantHScroll() { return 0; }
+  virtual int wantVScroll() { return 1; }
+
+  virtual int getContentsHeight();	// not safe to call getclientrect!
+
 protected:
+  int yscroll;
+  virtual void onScrollY(int y);
   virtual void timerclient_timerCallback(int id);
   virtual int timerclient_onDeferredCallback(int param1, int param2);
 

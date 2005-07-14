@@ -28,6 +28,9 @@ public:
   void handleConnect();
   void handleDisconnect();
 
+protected:
+  virtual LRESULT wndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
 private:
   NJRackWnd *rackwnd;
 };

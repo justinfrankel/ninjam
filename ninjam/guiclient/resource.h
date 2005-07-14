@@ -28,12 +28,16 @@
 #define IDD_PANEL_SEPARATOR             120
 #define IDD_PANEL_CHAN_SEPARATOR        120
 #define IDD_PANEL_LOCAL_SEPARATOR       121
+#define IDD_ABOUT                       122
+#define IDD_PANEL_AUDIO                 123
 #define IDC_BUTTON1                     1000
 #define IDC_PANEL_SOLO                  1000
 #define IDC_BUTTON2                     1001
 #define IDC_PANEL_MUTE                  1001
 #define IDC_SESSIONDIR_BROWSE           1001
+#define IDC_DELMULTI                    1001
 #define IDC_BUTTON5                     1002
+#define IDC_DELOGG                      1002
 #define IDC_SLIDER1                     1003
 #define IDC_SLIDER2                     1004
 #define IDC_GROUPBOX                    1007
@@ -51,6 +55,7 @@
 #define IDC_JESUSDIR                    1018
 #define IDC_BUTTON3                     1019
 #define IDC_EDIT4                       1019
+#define IDC_CONFIGUREAUDIO              1019
 #define IDC_CUSTOM1                     1020
 #define IDC_EDIT5                       1020
 #define IDC_PASSWD                      1021
@@ -90,6 +95,7 @@
 #define IDC_CHECK3                      1052
 #define IDC_KEEPLOG                     1052
 #define IDC_CHECK4                      1053
+#define IDC_AUDIOENABLE                 1053
 #define IDC_CHAT_HIST                   1055
 #define IDC_CHAT_DISP                   1055
 #define IDC_CHAT_EDIT                   1056
@@ -118,14 +124,17 @@
 #define IDC_VOLTEXT                     1080
 #define IDC_VUTEXT                      1081
 #define IDC_SESSION_POS                 1083
+#define IDC_VERSION_TEXT                1084
+#define IDC_SRCCHAN                     1087
+#define IDC_DELWAV                      1088
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        122
+#define _APS_NEXT_RESOURCE_VALUE        124
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1084
+#define _APS_NEXT_CONTROL_VALUE         1089
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

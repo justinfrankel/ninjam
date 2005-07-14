@@ -7,6 +7,7 @@
 #include "rackwnd.h"
 
 //CUT? #include "jesus.h"
+#define BORDER 1
 
 enum {
   TIMER_KILLSLOT,
@@ -16,6 +17,8 @@ enum {
 
 RackWnd::RackWnd() {
   slots.setAutoSort(FALSE);
+//CUT  setItemHeight(32+BORDER);
+  yscroll= 0;
 }
 
 RackWnd::~RackWnd() {
@@ -38,10 +41,10 @@ int RackWnd::onResize() {
   slots.sort();
 
   RECT rc = clientRect();
+  rc.right--;
 
 // allocate positions for each panel
-#define BORDER 1
-  int y = rc.top + BORDER;
+  int y = rc.top + BORDER - yscroll;
   foreach(slots)
     int type = slots.getfor()->getRackSlotType();
     int h = slots.getfor()->getHeight();
@@ -72,7 +75,6 @@ int RackWnd::onContextMenu(int x, int y) {
 
 void RackWnd::addRackSlot(RackSlot *rs) {
   slots.addItem(rs);
-  addItem(NULL);	// keep listwnd synced
   if (isPostOnInit()) onResize();
 }
 
@@ -95,6 +97,21 @@ PtrList<RackSlot> RackWnd::getPanelList(int type) {
     if (type == -1 || rs->getRackSlotType() == type) ret.addItem(rs);
   endfor
   return ret;
+}
+
+int RackWnd::getContentsHeight() {
+  int ret = 0;
+  foreach(slots)
+    ret += slots.getfor()->getHeight();
+    ret += BORDER;
+  endfor
+
+  return ret;
+}
+
+void RackWnd::onScrollY(int y) {
+  yscroll = y;
+  onResize();
 }
 
 void RackWnd::timerclient_timerCallback(int id) {

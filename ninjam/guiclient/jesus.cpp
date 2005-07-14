@@ -15,6 +15,8 @@ jesusonicAPI *JesusonicAPI;
 HINSTANCE hDllInst;
 String jesusdir;
 String jesusonic_configfile;
+extern NJClient *g_client;
+extern audioStreamer *g_audio;
 
 int jesusAvailable() {
   return (JesusonicAPI != NULL);
@@ -29,6 +31,10 @@ void jesusInit() {
     String dll;
     dll = jesusdir;
     dll += "\\jesus.dll";
+
+char buf[WA_MAX_PATH]="";
+Std::getCurDir(buf, WA_MAX_PATH);
+DebugString("cur dir is %s", buf);
 
     hDllInst = LoadLibrary(dll);
     if (!hDllInst) hDllInst = LoadLibrary(".\\jesus.dll"); // load from current dir
@@ -116,15 +122,15 @@ void deleteJesusonicProc(void *i, int chi)
 
 void attachInstToLocChan(int channel_id) {
 int a = channel_id;
-extern audioStreamer *g_audio;
           // start it up
-          if (JesusonicAPI && g_audio)
+          if (JesusonicAPI/*CUT && g_audio*/)
           {
             void *myInst=JesusonicAPI->createInstance();
             JesusonicAPI->set_rootdir(myInst,jesusdir.ncv());
             JesusonicAPI->ui_init(myInst);
             JesusonicAPI->set_opts(myInst,1,1,-1);
-            JesusonicAPI->set_sample_fmt(myInst,g_audio->m_srate,1,33);
+            int rate = g_audio ? g_audio->m_srate : 44100;
+            JesusonicAPI->set_sample_fmt(myInst,rate,1,33);
             JesusonicAPI->set_status(myInst,"",StringPrintf("ninjam channel #%02d", a+1).ncv());
 #if 0
             HWND h=JesusonicAPI->ui_wnd_create(myInst);
@@ -143,7 +149,15 @@ extern audioStreamer *g_audio;
 #endif
 
 
-  extern NJClient *g_client;
             g_client->SetLocalChannelProcessor(a,jesusonic_processor,myInst);
           }
+}
+
+void adjustSampleRate(int ch) {
+  void *myInst=NULL;
+  g_client->GetLocalChannelProcessor(ch, NULL, &myInst);
+  if (myInst) {
+    int rate = g_audio ? g_audio->m_srate : 44100;
+    JesusonicAPI->set_sample_fmt(myInst,rate,1,33);
+  }
 }

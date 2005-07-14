@@ -1,8 +1,11 @@
 #include "precomp.h"
 
+#include "audio.h"
+
 #include "masterpanel.h"
 
 extern NJClient *g_client;
+int audioConfig();
 
 MasterPanel::MasterPanel(RackWnd *wnd)
   : BasicPanel(wnd, IDD_PANEL_MASTER, "Master")
@@ -10,6 +13,9 @@ MasterPanel::MasterPanel(RackWnd *wnd)
   registerAttribute(sessionpos, IDC_SESSION_POS);
   sortval = 0;
   refresh_count = 0;
+  registerAttribute(audioenable, IDC_AUDIOENABLE);
+  addSizeBinding(IDC_CONFIGUREAUDIO, OSDialogSizeBind::RIGHT);
+  addSizeBinding(IDC_AUDIOENABLE, OSDialogSizeBind::RIGHT);
 }
 
 void MasterPanel::onPan(float pos) {
@@ -46,4 +52,32 @@ void MasterPanel::onRefresh() {
   sp /= 60;
   int mins = sp;
   sessionpos = StringPrintf("%01d:%02d.%03d ", mins, sec, ms);
+}
+
+void MasterPanel::onUserButton(int id) {
+  switch (id) {
+    case IDC_CONFIGUREAUDIO: {
+      audioConfig();
+    }
+    break;
+  }
+}
+
+void MasterPanel::onPostApplyDlgToAttr(Attribute *attr, const char *newval, int dlgid) {
+  switch (dlgid) {
+    case IDC_AUDIOENABLE: {
+       int v = ATOI(newval);
+       if (v) {
+         audioStart();
+          g_audio_enable=1;
+       }
+       else {
+         audioStop();
+          g_audio_enable=0;
+       }
+    }
+    break;
+    default:
+      MasterPanel_PARENT::onPostApplyDlgToAttr(attr, newval, dlgid);
+  }
 }

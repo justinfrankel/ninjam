@@ -26,6 +26,7 @@ public:
 
   virtual void onUserButton(int id);
 
+  virtual void onCreate();	// call ancestor
   virtual void onConnect();
 
   void refreshInfo();

@@ -15,6 +15,11 @@ extern audioStreamer *g_audio;
 #include "locchanpanel.h"
 
 #define DEFAULT_LOCCHAN_NAME "unnamed"
+#define DEFAULT_BROADCASTING TRUE
+#define VIRTUAL_CHANNEL_NAME "fx only"
+#define MAX_UNK_CHANS 8
+
+//#define SRCCHAN_COMBO
 
 enum {
   CMD_REMOVEME,
@@ -28,7 +33,7 @@ static PopupMenu *subpop;
 
 LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
   : BasicPanel(wnd, IDD_PANEL_LOCALCHANNEL, StringPrintf("local/channel %02d", id)),
-  broadcasting(StringPrintf("user settings/local/channel %02d/broadcasting", id)),
+  broadcasting(StringPrintf("user settings/local/channel %02d/broadcasting", id), DEFAULT_BROADCASTING),
   channel_name(StringPrintf("user settings/local/channel %02d/name", id), DEFAULT_LOCCHAN_NAME)
 //CUT  src_channel(StringPrintf("%d src_channel", id))
 {
@@ -38,21 +43,16 @@ LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
 
   sortval = 1000+id;
 
-//CUT  jesuswnd = NULL;
-
   addSizeBinding(IDC_CHANNEL_NAME, OSDialogSizeBind::RIGHTEDGETORIGHT);
+  addSizeBinding(IDC_SRCCHAN, OSDialogSizeBind::RIGHT);
   addSizeBinding(IDC_LOCAL_CHID, OSDialogSizeBind::RIGHT);
   addSizeBinding(IDC_MONITOR, OSDialogSizeBind::RIGHT);
 
-  registerAttribute(&src_channel_name, IDC_LOCAL_SRCCHAN);
-  refreshSrcChanName();
-
-//CUT  channel_name = "";
   registerAttribute(&channel_name, IDC_CHANNEL_NAME);
 
   registerAttribute(&broadcasting, IDC_BROADCAST);
 
-  registerBoolDisable(broadcasting, IDC_CHANNEL_NAME, FALSE);
+//  registerBoolDisable(broadcasting, IDC_CHANNEL_NAME, FALSE);
 
 //  registerBoolDisable(broadcasting, IDC_LOCAL_TEXT, FALSE);
 //  registerBoolDisable(broadcasting, IDC_PAN, FALSE);
@@ -65,7 +65,30 @@ LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
 
   registerBoolDisable(fx, IDC_EDIT_FX, FALSE);
 
-//CUT  refreshInfo();
+// srcchan combo
+  int tchnum=-1;
+  g_client->GetLocalChannelInfo(channel_id, &tchnum, NULL, NULL);
+#ifdef SRCCHAN_COMBO
+  int n = MAX(MAX_UNK_CHANS, tchnum);
+  for (int i = 0; i < n; i++) {
+    populateCombo(IDC_SRCCHAN, StringPrintf("input #%d", i+1), i);
+  }
+  populateCombo(IDC_SRCCHAN, VIRTUAL_CHANNEL_NAME, -1);
+  if (tchnum < 0) 
+    setComboSel(IDC_SRCCHAN, n);
+  else
+    setComboSel(IDC_SRCCHAN, tchnum);
+#else
+#if 0//CUT
+  registerAttribute(srcchan_text, IDC_SRCCHAN);
+  if (tchnum >= 0)
+    srcchan_text = StringPrintf("input #%d", tchnum);
+  else
+    srcchan_text = VIRTUAL_CHANNEL_NAME;
+#endif
+  registerAttribute(&src_channel_name, IDC_SRCCHAN);
+  refreshSrcChanName();
+#endif
 }
 
 #if 0
@@ -179,24 +202,29 @@ void LocalChannelPanel::panelAppendToPopup(PopupMenu *pop, int ofs) {
   pop->addCommand("Remove this channel", CMD_REMOVEME+ofs);
   delete subpop; subpop = new PopupMenu(pop);
 
-  if (!g_audio) return; // shut up
-
   int tchnum=-1;
   g_client->GetLocalChannelInfo(channel_id, &tchnum, NULL, NULL);
 
-
-//enum all channels
-  for (int i = 0; i < 256; i++) {
-    String chn = g_audio->GetChannelName(i);
-    if (chn.isempty()) break;
-    int checked = (i == tchnum);
+  if (g_audio) {
+    //enum all channels
+    for (int i = 0; i < 256; i++) {
+      String chn = g_audio->GetChannelName(i);
+      if (chn.isempty()) break;
+      int checked = (i == tchnum);
 //CUT    int enabled = srcChanTaken(i);
-int enabled = 1;
-    subpop->addCommand(StringPrintf("%02d: %s", i, chn.v()), CMD_AUDIOSELECT+i+ofs, checked, !enabled);
+      int enabled = 1;
+      subpop->addCommand(StringPrintf("%02d: %s", i, chn.v()), CMD_AUDIOSELECT+i+ofs, checked, !enabled);
+    }
+  } else {
+    for (int i = 0; i < MAX_UNK_CHANS; i++) {
+      int enabled = 1;
+      int checked = (i == tchnum);
+      subpop->addCommand(StringPrintf("input %d", i), CMD_AUDIOSELECT+i+ofs, checked, !enabled);
+    }
   }
 
-//virtual means srcchan = -1
-  subpop->addCommand("virtual (FX only)", CMD_AUDIOSELECT-1+ofs, tchnum==-1);
+//virtual/fxonly means srcchan = -1
+  subpop->addCommand(VIRTUAL_CHANNEL_NAME, CMD_AUDIOSELECT-1+ofs, tchnum==-1);
 
   pop->addSubMenu(subpop, "Recording source");
 }
@@ -219,6 +247,9 @@ void LocalChannelPanel::panelOnPopupCommand(int cmd) {
     g_client->NotifyServerOfChannelChange();
 //CUT    src_channel = chnum;	// remember source channel
     refreshSrcChanName();
+#ifdef SRCCHAN_COMBO
+#error adjust combo box here
+#endif
 
   } else switch (cmd) {
     case CMD_REMOVEME:
@@ -256,8 +287,35 @@ void LocalChannelPanel::onUserButton(int id) {
   }
 }
 
+void LocalChannelPanel::onCreate() {
+  LOCALCHANNELPANEL_PARENT::onCreate();
+}
+
 void LocalChannelPanel::onConnect() {
-  onFx(fx);
+//?  onFx(fx);
+   adjustSampleRate(channel_id);
+
+  // fix the srcchan selector now that we have a real audio device
+#ifdef SRCCHAN_COMBO
+  if (g_audio) {
+    int tchnum=-1;
+    g_client->GetLocalChannelInfo(channel_id, &tchnum, NULL, NULL);
+    resetCombo(IDC_SRCCHAN);
+    int n = 0;
+    for (int i = 0; i < 256; i++) {
+      String chn = g_audio->GetChannelName(i);
+      if (chn.isempty()) break;
+      populateCombo(IDC_SRCCHAN, chn, i);
+      n++;
+    }
+    populateCombo(IDC_SRCCHAN, VIRTUAL_CHANNEL_NAME, n);
+    if (tchnum == -1)
+      setComboSel(IDC_SRCCHAN, n);
+    else
+      setComboSel(IDC_SRCCHAN, tchnum);
+  }
+#endif
+  refreshSrcChanName();
 }
 
 double g_ilog2x6;
@@ -271,11 +329,13 @@ double VAL2DB(double x)
 void LocalChannelPanel::refreshSrcChanName() {
   int tchnum=0;
   g_client->GetLocalChannelInfo(channel_id, &tchnum, NULL, NULL);
-  if (g_audio == NULL) src_channel_name="";
+  if (tchnum < 0)
+    src_channel_name = VIRTUAL_CHANNEL_NAME;
   else {
-    if (tchnum < 0)
-      src_channel_name = "virtual";
-    else
+    if (g_audio == NULL) {
+      src_channel_name= StringPrintf("input #%d", tchnum);
+    } else {
       src_channel_name = StringPrintf("%02d: %s", tchnum, g_audio->GetChannelName(tchnum));
+    }
   }
 }

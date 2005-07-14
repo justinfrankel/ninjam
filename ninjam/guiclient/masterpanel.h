@@ -23,9 +23,13 @@ public:
 
   virtual void onRefresh();
 
+  virtual void onUserButton(int id);
+
+  virtual void onPostApplyDlgToAttr(Attribute *attr, const char *newval, int dlgid);
 private:
   int refresh_count;
   _string sessionpos;
+  _bool audioenable;
 };
 
 #endif
