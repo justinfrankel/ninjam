@@ -840,9 +840,17 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
 
 		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERVOL))
-          g_client->config_mastervolume=(float)DB2VAL(SLIDER2DB(pos));
+        {
+          double v=SLIDER2DB(pos);
+          if (fabs(v- -6.0) < 0.5) v=-6.0;
+          g_client->config_mastervolume=(float)DB2VAL(v);
+        }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_METROVOL))
-          g_client->config_metronome=(float)DB2VAL(SLIDER2DB(pos));
+        {
+          double v=SLIDER2DB(pos);
+          if (fabs(v- -6.0) < 0.5) v=-6.0;
+          g_client->config_metronome=(float)DB2VAL(v);
+        }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERPAN))
         {
           pos=(pos-50.0)/50.0;
