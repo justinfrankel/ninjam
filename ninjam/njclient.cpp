@@ -1438,7 +1438,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     float *sptr=(float *)chan->decode_codec->m_samples.Get();
 
     // process VU meter, yay for powerful CPUs
-    if (vol > 0.0000001) 
+    if (!muted && vol > 0.0000001) 
     {
       float *p=sptr;
       int l=(needed+chan->dump_samples)*chan->decode_codec->GetNumChannels();
@@ -1450,12 +1450,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
         else if (f < -maxf) maxf=-f;
       }
       chan->decode_peak_vol=maxf*vol;
-    }
-    else 
-      chan->decode_peak_vol=0.0;
 
-    if (!muted)
-    {
       float *tmpbuf[2]={outbuf[0]+offs,outnch > 1 ? (outbuf[1]+offs) : 0};
       mixFloatsNIOutput(sptr+chan->dump_samples,
               chan->decode_codec->GetSampleRate(),
@@ -1464,6 +1459,8 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
               srate,outnch>1?2:1,len,
               vol,pan,&chan->resample_state);
     }
+    else 
+      chan->decode_peak_vol=0.0;
 
     // advance the queue
     chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
