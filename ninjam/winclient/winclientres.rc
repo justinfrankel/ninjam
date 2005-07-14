@@ -146,53 +146,54 @@ BEGIN
     RTEXT           "Output Device:",-1,1,19,55,8
 END
 
-IDD_MAIN DIALOGEX 0, 0, 459, 329
+IDD_MAIN DIALOGEX 0, 0, 460, 343
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
 CAPTION "NINJAM v0.666"
 MENU IDR_MENU1
 CLASS "NINJAMwnd"
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,6,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
-                    56,6,155,11
-    CTEXT           "+0.0 dB center",IDC_MASTERLBL,217,6,54,8
+                    56,6,155,17
+    CTEXT           "+0.0 dB center",IDC_MASTERLBL,215,6,54,17
     CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
-                    277,6,38,11
+                    270,6,45,17
     CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,321,6,32,10
+                    WS_TABSTOP,321,8,32,10
     CONTROL         "Progress1",IDC_MASTERVU,"msctls_progress32",PBS_SMOOTH | 
-                    WS_BORDER,359,9,93,8
-    LTEXT           "Metronome:",IDC_STATIC,7,20,38,8
+                    WS_BORDER,358,8,93,8
+    LTEXT           "Metronome:",IDC_STATIC,7,32,38,8
     CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,56,
-                    19,155,11
-    CTEXT           "+0.0 dB center",IDC_METROLBL,217,20,54,8
+                    31,155,17
+    CTEXT           "+0.0 dB center",IDC_METROLBL,215,32,54,17
     CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
-                    277,19,38,11
+                    270,31,45,17
     CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,321,19,32,10
-    CTEXT           "-120.0 dB",IDC_MASTERVULBL,359,18,93,8
-    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,36,445,1
+                    WS_TABSTOP,321,33,32,10
+    CTEXT           "-120.0 dB",IDC_MASTERVULBL,358,17,93,8
+    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,28,446,1
     CONTROL         "Status: No connection.",IDC_STATUS,"Static",
-                    SS_LEFTNOWORDWRAP | WS_GROUP,7,314,356,8
+                    SS_LEFTNOWORDWRAP | WS_GROUP,7,328,356,8
     CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
-                    WS_BORDER,7,304,445,9
+                    WS_BORDER,7,318,446,9
     CONTROL         "",IDC_CHATDISP,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
-                    WS_TABSTOP | 0x2804,351,52,96,227
+                    WS_TABSTOP | 0x2804,351,66,96,227
     CONTROL         "",IDC_CHATENT,"RichEdit20A",WS_BORDER | WS_TABSTOP | 
-                    0xc4,351,283,96,14
+                    0xc4,351,297,96,14
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,13,
-                    52,327,88
+                    66,327,88
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
-                    13,162,327,135
-    RTEXT           "",IDC_STATUS2,376,314,76,8
-    GROUPBOX        "Local Channels",IDC_LOCGRP,7,41,337,103,0,
+                    13,176,327,135
+    RTEXT           "",IDC_STATUS2,377,328,76,8
+    GROUPBOX        "Local Channels",IDC_LOCGRP,7,55,337,103,0,
                     WS_EX_TRANSPARENT
-    GROUPBOX        "Remote Channels",IDC_REMGRP,7,151,337,150,0,
+    GROUPBOX        "Remote Channels",IDC_REMGRP,7,165,337,150,0,
                     WS_EX_TRANSPARENT
-    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,148,337,1
-    GROUPBOX        "Chat",IDC_CHATGRP,347,41,105,260
+    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,162,336,1
+    GROUPBOX        "Chat",IDC_CHATGRP,348,55,105,260
+    CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,51,445,1
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 105
@@ -385,9 +386,9 @@ BEGIN
     IDD_MAIN, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 452
+        RIGHTMARGIN, 453
         TOPMARGIN, 6
-        BOTTOMMARGIN, 322
+        BOTTOMMARGIN, 336
     END
 
     IDD_CONNECT, DIALOG

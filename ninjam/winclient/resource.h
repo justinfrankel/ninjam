@@ -55,6 +55,7 @@
 #define IDC_SAVEWAVE                    1013
 #define IDC_BUTTON1                     1014
 #define IDC_METROMUTE                   1014
+#define IDC_DIV3                        1015
 #define IDC_CHATDISP                    1017
 #define IDC_CUSTOM2                     1018
 #define IDC_CHATENT                     1018
