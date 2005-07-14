@@ -380,9 +380,10 @@ int main(int argc, char **argv)
               if (curintrecs.Get(x)->items.GetSize())
               {
                 UserChannelValueRec *lastitem=curintrecs.Get(x)->items.Get(curintrecs.Get(x)->items.GetSize()-1); // this is for when the server sometimes groups them in the wrong interval
-                if (ucvr->position <= lastitem->position + 1.0)
+                double last_end=lastitem->position + lastitem->length;
+                if (ucvr->position < last_end)
                 {
-                  ucvr->position = lastitem->position+lastitem->length;
+                  ucvr->position = last_end;
                 }
               }
               curintrecs.Get(x)->items.Add(ucvr);
