@@ -448,10 +448,17 @@ static void do_connect()
 static void updateMasterControlLabels(HWND hwndDlg)
 {
    char buf[512];
-   mkvolpanstr(buf,g_client->config_mastervolume,g_client->config_masterpan);
-   SetDlgItemText(hwndDlg,IDC_MASTERLBL,buf);
-   mkvolpanstr(buf,g_client->config_metronome,g_client->config_metronome_pan);
-   SetDlgItemText(hwndDlg,IDC_METROLBL,buf);
+   mkvolstr(buf,g_client->config_mastervolume);
+   SetDlgItemText(hwndDlg,IDC_MASTERVOLLBL,buf);
+
+   mkpanstr(buf,g_client->config_masterpan);
+   SetDlgItemText(hwndDlg,IDC_MASTERPANLBL,buf);
+
+   mkvolstr(buf,g_client->config_metronome);
+   SetDlgItemText(hwndDlg,IDC_METROVOLLBL,buf);
+
+   mkpanstr(buf,g_client->config_metronome_pan);
+   SetDlgItemText(hwndDlg,IDC_METROPANLBL,buf);
 }
 
 
@@ -484,8 +491,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         // top items
         resize.init_item(IDC_MASTERVOL,  0.0,  0.0,  0.7f,  0.0);
         resize.init_item(IDC_METROVOL,   0.0,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_MASTERLBL,  0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROLBL,   0.7f,  0.0,  0.7f,  0.0);
+        resize.init_item(IDC_MASTERVOLLBL,  0.7f,  0.0,  0.7f,  0.0);
+        resize.init_item(IDC_MASTERPANLBL,  0.7f,  0.0,  0.7f,  0.0);
+        resize.init_item(IDC_METROVOLLBL,   0.7f,  0.0,  0.7f,  0.0);
+        resize.init_item(IDC_METROPANLBL,   0.7f,  0.0,  0.7f,  0.0);
 
         resize.init_item(IDC_MASTERPAN,  0.7f,  0.0,  0.8f,  0.0);
         resize.init_item(IDC_METROPAN,   0.7f,  0.0,  0.8f,  0.0);
@@ -879,6 +888,38 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         break;
         case IDC_MASTERMUTE:
           g_client->config_mastermute=!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+        break;
+        case IDC_MASTERVOLLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            g_client->config_mastervolume = 1.0;
+            SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
+            updateMasterControlLabels(hwndDlg);
+          }
+        break;
+        case IDC_MASTERPANLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            g_client->config_masterpan = 0.0;
+            updateMasterControlLabels(hwndDlg);
+            int t=(int)(g_client->config_masterpan*50.0) + 50;
+            if (t < 0) t=0; else if (t > 100)t=100;
+            SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETPOS,TRUE,t);
+          }
+        break;
+        case IDC_METROVOLLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            g_client->config_metronome = 1.0;
+            SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
+            updateMasterControlLabels(hwndDlg);
+          }
+        break;
+        case IDC_METROPANLBL:
+          if (HIWORD(wParam) == STN_DBLCLK) {
+            g_client->config_metronome_pan = 0.0;
+            updateMasterControlLabels(hwndDlg);
+            int t=(int)(g_client->config_metronome_pan*50.0) + 50;
+            if (t < 0) t=0; else if (t > 100)t=100;
+            SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETPOS,TRUE,t);
+          }
         break;
         case IDC_METROMUTE:
           g_client->config_metronome_mute =!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));

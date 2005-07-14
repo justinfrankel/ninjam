@@ -28,9 +28,11 @@
 #define IDC_METROVOL                    1001
 #define IDC_COMBO3                      1002
 #define IDC_MASTERLBL                   1002
+#define IDC_MASTERVOLLBL                1002
 #define IDC_COMBO4                      1003
 #define IDC_RADIO2                      1003
 #define IDC_METROLBL                    1003
+#define IDC_METROVOLLBL                 1003
 #define IDC_COMBO5                      1004
 #define IDC_RADIO3                      1004
 #define IDC_MASTERPAN                   1004
@@ -48,6 +50,7 @@
 #define IDC_INTERVALPOS                 1010
 #define IDC_EDIT4                       1011
 #define IDC_CHATDIV                     1011
+#define IDC_MASTERPANLBL                1011
 #define IDC_DIV2                        1012
 #define IDC_CHECK1                      1013
 #define IDC_MASTERMUTE                  1013
@@ -56,6 +59,7 @@
 #define IDC_BUTTON1                     1014
 #define IDC_METROMUTE                   1014
 #define IDC_DIV3                        1015
+#define IDC_METROPANLBL                 1016
 #define IDC_CHATDISP                    1017
 #define IDC_CUSTOM2                     1018
 #define IDC_CHATENT                     1018
