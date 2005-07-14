@@ -154,9 +154,9 @@ MENU IDR_MENU1
 CLASS "NINJAMwnd"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LTEXT           "Master: ",IDC_STATIC,7,6,26,8
+    LTEXT           "Master: ",IDC_STATIC,7,10,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
-                    56,6,155,17
+                    49,6,162,17
     CTEXT           "+0.0 dB center",IDC_MASTERLBL,215,9,54,11
     CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,6,45,17
@@ -164,9 +164,9 @@ BEGIN
                     WS_TABSTOP,321,8,32,10
     CONTROL         "Progress1",IDC_MASTERVU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,358,9,93,8
-    LTEXT           "Metronome:",IDC_STATIC,7,32,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,56,
-                    31,155,17
+    LTEXT           "Metronome:",IDC_STATIC,7,35,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,49,
+                    31,162,17
     CTEXT           "+0.0 dB center",IDC_METROLBL,215,34,54,11
     CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,31,45,17

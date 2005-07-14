@@ -843,12 +843,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         {
           double v=SLIDER2DB(pos);
           if (fabs(v- -6.0) < 0.5) v=-6.0;
+          if (v < -115.0) v=-1000.0;
           g_client->config_mastervolume=(float)DB2VAL(v);
         }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_METROVOL))
         {
           double v=SLIDER2DB(pos);
           if (fabs(v- -6.0) < 0.5) v=-6.0;
+          if (v < -115.0) v=-1000.0;
           g_client->config_metronome=(float)DB2VAL(v);
         }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_MASTERPAN))
