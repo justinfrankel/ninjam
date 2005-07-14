@@ -157,22 +157,22 @@ BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,6,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
                     56,6,155,17
-    CTEXT           "+0.0 dB center",IDC_MASTERLBL,215,6,54,17
+    CTEXT           "+0.0 dB center",IDC_MASTERLBL,215,9,54,11
     CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,6,45,17
     CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,321,8,32,10
     CONTROL         "Progress1",IDC_MASTERVU,"msctls_progress32",PBS_SMOOTH | 
-                    WS_BORDER,358,8,93,8
+                    WS_BORDER,358,9,93,8
     LTEXT           "Metronome:",IDC_STATIC,7,32,38,8
     CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,56,
                     31,155,17
-    CTEXT           "+0.0 dB center",IDC_METROLBL,215,32,54,17
+    CTEXT           "+0.0 dB center",IDC_METROLBL,215,34,54,11
     CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
                     270,31,45,17
     CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,321,33,32,10
-    CTEXT           "-120.0 dB",IDC_MASTERVULBL,358,17,93,8
+    CTEXT           "-120.0 dB",IDC_MASTERVULBL,358,19,93,8
     CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,28,446,1
     CONTROL         "Status: No connection.",IDC_STATUS,"Static",
                     SS_LEFTNOWORDWRAP | WS_GROUP,7,328,356,8
