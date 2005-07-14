@@ -42,7 +42,7 @@ static HICON g_hSmallIcon;
 static HWND m_locwnd,m_remwnd;
 static int g_audio_enable=0;
 static WDL_String g_connect_user,g_connect_pass,g_connect_host;
-static int g_connect_anon;
+static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 
 static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -186,11 +186,16 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
       {
         SetDlgItemText(hwndDlg,IDC_HOST,g_connect_host.Get());
         SetDlgItemText(hwndDlg,IDC_USER,g_connect_user.Get());
-        SetDlgItemText(hwndDlg,IDC_PASS,g_connect_pass.Get());
+        if (g_connect_passremember)
+        {
+          SetDlgItemText(hwndDlg,IDC_PASS,g_connect_pass.Get());
+          CheckDlgButton(hwndDlg,IDC_PASSREMEMBER,BST_CHECKED);
+        }
         if (!g_connect_anon)
         {
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
+          ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
         }
         else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
       }
@@ -204,16 +209,19 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_HIDE);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_HIDE);
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_HIDE);          
           }
           else
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
+            ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
           }
         break;
 
         case IDOK:
           {
+            g_connect_passremember=!!IsDlgButtonChecked(hwndDlg,IDC_PASSREMEMBER);
             g_connect_anon=!!IsDlgButtonChecked(hwndDlg,IDC_ANON);
             WritePrivateProfileString(CONFSEC,"anon",g_connect_anon?"1":"0",g_ini_file.Get());
             char buf[512];
@@ -225,7 +233,8 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
             WritePrivateProfileString(CONFSEC,"user",buf,g_ini_file.Get());
             GetDlgItemText(hwndDlg,IDC_PASS,buf,sizeof(buf));
             g_connect_pass.Set(buf);
-            WritePrivateProfileString(CONFSEC,"pass",buf,g_ini_file.Get());
+            WritePrivateProfileString(CONFSEC,"pass",g_connect_passremember?buf:"",g_ini_file.Get());
+            WritePrivateProfileString(CONFSEC,"passrem",g_connect_passremember?"1":"0",g_ini_file.Get());
             EndDialog(hwndDlg,1);
           }
         break;
@@ -1177,6 +1186,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     g_connect_user.Set(buf);
     GetPrivateProfileString(CONFSEC,"pass","",buf,sizeof(buf),g_ini_file.Get());
     g_connect_pass.Set(buf);
+    g_connect_passremember=GetPrivateProfileInt(CONFSEC,"passrem",1,g_ini_file.Get());
     g_connect_anon=GetPrivateProfileInt(CONFSEC,"anon",0,g_ini_file.Get());
   }
 
