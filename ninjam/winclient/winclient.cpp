@@ -772,7 +772,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETPOS,ival,0);
 
             char buf[128];
-            sprintf(buf,"%.2f dB",val);
+            sprintf(buf,"%s%.2f dB",val>0.0?"+":"",val);
             SetDlgItemText(hwndDlg,IDC_MASTERVULBL,buf);
 
 

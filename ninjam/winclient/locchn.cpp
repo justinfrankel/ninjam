@@ -318,7 +318,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
 
         char buf[128];
-        sprintf(buf,"%.2f dB",val);
+        sprintf(buf,"%s%.2f dB",val>0.0?"+":"",val);
         SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
       }
     return 0;

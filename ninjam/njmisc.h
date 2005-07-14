@@ -7,6 +7,8 @@ double SLIDER2DB(double y);
 double VAL2DB(double x);
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
 void mkvolpanstr(char *str, double vol, double pan);
+void mkvolstr(char *str, double vol);
+void mkpanstr(char *str, double pan);
 
 #ifdef _WIN32
 

@@ -38,11 +38,23 @@ double VAL2DB(double x)
 
 void mkvolpanstr(char *str, double vol, double pan)
 {
+  mkvolstr(str,vol);
+  char *p=str+strlen(str);
+  *p++=' ';
+  mkpanstr(p,pan);
+}
+
+void mkpanstr(char *str, double pan)
+{
+  if (fabs(pan) < 0.0001) strcpy(str,"center");
+  else sprintf(str,"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
+}
+
+void mkvolstr(char *str, double vol)
+{
   double v=VAL2DB(vol);
   if (vol < 0.0000001 || v < -120.0) v=-120.0;
-    sprintf(str,"%s%2.1fdB ",v>0.0?"+":"",v);   
-    if (fabs(pan) < 0.0001) strcat(str,"center");
-    else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
+  sprintf(str,"%s%2.1fdB",v>0.0?"+":"",v);   
 }
 
 
