@@ -496,6 +496,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
                
         resize.init_item(IDC_DIV1,        0.0,  0.0,  1.0f,  0.0);
+        resize.init_item(IDC_DIV3,        0.0,  0.0,  1.0f,  0.0);
+        
         resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
         resize.init_item(IDC_STATUS, 0.0,  1.0,  1.0f,  1.0);
         resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
