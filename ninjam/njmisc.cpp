@@ -2,6 +2,7 @@
 #include <windows.h>
 #endif
 
+#include <string.h>
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
