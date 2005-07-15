@@ -268,7 +268,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           pos=SLIDER2DB(pos);
           if (fabs(pos- -6.0) < 0.5) pos=-6.0;
           else if (pos < -115.0) pos=-1000.0;
-          g_client->SetLocalChannelMonitoring(m_idx,true,(float)DB2VAL(pos),false,0.0,false,false,false,false);
+          pos=DB2VAL(pos);
+          g_client->SetLocalChannelMonitoring(m_idx,true,(float)pos,false,0.0,false,false,false,false);
 
           char tmp[512];
           mkvolstr(tmp,pos);

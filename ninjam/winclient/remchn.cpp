@@ -87,30 +87,23 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           pos=SLIDER2DB(pos);
           if (fabs(pos- -6.0) < 0.5) pos=-6.0;
           else if (pos < -115.0) pos=-1000.0;
-          g_client->SetUserChannelState(user,chan,false,false,true,(float)DB2VAL(pos),false,0.0,false,false,false,false);
+          pos=DB2VAL(pos);
+          g_client->SetUserChannelState(user,chan,false,false,true,(float)pos,false,0.0,false,false,false,false);
+
+          char tmp[512];
+          mkvolstr(tmp,pos);
+          SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
         }
 		    else if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_PAN))
         {
           pos=(pos-50.0)/50.0;
           if (fabs(pos) < 0.08) pos=0.0;
           g_client->SetUserChannelState(user,chan,false,false,false,0.0,true,(float)pos,false,false,false,false);
+          char tmp[512];
+          mkpanstr(tmp,pos);
+          SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
         }
-        else 
-        {
-          g_client_mutex.Leave();
-          return 0;
-        }
-
-        float vol,pan;
-        g_client->GetUserChannelState(user,chan,NULL,&vol,&pan,NULL,NULL);
-
         g_client_mutex.Leave();
-
-        char tmp[512];
-        mkvolstr(tmp,vol);
-        SetDlgItemText(hwndDlg,IDC_VOLLBL,tmp);
-        mkpanstr(tmp,pan);
-        SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
       }
     return 0;
     case WM_COMMAND:
