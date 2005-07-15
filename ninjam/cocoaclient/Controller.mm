@@ -4,6 +4,7 @@
 #import "RemoteListView.h"
 #import "IntervalProgressMeter.h"
 #include "../njclient.h"
+#include "../njmisc.h"
 #include "../audiostream_mac.h"
 #include "../../WDL/dirscan.h"
 
@@ -145,36 +146,6 @@ while (g_need_license)
 return g_license_result;
 }
 
-double DB2SLIDER(double x)
-{
-double d=pow(2110.54*fabs(x),1.0/3.0);
-if (x < 0.0) d=-d;
-return d + 63.0;
-}
-
-double SLIDER2DB(double y)
-{
-return pow(y-63.0,3.0) * (1.0/2110.54);
-}
-
-double VAL2DB(double x)
-{
-  double g_ilog2x6 = 6.0/log10(2.0);
-
-  double v=(log10(x)*g_ilog2x6);
-  if (v < -120.0) v=-120.0;
-  return v;
-}
-double DB2VAL(double x) { return (pow(2.0,(x)/6.0)); }
-void mkvolpanstr(char *str, double vol, double pan)
-{
-  double v=VAL2DB(vol);
-  if (vol < 0.0000001 || v < -120.0) v=-120.0;
-    sprintf(str,"%s%2.1fdB ",v>=0.0?"+":"",v);   
-    if (fabs(pan) < 0.0001) strcat(str,"center");
-    else sprintf(str+strlen(str),"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
-}
-
 @implementation Controller
 
 - (void)awakeFromNib
@@ -217,7 +188,10 @@ void mkvolpanstr(char *str, double vol, double pan)
   {
     [cdlg_pass setHidden:TRUE];
     [cdlg_passlabel setHidden:TRUE];  
+    [cdlg_passsave setHidden:TRUE];  
   }  
+  [cdlg_passsave setIntValue:[[NSUserDefaults standardUserDefaults] integerForKey:@"passsave"]];
+
   
   #if 0
   // for now just always have one channel, heh
@@ -536,6 +510,7 @@ if (needadd)
 {
 
   [self ondisconnect:0];
+  
 
  if ([NSApp runModalForWindow:(NSWindow *)cdlg])
  {
@@ -544,8 +519,11 @@ if (needadd)
     [[cdlg_srv stringValue] getCString:(char *)srv maxLength:(unsigned)(sizeof(srv)-1)];
     [[cdlg_user stringValue] getCString:(char *)user maxLength:(unsigned)(sizeof(user)-1)];
     [[cdlg_pass stringValue] getCString:(char *)pass maxLength:(unsigned)(sizeof(pass)-1)];
-    int anon=[cdlg_anon intValue];
+  
+    if (![cdlg_passsave intValue]) [cdlg_pass setStringValue:@""];
     
+    int anon=[cdlg_anon intValue];
+  
     WDL_String userstr,passstr;
     if (anon)
     {
@@ -795,10 +773,19 @@ if (needadd)
 {
   [NSApp stopModalWithCode:1];
   [cdlg close];
-  
+
   [[NSUserDefaults standardUserDefaults] setObject:[cdlg_srv stringValue] forKey:@"host"];
   [[NSUserDefaults standardUserDefaults] setObject:[cdlg_user stringValue] forKey:@"user"];
-  [[NSUserDefaults standardUserDefaults] setObject:[cdlg_pass stringValue] forKey:@"pass"];
+
+
+  int sp=!![cdlg_passsave intValue];
+  [[NSUserDefaults standardUserDefaults] setInteger:sp forKey:@"passsave"];
+  
+  if (sp)
+    [[NSUserDefaults standardUserDefaults] setObject:[cdlg_pass stringValue] forKey:@"pass"];
+  else
+    [[NSUserDefaults standardUserDefaults] setObject:@"" forKey:@"pass"];
+    
   [[NSUserDefaults standardUserDefaults] setInteger:[cdlg_anon intValue] forKey:@"anon"];
 }
 
@@ -814,6 +801,7 @@ if (needadd)
   BOOL a=!![sender intValue];
   [cdlg_pass setHidden:a];
   [cdlg_passlabel setHidden:a];
+  [cdlg_passsave setHidden:a];
 }
 
 - (IBAction)adlg_oncancel:(id)sender

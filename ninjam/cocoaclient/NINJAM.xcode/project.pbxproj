@@ -359,6 +359,7 @@
 				BCBA226A087A1A91000EC500,
 				BCBA2291087A2A80000EC500,
 				BCB6BB34087A52CC00870A97,
+				BC6467D40888433A00C83483,
 			);
 			isa = PBXSourcesBuildPhase;
 			runOnlyForDeploymentPostprocessing = 0;
@@ -415,6 +416,30 @@
 //BC2
 //BC3
 //BC4
+		BC6467D20888433A00C83483 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.cpp;
+			name = njmisc.cpp;
+			path = ../njmisc.cpp;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		BC6467D30888433A00C83483 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = njmisc.h;
+			path = ../njmisc.h;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
+		};
+		BC6467D40888433A00C83483 = {
+			fileRef = BC6467D20888433A00C83483;
+			isa = PBXBuildFile;
+			settings = {
+			};
+		};
 		BC75E20C087231CA00B2BB14 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
@@ -556,6 +581,8 @@
 		};
 		BC874A570870A08000F5991C = {
 			children = (
+				BC6467D20888433A00C83483,
+				BC6467D30888433A00C83483,
 				BC793E130870CC0800ED2D4E,
 				BC793E070870CB8C00ED2D4E,
 				BC874A5C0870A13F00F5991C,

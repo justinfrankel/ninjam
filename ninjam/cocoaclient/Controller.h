@@ -42,6 +42,7 @@
     IBOutlet NSTextField *cdlg_pass;
     IBOutlet NSTextField *cdlg_passlabel;
     IBOutlet NSButton *cdlg_anon;
+    IBOutlet NSButton *cdlg_passsave;
     IBOutlet NSPanel *adlg;
     IBOutlet NSPopUpButton *adlg_in;
     IBOutlet NSPopUpButton *adlg_out;

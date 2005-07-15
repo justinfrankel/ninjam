@@ -33,6 +33,7 @@
                 "cdlg_anon" = NSButton; 
                 "cdlg_pass" = NSTextField; 
                 "cdlg_passlabel" = NSTextField; 
+                "cdlg_passsave" = NSButton; 
                 "cdlg_srv" = NSTextField; 
                 "cdlg_user" = NSTextField; 
                 "chat_entry" = NSTextField; 

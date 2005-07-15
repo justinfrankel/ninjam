@@ -3,13 +3,9 @@
 
 
 #include "../njclient.h"
+#include "../njmisc.h"
 extern NSLock *g_client_mutex;
 extern NJClient *g_client;
-extern double DB2VAL(double x);
-extern double VAL2DB(double x);
-extern double SLIDER2DB(double y);
-extern double DB2SLIDER(double x);
-extern void mkvolpanstr(char *str, double vol, double pan);
 
 
 @implementation RemoteListItem
