@@ -44,6 +44,7 @@ static int g_audio_enable=0;
 static WDL_String g_connect_user,g_connect_pass,g_connect_host;
 static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
+static int g_last_wndpos_state;
 
 static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -692,6 +693,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
+        int ws= g_last_wndpos_state = GetPrivateProfileInt(CONFSEC,"wnd_state",0,g_ini_file.Get());
+
         g_last_wndpos.left = GetPrivateProfileInt(CONFSEC,"wnd_x",0,g_ini_file.Get());
         g_last_wndpos.top = GetPrivateProfileInt(CONFSEC,"wnd_y",0,g_ini_file.Get());
         g_last_wndpos.right = g_last_wndpos.left+GetPrivateProfileInt(CONFSEC,"wnd_w",0,g_ini_file.Get());
@@ -703,7 +706,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         }
         else GetWindowRect(hwndDlg,&g_last_wndpos);
 
-        ShowWindow(g_hwnd,SW_SHOW);
+        if (ws > 0) ShowWindow(hwndDlg,SW_SHOWMAXIMIZED);
+        else if (ws < 0) ShowWindow(hwndDlg,SW_SHOWMINIMIZED);
+        else ShowWindow(hwndDlg,SW_SHOW);
      
         SetTimer(hwndDlg,1,50,NULL);
 
@@ -844,12 +849,20 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         if (m_remwnd)
           SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
       }
-      if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) return 0;
+      if (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) 
+      {
+        if (wParam == SIZE_MINIMIZED) g_last_wndpos_state=-1;
+        else if (wParam == SIZE_MAXIMIZED) g_last_wndpos_state=1;
+        return 0;
+      }
     case WM_MOVE:
       {
         WINDOWPLACEMENT wp={sizeof(wp)};
         GetWindowPlacement(hwndDlg,&wp);
         g_last_wndpos=wp.rcNormalPosition;
+        if (wp.showCmd == SW_SHOWMAXIMIZED) g_last_wndpos_state=1;
+        else if (wp.showCmd == SW_MINIMIZE || wp.showCmd == SW_SHOWMINIMIZED) g_last_wndpos_state=-1;
+        else g_last_wndpos_state = 0;
       }
     break;
 
@@ -1106,6 +1119,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
       {
         char buf[256];
+        
+        sprintf(buf,"%d",g_last_wndpos_state);
+        WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
 
         sprintf(buf,"%d",g_last_wndpos.left);
         WritePrivateProfileString(CONFSEC,"wnd_x",buf,g_ini_file.Get());
