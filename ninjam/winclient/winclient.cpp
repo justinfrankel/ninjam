@@ -519,6 +519,76 @@ static DWORD WINAPI ThreadFunc(LPVOID p)
 #include "../chanmix.h"
 
 
+int g_last_resize_pos;
+
+static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
+{
+  // move things, specifically 
+  // IDC_DIV2 : top and bottom
+  // IDC_LOCGRP, IDC_LOCRECT: bottom
+  // IDC_REMGRP, IDC_REMOTERECT: top        
+  RECT divr;
+  GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
+  ScreenToClient(hwndDlg,(LPPOINT)&divr);
+
+  g_last_resize_pos=y_pos;
+
+  int dy = y_pos - divr.top;
+
+  RECT new_rect;
+  GetClientRect(hwndDlg,&new_rect);
+  RECT m_orig_rect=resize.get_orig_rect();
+
+  {
+    WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
+
+    if (rec)
+    {
+      int nt=rec->last.top + dy;// - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      if (nt < rec->real_orig.top) dy = rec->real_orig.top - rec->last.top;
+      else if ((new_rect.bottom - nt) < (m_orig_rect.bottom - rec->real_orig.top))
+        dy = new_rect.bottom - (m_orig_rect.bottom - rec->real_orig.top) - rec->last.top;
+    }
+  }
+
+  int tab[]={IDC_DIV2,IDC_LOCGRP,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
+  
+  // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
+  int x;
+  for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
+  {
+    WDL_WndSizer__rec *rec = resize.get_item(tab[x]);
+    if (!rec) continue;
+
+    RECT new_l=rec->last;
+
+    if (!x || x > 2) // do top
+    {
+      // the output formula for top is: 
+      // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      // so we compute the inverse, to find rec->orig.top
+
+      rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+    }
+
+    if (x <= 2) // do bottom
+    {
+      // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
+      rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
+    }
+
+    if (doresize) resize.onResize(rec->hwnd);
+  }
+
+
+  if (doresize)
+  {
+    if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
+    if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
+  }
+
+}
+
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static RECT init_r;
@@ -734,6 +804,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         int ws= g_last_wndpos_state = GetPrivateProfileInt(CONFSEC,"wnd_state",0,g_ini_file.Get());
 
+
         g_last_wndpos.left = GetPrivateProfileInt(CONFSEC,"wnd_x",0,g_ini_file.Get());
         g_last_wndpos.top = GetPrivateProfileInt(CONFSEC,"wnd_y",0,g_ini_file.Get());
         g_last_wndpos.right = g_last_wndpos.left+GetPrivateProfileInt(CONFSEC,"wnd_w",640,g_ini_file.Get());
@@ -750,6 +821,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         else ShowWindow(hwndDlg,SW_SHOW);
      
         SetTimer(hwndDlg,1,50,NULL);
+
+        int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
+        if (rsp) resizePanes(hwndDlg,rsp,resize,1);
 
         DWORD id;
         g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
@@ -890,71 +964,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       if (GetCapture() == hwndDlg)
       {
         POINT p={GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-
-        ClientToScreen(hwndDlg,&p);
         
         if (cap_mode == 1)
         {
-          // move things, specifically 
-          // IDC_DIV2 : top and bottom
-          // IDC_LOCGRP, IDC_LOCRECT: bottom
-          // IDC_REMGRP, IDC_REMOTERECT: top        
-          RECT divr;
-          GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
-          
-          divr.top += cap_spos;
-
-          int dy=p.y-divr.top;
-
-          RECT new_rect;
-          GetClientRect(hwndDlg,&new_rect);
-          RECT m_orig_rect=resize.get_orig_rect();
-
-          {
-            WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
-
-            if (rec)
-            {
-              int nt=rec->last.top + dy;// - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-              if (nt < rec->real_orig.top) dy = rec->real_orig.top - rec->last.top;
-              else if ((new_rect.bottom - nt) < (m_orig_rect.bottom - rec->real_orig.top))
-                dy = new_rect.bottom - (m_orig_rect.bottom - rec->real_orig.top) - rec->last.top;
-            }
-          }
-  
-          int tab[]={IDC_DIV2,IDC_LOCGRP,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
-          
-          // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
-          int x;
-          for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
-          {
-            WDL_WndSizer__rec *rec = resize.get_item(tab[x]);
-            if (!rec) continue;
-
-            RECT new_l=rec->last;
-
-            if (!x || x > 2) // do top
-            {
-              // the output formula for top is: 
-              // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-              // so we compute the inverse, to find rec->orig.top
-
-              rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-            }
-
-            if (x <= 2) // do bottom
-            {
-              // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-              rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-            }
-
-            resize.onResize(rec->hwnd);
-          }
-
-
-          if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
-          if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
-
+          resizePanes(hwndDlg,p.y-cap_spos,resize,1);
         }
       }
     return 0;
@@ -989,41 +1002,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
           if (rec)
           {
-            int diff=0;
-
             if (new_rect.bottom - rec->last.top < m_orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
             {
-              diff=(new_rect.bottom - rec->last.top) - (m_orig_rect.bottom - rec->real_orig.top); // move shit up
+              resizePanes(hwndDlg,0,resize,0);
             }
             else if (rec->last.top < rec->real_orig.top) // top section is too small, fix
             {
-              diff=rec->real_orig.top - rec->last.top; // move shit down
-            }
-
-
-            if (diff)
-            {
-              // make sure that IDC_LOCGRP and IDC_REMGRP don't go smaller than their original sizes
-
-              int tab[]={IDC_DIV2,IDC_LOCGRP,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
-
-       
-              int x;
-              for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
-              {
-                WDL_WndSizer__rec *rec = resize.get_item(tab[x]);
-                if (!rec) continue;
-
-
-                if (!x || x > 2) // do top
-                {
-                  rec->orig.top = rec->last.top + diff - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-                }
-                if (x <= 2) // do bottom
-                {
-                  rec->orig.bottom = rec->last.bottom + diff - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-                }
-              }
+              resizePanes(hwndDlg,new_rect.bottom,resize,0);
             }
           }
         }
@@ -1307,6 +1292,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_last_resize_pos);
+        WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get());
+        
 
         sprintf(buf,"%d",g_last_wndpos.left);
         WritePrivateProfileString(CONFSEC,"wnd_x",buf,g_ini_file.Get());
