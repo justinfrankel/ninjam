@@ -80,6 +80,10 @@ Section "Effect Processing and Drum Machine support"
 
 SectionEnd
 
+Section "NINJAM logfile to EDL TXT file converter tool (for Vegas)"
+  File ..\cliplogcvt\release\cliplogcvt.exe
+SectionEnd
+
 
 Section "Start Menu Shortcuts"
 
@@ -101,6 +105,7 @@ SectionEnd
 Section "Uninstall"
 
   Delete "$INSTDIR\ninjam.exe"
+  Delete "$INSTDIR\cliplogcvt.exe"
 
   Delete "$INSTDIR\jesus.dll"
 
