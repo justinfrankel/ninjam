@@ -180,12 +180,26 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
   return 0;
 }
 
+#define MAX_HIST_ENTRIES 8
+
 static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
     case WM_INITDIALOG:
       {
+        int x;
+        for (x = 0; x < MAX_HIST_ENTRIES; x ++)
+        {
+          char fmtbuf[32];
+          sprintf(fmtbuf,"recent%02d",x);
+          char hostbuf[512];
+          GetPrivateProfileString(CONFSEC,fmtbuf,"",hostbuf,sizeof(hostbuf),g_ini_file.Get());
+          if (hostbuf[0])
+          {
+            SendDlgItemMessage(hwndDlg,IDC_HOST,CB_ADDSTRING,0,(LPARAM)hostbuf);
+          }
+        }
         SetDlgItemText(hwndDlg,IDC_HOST,g_connect_host.Get());
         SetDlgItemText(hwndDlg,IDC_USER,g_connect_user.Get());
         if (g_connect_passremember)
@@ -237,6 +251,23 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
             g_connect_pass.Set(buf);
             WritePrivateProfileString(CONFSEC,"pass",g_connect_passremember?buf:"",g_ini_file.Get());
             WritePrivateProfileString(CONFSEC,"passrem",g_connect_passremember?"1":"0",g_ini_file.Get());
+
+            int x,len=SendDlgItemMessage(hwndDlg,IDC_HOST,CB_GETCOUNT,0,0);;
+            int o=1;
+            WritePrivateProfileString(CONFSEC,"recent00",g_connect_host.Get(),g_ini_file.Get());
+
+            if (len > MAX_HIST_ENTRIES-1) len=MAX_HIST_ENTRIES-1;
+            for (x = 0; x < len; x ++)
+            {
+              char hostbuf[1024];
+              if (SendDlgItemMessage(hwndDlg,IDC_HOST,CB_GETLBTEXT,x,(LPARAM)hostbuf)== CB_ERR) continue;
+              if (!stricmp(hostbuf,g_connect_host.Get())) continue;
+
+              char fmtbuf[32];
+              sprintf(fmtbuf,"recent%02d",o++);
+              WritePrivateProfileString(CONFSEC,fmtbuf,hostbuf,g_ini_file.Get());
+            }
+
             EndDialog(hwndDlg,1);
           }
         break;
@@ -1101,6 +1132,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         break;
         case ID_FILE_DISCONNECT:
           do_disconnect();
+          SetDlgItemText(g_hwnd,IDC_STATUS,"Status: disconnected manually");
         break;
         case ID_FILE_CONNECT:
           if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
