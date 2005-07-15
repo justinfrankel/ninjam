@@ -1,0 +1,7 @@
+v0.04a: July 15, 2005
+  + now with installer
+  + lots of other improvements
+  + bundled with Jesusonic effects processing
+  + AND MORE!
+
+v0.01a - first public release
