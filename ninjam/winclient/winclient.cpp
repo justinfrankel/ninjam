@@ -963,11 +963,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_MOUSEMOVE:
       if (GetCapture() == hwndDlg)
       {
-        POINT p={GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-        
         if (cap_mode == 1)
         {
-          resizePanes(hwndDlg,p.y-cap_spos,resize,1);
+          resizePanes(hwndDlg,GET_Y_LPARAM(lParam)-cap_spos,resize,1);
         }
       }
     return 0;
