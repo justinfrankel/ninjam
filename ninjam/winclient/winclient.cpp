@@ -19,7 +19,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.03a"
+#define VERSION "0.04a"
 
 #define CONFSEC "ninjam"
 
@@ -1406,23 +1406,37 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   // get jesusonic from registry
   {
     HKEY k;
-    if (RegOpenKey(HKEY_LOCAL_MACHINE,"SOFTWARE\\Jesusonic",&k) == ERROR_SUCCESS)
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,"SOFTWARE\\Jesusonic",0,KEY_READ,&k) == ERROR_SUCCESS)
     {
       char buf[1024];
-      LONG b=sizeof(buf);
-      RegQueryValue(k,NULL,buf,&b);
+      DWORD b=sizeof(buf);
+      DWORD t=REG_SZ;
+      if (RegQueryValueEx(k,NULL,0,&t,(unsigned char *)buf,&b) == ERROR_SUCCESS && t == REG_SZ)
+      {
+        jesusdir.Set(buf);
+      }
       RegCloseKey(k);
-      jesusdir.Set(buf);
     }
+
+
+    if (!jesusdir.Get()[0])
+    {
+      WDL_String nd(g_exepath);
+      nd.Append("\\effects");
+      
+      WDL_DirScan d;
+      if (!d.First(nd.Get()))
+      {
+        jesusdir.Set(g_exepath);
+      }
+    }
+
   }
 
 
 
-  WDL_String jesusonic_configfile;
   if (jesusdir.Get()[0])
   {
-    jesusonic_configfile.Set(jesusdir.Get());
-    jesusonic_configfile.Append("\\cmdclient.jesusonicpreset");
     WDL_String dll;
 
 
