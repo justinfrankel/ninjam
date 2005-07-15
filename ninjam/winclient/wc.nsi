@@ -71,7 +71,7 @@ Section "NINJAM"
 
 SectionEnd
 
-Section "Effects Processing"
+Section "Effect Processing and Drum Machine support"
 
   File jesus.dll
 
