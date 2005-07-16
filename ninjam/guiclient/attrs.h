@@ -21,6 +21,8 @@ extern _bool metronome_was_muted;
 
 extern _string channels_had;
 
+extern _string prev_servers;
+
 extern _string asio_device;
 
 extern _string main_session_dir;

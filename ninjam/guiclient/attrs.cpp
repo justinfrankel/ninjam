@@ -20,6 +20,8 @@ _bool metronome_was_muted("Metronome mute", TRUE);
 
 _string channels_had("Channels had");
 
+_string prev_servers("Previous servers");
+
 _string asio_device("ASIO config");
 
 _string main_session_dir("Session dir");

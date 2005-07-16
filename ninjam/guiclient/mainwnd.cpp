@@ -4,6 +4,7 @@
 
 #include <bfc/attrib/attribs.h>
 #include <bfc/std_wnd.h>
+#include <parse/pathparse.h>
 #include <wnd/wnds/os/osdialog.h>
 #include <wnd/wnds/os/osdockwnd.h>
 
@@ -23,6 +24,8 @@
 #include "mainwnd.h"
 
 #define ANONYMOUS "anonymous"
+
+#define MAX_PREV_SERVERS 12
 
 enum {
   CMD_CONNECT,
@@ -466,7 +469,15 @@ void MainWnd::handleConnect() {
       OSDialog dlg(IDD_USERPASS, getOsWindowHandle());
       _string server("Last server"), username("Last username"), passwd("Last password");
       _bool remember_passwd("Remember password"), anon("Login anonymously", TRUE);
+
       dlg.registerAttribute(server, IDC_SERVER);
+
+      PathParser pp(prev_servers, "|");
+      PtrList<String> prevs = pp.makeStringList();
+      foreach_reverse(prevs)
+        dlg.populateCombo(IDC_SERVER, prevs.getfor()->v());
+      endfor
+
       dlg.registerAttribute(username, IDC_USERNAME);
       dlg.registerAttribute(passwd, IDC_PASSWD);
       dlg.registerAttribute(remember_passwd, IDC_REMEMBER_PASSWD);
@@ -476,11 +487,37 @@ void MainWnd::handleConnect() {
       dlg.registerBoolDisable(anon, IDC_PASSWD, TRUE);
       dlg.registerBoolDisable(anon, IDC_REMEMBER_PASSWD, TRUE);
 
-      if (dlg.createModal()) {
-//g_client->Disconnect();//FUCKO put back once it works
+      if (dlg.createModal() && server.notempty()) {
 
-//CUT        extern int g_id;
-//CUT        if (g_id == 0) rackwnd->addLocalChannel();
+        // modify the recent servers list, most recent at end
+//CUT        int hadit = 0;
+        foreach(prevs)
+          if (prevs.getfor()->iscaseequal(server)) {
+            delete prevs.getfor();
+            prevs.removeByPos(foreach_index);
+//CUT            prevs.moveItem(foreach_index, PTRLIST_POS_LAST);	// move to end
+//CUT            hadit = 1;
+            break;
+          }
+        endfor
+//        if (!hadit) {
+          if (prevs.n() > MAX_PREV_SERVERS) {
+            delete prevs[0];	// kill least recently used
+            prevs.removeByPos(0);
+          }
+          prevs += new String(server);	// add on end
+//        }
+        int needpipe=0;
+        String concat;
+        foreach(prevs)
+          if (needpipe) concat += "|";
+          String *s = prevs.getfor();
+          ASSERT(s != NULL);
+          concat += s->v();
+          needpipe=1;
+        endfor
+
+        prev_servers = concat;	// save off prev server list
 
         // handle anonymity weirdness
         String connect_username = anon ? StringPrintf("%s:%s", ANONYMOUS, username.v()) : String(username);
