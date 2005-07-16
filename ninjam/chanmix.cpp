@@ -129,19 +129,33 @@ BOOL ChanMixer::DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
+    case WM_TIMER:
+      if (wParam == 666)
+      {
+        KillTimer(hwndDlg,666);
+        if (m_w+16 < m_ww)
+        {
+          RECT r;
+          GetWindowRect(hwndDlg,&r);
+          m_ww = m_w+16;
+          SetWindowPos(hwndDlg,0,0,0,m_ww,r.bottom-r.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+        }
+      }
+    break;
     case WM_INITDIALOG:
       m_childwnd=CreateDialogParam((HINSTANCE)GetWindowLong(hwndDlg,GWL_HINSTANCE),MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,_DlgProc_scrollchild,(LPARAM)this);
       ShowWindow(m_childwnd,SW_SHOWNA);
+      SetTimer(hwndDlg,666,100,NULL);
     case WM_SIZE:
     case WM_USER+1:
       if (uMsg != WM_SIZE || wParam != SIZE_MINIMIZED)
       {     
         RECT r;
-        GetWindowRect(hwndDlg,&r);
-        m_ww=r.right-r.left;
-
         GetWindowRect(m_childwnd,&r);
         m_w=r.right-r.left;
+
+        GetWindowRect(hwndDlg,&r);
+        m_ww=r.right-r.left;
 
         m_maxpos_w=m_w-m_ww;
         if (m_maxpos_w < 0) m_maxpos_w=0;
@@ -245,14 +259,15 @@ BOOL ChanMixer::DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
             RECT r;
             GetClientRect(h,&r);
             if (r.bottom-r.top > maxy) maxy=r.bottom-r.top;
-            SetWindowPos(h,0,maxx=x*(r.right-r.left),0,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            SetWindowPos(h,0,x*(r.right-r.left),0,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
             ShowWindow(h,SW_SHOWNA);
+            maxx=(x+1)*(r.right-r.left);
           }
           else 
           {
             RECT r;
             GetClientRect(m_sliders[x],&r);
-            maxx=x*(r.right-r.left);
+            maxx=(x+1)*(r.right-r.left);
             if (r.bottom-r.top > maxy) maxy=r.bottom-r.top;
             SendMessage(m_sliders[x],WM_USER+66,0,0);
           }
@@ -266,7 +281,8 @@ BOOL ChanMixer::DlgProc_scrollchild(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
             m_sliders[x]=0;
           }
         }
-        if (uMsg != WM_INITDIALOG) SendMessage(GetParent(hwndDlg),WM_USER+1,0,0);
+        if (uMsg != WM_INITDIALOG) 
+          SendMessage(GetParent(hwndDlg),WM_USER+1,0,0);
       }
     return 0;
   }
