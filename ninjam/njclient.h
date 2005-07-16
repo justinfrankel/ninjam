@@ -50,7 +50,9 @@ public:
 
   // basic configuration
   int   config_autosubscribe;
-  int   config_savelocalaudio; // set 1 to save compressed files, set to 2 to save .wav files as well
+  int   config_savelocalaudio; // set 1 to save compressed files, set to 2 to save .wav files as well. 
+                                // -1 makes it try to delete the remote .oggs as soon as possible
+
   float config_metronome,config_metronome_pan; // volume of metronome
   bool  config_metronome_mute;
   float config_mastervolume,config_masterpan; // master volume

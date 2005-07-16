@@ -33,10 +33,21 @@ class DecodeState
       decode_codec=0;
       if (decode_fp) fclose(decode_fp);
       decode_fp=0;
+
+      if (delete_on_delete.Get()[0])
+      {
+#ifdef _WIN32
+        DeleteFile(delete_on_delete.Get());
+#else
+        unlink(delete_on_delete.Get());
+#endif
+      }
     }
 
     unsigned char guid[16];
     double decode_peak_vol;
+
+    WDL_String delete_on_delete;
 
     FILE *decode_fp;
     I_NJDecoder *decode_codec;
@@ -987,7 +998,7 @@ int NJClient::Run() // nonzero if sleep ok
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
             writeLog("local %s %d\n",guidstr,lc->channel_idx);
-            if (config_savelocalaudio) 
+            if (config_savelocalaudio>0) 
             {
               lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE);
               if (lc->m_wavewritefile) delete lc->m_wavewritefile;
@@ -1153,6 +1164,10 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc)
 
   if (newstate->decode_fp)
   {
+    if (config_savelocalaudio<0)
+    {
+      newstate->delete_on_delete.Set(s.Get());
+    }
     newstate->decode_codec= new I_NJDecoder;
     // run some decoding
 
