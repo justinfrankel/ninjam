@@ -305,27 +305,24 @@ IDD_REMOTECHANNEL DIALOG DISCARDABLE  0, 0, 316, 40
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
-    EDITTEXT        IDC_USERNAME,0,0,90,14,ES_AUTOHSCROLL | ES_READONLY | 
-                    ES_WANTRETURN
-    EDITTEXT        IDC_CHANNELNAME,92,0,103,14,ES_AUTOHSCROLL | ES_READONLY | 
+    EDITTEXT        IDC_CHANNELNAME,21,0,172,14,ES_AUTOHSCROLL | ES_READONLY | 
                     ES_WANTRETURN
     CONTROL         "Receive",IDC_RECV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     199,3,43,10
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,246,6,70,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,18,81,
-                    18
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,18,
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,16,18,
+                    81,18
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,99,18,
                     39,18
     LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
-    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,37,316,1
-    RTEXT           "+0.0 dB",IDC_VOLLBL,123,20,30,8,SS_NOTIFY
+    RTEXT           "+0.0 dB",IDC_VOLLBL,139,20,30,8,SS_NOTIFY
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    181,20,30,8
+                    199,20,30,8
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    214,20,30,8
+                    232,20,30,8
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,155,20,23,8
+                    SS_NOTIFY | WS_GROUP,171,20,23,8
 END
 
 IDD_EMPTY DIALOG DISCARDABLE  0, 0, 127, 30
@@ -368,6 +365,18 @@ BEGIN
     LTEXT           "-120 dB",IDC_STATIC,31,95,26,8
     LTEXT           "+0 dB",IDC_STATIC,31,40,20,8
     CTEXT           "+0.0 dB",IDC_LABEL2,0,115,67,8
+END
+
+IDD_REMOTEUSER DIALOG DISCARDABLE  0, 0, 316, 22
+STYLE DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_USERNAME,21,6,236,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    ES_WANTRETURN
+    CONTROL         "",IDC_DIV,"Static",SS_ETCHEDHORZ,0,0,315,1
+    LTEXT           "User:",IDC_STATIC,0,8,18,8
+    CONTROL         "Mute user",IDC_MUTE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,263,8,47,10
 END
 
 
@@ -470,6 +479,11 @@ BEGIN
         RIGHTMARGIN, 202
         TOPMARGIN, 7
         BOTTOMMARGIN, 133
+    END
+
+    IDD_REMOTEUSER, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 20
     END
 END
 #endif    // APSTUDIO_INVOKED

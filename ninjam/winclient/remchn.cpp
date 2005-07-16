@@ -6,13 +6,55 @@
 
 #include "resource.h"
 
+
+static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_RCUSER_UPDATE:
+      SetWindowLong(hwndDlg,GWL_USERDATA,-1 - wParam);
+    break;
+    case WM_INITDIALOG:
+      SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
+    break;
+  }
+  int m_user=-1-GetWindowLong(hwndDlg,GWL_USERDATA);
+  switch (uMsg)
+  {
+    case WM_RCUSER_UPDATE: // update the items
+      {
+        g_client_mutex.Enter();
+        bool mute;
+        char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
+        if (!un) un="";
+        SetDlgItemText(hwndDlg,IDC_USERNAME,un);
+        g_client_mutex.Leave();
+
+        ShowWindow(GetDlgItem(hwndDlg,IDC_DIV),m_user ? SW_SHOW : SW_HIDE);
+        CheckDlgButton(hwndDlg,IDC_MUTE,mute?BST_CHECKED:0);
+      }
+    break;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDC_MUTE:
+          g_client_mutex.Enter();
+          g_client->SetUserState(m_user,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
+          g_client_mutex.Leave();
+        break;
+      }
+    break;
+  }
+  return 0;
+}
+
 static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      SetWindowLong(hwndDlg,GWL_USERDATA,0xffffffff);
+      SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
 
       SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
@@ -160,7 +202,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
 static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static WDL_PtrList<void> m_children;
+  static WDL_PtrList<struct HWND__> m_children;
   switch (uMsg)
   {
 
@@ -188,25 +230,70 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         g_client_mutex.Enter();
         for (us = 0; us < g_client->GetNumUsers(); us ++)
         {
+
+          // add/update a user divider
+          {
+            HWND h=NULL;
+
+            if (pos < m_children.GetSize() && GetWindowLong(h=m_children.Get(pos),GWL_USERDATA) < 0)
+            {
+              // this is our wnd
+            }
+            else
+            {
+              if (h) DestroyWindow(h);
+              h=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_REMOTEUSER),hwndDlg,RemoteUserItemProc);
+              if (pos < m_children.GetSize()) m_children.Set(pos,h);
+              else m_children.Add(h);
+
+              ShowWindow(h,SW_SHOWNA);
+              did_sizing=1;
+            }
+            SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,0);
+            RECT r;
+            GetWindowRect(h,&r);
+            ScreenToClient(hwndDlg,(LPPOINT)&r);
+            if (r.top != lastr.bottom) 
+            {
+              SetWindowPos(h,0, 0,lastr.bottom, 0,0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+              GetWindowRect(h,&lastr);
+            }
+            else lastr=r;
+
+            ScreenToClient(hwndDlg,(LPPOINT)&lastr + 1);
+
+            pos++;
+          }
+
           int ch=0;
           for (;;)
           {
             int i=g_client->EnumUserChannels(us,ch++);
             if (i < 0) break;
             HWND h=NULL;
-            if (pos < m_children.GetSize()) h=(HWND)m_children.Get(pos);
+            if (pos < m_children.GetSize() && GetWindowLong(h=m_children.Get(pos),GWL_USERDATA) >= 0)
+            {
+            }
             else
             {
+              if (h) DestroyWindow(h);
               h=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_REMOTECHANNEL),hwndDlg,RemoteChannelItemProc);
-              SetWindowPos(h,0,0,lastr.bottom,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+              if (pos < m_children.GetSize()) m_children.Set(pos,h);
+              else m_children.Add(h);
               did_sizing=1;
               ShowWindow(h,SW_SHOWNA);
-              m_children.Add((void *)h);
             }
-            GetWindowRect(h,&lastr);
-            ScreenToClient(hwndDlg,(LPPOINT)&lastr);
-            ScreenToClient(hwndDlg,((LPPOINT)&lastr)+1);
+            RECT r;
+            GetWindowRect(h,&r);
+            ScreenToClient(hwndDlg,(LPPOINT)&r);
+            if (r.top != lastr.bottom) 
+            {
+              SetWindowPos(h,0,0,lastr.bottom,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+              GetWindowRect(h,&lastr);
+            }
+            else lastr=r;
             SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,(LPARAM)i);
+            ScreenToClient(hwndDlg,(LPPOINT)&lastr + 1);
       
             pos++;
           }
@@ -216,7 +303,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
         for (; pos < m_children.GetSize(); )
         {
-          DestroyWindow((HWND)m_children.Get(pos));
+          DestroyWindow(m_children.Get(pos));
           m_children.Delete(pos);
           did_sizing=1;
         }
@@ -224,7 +311,6 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         if (did_sizing)
         {
           SetWindowPos(hwndDlg,NULL,0,0,lastr.right,lastr.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE); // size ourself
-
         }
         
       }
