@@ -51,7 +51,7 @@
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/string.h"
 
-#define VERSION "v0.01a ALPHA"
+#define VERSION "v0.02"
 
 const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005, Cockos, Inc.\n";
 
