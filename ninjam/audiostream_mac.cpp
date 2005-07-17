@@ -255,7 +255,9 @@ int audioStreamer_CoreAudio::Open(char **dev, int srate, int nch, int bps)
 	m_srate=g_srate=srate;
         m_bps=33;
         m_innch=m_outnch=2;
+#ifndef AUDIOSTREAMER_NO_CONSOLEUI
   char user_buf[512];
+#endif
  
 
 	UInt32 theSize; 

@@ -581,6 +581,7 @@
 		};
 		BC874A570870A08000F5991C = {
 			children = (
+				BCFD3C05088B22B6004EFF69,
 				BC6467D20888433A00C83483,
 				BC6467D30888433A00C83483,
 				BC793E130870CC0800ED2D4E,
@@ -591,22 +592,12 @@
 				BC874A5F0870A13F00F5991C,
 				BC874A590870A0BA00F5991C,
 				BC874A5A0870A0BA00F5991C,
-				BC874A580870A0A500F5991C,
 				BC874A530870A07100F5991C,
 			);
 			isa = PBXGroup;
 			name = ninjamcommon;
 			refType = 4;
 			sourceTree = "<group>";
-		};
-		BC874A580870A0A500F5991C = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = audiostream_mac.h;
-			path = ../audiostream_mac.h;
-			refType = 2;
-			sourceTree = SOURCE_ROOT;
 		};
 		BC874A590870A0BA00F5991C = {
 			fileEncoding = 30;
@@ -880,6 +871,15 @@
 			isa = PBXBuildFile;
 			settings = {
 			};
+		};
+		BCFD3C05088B22B6004EFF69 = {
+			fileEncoding = 30;
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = audiostream.h;
+			path = ../audiostream.h;
+			refType = 2;
+			sourceTree = SOURCE_ROOT;
 		};
 	};
 	rootObject = 29B97313FDCFA39411CA2CEA;

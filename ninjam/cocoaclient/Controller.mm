@@ -5,7 +5,7 @@
 #import "IntervalProgressMeter.h"
 #include "../njclient.h"
 #include "../njmisc.h"
-#include "../audiostream_mac.h"
+#include "../audiostream.h"
 #include "../../WDL/dirscan.h"
 
 
@@ -573,8 +573,6 @@ if (needadd)
       [status setStringValue:@"Status: ERROR CREATING SESSION DIRECTORY"];
       return;
     }
-
-   audioStreamer_CoreAudio *p=new audioStreamer_CoreAudio;
   
   char tmp[512];
   char *d=tmp;
@@ -589,8 +587,16 @@ if (needadd)
     strcat(tmp,",");
     [outdev getCString:(tmp+strlen(tmp)) maxLength:254];
   }
-  p->Open(&d,44100,2,16);
   
+   audioStreamer *p=create_audioStreamer_CoreAudio(&d,44100,2,16,audiostream_onsamples);
+
+  if (!p)
+  {
+    [status setStringValue:@"Status: error initializing sound hardware"];
+  }
+  else
+  {
+
   myAudio=p;
     
   [g_client_mutex lock];   
@@ -634,6 +640,7 @@ if (needadd)
        
   [g_client_mutex unlock]; 
 
+  }
   }
 }
 

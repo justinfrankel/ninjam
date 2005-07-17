@@ -4,7 +4,7 @@
 
 #include "../njclient.h"
 #include "../njmisc.h"
-#include "../audiostream_mac.h"
+#include "../audiostream.h"
 
 
 extern audioStreamer *myAudio;
