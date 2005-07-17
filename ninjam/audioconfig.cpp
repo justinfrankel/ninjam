@@ -6,7 +6,7 @@
 #include "resource.h"
 
 
-#include "audiostream_asio.h"
+#include "audiostream.h"
 
 struct
 {
@@ -98,6 +98,8 @@ static void save_config()
 
 audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent)
 {
+  extern void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) ;
+
   m_inifile.Set(inifile);
   load_config();
   if (showcfg)
@@ -118,13 +120,13 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
       );
 
       char *dev_name_in=tmpbuf;
-      return create_audioStreamer_ASIO(&dev_name_in);
+      return create_audioStreamer_ASIO(&dev_name_in,audiostream_onsamples);
   }
   else if (configdata.mode == 1)
   {
     int nbufs=configdata.ks_numblocks;
     int bufsize=configdata.ks_blocksize;
-    audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize);
+    audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize,audiostream_onsamples);
 
     return p;
   }
@@ -134,13 +136,13 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
     int nbufs=configdata.dsound_numblocks;
     int bufsize=configdata.dsound_blocksize;
     memcpy(bla,configdata.dsound_device,sizeof(bla));
-    return create_audioStreamer_DS(configdata.dsound_srate,configdata.dsound_bps,bla,&nbufs,&bufsize);
+    return create_audioStreamer_DS(configdata.dsound_srate,configdata.dsound_bps,bla,&nbufs,&bufsize,audiostream_onsamples);
   }
   else if (configdata.mode == 3)
   {
     int nbufs=configdata.waveout_numblocks;
     int bufsize=configdata.waveout_blocksize;
-    return create_audioStreamer_WO(configdata.waveout_srate,configdata.waveout_bps,configdata.waveout_device,&nbufs,&bufsize);
+    return create_audioStreamer_WO(configdata.waveout_srate,configdata.waveout_bps,configdata.waveout_device,&nbufs,&bufsize,audiostream_onsamples);
   }
 
   return 0;

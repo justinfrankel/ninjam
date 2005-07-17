@@ -3,7 +3,7 @@
 #include "../WDL/pcmfmtcvt.h"
 
 #include "../WDL/ptrlist.h"
-#include "audiostream_asio.h"
+#include "audiostream.h"
 
 #define DS_SLEEP 1
 #define WO_SLEEP 1
@@ -278,8 +278,9 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
 class audioStreamer_win32_asiosim : public audioStreamer
 {
 	public:
-		audioStreamer_win32_asiosim(audioStreamer_int *i, audioStreamer_int *o, int bufsize, int srate, int bps)
+		audioStreamer_win32_asiosim(audioStreamer_int *i, audioStreamer_int *o, int bufsize, int srate, int bps, SPLPROC proc)
     {
+      m_splproc=proc;
       in=i;
       out=o;
       DWORD id;
@@ -328,6 +329,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
     char *m_buf;
     float *m_procbuf;
 
+    SPLPROC m_splproc;
 };
 
 void audioStreamer_win32_asiosim::tp()
@@ -347,7 +349,7 @@ void audioStreamer_win32_asiosim::tp()
       pcmToFloats(m_buf,spllen,m_bps,2,inptrs[0],1);
       pcmToFloats(m_buf+(m_bps/8),spllen,m_bps,2,inptrs[1],1);
 
-      audiostream_onsamples(inptrs,2,outptrs,2,spllen,m_srate);
+      if (m_splproc) m_splproc(inptrs,2,outptrs,2,spllen,m_srate);
 
       floatsToPcm(outptrs[0],1,spllen,m_buf,m_bps,2);
       floatsToPcm(outptrs[1],1,spllen,m_buf+(m_bps/8),m_bps,2);
@@ -620,7 +622,7 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
 
 
 
-audioStreamer *create_audioStreamer_WO(int srate, int bps, int devs[2], int *nbufs, int *bufsize)
+audioStreamer *create_audioStreamer_WO(int srate, int bps, int devs[2], int *nbufs, int *bufsize, SPLPROC proc)
 {
   audioStreamer_waveOut *in=new audioStreamer_waveOut();
   audioStreamer_waveOut *out=new audioStreamer_waveOut();
@@ -637,10 +639,10 @@ audioStreamer *create_audioStreamer_WO(int srate, int bps, int devs[2], int *nbu
     return 0;
   }
 
-  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps);
+  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps,proc);
 }
 
-audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nbufs, int *bufsize)
+audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nbufs, int *bufsize, SPLPROC proc)
 {
   audioStreamer_ds *in=new audioStreamer_ds();
   if (in->Open(0,srate,2,bps,0,*nbufs,*bufsize,&devs[0]))
@@ -656,5 +658,5 @@ audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nb
     return 0;
   }
 
-  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps);
+  return new audioStreamer_win32_asiosim(in,out,*bufsize,srate,bps,proc);
 }

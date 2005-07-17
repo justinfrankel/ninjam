@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <mmsystem.h>
 
-#include "audiostream_asio.h"
+#include "audiostream.h"
 
 #include "../WDL/pcmfmtcvt.h"
 
@@ -83,8 +83,9 @@ class audioStreamer_KS
 class audioStreamer_KS_asiosim : public audioStreamer
 {
 	public:
-		audioStreamer_KS_asiosim(audioStreamer_KS *i, audioStreamer_KS *o, int bufsize, int srate, int bps)
+		audioStreamer_KS_asiosim(audioStreamer_KS *i, audioStreamer_KS *o, int bufsize, int srate, int bps, SPLPROC proc)
     {
+      m_splproc=proc;
       in=i;
       out=o;
       DWORD id;
@@ -133,6 +134,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
     char *m_buf;
     float *m_procbuf;
 
+    SPLPROC m_splproc;
 };
 
 
@@ -153,7 +155,7 @@ void audioStreamer_KS_asiosim::tp()
       pcmToFloats(m_buf,spllen,m_bps,2,inptrs[0],1);
       pcmToFloats(m_buf+(m_bps/8),spllen,m_bps,2,inptrs[1],1);
 
-      audiostream_onsamples(inptrs,2,outptrs,2,spllen,m_srate);
+      if (m_splproc) m_splproc(inptrs,2,outptrs,2,spllen,m_srate);
 
       floatsToPcm(outptrs[0],1,spllen,m_buf,m_bps,2);
       floatsToPcm(outptrs[1],1,spllen,m_buf+(m_bps/8),m_bps,2);
@@ -166,7 +168,7 @@ void audioStreamer_KS_asiosim::tp()
 }
 
 
-audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize)
+audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize, SPLPROC proc)
 {
   audioStreamer_KS *in=new audioStreamer_KS();
   if (in->Open(0,srate,bps,nbufs,bufsize))
@@ -182,7 +184,7 @@ audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufs
     return 0;
   }
 
-  return new audioStreamer_KS_asiosim(in,out,*bufsize,srate,bps);
+  return new audioStreamer_KS_asiosim(in,out,*bufsize,srate,bps, proc);
 }
 
 

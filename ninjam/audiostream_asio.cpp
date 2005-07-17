@@ -2,8 +2,12 @@
 #include <mmsystem.h>
 
 #include <math.h>
-#include "audiostream_asio.h"
+#include "audiostream.h"
 
+
+
+// this streamer object can only handle one instance
+static SPLPROC _sample_proc;
 
 #include "../WDL/pcmfmtcvt.h"
 
@@ -59,8 +63,10 @@ class audioStreamer_ASIO  : public audioStreamer
 };
 
 
-audioStreamer *create_audioStreamer_ASIO(char **dev)
+audioStreamer *create_audioStreamer_ASIO(char **dev, SPLPROC proc)
 {
+
+  _sample_proc=proc;
 
   audioStreamer_ASIO *audio=new audioStreamer_ASIO;
 
@@ -193,7 +199,7 @@ ASIOTime *bufferSwitchTimeInfo(ASIOTime *timeInfo, long index, ASIOBool processN
     {
 //      EnterCriticalSection(&myDriverInfo.cs);
 
-      audiostream_onsamples(inptrs,myDriverInfo.inputBuffers,outptrs,myDriverInfo.outputBuffers,buffSize,(int)myDriverInfo.sampleRate);
+      if (_sample_proc) _sample_proc(inptrs,myDriverInfo.inputBuffers,outptrs,myDriverInfo.outputBuffers,buffSize,(int)myDriverInfo.sampleRate);
 
   //    LeaveCriticalSection(&myDriverInfo.cs);
     }
