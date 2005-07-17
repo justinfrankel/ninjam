@@ -1,3 +1,60 @@
+/*
+    NINJAM - njclient.h
+    Copyright (C) 2005 Cockos Incorporated
+
+    NINJAM is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    NINJAM is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with NINJAM; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/*
+
+  This file defines the interface for the NJClient class, which handles 
+  the bulk of logic and state of the client. 
+
+  The basic premise of the NJClient class is, the UI code tells NJClient
+  when the user tweaks something, and NJClient tells the UI code when
+  it needs to update something.
+
+  NJClient::Run() needs to be called regularly (preferably every 50ms or less).
+  When calling, if Run() returns 0, you should immediately call it again. i.e.:
+
+  while (!myClient->Run()); 
+
+  Is how Run() should usually be called. In general it is easier to call Run() 
+  from the UI thread in a timer, for example, but it turns out it's a lot better
+  to call it from its own thread to ensure that some UI issue doesn't end up
+  stalling it. If you go this route, you will want to put the Run() call inside
+  of a mutex lock, and also any code that reads/writes remote channel state or 
+  writes to local channel state, in that mutex lock as well. This is a bit of 
+  a pain, but not really that bad.
+
+  Additionally, NJClient::AudioProc() needs to be called from the audio thread.
+  It is not necessary to do any sort of mutex protection around these calls, 
+  though, as they are done internally.
+
+
+  Some other notes:
+
+    + Currently only OGG Vorbis is supported. There's hooks in there to add support
+      for more formats, but the requirements for the formats are a little high, so
+      currently OGG Vorbis is the only thing we've seen that would work well. And it
+      really rocks for this application.
+
+    + OK maybe that's it for now? :)
+
+*/
+
 #ifndef _NJCLIENT_H_
 #define _NJCLIENT_H_
 
