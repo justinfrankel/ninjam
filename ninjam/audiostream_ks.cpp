@@ -1,3 +1,33 @@
+/*
+    NINJAM - audiostream_ks.cpp
+    Copyright (C) 2004-2005 Cockos Incorporated
+
+    NINJAM is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    NINJAM is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with NINJAM; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/*
+
+  This file implements an audioStreamer that uses Kernel Streaming.  
+  It only exposes the following function:
+
+  audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufsize, SPLPROC proc);
+
+  (everything else in this file is used internally)
+
+*/
+
 #include <windows.h>
 #include <mmsystem.h>
 
