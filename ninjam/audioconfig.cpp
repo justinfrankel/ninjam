@@ -117,11 +117,8 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
       configdata.asio_output[1]
       );
 
-      audioStreamer_ASIO *audio=new audioStreamer_ASIO;
-
       char *dev_name_in=tmpbuf;
-      if (!audio->Open(&dev_name_in)) return audio;
-      delete audio;
+      return create_audioStreamer_ASIO(&dev_name_in);
   }
   else if (configdata.mode == 1)
   {

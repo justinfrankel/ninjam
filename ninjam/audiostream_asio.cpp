@@ -38,6 +38,40 @@ static void myPrintf(char *s, ...)
 #endif
 #endif
 
+
+
+
+
+
+class audioStreamer_ASIO  : public audioStreamer
+{
+	public:
+		audioStreamer_ASIO();
+		~audioStreamer_ASIO();
+		int Open(char **dev);
+
+    const char *GetChannelName(int idx);
+
+	private:
+    
+    char *m_chnames[256];
+    int m_driver_active;
+};
+
+
+audioStreamer *create_audioStreamer_ASIO(char **dev)
+{
+
+  audioStreamer_ASIO *audio=new audioStreamer_ASIO;
+
+  if (!audio->Open(dev)) return audio;
+  delete audio;
+  
+  return 0;
+}
+
+
+
 //////////////////////////////
 /// ASIO
 #include "asio/asiosys.h"

@@ -173,7 +173,7 @@ int audioStreamer_waveOut::Read(char *buf, int len) // returns 0 if blocked, < 0
     }
     if (cnt >= m_bufs.GetSize()-1)
     {
-      audiostream_onover();
+//      audiostream_onover();
       for (x = 0; x < m_bufs.GetSize(); x ++)
       {
         if (x != m_whichbuf)
@@ -237,7 +237,7 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
 #if 1
       Sleep(WO_SLEEP);
 #else
-      audiostream_onover();
+//      audiostream_onover();
       return 0;
 #endif
     }
@@ -254,7 +254,7 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
 
   if (!cnt)
   {
-    audiostream_onunder();
+//    audiostream_onunder();
 
     int x;
     for (x = 0; x < m_bufs.GetSize(); x ++)
@@ -501,7 +501,7 @@ int audioStreamer_ds::Read(char *buf, int len) // returns 0 if blocked, < 0 if e
       m_i_lw++;
       m_bufpos -= m_totalbufsize;
     }
-    audiostream_onover();
+//    audiostream_onover();
   }
 
   for (;;)
@@ -567,7 +567,7 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
 
   if (m_i_lw < m_i_dw || (m_i_lw == m_i_dw && m_bufpos < thispos )) // detect if we fall too far behind
   {
-    audiostream_onunder();
+//    audiostream_onunder();
     m_i_lw=m_i_dw;
     m_bufpos=0;
     while (m_bufpos <= thispos+m_bufsize) m_bufpos+=m_bufsize;
@@ -612,7 +612,7 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
   }
   else
   {
-  	audiostream_onunder(); // g_sound_in_overruns?
+//  	audiostream_onunder(); // g_sound_in_overruns?
   }
 
   return 0;
