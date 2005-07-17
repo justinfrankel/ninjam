@@ -80,9 +80,9 @@ audioStreamer *create_audioStreamer_ASIO(char **dev, SPLPROC proc)
 
 //////////////////////////////
 /// ASIO
-#include "asio/asiosys.h"
-#include "asio/asio.h"
-#include "asio/asiodrivers.h"
+#include <asiosys.h>
+#include <asio.h>
+#include <asiodrivers.h>
 
 // GCC only: #include "iasiothiscallresolver.h"
 
