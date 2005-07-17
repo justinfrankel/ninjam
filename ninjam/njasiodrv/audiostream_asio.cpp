@@ -2,14 +2,14 @@
 #include <mmsystem.h>
 
 #include <math.h>
-#include "audiostream.h"
+#include "../audiostream.h"
 
 
 
 // this streamer object can only handle one instance
 static SPLPROC _sample_proc;
 
-#include "../WDL/pcmfmtcvt.h"
+#include "../../WDL/pcmfmtcvt.h"
 
 #include <stdio.h>
 

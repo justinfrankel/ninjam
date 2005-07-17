@@ -6,9 +6,9 @@
 #include "njasiodrv_if.h"
 
 
-#include "../asio/asiosys.h"
-#include "../asio/asio.h"
-#include "../asio/asiodrivers.h"
+#include <asiosys.h>
+#include <asio.h>
+#include <asiodrivers.h>
 
 extern AsioDrivers* asioDrivers;
 
@@ -161,6 +161,7 @@ static BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARA
 }
 
 
+extern audioStreamer *create_audioStreamer_ASIO(char **dev, SPLPROC proc);
 
 extern "C"
 {
