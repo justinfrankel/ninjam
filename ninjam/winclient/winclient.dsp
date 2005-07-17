@@ -322,10 +322,6 @@ SOURCE=.\winclientres.rc
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=..\audiostream_asio.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\mpb.h
 # End Source File
 # Begin Source File

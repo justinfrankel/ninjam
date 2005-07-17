@@ -3,7 +3,6 @@
 #include <richedit.h>
 #include <shlobj.h>
 #include <commctrl.h>
-#include "../audiostream_asio.h"
 #define strncasecmp strnicmp
 
 #include <stdio.h>

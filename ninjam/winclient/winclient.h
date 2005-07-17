@@ -8,7 +8,7 @@
 #define WM_LCUSER_REPOP_CH WM_USER+53
 #define WM_RCUSER_UPDATE WM_USER+54
 
-#include "../audiostream_asio.h"
+#include "../audiostream.h"
 #include "../njclient.h"
 #include "../njmisc.h"
 
