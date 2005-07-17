@@ -178,7 +178,7 @@ BOOL WINAPI DllMain(
     m_hInst = hinstDLL;
   }
 
-  return 0;
+  return TRUE;
 }
 
 __declspec(dllexport) audioStreamer *create_asio_streamer(char **dev, SPLPROC proc)

@@ -5,7 +5,7 @@
 #include "../WDL/ptrlist.h"
 #include "resource.h"
 
-
+#include "../njasiodrv/njasiodrv_if.h"
 #include "audiostream.h"
 
 struct
@@ -120,7 +120,7 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
       );
 
       char *dev_name_in=tmpbuf;
-      return create_audioStreamer_ASIO(&dev_name_in,audiostream_onsamples);
+      return njasiodrv_create_asio_streamer(&dev_name_in,audiostream_onsamples);
   }
   else if (configdata.mode == 1)
   {
@@ -413,6 +413,18 @@ BOOL CALLBACK cfgproc_ks( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   return 0;
 }
 
+BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{ // do nothing, this is only if the njasiodrv.dll isn't found
+  if (uMsg == WM_INITDIALOG)
+  {
+    return 1;
+  }
+  if (uMsg == WM_COMMAND && LOWORD(wParam) == IDOK)
+  {  
+  }
+  return 0;
+}
+
 
 #define NUM_ITEMS 4
 
@@ -460,7 +472,9 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
             {
               if (!children[y])
               {
-                children[y]=CreateDialog(GetModuleHandle(NULL),MAKEINTRESOURCE(dlgids[y]),hwndDlg,procs[y]);
+                if (!y) children[y]=njasiodrv_create_asio_configdlg(hwndDlg,(asio_config_type*)&configdata.asio_driver);
+
+                if (!children[y]) children[y]=CreateDialog(GetModuleHandle(NULL),MAKEINTRESOURCE(dlgids[y]),hwndDlg,procs[y]);
                 RECT r;
                 GetWindowRect(GetDlgItem(hwndDlg,IDC_CRECT),&r);
                 ScreenToClient(hwndDlg,(LPPOINT)&r);

@@ -19,7 +19,7 @@ static SPLPROC _sample_proc;
 #define printf myPrintf
 static void myPrintf(char *s, ... ) { }
 #define fflush(x)
-#define getchar()
+//#define getchar()
 
 
 #else
@@ -419,10 +419,10 @@ int audioStreamer_ASIO::Open(char **dev)
 
   if (olddev && strstr(olddev,"c")) 
   {
-    printf("Displaying ASIO control panel!\n");
+    //printf("Displaying ASIO control panel!\n");
     ASIOControlPanel();
-    printf("Hit any key to continue (MAKE SURE THE PANEL HAS BEEN CLOSED)...\n");
-    getchar();
+    //printf("Hit any key to continue (MAKE SURE THE PANEL HAS BEEN CLOSED)...\n");
+    //getchar();
   }
   int inchoffs[2]={0};
   int outchoffs[2]={0};

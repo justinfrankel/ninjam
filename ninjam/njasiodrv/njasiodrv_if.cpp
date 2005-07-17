@@ -7,20 +7,22 @@ static HWND (*cacd)(HWND parent, asio_config_type *cfg);
 static void init_dll()
 {
   static HINSTANCE hlib;
-  if (hlib)
-    return;
+  if (hlib) return;
   char buf[1024];
   GetModuleFileName(GetModuleHandle(NULL),buf,sizeof(buf));
-  char *p=buf+strlen(buf);
+  char *p=buf;
+  while (*p) p++;
   while (p >= buf && *p != '\\') p--;
   strcpy(++p,"njasiodrv.dll");
 
+  OutputDebugString(buf);
   hlib=LoadLibrary(buf);
   if (hlib)
   {
     *((void**)&cas) = (void *)GetProcAddress(hlib,"create_asio_streamer");
     *((void**)&cacd) = (void *)GetProcAddress(hlib,"create_asio_configdlg");    
   }
+  else OutputDebugString("can't open ASIO driver dll\n");
 }
 
 audioStreamer *njasiodrv_create_asio_streamer(char **dev, SPLPROC proc)
