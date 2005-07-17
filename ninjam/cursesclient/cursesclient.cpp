@@ -2,7 +2,7 @@
 #ifdef _WIN32
 #define CURSES_INSTANCE (&m_cursinst)
 #include <windows.h>
-#include "../audiostream_asio.h"
+#include "../audiostream.h"
 #include "curses.h"
 #include "cursesclientinst.h"
 #define strncasecmp strnicmp
@@ -10,19 +10,13 @@
 #include <stdlib.h>
 #include <memory.h>
 #include "../audiostream_mac.h"
+#include <curses.h>
 #endif
 
 #include <stdio.h>
 #include <math.h>
 #include <signal.h>
 #include <float.h>
-
-#ifdef _WIN32
-#include "../audiostream_asio.h"
-#else
-#include "../audiostream_mac.h"
-#include <curses.h>
-#endif
 
 #include "../njclient.h"
 #include "../../WDL/dirscan.h"

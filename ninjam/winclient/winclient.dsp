@@ -90,22 +90,6 @@ LINK32=link.exe
 # Begin Group "common"
 
 # PROP Default_Filter ""
-# Begin Group "asio"
-
-# PROP Default_Filter ""
-# Begin Source File
-
-SOURCE=..\asio\asio.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\asio\asiodrivers.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\asio\asiolist.cpp
-# End Source File
-# End Group
 # Begin Group "wdl src"
 
 # PROP Default_Filter ""
@@ -222,13 +206,21 @@ SOURCE=..\ks\tlist.h
 SOURCE="..\ks\util-ks.cpp"
 # End Source File
 # End Group
+# Begin Group "njasiodrv"
+
+# PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=..\audioconfig.cpp
+SOURCE=..\njasiodrv\njasiodrv_if.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\audiostream_asio.cpp
+SOURCE=..\njasiodrv\njasiodrv_if.h
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=..\audioconfig.cpp
 # End Source File
 # Begin Source File
 
