@@ -70,8 +70,6 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 }
 
 
-void audiostream_onunder() { }
-void audiostream_onover() { }
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
   if (!g_audio_enable) 
