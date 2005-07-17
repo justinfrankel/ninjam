@@ -1,3 +1,33 @@
+/*
+    NINJAM Server - ninjamsrv.cpp
+    Copyright (C) 2005 Cockos Incorporated
+
+    NINJAM is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    NINJAM is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with NINJAM; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/*
+
+  This file does the setup and configuration file management for the server. 
+  Note that the kernel of the server is basically in usercon.cpp/.h, which 
+  includes a User_Connection class (manages a user) and a User_Group class 
+  (manages a jam).
+
+*/
+
+
+
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
@@ -34,9 +64,6 @@ WDL_String g_status_pass,g_status_user;
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange();
-void directory_onchange();
-void directory_run();
-void base64encode(const unsigned char *in, char *out);
 void logText(char *s, ...);
 
 class UserPassEntry
@@ -99,7 +126,7 @@ int g_config_log_sessionlen;
 
 time_t next_session_update_time;
 
-WDL_String g_config_license,g_config_pubuser,g_config_pubpass,g_config_pubdesc;
+WDL_String g_config_license;
 
 class localUserInfoLookup : public IUserInfoLookup
 {
@@ -321,20 +348,6 @@ static int ConfigOnToken(LineParser *lp)
     fclose(fp);
     
   }
-  else if (!stricmp(t,"PublicServer"))
-  {
-    if (lp->getnumtokens() != 4) 
-    {
-      printf("PublicServer requires a userid, password and description\n");
-      if (g_logfp)
-        logText("PublicServer requires a userid, password and description\n");
-      g_config_pubuser.Set(lp->gettoken_str(1));
-      g_config_pubpass.Set(lp->gettoken_str(2));
-      g_config_pubdesc.Set(lp->gettoken_str(3));
-      return -1;
-    }
-    
-  }
   else if (!stricmp(t,"ACL"))
   {
     if (lp->getnumtokens() != 3) return -1;
@@ -491,9 +504,6 @@ static int ReadConfig(char *configfile)
   m_group->m_max_users=0; // unlimited users
   g_acllist.Resize(0);
   g_config_license.Set("");
-  g_config_pubuser.Set("");
-  g_config_pubpass.Set("");
-
   int x;
   for(x=0;x<g_userlist.GetSize(); x++)
   {
@@ -756,8 +766,6 @@ int main(int argc, char **argv)
 
     m_group->SetLicenseText(g_config_license.Get());
 
-    directory_onchange();
-
 #ifdef _WIN32
     int needprompt=2;
     int esc_state=0;
@@ -785,7 +793,6 @@ int main(int argc, char **argv)
 
       if (m_group->Run()) 
       {
-        directory_run();
 #ifdef _WIN32
         if (needprompt)
         {
@@ -977,166 +984,5 @@ void onConfigChange()
   //m_group->SetConfig(g_config_bpi,g_config_bpm);
   enforceACL();
   m_group->SetLicenseText(g_config_license.Get());
-  directory_onchange();
 }
 
-
-/////////////////////// directory stuff
-
-int directory_port;
-int directory_state; // 0=not in directory, 1=in directory
-JNL_HTTPGet *directory_con;
-WDL_String directory_magic;
-
-void directory_onchange()
-{
-  char *user=g_config_pubuser.Get();
-  char *pass=g_config_pubpass.Get();
-
-  int newstate = user && pass && *user && *pass;
-  
-  if (!newstate != !directory_state || (g_config_port != directory_port && newstate))
-  {
-    directory_port=g_config_port;
-    if (directory_con) delete directory_con;
-
-    directory_con=new JNL_HTTPGet(JNL_CONNECTION_AUTODNS,65536);
-
-    WDL_String userstr("njs-user:");
-    userstr.Append(user);
-
-    WDL_String authstr("njs-auth:");
-    // append auth base64 encoded
-    {
-      WDL_SHA1 shatmp;
-      shatmp.add(user,strlen(user));
-      shatmp.add(":",1);
-      shatmp.add(pass,strlen(pass));
-
-      unsigned char tmpbuf[WDL_SHA1SIZE];
-      char outbuf[WDL_SHA1SIZE*2+1];
-      shatmp.result(tmpbuf);
-
-      base64encode(tmpbuf,outbuf);
-
-      authstr.Append(outbuf);
-    }
-    char infobuf[512];
-    sprintf(infobuf,"njs-port:%d",directory_port);
-
-    directory_con->addheader(infobuf);
-    directory_con->addheader("User-Agent:NINJAMsrv/0.0");
-
-    directory_con->addheader(userstr.Get());
-    directory_con->addheader(authstr.Get());
-    directory_con->addheader(newstate ? "njs-action:add" : "njs-action:del");
-    directory_con->addheader("Connection:close");
-    directory_con->connect("http://www.ninjam.com/njd/njs/");
-
-    directory_state=newstate;
-  }
-}
-
-void directory_run()
-{
-  if (directory_con)
-  {
-    int a=directory_con->run();
-    if (a < 0)
-    {
-      logText("Error reporting to NJD: %s\n",directory_con->geterrorstr());
-      delete directory_con;
-      directory_con=0;
-      directory_state=0;
-    }
-    else if (a > 0)
-    {
-      // look at reply
-      int success=0;
-      if (directory_con->getreplycode() >= 200 && directory_con->getreplycode() < 300) // success
-      {
-        int l=directory_con->bytes_available();
-        if (l > 65535) l=65535;
-        if (l > 0)
-        {
-          char buf[65536];
-          directory_con->get_bytes(buf,l);
-          int x;
-          for (x = 0; x < l; x ++) if (buf[x]=='\n') buf[x]=0; // remove newlines, make a null delimited list
-          buf[l]=0;
-          // look at text reply
-          
-          char *p=buf;
-          while (p < buf+l) // go through list of strings
-          {
-            if (!strncmp(p,"STATUS:",7))
-            {
-              if (!strcmp(p+7,"OK"))
-              {
-                logText("NJD: Server replied OK\n");
-                success=1;
-              }
-              else if (!strcmp(p+7,"REMOVED"))
-              {
-                directory_magic.Set("");
-                if (directory_state) logText("Error reporting to NJD: server removed even though add requested\n");
-              }
-              else 
-                logText("Error reporting to NJD: server replied \"%s\"\n",p+7);
-            }            
-            else if (!strncmp(p,"MAGIC:",6))
-            {
-              directory_magic.Set(p+6);
-            }
-
-            p+=strlen(p)+1;
-          }
-
-        }
-        else logText("Error reporting to NJD: empty reply\n");
-      }
-      else logText("Error reporting to NJD: got reply %d\n",directory_con->getreplycode());
-
-      directory_state=success;
-      delete directory_con;
-      directory_con=0;
-    }
-  }
-}
-
-
-
-void base64encode(const unsigned char *in, char *out)
-{
-  char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  int shift = 0;
-  int accum = 0;
-
-  while (*in)
-  {
-    if (*in)
-    {
-      accum <<= 8;
-      shift += 8;
-      accum |= *in++;
-    }
-    while ( shift >= 6 )
-    {
-      shift -= 6;
-      *out++ = alphabet[(accum >> shift) & 0x3F];
-    }
-  }
-  if (shift == 4)
-  {
-    *out++ = alphabet[(accum & 0xF)<<2];
-    *out++='=';  
-  }
-  else if (shift == 2)
-  {
-    *out++ = alphabet[(accum & 0x3)<<4];
-    *out++='=';  
-    *out++='=';  
-  }
-
-  *out++=0;
-}
