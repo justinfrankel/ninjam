@@ -3,14 +3,8 @@
 #include "resource.h"
 #include "../audiostream.h"
 
+#include "njasiodrv_if.h"
 
-
-typedef struct
-{
-  int asio_driver;
-  int asio_input[2];
-  int asio_output[2];
-} asio_config_type;
 
 #include "../asio/asiosys.h"
 #include "../asio/asio.h"
