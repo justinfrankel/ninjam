@@ -439,7 +439,6 @@ audioStreamer *create_audioStreamer_CoreAudio(char **dev, int srate, int nch, in
     
     audio=new audioStreamer_CoreAudio;
 
-    int nbufs=2,bufsize=4096;
     if (audio->Open(dev,srate,nch,bps))
     {
       delete audio;
