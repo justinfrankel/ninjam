@@ -31,6 +31,7 @@ OBJS += ../mpb.o
 OBJS += ../netmsg.o
 OBJS += ../njclient.o
 OBJS += ../audiostream_mac.o
+OBJS += ../njmisc.o
 OBJS += cursesclient.o
 
 

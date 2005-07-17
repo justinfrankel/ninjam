@@ -2,22 +2,22 @@
 #ifdef _WIN32
 #define CURSES_INSTANCE (&m_cursinst)
 #include <windows.h>
-#include "../audiostream.h"
 #include "curses.h"
 #include "cursesclientinst.h"
 #define strncasecmp strnicmp
 #else
 #include <stdlib.h>
 #include <memory.h>
-#include "../audiostream_mac.h"
 #include <curses.h>
 #endif
 
 #include <stdio.h>
+#include <ctype.h>
 #include <math.h>
 #include <signal.h>
 #include <float.h>
 
+#include "../audiostream.h"
 #include "../njclient.h"
 #include "../../WDL/dirscan.h"
 #include "../../WDL/lineparse.h"
@@ -444,9 +444,11 @@ void showmainview(bool action=false, int ymove=0)
 #endif
       else if (g_sel_x >= 5)
       {
+#ifdef _WIN32
         void *i=0;
         g_client->GetLocalChannelProcessor(a,NULL,&i);
         if (i) deleteJesusonicProc(i,a);
+#endif
         g_client->DeleteLocalChannel(a);
         g_client->NotifyServerOfChannelChange();
         x--;
@@ -1052,33 +1054,19 @@ int main(int argc, char **argv)
 #ifdef _WIN32
   g_audio=CreateConfiguredStreamer("ninjam.ini", !audioconfigstr, NULL);
 
+#else
+  {
+    char *dev_name_in=audioconfigstr;
+    g_audio=create_audioStreamer_CoreAudio(&dev_name_in,48000,2,16,audiostream_onsamples);
+  }
+#endif
   if (!g_audio)
   {
     printf("Error opening audio!\n");
     return 0;
   }
-
   printf("Opened at %dHz %d->%dch %dbps\n",
     g_audio->m_srate, g_audio->m_innch, g_audio->m_outnch, g_audio->m_bps);
-#else
-  {
-    audioStreamer_CoreAudio *audio;
-    char *dev_name_in;
-    
-    dev_name_in=audioconfigstr;
-    audio=new audioStreamer_CoreAudio;
-
-    int nbufs=2,bufsize=4096;
-    if (audio->Open(&dev_name_in,48000,2,16))
-    {
-      printf("Error opening audio!\n");
-      return 0;
-    }
-    printf("Opened (%dHz %d->%dch %dbps)\n",
-      audio->m_srate, audio->m_innch, audio->m_outnch, audio->m_bps);
-    g_audio=audio;
-  }
-#endif
 
   signal(SIGINT,sigfunc);
 
@@ -1838,10 +1826,12 @@ time(NULL) >= nextupd
     {
       int a=g_client->EnumLocalChannels(x);
       if (a<0) break;
+#ifdef _WIN32
       void *i=0;
       g_client->GetLocalChannelProcessor(a,NULL,&i);
       if (i) deleteJesusonicProc(i,a);
       g_client->SetLocalChannelProcessor(a,NULL,NULL);
+#endif
     }
   }
 

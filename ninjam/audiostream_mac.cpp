@@ -6,7 +6,39 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "audiostream_mac.h"
+#include "audiostream.h"
+
+static SPLPROC _splproc;
+
+#include </System/Library/Frameworks/CoreAudio.framework/Headers/AudioHardware.h>
+		
+
+class audioStreamer_CoreAudio  : public audioStreamer
+{
+	public:
+
+		audioStreamer_CoreAudio();
+		~audioStreamer_CoreAudio();
+		int Open(char **dev, int srate, int nch, int bps);
+		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
+		int Write(char *buf, int len); // returns 0 on success
+    const char *GetChannelName(int idx)
+	{
+		if (idx < 0 || idx >= m_innch) return NULL;
+		static char buf[128];
+		sprintf(buf,"Channel %d",idx+1);
+		return buf;
+	}
+
+
+	private:
+
+	        AudioDeviceID m_myDev_i;
+	        AudioDeviceID m_myDev_o;
+ 		int m_started;
+
+};
+
 
 #include <sys/stat.h>
 #include <pthread.h>
@@ -42,7 +74,7 @@ static void onsamples_old(float *inbuf, int innch, float *outbuf, int outnch, in
   }
   float *outptrs[2]={t,t+nsamples};
 
-  audiostream_onsamples(inptrs,innch,outptrs,2,nsamples,srate);
+  if (_splproc) _splproc(inptrs,innch,outptrs,2,nsamples,srate);
 
   float *p1=outptrs[0];
   float *p2=outptrs[1];
@@ -399,3 +431,19 @@ int audioStreamer_CoreAudio::Write(char *buf, int len) // returns 0 on success
 	return 0;
 }
 
+
+audioStreamer *create_audioStreamer_CoreAudio(char **dev, int srate, int nch, int bps, SPLPROC proc)
+{
+    _splproc = proc;
+    audioStreamer_CoreAudio *audio;
+    
+    audio=new audioStreamer_CoreAudio;
+
+    int nbufs=2,bufsize=4096;
+    if (audio->Open(dev,srate,nch,bps))
+    {
+      delete audio;
+      return 0;
+    }
+    return audio;
+}
