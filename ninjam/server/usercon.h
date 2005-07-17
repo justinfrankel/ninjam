@@ -1,3 +1,34 @@
+/*
+    NINJAM Server - usercon.h
+    Copyright (C) 2005 Cockos Incorporated
+
+    NINJAM is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    NINJAM is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with NINJAM; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/*
+
+  This header provides the class declarations for the User_Group (which the server uses)
+  and other classes it is built upon. Additionally, it provides the abstract declaration
+  of IUserInfoLookup, which the server needs to override to provide user authentication 
+  lookup.
+
+*/
+
+
+
+
 #ifndef _USERCON_H_
 #define _USERCON_H_
 
@@ -20,27 +51,6 @@
 #define PRIV_RESERVE 16
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 
-
-class User_SubscribeMask
-{
-public:
-  User_SubscribeMask()  {} 
-  ~User_SubscribeMask() {}
-  WDL_String username;
-  unsigned int channelmask;
-};
-
-class User_Channel
-{
-public:
-  User_Channel() { active=0; volume=0; panning=128; flags=0; }
-  ~User_Channel() { }
-  int active;
-  WDL_String name;
-  int volume;
-  int panning;
-  int flags;
-};
 
 
 class IUserInfoLookup // abstract base class, overridden by server
@@ -66,74 +76,7 @@ public:
 };
 
 
-class User_TransferState
-{
-public:
-  User_TransferState() : fourcc(0), bytes_estimated(0), bytes_sofar(0), fp(0)
-  { 
-    time(&last_acttime);
-    memset(guid,0,sizeof(guid));
-  }
-  ~User_TransferState() 
-  { 
-    if (fp) fclose(fp);
-    fp=0;
-  }
-
-  time_t last_acttime;
-  unsigned char guid[16];
-  unsigned int fourcc;
-  unsigned int bytes_estimated;
-
-  unsigned int bytes_sofar;
-  
-  FILE *fp;
-};
-
-
-class User_Group;
-
-class User_Connection
-{
-  public:
-    User_Connection(JNL_Connection *con, User_Group *grp);
-    ~User_Connection();
-
-    int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
-    void SendConfigChangeNotify(int bpm, int bpi);
-
-    void Send(Net_Message *msg);
-
-    int OnRunAuth(User_Group *group);
-
-    void SendUserList(User_Group *group);
-
-    Net_Connection m_netcon;
-    WDL_String m_username;
-    
-    // auth info
-    time_t m_connect_time;
-    int m_auth_state;      // 1 if authorized, 0 if not yet, -1 if auth pending
-    unsigned char m_challenge[8];
-    int m_clientcaps;
-
-    int m_auth_privs;
-
-    int m_reserved;
-
-    int m_max_channels;
-
-    User_Channel m_channels[MAX_USER_CHANNELS];
-
-    WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
-
-    WDL_PtrList<User_TransferState> m_recvfiles;
-    WDL_PtrList<User_TransferState> m_sendfiles;
-
-    IUserInfoLookup *m_lookup;
-};
-
-
+class User_Connection;
 
 class User_Group
 {
@@ -182,6 +125,95 @@ class User_Group
 #else
     struct timeval m_next_loop_time;
 #endif
+};
+
+
+
+class User_SubscribeMask
+{
+public:
+  User_SubscribeMask()  {} 
+  ~User_SubscribeMask() {}
+  WDL_String username;
+  unsigned int channelmask;
+};
+
+class User_Channel
+{
+public:
+  User_Channel() { active=0; volume=0; panning=128; flags=0; }
+  ~User_Channel() { }
+  int active;
+  WDL_String name;
+  int volume;
+  int panning;
+  int flags;
+};
+
+
+class User_TransferState
+{
+public:
+  User_TransferState() : fourcc(0), bytes_estimated(0), bytes_sofar(0), fp(0)
+  { 
+    time(&last_acttime);
+    memset(guid,0,sizeof(guid));
+  }
+  ~User_TransferState() 
+  { 
+    if (fp) fclose(fp);
+    fp=0;
+  }
+
+  time_t last_acttime;
+  unsigned char guid[16];
+  unsigned int fourcc;
+  unsigned int bytes_estimated;
+
+  unsigned int bytes_sofar;
+  
+  FILE *fp;
+};
+
+
+class User_Connection
+{
+  public:
+    User_Connection(JNL_Connection *con, User_Group *grp);
+    ~User_Connection();
+
+    int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
+    void SendConfigChangeNotify(int bpm, int bpi);
+
+    void Send(Net_Message *msg);
+
+    int OnRunAuth(User_Group *group);
+
+    void SendUserList(User_Group *group);
+
+    Net_Connection m_netcon;
+    WDL_String m_username;
+    
+    // auth info
+    time_t m_connect_time;
+    int m_auth_state;      // 1 if authorized, 0 if not yet, -1 if auth pending
+    unsigned char m_challenge[8];
+    int m_clientcaps;
+
+    int m_auth_privs;
+
+    int m_reserved;
+
+    int m_max_channels;
+
+    User_Channel m_channels[MAX_USER_CHANNELS];
+
+    WDL_PtrList<User_SubscribeMask> m_sublist; // people+channels we subscribe to
+
+    WDL_PtrList<User_TransferState> m_recvfiles;
+    WDL_PtrList<User_TransferState> m_sendfiles;
+
+    IUserInfoLookup *m_lookup;
 };
 
 

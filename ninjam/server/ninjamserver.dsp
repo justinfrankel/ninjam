@@ -88,6 +88,9 @@ LINK32=link.exe
 # Begin Group "common"
 
 # PROP Default_Filter ""
+# Begin Group "WDL"
+
+# PROP Default_Filter ""
 # Begin Group "jnetlib"
 
 # PROP Default_Filter ""
@@ -150,19 +153,20 @@ SOURCE=..\..\WDL\jnetlib\util.h
 # End Group
 # Begin Source File
 
-SOURCE=..\mpb.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\netmsg.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\WDL\rng.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\WDL\sha.cpp
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=..\mpb.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\netmsg.cpp
 # End Source File
 # End Group
 # Begin Source File
@@ -180,17 +184,24 @@ SOURCE=.\usercon.cpp
 # Begin Group "common headers"
 
 # PROP Default_Filter ""
+# Begin Group "WDL headers"
+
+# PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\..\WDL\heapbuf.h
+# End Source File
 # Begin Source File
 
 SOURCE=..\..\WDL\lineparse.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\mpb.h
+SOURCE=..\..\WDL\ptrlist.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\netmsg.h
+SOURCE=..\..\WDL\queue.h
 # End Source File
 # Begin Source File
 
@@ -199,6 +210,19 @@ SOURCE=..\..\WDL\rng.h
 # Begin Source File
 
 SOURCE=..\..\WDL\sha.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\string.h
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=..\mpb.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\netmsg.h
 # End Source File
 # End Group
 # Begin Source File
