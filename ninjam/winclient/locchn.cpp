@@ -100,7 +100,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
       {
         KillTimer(hwndDlg,1);
         char buf[512];
-        GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf));
+        GetDlgItemText(hwndDlg,IDC_NAME,buf,sizeof(buf)-64);
         g_client_mutex.Enter();
         g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
         g_client->NotifyServerOfChannelChange();
@@ -117,6 +117,12 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (i)
         {
           JesusUpdateInfo(i,buf,g_audio?g_audio->m_srate:44100);
+          HWND h=JesusonicAPI->ui_wnd_gethwnd(i);
+          if (h)
+          {
+            strcat(buf," : Effects Processor Control");
+            SetWindowText(h,buf);
+          }
         }
       }
     return 0;
@@ -253,9 +259,19 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             else
             {
               HWND h=JesusonicAPI->ui_wnd_create(i);
-              ShowWindow(h,SW_SHOWNA);
-              SetTimer(h,1,40,NULL);
-              SetForegroundWindow(h);
+              if (h)
+              {
+                SetClassLong(h,GCL_HICON,GetClassLong(hwndDlg,GCL_HICON));
+
+                char fmtbuf[1024];
+                GetDlgItemText(hwndDlg,IDC_NAME,fmtbuf,sizeof(fmtbuf)-128);
+                strcat(fmtbuf," : Effects Processor Control");
+                SetWindowText(h,fmtbuf);
+
+                ShowWindow(h,SW_SHOW);
+                SetTimer(h,1,40,NULL);
+              }
+
             }
           }
         break;
