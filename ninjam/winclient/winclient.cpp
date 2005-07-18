@@ -64,7 +64,6 @@ static HINSTANCE jesus_hDllInst;
 static HWND g_hwnd;
 static HANDLE g_hThread;
 static char g_exepath[1024];
-static HICON g_hSmallIcon;
 static HWND m_locwnd,m_remwnd;
 static int g_audio_enable=0;
 static WDL_String g_connect_user,g_connect_pass,g_connect_host;
@@ -1414,9 +1413,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
       RegisterClass(&wc);
     }
   }
-
-
-  g_hSmallIcon = (HICON)LoadImage(g_hInst,MAKEINTRESOURCE(IDI_ICON1),IMAGE_ICON,16,16,0);
 
   {
     WNDCLASS wc={0,};
