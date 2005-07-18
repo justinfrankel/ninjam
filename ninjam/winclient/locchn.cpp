@@ -261,7 +261,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
               HWND h=JesusonicAPI->ui_wnd_create(i);
               if (h)
               {
-                SetClassLong(h,GCL_HICON,GetClassLong(hwndDlg,GCL_HICON));
+                SetClassLong(h,GCL_HICON,(long)LoadIcon(g_hInst,MAKEINTRESOURCE(IDI_ICON2)));
 
                 char fmtbuf[1024];
                 GetDlgItemText(hwndDlg,IDC_NAME,fmtbuf,sizeof(fmtbuf)-128);
