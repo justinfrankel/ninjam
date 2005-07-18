@@ -60,6 +60,7 @@ typedef struct
   int asio_output[2];
 } asio_config_type;
 
+int njasiodrv_avail(void);
 audioStreamer *njasiodrv_create_asio_streamer(char **dev, SPLPROC proc);
 HWND njasiodrv_create_asio_configdlg(HWND parent, asio_config_type *cfg);
 

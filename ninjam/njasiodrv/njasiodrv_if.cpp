@@ -72,6 +72,12 @@ static void init_dll()
   }
 }
 
+int njasiodrv_avail(void)
+{
+  init_dll();
+  return cas && cacd;
+}
+
 audioStreamer *njasiodrv_create_asio_streamer(char **dev, SPLPROC proc)
 {
   init_dll();
