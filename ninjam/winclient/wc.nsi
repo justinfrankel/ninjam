@@ -9,7 +9,7 @@
 ;General
 
 !define VER_MAJOR 0
-!define VER_MINOR 05a
+!define VER_MINOR 06
 
 SetCompressor lzma
 
@@ -80,6 +80,12 @@ Section "Effect Processing and Drum Machine support"
 
 SectionEnd
 
+Section "ASIO Input/Output support"
+
+  File Release\njasiodrv.dll
+
+SectionEnd
+
 Section "NINJAM logfile to EDL TXT file converter tool (for Vegas)"
   File ..\cliplogcvt\release\cliplogcvt.exe
 SectionEnd
@@ -108,6 +114,7 @@ Section "Uninstall"
   Delete "$INSTDIR\cliplogcvt.exe"
 
   Delete "$INSTDIR\jesus.dll"
+  Delete "$INSTDIR\njasiodrv.dll"
 
   Delete "$INSTDIR\ninjam.ini"
   Delete "$INSTDIR\license.txt"
