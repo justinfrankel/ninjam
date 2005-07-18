@@ -1,6 +1,7 @@
 /*
     NINJAM Windows Client - winclient.cpp
     Copyright (C) 2005 Cockos Incorporated
+    Portions Copyright (C) 2005 Brennan Underwood
 
     NINJAM is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
