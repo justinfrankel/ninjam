@@ -315,19 +315,23 @@ FONT 8, "MS Sans Serif"
 BEGIN
 END
 
-IDD_ABOUT DIALOG DISCARDABLE  0, 0, 233, 103
+IDD_ABOUT DIALOG DISCARDABLE  0, 0, 248, 124
 STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About NINJAM"
 FONT 8, "MS Sans Serif"
 BEGIN
-    DEFPUSHBUTTON   "Close",IDOK,92,82,50,14
-    ICON            IDI_ICON1,IDC_STATIC,7,7,21,20
+    DEFPUSHBUTTON   "Close",IDOK,98,101,50,14
+    ICON            IDI_ICON1,IDC_STATIC,7,7,20,20
     LTEXT           "NINJAM",IDC_STATIC,31,11,28,8
     LTEXT           "Novel Intervallic Network Jamming Architecture for Musicians",
-                    IDC_STATIC,31,28,193,8
+                    IDC_STATIC,31,23,193,8
     LTEXT           "Copyright (C) 2005 Cockos Incorporated",IDC_STATIC,31,
-                    45,127,8
-    LTEXT           "",IDC_VER,31,62,195,8
+                    47,127,8
+    LTEXT           "version",IDC_VER,31,35,195,8
+    LTEXT           "Portions Copyright (C) 2005 Brennan Underwood",
+                    IDC_STATIC,31,59,154,8
+    LTEXT           "NINJAM is free software, and is licensed under the GNU General Public License. See the included license.txt for the full license terms.",
+                    IDC_STATIC,31,71,195,26
 END
 
 IDD_MIXERDLG DIALOG DISCARDABLE  0, 0, 209, 145
@@ -452,9 +456,9 @@ BEGIN
     IDD_ABOUT, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 226
+        RIGHTMARGIN, 241
         TOPMARGIN, 7
-        BOTTOMMARGIN, 96
+        BOTTOMMARGIN, 117
     END
 
     IDD_MIXERDLG, DIALOG
@@ -494,7 +498,7 @@ BEGIN
                                                 ID_OPTIONS_AUDIOCONFIGURATION
 
     END
-    POPUP "&Help"
+    POPUP "&Help", HELP
     BEGIN
         MENUITEM "&About NINJAM...",            ID_HELP_ABOUTNINJAM
     END
