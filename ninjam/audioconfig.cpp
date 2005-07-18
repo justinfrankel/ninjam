@@ -39,10 +39,6 @@
 struct
 {
    int mode;
-   int asio_driver;
-   int asio_input[2];
-   int asio_output[2];
-
    int ks_srate;
    int ks_bps;
    int ks_device[2];
@@ -60,11 +56,13 @@ struct
    int dsound_device[2][4];
    int dsound_blocksize;
    int dsound_numblocks;
+
+   int asio_driver;
+   int asio_input[2];
+   int asio_output[2];
+
 } configdata={
-  0,
-   0, //asio_driver;
-   {0,1}, //asio_input;
-   {0,1}, //asio_output;
+  1, //default to KS
 
    48000, //ks_srate;
    16, //ks_bps;
@@ -83,6 +81,11 @@ struct
    {{0,0,0,0},{0,0,0,0}}, //dsound_device;
    1024, //dsound_blocksize;
    16, //dsound_numblocks;
+
+   0, //asio_driver;
+   {0,1}, //asio_input;
+   {0,1}, //asio_output;
+
 };
 
 
@@ -98,7 +101,7 @@ static int load_config()
   for (c = 0; c < s; c ++)
   {
     char n[64];
-    wsprintf(n,"Config%d",c);
+    wsprintf(n,"acfg%d",c);
     char buf[128];
     GetPrivateProfileString( "ninjam",n,"",buf,sizeof(buf),fn);
     if (buf[0] != '0' && !atoi(buf)) break;
@@ -116,7 +119,7 @@ static void save_config()
   for (c = 0; c < s; c ++)
   {
     char n[64];
-    wsprintf(n,"Config%d",c);
+    wsprintf(n,"acfg%d",c);
     char buf[128];
     wsprintf(buf,"%d",*p++);
     WritePrivateProfileString( "ninjam",n,buf,fn);
@@ -458,71 +461,64 @@ BOOL CALLBACK cfgproc_asio( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static const int dlgids[4]={IDD_CFG_ASIO,IDD_CFG_KS, IDD_CFG_WAVEOUT,IDD_CFG_WAVEOUT};
-  static const DLGPROC procs[4]={cfgproc_asio,cfgproc_ks,cfgproc_dsound,cfgproc_waveout};
-  static HWND children[4];
-  static const char *labels[4] = { "ASIO", "Kernel Streaming", "DirectSound", "WaveOut" };
+  static const int dlgids[4]={IDD_CFG_KS, IDD_CFG_WAVEOUT,IDD_CFG_WAVEOUT,IDD_CFG_ASIO};
+  static const DLGPROC procs[4]={cfgproc_ks,cfgproc_dsound,cfgproc_waveout,cfgproc_asio};
+  static HWND child;
+  static const char *labels[4] = { "Kernel Streaming", "DirectSound", "WaveOut", "ASIO" };
 
   switch (uMsg)
   {
     case WM_INITDIALOG:
       {
         int x;
+        int cm=configdata.mode-1;
+        if (cm == -1) cm=3;
         for (x = 0; x < NUM_ITEMS; x ++)
         {
             SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING,0,(LPARAM)labels[x]);
         }
-        int cm=configdata.mode;
+        
+        child=0;
         if (cm  < 0 || cm >= NUM_ITEMS) cm=0;
         SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_SETCURSEL,(WPARAM)cm,0);
         SendMessage(hwndDlg,WM_COMMAND,MAKEWPARAM(IDC_COMBO1,CBN_SELCHANGE),0);
       }
     return TRUE;
-    case WM_DESTROY:
-      {
-        int x;
-        for (x = 0; x < NUM_ITEMS; x ++) 
-        {
-          if (children[x] && IsWindow(children[x])) DestroyWindow(children[x]);
-          children[x]=0;
-        }
-      }
-    return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
         case IDC_COMBO1:
           if (HIWORD(wParam) == CBN_SELCHANGE)
           {
-            int x;
             int y=SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
             if (y != CB_ERR) 
             {
-              if (!children[y])
-              {
-                if (!y) children[y]=njasiodrv_create_asio_configdlg(hwndDlg,(asio_config_type*)&configdata.asio_driver);
+              if (child && IsWindow(child)) DestroyWindow(child);
+              child=0;
 
-                if (!children[y]) children[y]=CreateDialog(GetModuleHandle(NULL),MAKEINTRESOURCE(dlgids[y]),hwndDlg,procs[y]);
-                RECT r;
-                GetWindowRect(GetDlgItem(hwndDlg,IDC_CRECT),&r);
-                ScreenToClient(hwndDlg,(LPPOINT)&r);
-                SetWindowPos(children[y],NULL,r.left,r.top,0,0,SWP_NOSIZE|SWP_NOZORDER);
-                // position the window
-              }
-              for (x = 0; x < NUM_ITEMS; x ++) 
-              {
-                if (children[x]) ShowWindow(children[x],x==y?SW_SHOWNA:SW_HIDE);
-              }
+              if (y==3) child=njasiodrv_create_asio_configdlg(hwndDlg,(asio_config_type*)&configdata.asio_driver);
+
+              if (!child) child=CreateDialog(GetModuleHandle(NULL),MAKEINTRESOURCE(dlgids[y]),hwndDlg,procs[y]);
+              RECT r;
+              GetWindowRect(GetDlgItem(hwndDlg,IDC_CRECT),&r);
+              ScreenToClient(hwndDlg,(LPPOINT)&r);
+              SetWindowPos(child,NULL,r.left,r.top,0,0,SWP_NOSIZE|SWP_NOZORDER);
+              ShowWindow(child,SW_SHOWNA);
+              // position the window
             }
           }
         return 0;
         case IDOK:
           {
             int y;
-            for (y = 0; y < NUM_ITEMS; y ++)
-              SendMessage(children[y],WM_COMMAND,IDOK,0);
+            if (child && IsWindow(child)) 
+              SendMessage(child,WM_COMMAND,IDOK,0);
             y=SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
-            if (y != CB_ERR) configdata.mode=y;
+            if (y != CB_ERR) 
+            {
+              configdata.mode=y+1;
+              if (configdata.mode >= 4) configdata.mode=0;
+            }
           }
         case IDCANCEL:
           EndDialog(hwndDlg,0);
