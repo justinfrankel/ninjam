@@ -63,7 +63,7 @@ WDL_String g_logfilename;
 WDL_String g_status_pass,g_status_user;
 User_Group *m_group;
 JNL_Listen *m_listener;
-void onConfigChange();
+void onConfigChange(int argc, char **argv);
 void logText(char *s, ...);
 
 class UserPassEntry
@@ -877,7 +877,7 @@ int main(int argc, char **argv)
             {
 //              printf("Listening on port %d...",g_config_port);    
 
-              onConfigChange();
+              onConfigChange(argc,argv);
             }
             needprompt=1;
           }
@@ -895,7 +895,7 @@ int main(int argc, char **argv)
         {
           g_reloadconfig=0;
 
-          onConfigChange();
+          onConfigChange(argc,argv);
         }
 
         time_t now;
@@ -975,14 +975,46 @@ int main(int argc, char **argv)
 }
 
 
-void onConfigChange()
+void onConfigChange(int argc, char **argv)
 {
   logText("reloading config...\n");
 
-//  delete m_listener;
-//  m_listener = new JNL_Listen(g_config_port);
   //m_group->SetConfig(g_config_bpi,g_config_bpm);
   enforceACL();
   m_group->SetLicenseText(g_config_license.Get());
+
+  int p;
+  for (p = 2; p < argc; p ++)
+  {
+      if (!strcmp(argv[p],"-pidfile"))
+      {
+        if (++p >= argc) break;
+      //  g_pidfilename.Set(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-logfile"))
+      {
+        if (++p >= argc) break;
+//        g_logfilename.Set(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-archive"))
+      {
+        if (++p >= argc) break;
+        g_config_logpath.Set(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-setuid"))
+      {
+        if (++p >= argc) break;
+  //      g_set_uid=atoi(argv[p]);
+      }
+      else if (!strcmp(argv[p],"-port"))
+      {
+        if (++p >= argc) break;
+        g_config_port=atoi(argv[p]);
+      }
+  }
+
+  delete m_listener;
+  m_listener = new JNL_Listen(g_config_port);
+
 }
 
