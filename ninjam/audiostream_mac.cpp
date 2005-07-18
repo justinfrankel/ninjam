@@ -1,5 +1,5 @@
 /*
-    NINJAM Cocoa Client - audiostream_mac.cpp
+    NINJAM Mac OS X Clients - audiostream_mac.cpp
     Copyright (C) 2005 Cockos Incorporated
 
     NINJAM is free software; you can redistribute it and/or modify
