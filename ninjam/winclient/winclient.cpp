@@ -428,6 +428,7 @@ static void do_connect()
   {
     RemoveDirectory(buf);
     SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR OPENING AUDIO");
+    MessageBox(g_hwnd,"Error opening audio device, try reconfiguring!", "NINJAM error", MB_OK);
     return;
   }
 

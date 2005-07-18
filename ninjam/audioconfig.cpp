@@ -62,7 +62,7 @@ struct
    int asio_output[2];
 
 } configdata={
-  1, //default to KS
+  0, //default to KS
 
    48000, //ks_srate;
    16, //ks_bps;
@@ -92,39 +92,45 @@ struct
 static BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 static WDL_String m_inifile;
-static int load_config()
+#define MYRI(val,name) if (isload) { configdata.##val = GetPrivateProfileInt("audioconfig",#name,configdata.##val,m_inifile.Get()); } else { char buf[512]; wsprintf(buf,"%d",configdata.##val); WritePrivateProfileString("audioconfig",#name,buf,m_inifile.Get()); }
+static void loadsave_config(int isload)
 { 
-  char *fn=m_inifile.Get();
-  int *p=(int *)&configdata;
-  int s=sizeof(configdata)/sizeof(int);
-  int c=0;
-  for (c = 0; c < s; c ++)
-  {
-    char n[64];
-    wsprintf(n,"acfg%d",c);
-    char buf[128];
-    GetPrivateProfileString( "ninjam",n,"",buf,sizeof(buf),fn);
-    if (buf[0] != '0' && !atoi(buf)) break;
-    *p++=atoi(buf);
-  }
-  return c;
+  MYRI(mode,mode)
+  MYRI(ks_srate,ks_srate)
+  MYRI(ks_bps,ks_bps)
+  MYRI(ks_device[0],ks_devin)
+  MYRI(ks_device[1],ks_devout)
+  MYRI(ks_blocksize,ks_blocksize)
+  MYRI(ks_numblocks,ks_numblocks)
+
+  MYRI(waveout_srate,waveout_srate) 
+  MYRI(waveout_bps,waveout_bps)
+  MYRI(waveout_device[0],waveout_devicein)
+  MYRI(waveout_device[1],waveout_deviceout)
+  MYRI(waveout_blocksize,waveout_blocksize)
+  MYRI(waveout_numblocks,waveout_numblocks)
+
+  MYRI(dsound_srate,dsound_srate)
+  MYRI(dsound_bps,dsound_bps)
+  MYRI(dsound_device[0][0],dsound_devicein_0)
+  MYRI(dsound_device[0][1],dsound_devicein_1)
+  MYRI(dsound_device[0][2],dsound_devicein_2)
+  MYRI(dsound_device[0][3],dsound_devicein_3)
+  MYRI(dsound_device[1][0],dsound_deviceout_0)
+  MYRI(dsound_device[1][1],dsound_deviceout_1)
+  MYRI(dsound_device[1][2],dsound_deviceout_2)
+  MYRI(dsound_device[1][3],dsound_deviceout_2)
+  MYRI(dsound_blocksize,dsound_blocksize)
+  MYRI(dsound_numblocks,dsound_numblocks)
+
+  MYRI(asio_driver,asio_driver)
+  MYRI(asio_input[0],asio_input0)
+  MYRI(asio_input[1],asio_input1)
+  MYRI(asio_output[0],asio_output0)
+  MYRI(asio_output[1],asio_output1)
+#undef MYRI
 }
 
-static void save_config()
-{
-  char *fn=m_inifile.Get();
-  int *p=(int *)&configdata;
-  int s=sizeof(configdata)/sizeof(int);
-  int c=0;
-  for (c = 0; c < s; c ++)
-  {
-    char n[64];
-    wsprintf(n,"acfg%d",c);
-    char buf[128];
-    wsprintf(buf,"%d",*p++);
-    WritePrivateProfileString( "ninjam",n,buf,fn);
-  }
-}
 
 
 audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndParent)
@@ -132,15 +138,37 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
   extern void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) ;
 
   m_inifile.Set(inifile);
-  load_config();
+  loadsave_config(1);
   if (showcfg)
   {
     DialogBox(GetModuleHandle(NULL),MAKEINTRESOURCE(IDD_CONFIG),hwndParent,configDlgMainProc);
-    save_config();
+    loadsave_config(0);
     if (showcfg == -1) return NULL;
   }
 
   if (configdata.mode == 0)
+  {
+    int nbufs=configdata.ks_numblocks;
+    int bufsize=configdata.ks_blocksize;
+    audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize,audiostream_onsamples);
+
+    return p;
+  }
+  else if (configdata.mode == 1)
+  {
+    GUID bla[2];
+    int nbufs=configdata.dsound_numblocks;
+    int bufsize=configdata.dsound_blocksize;
+    memcpy(bla,configdata.dsound_device,sizeof(bla));
+    return create_audioStreamer_DS(configdata.dsound_srate,configdata.dsound_bps,bla,&nbufs,&bufsize,audiostream_onsamples);
+  }
+  else if (configdata.mode == 2)
+  {
+    int nbufs=configdata.waveout_numblocks;
+    int bufsize=configdata.waveout_blocksize;
+    return create_audioStreamer_WO(configdata.waveout_srate,configdata.waveout_bps,configdata.waveout_device,&nbufs,&bufsize,audiostream_onsamples);
+  }
+  else if (configdata.mode == 3)
   {
       static char tmpbuf[64];
       wsprintf(tmpbuf,"%d:%d,%d:%d,%d",configdata.asio_driver,
@@ -152,28 +180,6 @@ audioStreamer *CreateConfiguredStreamer(char *inifile, int showcfg, HWND hwndPar
 
       char *dev_name_in=tmpbuf;
       return njasiodrv_create_asio_streamer(&dev_name_in,audiostream_onsamples);
-  }
-  else if (configdata.mode == 1)
-  {
-    int nbufs=configdata.ks_numblocks;
-    int bufsize=configdata.ks_blocksize;
-    audioStreamer *p=create_audioStreamer_KS(configdata.ks_srate, configdata.ks_bps, &nbufs, &bufsize,audiostream_onsamples);
-
-    return p;
-  }
-  else if (configdata.mode == 2)
-  {
-    GUID bla[2];
-    int nbufs=configdata.dsound_numblocks;
-    int bufsize=configdata.dsound_blocksize;
-    memcpy(bla,configdata.dsound_device,sizeof(bla));
-    return create_audioStreamer_DS(configdata.dsound_srate,configdata.dsound_bps,bla,&nbufs,&bufsize,audiostream_onsamples);
-  }
-  else if (configdata.mode == 3)
-  {
-    int nbufs=configdata.waveout_numblocks;
-    int bufsize=configdata.waveout_blocksize;
-    return create_audioStreamer_WO(configdata.waveout_srate,configdata.waveout_bps,configdata.waveout_device,&nbufs,&bufsize,audiostream_onsamples);
   }
 
   return 0;
@@ -471,8 +477,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
       {
         int x;
-        int cm=configdata.mode-1;
-        if (cm == -1) cm=3;
+        int cm=configdata.mode;
         for (x = 0; x < NUM_ITEMS; x ++)
         {
             SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING,0,(LPARAM)labels[x]);
@@ -516,8 +521,7 @@ BOOL CALLBACK configDlgMainProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
             y=SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
             if (y != CB_ERR) 
             {
-              configdata.mode=y+1;
-              if (configdata.mode >= 4) configdata.mode=0;
+              configdata.mode=y;
             }
           }
         case IDCANCEL:
