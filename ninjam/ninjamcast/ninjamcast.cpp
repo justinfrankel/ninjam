@@ -1,0 +1,342 @@
+/*
+  ninjamcast! a Ninjam->Shoutcast gateway.
+  by Brennan Underwood
+  adapted from cmdclient by Justin Frankel
+*/
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <stdlib.h>
+#include <memory.h>
+#endif
+
+#include <stdio.h>
+#include <math.h>
+#include <signal.h>
+#include <float.h>
+
+#include "../njclient.h"
+
+#include "njcast.h"
+
+NJClient *g_client;
+NJCast *g_njcast;
+
+int g_srate = 44100;
+int g_bitrate = 64;
+int g_numchannels = 1;
+
+char g_servername[4096]="Ninjam";
+
+char *sc_address="brainio.badmofo.org";
+int sc_port = 8000;
+
+#define UPDATE_HZ 10
+
+void doSamples() {
+  static int last;
+  if (last == 0) last = GetTickCount();
+
+  int now = GetTickCount();
+
+  if (now - last >= 1000/UPDATE_HZ) {
+    int buflen=g_srate/UPDATE_HZ;
+//printf("doing %d samples\n", buflen);
+    float *outbuf0 = (float*)calloc(buflen, sizeof(float));
+    float *outbuf1 = NULL;
+    if (g_numchannels == 2)
+      outbuf1 = (float*)calloc(buflen, sizeof(float));
+    float *outbuf[2] = { outbuf0, outbuf1 };
+    // client processes bufs
+    g_client->AudioProc(NULL, 0, outbuf, g_numchannels, buflen, g_srate);
+
+    // write to shoutcast sender
+    g_njcast->AudioProc(NULL, 0, outbuf, g_numchannels, buflen, g_srate);
+
+    free(outbuf0);
+    if (outbuf1) free(outbuf1);
+
+    last += 1000/UPDATE_HZ;
+    now = GetTickCount();
+  }
+}
+
+
+
+
+int g_done=0;
+
+void sigfunc(int sig)
+{
+  printf("Got Ctrl+C\n");
+  g_done++;
+}
+
+
+void usage()
+{
+
+  printf("Usage: ninjam hostname [options]\n"
+    "Options:\n"
+    "  -sessiondir <path>\n"
+    "  -user <username>\n"
+    "  -pass <password>\n"
+);
+
+  exit(1);
+}
+
+// heh we don't upload anything anyway
+int displayLicense(int user32, char *licensetext) {
+  return 1;
+}
+
+int main(int argc, char **argv)
+{
+  signal(SIGINT,sigfunc);
+
+  char *parmuser=NULL;
+  char *parmpass=NULL;
+  WDL_String sessiondir;
+
+  float monitor=1.0;
+  g_client=new NJClient;
+  g_client->config_savelocalaudio=-1;	// -1 means clean up after yourself
+
+  g_client->config_metronome = 0;
+  g_client->config_metronome_mute = 1;
+
+#define DB2VAL(x) (pow(2.0,(x)/6.0))
+  g_client->config_mastervolume = (float)DB2VAL(-6.0);//FUCKO config
+
+  g_client->LicenseAgreementCallback=displayLicense;
+
+  g_njcast = new NJCast;
+
+  if (argc < 2) usage();
+  {
+    int p;
+    for (p = 2; p < argc; p++)
+    {
+#if 0//CUT
+      if (!stricmp(argv[p],"-localchannels"))
+      {
+        if (++p >= argc) usage();
+        localchannels=atoi(argv[p]);
+        if (localchannels < 0 || localchannels > 2)
+        {
+          printf("Error: -localchannels must have parameter [0..2]\n");
+          return 1;
+        }
+      }
+      else if (!stricmp(argv[p],"-savelocalwavs"))
+      {
+        g_client->config_savelocalaudio=2;     
+      }
+      else if (!stricmp(argv[p],"-norecv"))
+      {
+        g_client->config_autosubscribe=0;
+      }
+      else if (!stricmp(argv[p],"-nosavelocal"))
+      {
+        g_client->config_savelocalaudio=0;
+      }
+      else if (!stricmp(argv[p],"-nostatus"))
+      {
+        nostatus=1;
+      }
+      else if (!stricmp(argv[p],"-monitor"))
+      {
+        if (++p >= argc) usage();
+        monitor=(float)pow(2.0,atof(argv[p])/6.0);
+      }
+      else if (!stricmp(argv[p],"-metronome"))
+      {
+        if (++p >= argc) usage();
+        g_client->config_metronome=(float)pow(2.0,atof(argv[p])/6.0);
+      }
+      else if (!stricmp(argv[p],"-debuglevel"))
+      {
+        if (++p >= argc) usage();
+        g_client->config_debug_level=atoi(argv[p]);
+      }
+      else if (!stricmp(argv[p],"-audiostr"))
+      {
+        if (++p >= argc) usage();
+        audioconfigstr=argv[p];
+      }
+#endif
+      if (!stricmp(argv[p],"-user"))
+      {
+        if (++p >= argc) usage();
+        parmuser=argv[p];
+      }
+      else if (!stricmp(argv[p],"-pass"))
+      {
+        if (++p >= argc) usage();
+        parmpass=argv[p];
+      }
+#if 0//CUT
+      else if (!stricmp(argv[p],"-nowritewav"))
+      {
+        nowav++;
+      }
+      else if (!stricmp(argv[p],"-nowritelog"))
+      {
+        nolog++;
+      }
+#endif
+#if 0//CUT
+#ifdef _WIN32
+      else if (!stricmp(argv[p],"-jesusonic"))
+      {
+        if (++p >= argc) usage();
+        jesusdir=argv[p];
+      }
+#endif
+#endif
+      if (!stricmp(argv[p],"-sessiondir"))
+      {
+        if (++p >= argc) usage();
+        sessiondir.Set(argv[p]);
+      }
+//      else usage();
+    }
+  }
+
+
+  char passbuf[512]="";
+  char userbuf[512]="";
+  if (!parmuser)
+  {
+    parmuser=userbuf;
+    printf("Enter username: ");
+    gets(userbuf);
+  }
+  if (!parmpass)
+  {
+    parmpass=passbuf;
+    if (strncmp(parmuser,"anonymous",9)||(parmuser[9] && parmuser[9] != ':'))
+    {
+      printf("Enter password: ");
+      gets(passbuf);
+    }
+  }
+
+  JNL::open_socketlib();
+
+  printf("Connecting to Ninjam server %s...\n",argv[1]);
+//printf("user: '%s', pass: '%s'\n", parmuser, parmpass);
+  g_client->Connect(argv[1],parmuser,parmpass);
+
+  printf("Connecting to shoutcast server %s...\n",sc_address);
+  g_njcast->Connect(sc_address, sc_port);
+
+
+  if (!sessiondir.Get()[0])
+  {
+    char buf[512];
+#ifdef _WIN32
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    
+    int cnt=0;
+    for (;;)
+    {
+      wsprintf(buf,"njsession_%02d%02d%02d_%02d%02d%02d_%d",st.wYear%100,st.wMonth,st.wDay,st.wHour,st.wMinute,st.wSecond,cnt);
+
+      if (CreateDirectory(buf,NULL)) break;
+
+      cnt++;
+    }
+#else
+    int cnt=0;
+    for (;;)
+    {
+      sprintf(buf,"njsession_%d_%d",time(NULL),cnt);
+
+      if (!mkdir(buf,0700)) break;
+
+      cnt++;
+    }
+#endif
+    
+    if (cnt > 10)
+    {
+      printf("Error creating session directory\n");
+      buf[0]=0;
+    }
+      
+    sessiondir.Set(buf);
+  }
+  else
+#ifdef _WIN32
+    CreateDirectory(sessiondir.Get(),NULL);
+#else
+    mkdir(sessiondir.Get(),0700);
+#endif
+  if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
+#ifdef _WIN32
+    sessiondir.Append("\\");
+#else
+    sessiondir.Append("/");
+#endif
+
+  g_client->SetWorkDir(sessiondir.Get());
+
+  JNL_HTTPGet *titleset;
+
+  while (g_client->GetStatus() >= 0 && !g_done)
+  {
+#if 0
+    static last_titleset;
+    int now = time(NULL);
+    if (titleset == NULL) {
+      if (now - last_titleset > TITLE_SET_INTERVAL) {
+        titleset = new JNL_HTTPGet();
+        titleset->connect(url);
+      }
+    } else {
+      int r = titleset->run();
+      if (r == -1 || r == 1 /*|| timeout */) {
+        delete titleset; titleset = 0;
+      }
+    }
+#endif
+    if (g_client->Run()) 
+    {
+      // get some more bits
+      if (g_njcast->sending()) doSamples();
+
+      // push bits to server!
+      g_njcast->Run();
+
+#ifdef _WIN32
+      MSG msg;
+      while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
+      {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+      Sleep(1);
+#else
+	struct timespec ts={0,1000*1000};
+	nanosleep(&ts,NULL);
+#endif
+    }
+  }
+  printf("exiting on status %d\n",g_client->GetStatus());
+
+
+  printf("Shutting down\n");
+
+  delete g_client->waveWrite;
+  g_client->waveWrite=0;
+
+  delete g_njcast;
+
+  delete g_client;
+
+  JNL::close_socketlib();
+  return 0;
+}
