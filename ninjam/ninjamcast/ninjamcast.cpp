@@ -31,33 +31,30 @@ char g_servername[4096]="Ninjam";
 char *sc_address="brainio.badmofo.org";
 int sc_port = 8000;
 
-#define UPDATE_HZ 10
-
 void doSamples() {
-  static int last;
-  if (last == 0) last = GetTickCount();
+  static __int64 samples_out; // where we are, in samples
 
-  int now = GetTickCount();
+  static DWORD start_time;
+  if (start_time == 0) start_time = GetTickCount();
 
-  if (now - last >= 1000/UPDATE_HZ) {
-    int buflen=g_srate/UPDATE_HZ;
-//printf("doing %d samples\n", buflen);
-    float *outbuf0 = (float*)calloc(buflen, sizeof(float));
-    float *outbuf1 = NULL;
-    if (g_numchannels == 2)
-      outbuf1 = (float*)calloc(buflen, sizeof(float));
-    float *outbuf[2] = { outbuf0, outbuf1 };
-    // client processes bufs
-    g_client->AudioProc(NULL, 0, outbuf, g_numchannels, buflen, g_srate);
+  // where we should be, in samples
+  __int64 sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
 
-    // write to shoutcast sender
-    g_njcast->AudioProc(NULL, 0, outbuf, g_numchannels, buflen, g_srate);
+  int block_size=1024; // chunks of 1024 samples at a time
 
-    free(outbuf0);
-    if (outbuf1) free(outbuf1);
 
-    last += 1000/UPDATE_HZ;
-    now = GetTickCount();
+  WDL_HeapBuf tmp1;
+  tmp1.Resize(block_size*sizeof(float)*g_numchannels);
+
+  while (sample_pos >= samples_out + block_size)
+  {
+    float *inbufs[1]={NULL};
+    float *outbufs[2]={(float*)tmp1.Get(),((float *)tmp1.Get()) + block_size};
+
+    g_client->AudioProc(inbufs, 0, outbufs, g_numchannels, block_size, g_srate);
+    g_njcast->AudioProc(inbufs, 0, outbufs, g_numchannels, block_size, g_srate);
+
+    samples_out += block_size;
   }
 }
 
@@ -284,7 +281,7 @@ int main(int argc, char **argv)
 
   g_client->SetWorkDir(sessiondir.Get());
 
-  JNL_HTTPGet *titleset;
+  JNL_HTTPGet *titleset=NULL;
 
   while (g_client->GetStatus() >= 0 && !g_done)
   {
@@ -303,28 +300,21 @@ int main(int argc, char **argv)
       }
     }
 #endif
-    if (g_client->Run()) 
-    {
-      // get some more bits
-      if (g_njcast->sending()) doSamples();
+    while (!g_client->Run());
 
-      // push bits to server!
-      if (!g_njcast->Run()) // if no work done, sleep
-      {
+      // get some more bits
+    if (g_njcast->sending()) doSamples();
+
+    // push bits to server!
+    if (!g_njcast->Run()) // if no work done, sleep
+    {
 
 #ifdef _WIN32
-        MSG msg;
-        while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
-        {
-          TranslateMessage(&msg);
-          DispatchMessage(&msg);
-        }
-        Sleep(1);
+      Sleep(1);
 #else
-	      struct timespec ts={0,1000*1000};
-	      nanosleep(&ts,NULL);
+	    struct timespec ts={0,1000*1000};
+	    nanosleep(&ts,NULL);
 #endif
-      }
     }
   }
   printf("exiting on status %d\n",g_client->GetStatus());

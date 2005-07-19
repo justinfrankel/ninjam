@@ -15,7 +15,7 @@ enum {
   DONE,
 };
 
-char sc_pass[4096]="changeme";//FUCKO config
+char sc_pass[4096]="hobo";//FUCKO config
 
 extern int g_bitrate;
 
