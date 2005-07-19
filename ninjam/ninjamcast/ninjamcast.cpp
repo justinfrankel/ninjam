@@ -28,8 +28,13 @@ int g_numchannels = 1;
 
 char g_servername[4096]="Ninjam";
 
-char *sc_address="brainio.badmofo.org";
-int sc_port = 8000;
+char *g_sc_address="brainio.badmofo.org";
+int g_sc_port = 8000;
+char g_sc_pass[4096]="hobo";//FUCKO config
+char *g_sc_servergenre="ninjam";
+char *g_sc_serverpub="1";
+char *g_sc_serverurl="http://ninjam.com/";
+
 
 void doSamples() {
   static __int64 samples_out; // where we are, in samples
@@ -108,7 +113,7 @@ int main(int argc, char **argv)
 
   g_client->LicenseAgreementCallback=displayLicense;
 
-  g_njcast = new NJCast;
+  g_njcast = new NJCast(g_client);
 
   if (argc < 2) usage();
   {
@@ -226,8 +231,8 @@ int main(int argc, char **argv)
 //printf("user: '%s', pass: '%s'\n", parmuser, parmpass);
   g_client->Connect(argv[1],parmuser,parmpass);
 
-  printf("Connecting to shoutcast server %s...\n",sc_address);
-  g_njcast->Connect(sc_address, sc_port);
+  printf("Connecting to shoutcast server %s...\n",g_sc_address);
+  g_njcast->Connect(g_sc_address, g_sc_port);
 
 
   if (!sessiondir.Get()[0])
@@ -281,25 +286,8 @@ int main(int argc, char **argv)
 
   g_client->SetWorkDir(sessiondir.Get());
 
-  JNL_HTTPGet *titleset=NULL;
-
   while (g_client->GetStatus() >= 0 && !g_done)
   {
-#if 0
-    static last_titleset;
-    int now = time(NULL);
-    if (titleset == NULL) {
-      if (now - last_titleset > TITLE_SET_INTERVAL) {
-        titleset = new JNL_HTTPGet();
-        titleset->connect(url);
-      }
-    } else {
-      int r = titleset->run();
-      if (r == -1 || r == 1 /*|| timeout */) {
-        delete titleset; titleset = 0;
-      }
-    }
-#endif
     while (!g_client->Run());
 
       // get some more bits
@@ -330,5 +318,8 @@ int main(int argc, char **argv)
   delete g_client;
 
   JNL::close_socketlib();
+
+  // delete the sessiondir
+
   return 0;
 }

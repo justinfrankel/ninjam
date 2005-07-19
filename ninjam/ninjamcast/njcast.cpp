@@ -1,9 +1,19 @@
+#ifdef _WIN32
 #include <windows.h>
 #include <stdio.h>
+#else
+#include <stdlib.h>
+#include <memory.h>
+#endif
+
+#include <time.h>
 
 #include "njcast.h"
 
+#include "../njclient.h"
+
 #include "../../wdl/jnetlib/connection.h"
+#include "../../wdl/jnetlib/httpget.h"
 #include "../../wdl/lameencdec.h"
 #include "../../wdl/string.h"
 
@@ -15,18 +25,30 @@ enum {
   DONE,
 };
 
-char sc_pass[4096]="hobo";//FUCKO config
+extern char g_servername[4096];
 
 extern int g_bitrate;
+extern char g_sc_pass[4096];
+extern char *g_sc_address;
+extern int g_sc_port;
+extern char *g_sc_servergenre;
+extern char *g_sc_serverpub;
+extern char *g_sc_serverurl;
 
-NJCast::NJCast() {
+#define TITLE_SET_INTERVAL 10
+
+NJCast::NJCast(NJClient *_client) {
+  client = _client;
+  state = -1;
   conn = NULL;
   encoder = NULL;
-  state = -1;
+  titleset = NULL;
+  last_titleset = 0;
 }
 
 NJCast::~NJCast() {
   Disconnect();
+  delete titleset;
 }
 
 int NJCast::Connect(char *servername, int port) {
@@ -43,6 +65,7 @@ int NJCast::Connect(char *servername, int port) {
 void NJCast::Disconnect() {
   delete conn; conn = NULL;
   delete encoder; encoder = NULL;
+  delete titleset; titleset = NULL;
   state = -1;
 }
 
@@ -76,14 +99,14 @@ if (state != DONE) printf("connection fuct\n");
   switch (state) {
     case CONNECTING: {
       char buf[4096];
-      sprintf(buf, "%s\r\n", sc_pass);
+      sprintf(buf, "%s\r\n", g_sc_pass);
       // send pw
       if (conn->send_string(buf) < 0) {
 printf("send pass fail\n");
         return 0;	// try again
       }
       state = WAITFOROK;
-printf("->WAITFOROK\n");
+//printf("->WAITFOROK\n");
     }
     break;
     case WAITFOROK: {
@@ -101,22 +124,20 @@ printf("->WAITFOROK\n");
         return 0;
       }
       state = SENDSTREAMINFO;
-printf("->SENDSTREAMINFO\n");
+//printf("->SENDSTREAMINFO\n");
     }
     break;
     case SENDSTREAMINFO: {
       WDL_String info;
-char *servergenre="ninjam";
-char *serverpub="0";
-      extern char g_servername[4096];
       info.Append("icy-name:"); info.Append(g_servername); info.Append("\r\n");
-      info.Append("icy-genre:"); info.Append(servergenre); info.Append("\r\n");
-      info.Append("icy-pub:"); info.Append(serverpub); info.Append("\r\n");
+      info.Append("icy-genre:"); info.Append(g_sc_servergenre); info.Append("\r\n");
+      info.Append("icy-pub:"); info.Append(g_sc_serverpub); info.Append("\r\n");
+      info.Append("icy-url:"); info.Append(g_sc_serverurl); info.Append("\r\n");
       info.Append("\r\n");
-      if (conn->send_bytes_available() < strlen(info.Get())) return 0;// try again
+      if (conn->send_bytes_available() < (int)strlen(info.Get())) return 0;// try again
       conn->send_string(info.Get());
       state = SENDDATA;	// woot
-printf("->SENDDATA\n");
+//printf("->SENDDATA\n");
     }
     break;
     case SENDDATA: {
@@ -141,6 +162,52 @@ printf("->SENDDATA\n");
   }
 
   conn->run();
+
+  // handle title setting
+  int now = time(NULL);
+  if (titleset == NULL) {
+    if (now - last_titleset > TITLE_SET_INTERVAL) {
+      WDL_String url;
+      url.Append("http://");
+      url.Append(g_sc_address);
+      url.Append(":");
+      char portn[512];
+      sprintf(portn, "%d", g_sc_port);
+      url.Append(portn);
+      url.Append("/admin.cgi?pass=");
+      url.Append(g_sc_pass);
+      url.Append("&mode=updinfo&song=");
+      int n = client->GetNumUsers(), needcomma=0;
+      for (int i = 0; i < n; i++) {
+        char *username = client->GetUserState(i);
+        WDL_String un(username);
+        char *pt = strchr(un.Get(), '@');
+        if (pt) *pt = NULL;
+        if (needcomma) url.Append(",%20");
+        url.Append(un.Get());
+        needcomma = 1;
+      }
+      url.Append("&url=blah");
+
+      if (strcmp(url.Get(), last_title_url.Get())) {
+        titleset = new JNL_HTTPGet();
+        titleset->addheader("User-Agent:Ninjamcast (Mozilla)");
+        titleset->addheader("Accept:*/*");
+        titleset->connect(url.Get());
+        last_title_url.Set(url.Get());
+printf("url '%s'\n", url.Get());
+      } else {
+printf("title no change\n");
+        last_titleset = now;
+      }
+    }
+  } else {
+    int r = titleset->run();
+    if (r == -1 || r == 1 /*|| timeout */) {
+      delete titleset; titleset = 0;
+      last_titleset = now;
+    }
+  }
 
   return work_done;
 }

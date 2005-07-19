@@ -104,6 +104,10 @@ SOURCE=..\..\WDL\jnetlib\connection.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\WDL\jnetlib\httpget.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\WDL\jnetlib\listen.cpp
 # End Source File
 # Begin Source File
