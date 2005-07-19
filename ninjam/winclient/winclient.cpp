@@ -902,7 +902,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             else
             {
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
+              {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
+                MessageBox(g_hwnd,"Disconnected from host!", "NINJAM Notice", MB_OK);
+              }
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
               {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
