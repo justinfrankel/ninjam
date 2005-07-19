@@ -14,7 +14,7 @@ public:
 
   int sending();
 
-  void Run();
+  int Run(); // return 1 if work was done
 
   void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate);
 

@@ -309,20 +309,22 @@ int main(int argc, char **argv)
       if (g_njcast->sending()) doSamples();
 
       // push bits to server!
-      g_njcast->Run();
+      if (!g_njcast->Run()) // if no work done, sleep
+      {
 
 #ifdef _WIN32
-      MSG msg;
-      while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
-      {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-      }
-      Sleep(1);
+        MSG msg;
+        while (PeekMessage(&msg,NULL,0,0,PM_REMOVE))
+        {
+          TranslateMessage(&msg);
+          DispatchMessage(&msg);
+        }
+        Sleep(1);
 #else
-	struct timespec ts={0,1000*1000};
-	nanosleep(&ts,NULL);
+	      struct timespec ts={0,1000*1000};
+	      nanosleep(&ts,NULL);
 #endif
+      }
     }
   }
   printf("exiting on status %d\n",g_client->GetStatus());

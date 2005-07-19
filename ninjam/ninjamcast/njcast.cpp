@@ -50,8 +50,10 @@ int NJCast::sending() {
   return (state == SENDDATA);
 }
 
-void NJCast::Run() {
-  if (!conn) return;	// not connected?
+int NJCast::Run() {
+  if (!conn) return 0;	// not connected?
+
+  int work_done=0;
 
   conn->run();
 
@@ -78,7 +80,7 @@ if (state != DONE) printf("connection fuct\n");
       // send pw
       if (conn->send_string(buf) < 0) {
 printf("send pass fail\n");
-        return;	// try again
+        return 0;	// try again
       }
       state = WAITFOROK;
 printf("->WAITFOROK\n");
@@ -89,14 +91,14 @@ printf("->WAITFOROK\n");
 //FUCKO timeout
 //CUT printf("where's my ok\n");
       int avail = conn->recv_lines_available();
-      if (conn->recv_lines_available()<1) return;	// try again
+      if (conn->recv_lines_available()<1) return 0;	// try again
       conn->recv_line(buf, 4095);
       buf[4095] = 0;
 //CUT printf("got line '%s'\n", buf);
       if (strcmp(buf, "OK2")) {
 //FUCKO log error
         state = DONE;
-        return;
+        return 0;
       }
       state = SENDSTREAMINFO;
 printf("->SENDSTREAMINFO\n");
@@ -111,14 +113,14 @@ char *serverpub="0";
       info.Append("icy-genre:"); info.Append(servergenre); info.Append("\r\n");
       info.Append("icy-pub:"); info.Append(serverpub); info.Append("\r\n");
       info.Append("\r\n");
-      if (conn->send_bytes_available() < strlen(info.Get())) return;// try again
+      if (conn->send_bytes_available() < strlen(info.Get())) return 0;// try again
       conn->send_string(info.Get());
       state = SENDDATA;	// woot
 printf("->SENDDATA\n");
     }
     break;
     case SENDDATA: {
-      if (encoder == NULL) return;  // not jet
+      if (encoder == NULL) return 0;  // not jet
 
       // push whatever we have
       int send_avail = conn->send_bytes_available();
@@ -128,6 +130,7 @@ printf("->SENDDATA\n");
       if (nbytes > 0) {
         conn->send_bytes(encoder->outqueue.Get(), nbytes);
         encoder->outqueue.Advance(nbytes);
+        work_done=1;
       }
     }
     break;
@@ -138,6 +141,8 @@ printf("->SENDDATA\n");
   }
 
   conn->run();
+
+  return work_done;
 }
 
 void NJCast::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) {
