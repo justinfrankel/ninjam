@@ -334,7 +334,7 @@ SOURCE=.\winclient.h
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 # Begin Source File
 
-SOURCE=.\bitmap1.bmp
+SOURCE=.\jesusonic.ico
 # End Source File
 # Begin Source File
 

@@ -1499,7 +1499,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   MSG msg;
   while (GetMessage(&msg,NULL,0,0) && IsWindow(g_hwnd))
   {
-    if (!TranslateAccelerator(g_hwnd,hAccel,&msg) && !IsDialogMessage(g_hwnd,&msg))
+    if (!IsChild(g_hwnd,msg.hwnd) || 
+        (!TranslateAccelerator(g_hwnd,hAccel,&msg) && !IsDialogMessage(g_hwnd,&msg)))
     {
       TranslateMessage(&msg);
       DispatchMessage(&msg);
