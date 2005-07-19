@@ -1,3 +1,10 @@
+v0.06a: July 18, 2050
+  + new license (GPL)
+  + Jesusonic loading improvements (bugfixes, icons, etc)
+
+v0.05a: July 16, 2005
+  + grouped remote-channels
+
 v0.04a: July 15, 2005
   + now with installer
   + lots of other improvements
