@@ -419,6 +419,7 @@ static void do_connect()
   if (cnt >= 16)
   {      
     SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR CREATING SESSION DIRECTORY");
+    MessageBox(g_hwnd,"Error creating session directory!", "NINJAM error", MB_OK);
     return;
   }
 
@@ -903,9 +904,15 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
                 SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
+              {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
+                MessageBox(g_hwnd,"Error connecting: invalid authentication information!", "NINJAM error", MB_OK);
+              }
               if (ns == NJClient::NJC_STATUS_CANTCONNECT)
+              {
                 SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
+                MessageBox(g_hwnd,"Error connecting: can't connect to host!", "NINJAM error", MB_OK);
+              }
             }
           }
           {
