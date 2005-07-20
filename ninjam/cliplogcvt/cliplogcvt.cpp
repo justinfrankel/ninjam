@@ -62,6 +62,7 @@ class UserChannelList
 
 int g_ogg_concatmode=0;
 int g_write_wavs=0;
+int g_maxsilence=0;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
 {
@@ -140,6 +141,7 @@ void usage()
           "  -maxlen <intervals>\n"
           "  -concat\n"
           "  -decode\n"
+          "  -insertsilence maxseconds   -- valid only with -concat -decode\n"
 
       );
   exit(1);
@@ -179,13 +181,33 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
     {
       if ((concatout || concatout_wav) && fabs(last_pos+last_len - list->items.Get(y)->position) > DELTA)
       {
-        WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
-        (*id)++;
+        if (concatout_wav && concatout_wav->Status() && list->items.Get(y)->position >= last_pos+last_len && list->items.Get(y)->position <= last_pos+last_len + g_maxsilence*1000.0)
+        {
+          double silen=list->items.Get(y)->position - last_pos+last_len;
+          last_len += silen;
 
-        if (concatout) fclose(concatout);
-        delete concatout_wav;
-        concatout_wav=0;
-        concatout=0;
+          // fill in silence
+          float buf[4096]={0,};
+          int nsamples=(int) ((silen * concatout_wav->get_srate() * concatout_wav->get_nch())/1000.0);
+          while (nsamples > 0)
+          {
+            int l=nsamples;
+            if (l > 4096)l=4096;
+            concatout_wav->WriteFloats(buf,l);
+            nsamples-=l;
+          }
+
+        }
+        else
+        {
+          WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+          (*id)++;
+
+          if (concatout) fclose(concatout);
+          delete concatout_wav;
+          concatout_wav=0;
+          concatout=0;
+        }
       }
 
       if (!concatout && !concatout_wav)
@@ -438,6 +460,11 @@ int main(int argc, char **argv)
     {
       g_write_wavs=1;
     }   
+    else if (!stricmp(argv[p],"-insertsilence"))
+    {
+      if (++p >= argc) usage();
+      g_maxsilence=atoi(argv[p]);
+    }       
     else usage();
   }
   end_interval += start_interval;
