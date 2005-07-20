@@ -322,10 +322,6 @@ int main(int argc, char **argv)
 
   JNL::close_socketlib();
 
-char fuck[1024];
-GetCurrentDirectory(1024, fuck);
-printf("cur dir: %s", fuck);
-
   // delete the sessiondir
   if (sessiondir.Get()) {
 //printf("sessiondir: '%s'\n", sessiondir.Get());
