@@ -150,7 +150,7 @@ void usage()
 
 WDL_String g_concatdir;
 
-void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_id, int *id, char *path)
+void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *track_id, int *id, char *path)
 {
   int y;
   FILE *concatout=NULL;
@@ -183,7 +183,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
       {
         if (concatout_wav && concatout_wav->Status() && list->items.Get(y)->position >= last_pos+last_len && list->items.Get(y)->position <= last_pos+last_len + g_maxsilence*1000.0)
         {
-          double silen=list->items.Get(y)->position - last_pos+last_len;
+          double silen=list->items.Get(y)->position - (last_pos+last_len);
           last_len += silen;
 
           // fill in silence
@@ -217,7 +217,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
         {
           concat_fn.Set(g_concatdir.Get());
           char buf[4096];
-          sprintf(buf,"\\%03d_%03d.wav",chidx,concat_filen++);
+          sprintf(buf,"\\%s_%03d.wav",chname,concat_filen++);
           concat_fn.Append(buf);
 
           char *p;
@@ -232,7 +232,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
         {
           concat_fn.Set(g_concatdir.Get());
           char buf[4096];
-          sprintf(buf,"\\%03d_%03d.ogg",chidx,concat_filen++);
+          sprintf(buf,"\\%s_%03d.ogg",chname,concat_filen++);
           concat_fn.Append(buf);
 
           char *p;
@@ -281,7 +281,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
 
                   concat_fn.Set(g_concatdir.Get());
                   char buf[4096];
-                  sprintf(buf,"\\%03d_%03d.wav",chidx,concat_filen++);
+                  sprintf(buf,"\\%s_%03d.wav",chname,concat_filen++);
                   concat_fn.Append(buf);
 
                   char *p;
@@ -428,7 +428,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
 
 int main(int argc, char **argv)
 {
-  printf("ClipLogCvt v0.01b - Copyright (C) 2005, Cockos, Inc.\n"
+  printf("ClipLogCvt v0.02 - Copyright (C) 2005, Cockos, Inc.\n"
          "(Converts NINJAM log file to Vegas 4 compatible EDL text file)\n\n");
   if (argc <  2 || argv[1][0] == '-')
   {
@@ -655,12 +655,23 @@ int main(int argc, char **argv)
   int x;
   for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
   {
-    WriteOutTrack(x,outfile, localrecs+x, &track_id, &id, argv[1]);
+    char chname[512];
+    sprintf(chname,"local_%02d",x);
+    WriteOutTrack(chname,outfile, localrecs+x, &track_id, &id, argv[1]);
 
   }
   for (x= 0; x < curintrecs.GetSize(); x ++)
   {
-    WriteOutTrack(x+32,outfile, curintrecs.Get(x), &track_id, &id, argv[1]);
+    char chname[4096];
+    sprintf(chname,"%s_%02d",curintrecs.Get(x)->user.Get(),x);
+    char *p=chname;
+    while (*p)
+    {
+      if (*p == '/'||*p == '\\' || *p == '?' || *p == '*' || *p == ':' || *p == '\'' || *p == '\"' || *p == '|' || *p == '<' || *p == '>') *p='_';
+      p++;
+    }
+
+    WriteOutTrack(chname,outfile, curintrecs.Get(x), &track_id, &id, argv[1]);
   }
   printf("wrote %d records, %d tracks\n",id-1,track_id);
 
