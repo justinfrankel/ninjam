@@ -15,6 +15,8 @@
 #include <signal.h>
 #include <float.h>
 
+#include "../../wdl/dirscan.h"
+
 #include "../njclient.h"
 
 #include "njcast.h"
@@ -45,7 +47,8 @@ void doSamples() {
   // where we should be, in samples
   __int64 sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
 
-  int block_size=1024; // chunks of 1024 samples at a time
+//  int block_size=1024; // chunks of 1024 samples at a time
+  int block_size=4096; // chunks of 1024 samples at a time
 
 
   WDL_HeapBuf tmp1;
@@ -319,7 +322,51 @@ int main(int argc, char **argv)
 
   JNL::close_socketlib();
 
+char fuck[1024];
+GetCurrentDirectory(1024, fuck);
+printf("cur dir: %s", fuck);
+
   // delete the sessiondir
+  if (sessiondir.Get()) {
+//printf("sessiondir: '%s'\n", sessiondir.Get());
+    for (int i = 0; i < 16; i++) {
+      WDL_String subdir = sessiondir;
+      char buf[512];
+      sprintf(buf, "%x", i);
+      subdir.Append(buf);
+//printf("subdir: '%s'\n", subdir.Get());
+      {
+        WDL_DirScan ds;
+        if (!ds.First(subdir.Get())) {
+          do {
+            if (ds.GetCurrentFN()[0] != '.') {
+              WDL_String t;
+              ds.GetCurrentFullFN(&t);
+//printf("unlink: %s\n", t.Get());
+              unlink(t.Get());          
+            }
+          } while (!ds.Next());
+        }
+      }//grr... have to destroy the dirscan or it keeps the dir open
+#ifdef _WIN32
+      int r = RemoveDirectory(subdir.Get());
+//printf("Result: %d, %d\n", r, GetLastError());
+#else
+      rmdir(subdir.Get());
+#endif
+//printf("rmdir: '%s'\n", subdir.Get());
+    }
+
+    for (char *pt = sessiondir.Get(); *pt; pt++) { }	// go to last
+    if (pt > sessiondir.Get()) pt[-1] = 0;	// kill last char
+
+#ifdef _WIN32
+    RemoveDirectory(sessiondir.Get());
+#else
+    rmdir(sessiondir.Get());
+#endif
+//printf("rm top dir %s\n", sessiondir.Get());
+  }
 
   return 0;
 }

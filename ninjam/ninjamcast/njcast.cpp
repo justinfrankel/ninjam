@@ -22,7 +22,7 @@ enum {
   WAITFOROK,
   SENDSTREAMINFO,
   SENDDATA,
-  DONE,
+  RECONNECT,
 };
 
 extern char g_servername[4096];
@@ -35,15 +35,22 @@ extern char *g_sc_servergenre;
 extern char *g_sc_serverpub;
 extern char *g_sc_serverurl;
 
-#define TITLE_SET_INTERVAL 10
+#define TITLE_SET_INTERVAL	10
+#define TITLE_SET_TIMEOUT	5
+
+#define RECONNECT_INTERVAL	15
 
 NJCast::NJCast(NJClient *_client) {
   client = _client;
   state = -1;
   conn = NULL;
   encoder = NULL;
-  titleset = NULL;
+
+  reconnect_timer = 0;
+
   last_titleset = 0;
+  titleset = NULL;
+  titleset_began = 0;
 }
 
 NJCast::~NJCast() {
@@ -54,8 +61,8 @@ NJCast::~NJCast() {
 int NJCast::Connect(char *servername, int port) {
   Disconnect();
 
-  conn = new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
-  conn->connect(servername, port+1);
+  sc_address.Set(servername);
+  sc_port = port;
 
   state = CONNECTING;
 
@@ -74,11 +81,11 @@ int NJCast::sending() {
 }
 
 int NJCast::Run() {
-  if (!conn) return 0;	// not connected?
 
   int work_done=0;
 
-  conn->run();
+  if (conn) {
+    conn->run();
 
 #if 0
   // eat any random incoming
@@ -88,16 +95,30 @@ int NJCast::Run() {
   }
 #endif
 
-  int s = conn->get_state();
-  switch (s) {
-    case JNL_Connection::STATE_ERROR:
-    case JNL_Connection::STATE_CLOSED:
-if (state != DONE) printf("connection fuct\n");
-      state = DONE;
+    int s = conn->get_state();
+    switch (s) {
+      case JNL_Connection::STATE_ERROR:
+      case JNL_Connection::STATE_CLOSED:
+        if (state != RECONNECT) {
+          printf("connection fuct\n");
+
+          // reset
+          delete conn; conn = NULL;
+          delete encoder; encoder = NULL;
+
+          // reconnect after an interval
+          state = RECONNECT;
+          reconnect_timer = time(NULL);
+        }
+      break;
+    }
   }
 
   switch (state) {
     case CONNECTING: {
+      conn = new JNL_Connection(JNL_CONNECTION_AUTODNS,65536,65536);
+      conn->connect(sc_address.Get(), sc_port+1);
+
       char buf[4096];
       sprintf(buf, "%s\r\n", g_sc_pass);
       // send pw
@@ -120,7 +141,8 @@ printf("send pass fail\n");
 //CUT printf("got line '%s'\n", buf);
       if (strcmp(buf, "OK2")) {
 //FUCKO log error
-        state = DONE;
+printf("couldn't log into sc server\n");
+        state = RECONNECT;
         return 0;
       }
       state = SENDSTREAMINFO;
@@ -132,6 +154,9 @@ printf("send pass fail\n");
       info.Append("icy-name:"); info.Append(g_servername); info.Append("\r\n");
       info.Append("icy-genre:"); info.Append(g_sc_servergenre); info.Append("\r\n");
       info.Append("icy-pub:"); info.Append(g_sc_serverpub); info.Append("\r\n");
+      char b[512];
+      sprintf(b, "%d", g_bitrate);
+      info.Append("icy-br:"); info.Append(b); info.Append("\r\n");
       info.Append("icy-url:"); info.Append(g_sc_serverurl); info.Append("\r\n");
       info.Append("\r\n");
       if (conn->send_bytes_available() < (int)strlen(info.Get())) return 0;// try again
@@ -152,61 +177,19 @@ printf("send pass fail\n");
         conn->send_bytes(encoder->outqueue.Get(), nbytes);
         encoder->outqueue.Advance(nbytes);
         work_done=1;
+        conn->run();	// flush them bytes ASAP
+      }
+      handleTitleSetting();
+    }
+    break;
+    case RECONNECT: {
+      time_t now = time(NULL);
+      if (now - reconnect_timer >= RECONNECT_INTERVAL) {
+        state = CONNECTING;	// off we go
+printf("time to reconnect...\n");
       }
     }
     break;
-    case DONE: {
-      // just idle here til we are shut down
-    }
-    break;
-  }
-
-  conn->run();
-
-  // handle title setting
-  int now = time(NULL);
-  if (titleset == NULL) {
-    if (now - last_titleset > TITLE_SET_INTERVAL) {
-      WDL_String url;
-      url.Append("http://");
-      url.Append(g_sc_address);
-      url.Append(":");
-      char portn[512];
-      sprintf(portn, "%d", g_sc_port);
-      url.Append(portn);
-      url.Append("/admin.cgi?pass=");
-      url.Append(g_sc_pass);
-      url.Append("&mode=updinfo&song=");
-      int n = client->GetNumUsers(), needcomma=0;
-      for (int i = 0; i < n; i++) {
-        char *username = client->GetUserState(i);
-        WDL_String un(username);
-        char *pt = strchr(un.Get(), '@');
-        if (pt) *pt = NULL;
-        if (needcomma) url.Append(",%20");
-        url.Append(un.Get());
-        needcomma = 1;
-      }
-      url.Append("&url=blah");
-
-      if (strcmp(url.Get(), last_title_url.Get())) {
-        titleset = new JNL_HTTPGet();
-        titleset->addheader("User-Agent:Ninjamcast (Mozilla)");
-        titleset->addheader("Accept:*/*");
-        titleset->connect(url.Get());
-        last_title_url.Set(url.Get());
-printf("url '%s'\n", url.Get());
-      } else {
-printf("title no change\n");
-        last_titleset = now;
-      }
-    }
-  } else {
-    int r = titleset->run();
-    if (r == -1 || r == 1 /*|| timeout */) {
-      delete titleset; titleset = 0;
-      last_titleset = now;
-    }
   }
 
   return work_done;
@@ -243,4 +226,54 @@ printf("LAME ENCODER ERROR\n");
 //printf("encoding %d samples\n", len);
   }
 #endif
+}
+
+void NJCast::handleTitleSetting() {
+
+  // handle title setting
+  int now = time(NULL);
+  if (titleset == NULL) {
+    if (now - last_titleset > TITLE_SET_INTERVAL) {
+      WDL_String url;
+      url.Append("http://");
+      url.Append(g_sc_address);
+      url.Append(":");
+      char portn[512];
+      sprintf(portn, "%d", g_sc_port);
+      url.Append(portn);
+      url.Append("/admin.cgi?pass=");
+      url.Append(g_sc_pass);
+      url.Append("&mode=updinfo&song=");
+      int n = client->GetNumUsers(), needcomma=0;
+      for (int i = 0; i < n; i++) {
+        char *username = client->GetUserState(i);
+        WDL_String un(username);
+        char *pt = strchr(un.Get(), '@');
+        if (pt) *pt = NULL;
+        if (needcomma) url.Append(",%20");
+        url.Append(un.Get());
+        needcomma = 1;
+      }
+//CUT      url.Append("&url=blah");
+
+      if (strcmp(url.Get(), last_title_url.Get())) {
+        titleset = new JNL_HTTPGet();
+        titleset->addheader("User-Agent:Ninjamcast (Mozilla)");
+        titleset->addheader("Accept:*/*");
+        titleset->connect(url.Get());
+        last_title_url.Set(url.Get());
+        titleset_began = now;
+//CUT printf("url '%s'\n", url.Get());
+      } else {
+//CUT printf("title no change\n");
+        last_titleset = now;
+      }
+    }
+  } else {
+    int r = titleset->run();
+    if (r == -1 || r == 1 || now - titleset_began > TITLE_SET_TIMEOUT) {
+      delete titleset; titleset = 0;
+      last_titleset = now;
+    }
+  }
 }

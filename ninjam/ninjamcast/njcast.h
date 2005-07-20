@@ -23,14 +23,22 @@ public:
   void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate);
 
 private:
+  void handleTitleSetting();
+
+  WDL_String sc_address;
+  int sc_port;
+
   int state;
   NJClient *client;
   JNL_Connection *conn;
   LameEncoder *encoder;
 
-  int last_titleset;
+  time_t reconnect_timer;
+
+  time_t last_titleset;
   JNL_HTTPGet *titleset;
   WDL_String last_title_url;
+  time_t titleset_began;
 };
 
 #endif
