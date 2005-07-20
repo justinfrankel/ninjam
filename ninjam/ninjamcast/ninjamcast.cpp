@@ -31,12 +31,17 @@ int g_numchannels = 1;
 char g_servername[4096]="Ninjam";
 
 char *g_sc_address="brainio.badmofo.org";
+//char *g_sc_address="ninjam.com";
 int g_sc_port = 8000;
 char g_sc_pass[4096]="hobo";//FUCKO config
 char *g_sc_servergenre="ninjam";
 char *g_sc_serverpub="1";
 char *g_sc_serverurl="http://ninjam.com/";
 
+int waiting_to_reconnect = 0;
+time_t waiting_to_reconnect_since = 0;
+
+#define NJRECONNECT_INTERVAL 20
 
 void doSamples() {
   static __int64 samples_out; // where we are, in samples
@@ -47,8 +52,8 @@ void doSamples() {
   // where we should be, in samples
   __int64 sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
 
-//  int block_size=1024; // chunks of 1024 samples at a time
-  int block_size=4096; // chunks of 1024 samples at a time
+  int block_size=1024; // chunks of 1024 samples at a time
+//  int block_size=4096; // chunks of 1024 samples at a time
 
 
   WDL_HeapBuf tmp1;
@@ -63,6 +68,9 @@ void doSamples() {
     g_njcast->AudioProc(inbufs, 0, outbufs, g_numchannels, block_size, g_srate);
 
     samples_out += block_size;
+
+    // keep up! (seems to help)
+    sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
   }
 }
 
@@ -289,12 +297,28 @@ int main(int argc, char **argv)
 
   g_client->SetWorkDir(sessiondir.Get());
 
-  while (g_client->GetStatus() >= 0 && !g_done)
-  {
-    while (!g_client->Run());
+  while (!g_done) {
+
+    time_t now = time(NULL);
+    if (waiting_to_reconnect) {
+      if (now - waiting_to_reconnect_since >= NJRECONNECT_INTERVAL) {
+        waiting_to_reconnect = 0;
+        g_client->Connect(argv[1],parmuser,parmpass);
+      }
+    } else if (g_client->GetStatus() < 0) {	// krud, conne
+      if (!waiting_to_reconnect) {
+  printf("NJ connection fuct\n");
+        g_client->Disconnect();
+        waiting_to_reconnect = 1;
+        waiting_to_reconnect_since = now;
+      }
+    } else {
+      while (!g_client->Run());
 
       // get some more bits
-    if (g_njcast->sending()) doSamples();
+      if (g_njcast->sending()) doSamples();
+
+    }
 
     // push bits to server!
     if (!g_njcast->Run()) // if no work done, sleep
@@ -303,8 +327,8 @@ int main(int argc, char **argv)
 #ifdef _WIN32
       Sleep(1);
 #else
-	    struct timespec ts={0,1000*1000};
-	    nanosleep(&ts,NULL);
+      struct timespec ts={0,1000*1000};
+      nanosleep(&ts,NULL);
 #endif
     }
   }
