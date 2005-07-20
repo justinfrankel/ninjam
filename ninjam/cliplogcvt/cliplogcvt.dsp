@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "../../sdks/oggvorbis-win32sdk-1.0.1/include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -89,6 +89,14 @@ LINK32=link.exe
 
 SOURCE=.\cliplogcvt.cpp
 # End Source File
+# Begin Source File
+
+SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\vorbis_static.lib"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\sdks\oggvorbis-win32sdk-1.0.1\lib\ogg_static.lib"
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -108,6 +116,14 @@ SOURCE=..\..\WDL\ptrlist.h
 # Begin Source File
 
 SOURCE=..\..\WDL\string.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\vorbisencdec.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\WDL\wavwrite.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

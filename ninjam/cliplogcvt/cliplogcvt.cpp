@@ -37,6 +37,8 @@
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/lineparse.h"
+#include "../../WDL/vorbisencdec.h"
+#include "../../WDL/wavwrite.h"
 
 class UserChannelValueRec
 {
@@ -59,6 +61,7 @@ class UserChannelList
 
 
 int g_ogg_concatmode=0;
+int g_write_wavs=0;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
 {
@@ -135,7 +138,8 @@ void usage()
           "Options:\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
-          "  -oggconcat\n"
+          "  -oggconcat | -writebigwavs | -writewavs\n"
+
       );
   exit(1);
 }
@@ -220,6 +224,71 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
     }
     else
     {
+
+      char *fn=op.Get();
+      int fn_l=strlen(fn);
+      
+      if (g_write_wavs == 1 && fn_l > 3 && !stricmp(fn+fn_l-4,".ogg"))
+      {
+        // decode OGG file to WAV, set the output file name to that
+        FILE *fp=fopen(fn,"rb");
+        if (fp)
+        {
+          WDL_String newfn(fn);
+          strcpy(newfn.Get()+fn_l-4,".wav");
+
+
+          VorbisDecoder decoder;
+          WaveWriter *wr=NULL;
+
+          for (;;)
+          {
+            int l=fread(decoder.DecodeGetSrcBuffer(1024),1,1024,fp);
+            decoder.DecodeWrote(l);
+
+            if (decoder.m_samples_used>0)
+            {
+              if (!wr && decoder.GetNumChannels() && decoder.GetSampleRate())
+              {
+                wr = new WaveWriter(newfn.Get(), 24, decoder.GetNumChannels(), decoder.GetSampleRate(),0);
+              }
+
+              if (wr)
+              {
+                wr->WriteFloats((float *)decoder.m_samples.Get(),decoder.m_samples_used);
+              }
+
+              decoder.m_samples_used=0;
+            }
+
+            if (!l) break;
+          }
+
+          if (wr)
+          {
+            if (wr->Status())
+            {
+              op.Set(newfn.Get());
+            }
+            else
+            {
+              printf("Warning: error opening %s to write WAV\n",newfn.Get());
+            }
+            delete wr;
+          }
+          else
+          {
+            printf("Warning: error decoding %s to convert to WAV\n",op.Get());
+          }
+
+          fclose(fp);
+        }
+        else
+        {
+          printf("Warning: error opening %s to convert to WAV\n",op.Get());
+        }
+      }
+
       WriteRec(outfile,op.Get(), *id, *track_id, 
                    list->items.Get(y)->position, list->items.Get(y)->length, path);
       (*id)++;
@@ -263,7 +332,13 @@ int main(int argc, char **argv)
     else if (!stricmp(argv[p],"-oggconcat"))
     {
       g_ogg_concatmode=1;
+      g_write_wavs=0;
     }
+    else if (!stricmp(argv[p],"-writewavs"))
+    {
+      g_write_wavs=1;
+      g_ogg_concatmode=0;
+    }   
     else usage();
   }
   end_interval += start_interval;
