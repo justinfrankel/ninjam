@@ -120,7 +120,7 @@ int main(int argc, char **argv)
   g_client->config_metronome_mute = 1;
 
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
-  g_client->config_mastervolume = (float)DB2VAL(-6.0);//FUCKO config
+//  g_client->config_mastervolume = (float)DB2VAL(-6.0);//FUCKO config
 
   g_client->LicenseAgreementCallback=displayLicense;
 

@@ -169,16 +169,18 @@ printf("couldn't log into sc server\n");
       if (encoder == NULL) return 0;  // not jet
 
       // push whatever we have
-      int send_avail = conn->send_bytes_available();
-      int avail_to_send = encoder->outqueue.GetSize();
-      int nbytes = min(send_avail, avail_to_send);
+      for (;;) {
+        int send_avail = conn->send_bytes_available();
+        int avail_to_send = encoder->outqueue.GetSize();
+        int nbytes = min(send_avail, avail_to_send);
 //if (nbytes > 0) printf("availtosend %d, nbytes %d\n", avail_to_send, nbytes);
-      if (nbytes > 0) {
-        conn->send_bytes(encoder->outqueue.Get(), nbytes);
-        encoder->outqueue.Advance(nbytes);
-        encoder->outqueue.Compact();
-        work_done=1;
-        conn->run();	// flush them bytes ASAP
+        if (nbytes > 0) {
+          conn->send_bytes(encoder->outqueue.Get(), nbytes);
+          encoder->outqueue.Advance(nbytes);
+          encoder->outqueue.Compact();
+          work_done=1;
+          conn->run();	// flush them bytes ASAP
+        } else break;
       }
       handleTitleSetting();
     }
@@ -201,6 +203,8 @@ void NJCast::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int
 
   if (encoder == NULL)
     encoder = new LameEncoder(srate, outnch, g_bitrate);
+
+  if (client->GetLoopCount() <= 0) return;	// not ready
 
   if (encoder->Status() > 0) {
 printf("LAME ENCODER ERROR\n");
@@ -236,10 +240,15 @@ printf("LAME ENCODER ERROR\n");
 #endif
 }
 
+// handle title setting
 void NJCast::handleTitleSetting() {
-
-  // handle title setting
   int now = time(NULL);
+
+  if (last_titleset == 0) {
+    last_titleset = now;
+    return;
+  }
+
   if (titleset == NULL) {
     if (now - last_titleset > TITLE_SET_INTERVAL) {
       WDL_String url;
@@ -257,12 +266,19 @@ void NJCast::handleTitleSetting() {
         char *username = client->GetUserState(i);
         WDL_String un(username);
         char *pt = strchr(un.Get(), '@');
-        if (pt) *pt = NULL;
+        if (pt) *pt = NULL;	// cut off @ip
         if (needcomma) url.Append(",%20");
-        url.Append(un.Get());
+        // encode username properly -- turn space into %20
+        for (pt = un.Get(); *pt; pt++) {
+          if (*pt == ' ') url.Append("%20");
+          else {
+            char cbuf[512];
+            sprintf(cbuf, "%c", *pt);
+            url.Append(cbuf);
+          }
+        }
         needcomma = 1;
       }
-//CUT      url.Append("&url=blah");
       if (n == 0) {
         url.Append("No%20users.");
       }
@@ -274,9 +290,7 @@ void NJCast::handleTitleSetting() {
         titleset->connect(url.Get());
         last_title_url.Set(url.Get());
         titleset_began = now;
-//CUT printf("url '%s'\n", url.Get());
       } else {
-//CUT printf("title no change\n");
         last_titleset = now;
       }
     }
