@@ -20,13 +20,11 @@
 /*
 
   This command line tool parses a NINJAM session .log file (clipsort.log), 
-  and writes out a EDL text file that Vegas 4.0+ (and maybe others).can read.
-  It can optionally do things like concatenate OGGs, too.
+  and writes out a EDL text file that Vegas 4.0+ (and maybe others) can read,
+  as well as a LOF file for Audacity.
 
-  If only some open portable software like Audacity would support multiple 
-  files at different positions in a track, or at LEAST support concatenated
-  OGGs, then we'd make it write out a nice project for it. Sigh. Feel free...
-
+  It can optionally do things like concatenate OGGs, or decompress OGGs to WAVs,
+  or decompress OGGs to concatenated WAVs, too.
 
   
   */
@@ -464,7 +462,8 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
 int main(int argc, char **argv)
 {
   printf("ClipLogCvt v0.02 - Copyright (C) 2005, Cockos, Inc.\n"
-         "(Converts NINJAM log file to Vegas 4 compatible EDL text file)\n\n");
+         "(Converts NINJAM sessions to EDL/LOF,\n"
+         " optionally writing uncompressed WAVs etc)\n\n");
   if (argc <  2 || argv[1][0] == '-')
   {
     usage();
