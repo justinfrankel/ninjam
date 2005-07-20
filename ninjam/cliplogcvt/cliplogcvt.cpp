@@ -138,7 +138,8 @@ void usage()
           "Options:\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
-          "  -oggconcat | -writebigwavs | -writewavs\n"
+          "  -concat\n"
+          "  -decode\n"
 
       );
   exit(1);
@@ -151,6 +152,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
 {
   int y;
   FILE *concatout=NULL;
+  WaveWriter *concatout_wav=NULL;
   double last_pos=-1000.0, last_len=0.0;
   WDL_String concat_fn;
   int concat_filen=0;
@@ -161,62 +163,157 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
     WDL_String op;
     if (!resolveFile(list->items.Get(y)->guidstr.Get(),&op,path)) 
     {
-      if (concatout) 
+      if (concatout || concatout_wav) 
       {
         WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
         (*id)++;
-        fclose(concatout);
+        if (concatout) fclose(concatout);
+        delete concatout_wav;
       }
+      concatout_wav=0;
       concatout=0;
       continue;
     }
 
     if (g_ogg_concatmode)
     {
-      if (concatout && fabs(last_pos+last_len - list->items.Get(y)->position) > DELTA)
+      if ((concatout || concatout_wav) && fabs(last_pos+last_len - list->items.Get(y)->position) > DELTA)
       {
         WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
         (*id)++;
 
-        fclose(concatout);
+        if (concatout) fclose(concatout);
+        delete concatout_wav;
+        concatout_wav=0;
         concatout=0;
       }
 
-      if (!concatout)
+      if (!concatout && !concatout_wav)
       {
-        concat_fn.Set(g_concatdir.Get());
-        char buf[4096];
-        sprintf(buf,"\\%03d_%03d.ogg",chidx,concat_filen++);
-        concat_fn.Append(buf);
-
-        char *p;
-        if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+        // todo: g_write_wavs etc
+        if (g_write_wavs)
         {
-          concat_fn.Set(buf);
+          concat_fn.Set(g_concatdir.Get());
+          char buf[4096];
+          sprintf(buf,"\\%03d_%03d.wav",chidx,concat_filen++);
+          concat_fn.Append(buf);
+
+          char *p;
+          if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+          {
+            concat_fn.Set(buf);
+          }
+
+          concatout_wav = new WaveWriter;
         }
-
-        concatout = fopen(concat_fn.Get(),"wb");
-        if (!concatout)
+        else
         {
-          printf("Warning: error opening %s. RESULTING TXT WILL LACK REFERENCE TO THIS FILE! ACK!\n",concat_fn.Get());
+          concat_fn.Set(g_concatdir.Get());
+          char buf[4096];
+          sprintf(buf,"\\%03d_%03d.ogg",chidx,concat_filen++);
+          concat_fn.Append(buf);
+
+          char *p;
+          if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+          {
+            concat_fn.Set(buf);
+          }
+
+          concatout = fopen(concat_fn.Get(),"wb");
+          if (!concatout)
+          {
+            printf("Warning: error opening %s. RESULTING TXT WILL LACK REFERENCE TO THIS FILE! ACK!\n",concat_fn.Get());
+          }
         }
         last_pos = list->items.Get(y)->position;
         last_len = 0.0;
       }
 
-      if (concatout)
+      if (concatout || concatout_wav)
       {
         FILE *fp = fopen(op.Get(),"rb");
         if (fp)
         {
-          char buf[4096];
-          for (;;)
+          if (concatout_wav)
           {
-            int a=fread(buf,1,sizeof(buf),fp);
-            if (!a) break;
-            fwrite(buf,1,a,concatout);
+            // decode file
+            VorbisDecoder decoder;
+            int did_write=0;
+
+            for (;;)
+            {
+              int l=fread(decoder.DecodeGetSrcBuffer(1024),1,1024,fp);
+              decoder.DecodeWrote(l);
+
+              if (decoder.m_samples_used>0)
+              {
+
+                if (concatout_wav->Status() && (decoder.GetNumChannels() != concatout_wav->get_nch() || decoder.GetSampleRate() != concatout_wav->get_srate()))
+                {
+                  // output parameter change
+  //                printf("foo\n");
+
+                  WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+                  (*id)++;
+                  delete concatout_wav;
+
+                  concat_fn.Set(g_concatdir.Get());
+                  char buf[4096];
+                  sprintf(buf,"\\%03d_%03d.wav",chidx,concat_filen++);
+                  concat_fn.Append(buf);
+
+                  char *p;
+                  if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+                  {
+                    concat_fn.Set(buf);
+                  }
+
+                  concatout_wav = new WaveWriter;
+                  last_pos = list->items.Get(y)->position;
+                  last_len = 0.0;
+
+                }
+
+                if (!concatout_wav->Status() && decoder.GetNumChannels() && decoder.GetSampleRate())
+                {
+//                  printf("opening new wav\n");
+                  if (!concatout_wav->Open(concat_fn.Get(),24, decoder.GetNumChannels(), decoder.GetSampleRate(),0))
+                  {
+                    printf("Warning: error opening %s to write WAV\n",concat_fn.Get());
+                    break;
+                  }
+                }
+
+                if (concatout_wav->Status())
+                {
+                  concatout_wav->WriteFloats((float *)decoder.m_samples.Get(),decoder.m_samples_used);
+                }
+                did_write += decoder.m_samples_used;
+
+                decoder.m_samples_used=0;
+              }
+
+              if (!l) break;
+            }
+
+            last_len += did_write * 1000.0 / (double)concatout_wav->get_srate() / (double)concatout_wav->get_nch();
+            if (!did_write)
+            {
+              printf("Warning: error decoding %s to convert to WAV\n",op.Get());
+            }
+
           }
-          last_len += list->items.Get(y)->length;
+          else
+          {
+            char buf[4096];
+            for (;;)
+            {
+              int a=fread(buf,1,sizeof(buf),fp);
+              if (!a) break;
+              fwrite(buf,1,a,concatout);
+            }
+            last_len += list->items.Get(y)->length;
+          }
           fclose(fp);
         }
 
@@ -228,7 +325,7 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
       char *fn=op.Get();
       int fn_l=strlen(fn);
       
-      if (g_write_wavs == 1 && fn_l > 3 && !stricmp(fn+fn_l-4,".ogg"))
+      if (g_write_wavs && fn_l > 3 && !stricmp(fn+fn_l-4,".ogg"))
       {
         // decode OGG file to WAV, set the output file name to that
         FILE *fp=fopen(fn,"rb");
@@ -294,11 +391,15 @@ void WriteOutTrack(int chidx, FILE *outfile, UserChannelList *list, int *track_i
       (*id)++;
     }
   }
-  if (concatout)
+  if (concatout || concatout_wav)
   {
     WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
     (*id)++;
-    fclose(concatout);
+    if (concatout) fclose(concatout);
+    delete concatout_wav;
+
+    concatout=0;
+    concatout_wav=0;
   }
   if (y) (*track_id)++;
 }
@@ -329,15 +430,13 @@ int main(int argc, char **argv)
       if (++p >= argc) usage();
       end_interval = atoi(argv[p]);
     }
-    else if (!stricmp(argv[p],"-oggconcat"))
+    else if (!stricmp(argv[p],"-concat"))
     {
       g_ogg_concatmode=1;
-      g_write_wavs=0;
     }
-    else if (!stricmp(argv[p],"-writewavs"))
+    else if (!stricmp(argv[p],"-decode"))
     {
       g_write_wavs=1;
-      g_ogg_concatmode=0;
     }   
     else usage();
   }
