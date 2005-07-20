@@ -35,8 +35,6 @@
 
 #include "../WDL/pcmfmtcvt.h"
 
-#ifdef _MSC_VER 
-
 #if 1
 static void myPrintf(char *s, ... ) { }
 
@@ -58,7 +56,7 @@ static void myPrintf(char *s, ...)
   va_end(ap);
 }
 #endif
-#endif
+
 
 
 #ifndef NO_SUPPORT_KS

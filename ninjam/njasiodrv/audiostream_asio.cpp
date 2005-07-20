@@ -45,21 +45,15 @@ static SPLPROC _sample_proc;
 
 #include <stdio.h>
 
-#ifdef _MSC_VER 
 
 #if 1
-#define printf myPrintf
 static void myPrintf(char *s, ... ) { }
-#define fflush(x)
-//#define getchar()
-
 
 #else
 //#ifdef 
 #include <stdarg.h>
 //#include <vargs.h>
 
-#define printf myPrintf
 static void myPrintf(char *s, ...)
 {
   char buf[1024];
@@ -72,8 +66,6 @@ static void myPrintf(char *s, ...)
   va_end(ap);
 }
 #endif
-#endif
-
 
 
 
@@ -401,12 +393,12 @@ int audioStreamer_ASIO::Open(char **dev)
 
   if (!asioDrivers)
   {
-    printf("Error initializing ASIO\n");
+    myPrintf("Error initializing ASIO\n");
     return -1;
   }
 
   int l=asioDrivers->asioGetNumDev();
-  printf("ASIO: %d drivers available\n",l);
+  myPrintf("ASIO: %d drivers available\n",l);
   if (l < 1) return -1;
   int x;
 
@@ -417,43 +409,42 @@ int audioStreamer_ASIO::Open(char **dev)
     char buf[256];
     asioDrivers->asioGetDriverName(x,buf,sizeof(buf));
     if (x == driverindex || (driverindex<0 && !x)) *dev = strdup(buf);
-    printf("  #%d: %s\n",x,buf);
+    myPrintf("  #%d: %s\n",x,buf);
   }
   if (driverindex < 0) 
   {
-    printf("ASIO Use -in <driverindex> on the command line to specify a driver\n");
-    printf("(using -in 1c will show the asio control panel for before launching)\n");
-    printf("You can also append :inch1,inch2:outch1,outch2\n");
+    myPrintf("ASIO Use -in <driverindex> on the command line to specify a driver\n");
+    myPrintf("(using -in 1c will show the asio control panel for before launching)\n");
+    myPrintf("You can also append :inch1,inch2:outch1,outch2\n");
     return -1;
   }
   else if (driverindex < 0) driverindex=0;
 
-  printf("Loading driver (%s): ",*dev);
-  fflush(stdout);
+  myPrintf("Loading driver (%s): ",*dev);
   if (!asioDrivers->loadDriver(*dev)) 
   {
-    printf("error!\n");
+    myPrintf("error!\n");
     return -1;
   }
-  printf("done\n");
+  myPrintf("done\n");
 
   m_driver_active=1;
   //myDriverInfo.driverInfo.sysRef=(void*)GetDesktopWindow();
   //myDriverInfo.driverInfo.asioVersion=2;
 
-  printf("Initializing driver: "); fflush(stdout);
+  myPrintf("Initializing driver: "); 
   if (ASIOInit(&myDriverInfo.driverInfo) != ASE_OK)
   {
-    printf("error!\n");    
+    myPrintf("error!\n");    
     return -1;
   }
-  printf("done\n");
+  myPrintf("done\n");
 
   if (olddev && strstr(olddev,"c")) 
   {
-    //printf("Displaying ASIO control panel!\n");
+    //myPrintf("Displaying ASIO control panel!\n");
     ASIOControlPanel();
-    //printf("Hit any key to continue (MAKE SURE THE PANEL HAS BEEN CLOSED)...\n");
+    //myPrintf("Hit any key to continue (MAKE SURE THE PANEL HAS BEEN CLOSED)...\n");
     //getchar();
   }
   int inchoffs[2]={0};
@@ -497,25 +488,25 @@ int audioStreamer_ASIO::Open(char **dev)
 
 	if (ASIOGetChannels(&myDriverInfo.inputChannels, &myDriverInfo.outputChannels) != ASE_OK) 
   {
-    printf("Error getting ASIO channels!\n");
+    myPrintf("Error getting ASIO channels!\n");
     return -1;
   }
 
-  printf ("ASIO channel info: %d inputs, %d outputs\n", (int)myDriverInfo.inputChannels, (int)myDriverInfo.outputChannels);
+  myPrintf ("ASIO channel info: %d inputs, %d outputs\n", (int)myDriverInfo.inputChannels, (int)myDriverInfo.outputChannels);
 
 	// get the usable buffer sizes
   if(ASIOGetBufferSize(&myDriverInfo.minSize, &myDriverInfo.maxSize, &myDriverInfo.preferredSize, &myDriverInfo.granularity) != ASE_OK)
   {
-    printf("Error getting ASIO buffer sizes\n");
+    myPrintf("Error getting ASIO buffer sizes\n");
     return -1;
   }
 
-	printf ("ASIO preferred buffer size: %d samples\n", (int)myDriverInfo.preferredSize);
+	myPrintf ("ASIO preferred buffer size: %d samples\n", (int)myDriverInfo.preferredSize);
 
 	// get the currently selected sample rate
 	if(ASIOGetSampleRate(&myDriverInfo.sampleRate) != ASE_OK)
   {
-    printf("Error getting ASIO samplerate\n");
+    myPrintf("Error getting ASIO samplerate\n");
     return -1;
   }
 
@@ -526,17 +517,17 @@ int audioStreamer_ASIO::Open(char **dev)
 		// with ASIOCanSampleRate().
 		if(ASIOSetSampleRate(44100.0) != ASE_OK || ASIOGetSampleRate(&myDriverInfo.sampleRate) != ASE_OK)
 		{
-      printf("Error trying to set a default (44kHz) samplerate\n");
+      myPrintf("Error trying to set a default (44kHz) samplerate\n");
 			return -1;
 		}
 	}
-	printf ("ASIO sample rate: %f\n", myDriverInfo.sampleRate);
+	myPrintf ("ASIO sample rate: %f\n", myDriverInfo.sampleRate);
 
 	// check wether the driver requires the ASIOOutputReady() optimization
 	// (can be used by the driver to reduce output latency by one block)
 	if(ASIOOutputReady() == ASE_OK) myDriverInfo.postOutput = true;
 	else myDriverInfo.postOutput = false;
-	//printf ("ASIOOutputReady(); - %s\n", myDriverInfo.postOutput ? "Supported" : "Not supported");
+	//myPrintf ("ASIOOutputReady(); - %s\n", myDriverInfo.postOutput ? "Supported" : "Not supported");
 
 	asioCallbacks.bufferSwitch = &bufferSwitch;
 	asioCallbacks.sampleRateDidChange = &sampleRateChanged;
@@ -560,7 +551,7 @@ int audioStreamer_ASIO::Open(char **dev)
     c.isInput=1;
     if (ASIOGetChannelInfo(&c) == ASE_OK) 
     {
-      printf("ASIO Input Channel %d: '%s' \n",i,c.name);
+      myPrintf("ASIO Input Channel %d: '%s' \n",i,c.name);
     }
     else sprintf(c.name,"Channel %d",i);
 
@@ -576,7 +567,7 @@ int audioStreamer_ASIO::Open(char **dev)
     ASIOChannelInfo c;
     c.channel=i;
     c.isInput=0;
-    if (ASIOGetChannelInfo(&c) == ASE_OK) printf("ASIO Output Channel %d: '%s' \n",i,c.name);
+    if (ASIOGetChannelInfo(&c) == ASE_OK) myPrintf("ASIO Output Channel %d: '%s' \n",i,c.name);
   }
 
   if (myDriverInfo.outputBuffers == 2 && outchoffs[0] == outchoffs[1])
@@ -611,12 +602,12 @@ int audioStreamer_ASIO::Open(char **dev)
 			myDriverInfo.channelInfos[i].isInput = myDriverInfo.bufferInfos[i].isInput;
 			result = ASIOGetChannelInfo(&myDriverInfo.channelInfos[i]);
 
-      //printf("Channel %d info: %s\n",i,myDriverInfo.channelInfos[i].name);
+      //myPrintf("Channel %d info: %s\n",i,myDriverInfo.channelInfos[i].name);
 
       if (last_spltype < 0) last_spltype = myDriverInfo.channelInfos[i].type;
       else if (myDriverInfo.channelInfos[i].type != last_spltype)
       {
-        printf("ASIO: Different sample types per stream, can't deal!\n");
+        myPrintf("ASIO: Different sample types per stream, can't deal!\n");
         return -1;
       }
 			if (result != ASE_OK)
@@ -631,13 +622,13 @@ int audioStreamer_ASIO::Open(char **dev)
 			// (output latency is the time the first sample in the currently returned audio block requires to get to the output)
 			//result = ASIOGetLatencies(&myDriverInfo.inputLatency, &myDriverInfo.outputLatency);
 			//if (result == ASE_OK)
-			//	printf ("ASIOGetLatencies (input: %d, output: %d);\n", myDriverInfo.inputLatency, myDriverInfo.outputLatency);
+			//	myPrintf ("ASIOGetLatencies (input: %d, output: %d);\n", myDriverInfo.inputLatency, myDriverInfo.outputLatency);
 		}
 	}
 
 	if (result != ASE_OK)
 	{
-    printf("ASIO: Error initializing buffers\n");
+    myPrintf("ASIO: Error initializing buffers\n");
     return -1;
   }
 
@@ -660,7 +651,7 @@ int audioStreamer_ASIO::Open(char **dev)
   }
   else
   {
-    printf("ASIO: unknown sample type '%d'. I currently only support 16 and 24 bit LSB.\n",last_spltype);
+    myPrintf("ASIO: unknown sample type '%d'. I currently only support 16 and 24 bit LSB.\n",last_spltype);
     return -1;
   }
 
@@ -673,7 +664,7 @@ int audioStreamer_ASIO::Open(char **dev)
 
   if (ASIOStart() != ASE_OK)
   {
-    printf("ASIO: Error starting\n");
+    myPrintf("ASIO: Error starting\n");
     return -1;
   }
 
