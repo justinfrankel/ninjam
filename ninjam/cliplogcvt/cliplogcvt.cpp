@@ -115,9 +115,9 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
 
 }
 
-FILE *g_outfile_edl;
+FILE *g_outfile_edl, *g_outfile_lof;
 
-void WriteRec(char *name, int id, int trackid, double position, double len, char *path)
+void WriteRec(char *name, int id, int trackid, double position, double len)
 {
   if (g_outfile_edl)
   {
@@ -133,6 +133,10 @@ void WriteRec(char *name, int id, int trackid, double position, double len, char
     //         Stream  StreamStart Len    FadeTimeIn   FadeTimeOut SustainGn  CurveInGainIn  CvO  GainOut  LayerColorCurveInRCurveOutR
     fprintf(g_outfile_edl,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t0;\t0.000000;\t0;\t-1;\t0;\t0\n",
       (double)len);
+  }
+  if (g_outfile_lof)
+  {
+    fprintf(g_outfile_lof,"file \"%s\" offset %f\n",name,position/1000.0);
   }
 }
 
@@ -172,7 +176,7 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
     {
       if (concatout || concatout_wav) 
       {
-        WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+        WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len);
         (*id)++;
         if (concatout) fclose(concatout);
         delete concatout_wav;
@@ -205,7 +209,7 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
         }
         else
         {
-          WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+          WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len);
           (*id)++;
 
           if (concatout) fclose(concatout);
@@ -280,7 +284,7 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
                   // output parameter change
   //                printf("foo\n");
 
-                  WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+                  WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len);
                   (*id)++;
                   delete concatout_wav;
 
@@ -414,13 +418,13 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
       }
 
       WriteRec(op.Get(), *id, *track_id, 
-                   list->items.Get(y)->position, list->items.Get(y)->length, path);
+                   list->items.Get(y)->position, list->items.Get(y)->length);
       (*id)++;
     }
   }
   if (concatout || concatout_wav)
   {
-    WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+    WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len);
     (*id)++;
     if (concatout) fclose(concatout);
     delete concatout_wav;
@@ -651,14 +655,25 @@ int main(int argc, char **argv)
   {
     printf("Error opening EDL outfile\n");
   }
+  outfn.Set(argv[1]);
+  outfn.Append("\\clipsort.lof");
+  g_outfile_lof=fopen(outfn.Get(),"wt");
+  if (!g_outfile_lof)
+  {
+    printf("Error opening LOF outfile\n");
+  }
 
   if (g_outfile_edl)
   {
     fprintf(g_outfile_edl,"%s", 
       "\"ID\";\"Track\";\"StartTime\";\"Length\";\"PlayRate\";\"Locked\";\"Normalized\";\"StretchMethod\";\"Looped\";\"OnRuler\";\"MediaType\";\"FileName\";\"Stream\";\"StreamStart\";\"StreamLength\";\"FadeTimeIn\";\"FadeTimeOut\";\"SustainGain\";\"CurveIn\";\"GainIn\";\"CurveOut\";\"GainOut\";\"Layer\";\"Color\";\"CurveInR\";\"CurveOutR\"\n");
   }
+  if (g_outfile_lof)
+  {
+    fprintf(g_outfile_lof,"window\n");
+  }
 
-  if (!g_outfile_edl && 1)
+  if (!g_outfile_edl && !g_outfile_lof)
   {
     printf("Was unable to open any outputs\n");
     return  0;
@@ -693,6 +708,7 @@ int main(int argc, char **argv)
 
 
   if (g_outfile_edl) fclose(g_outfile_edl);
+  if (g_outfile_lof) fclose(g_outfile_lof);
 
 
   return 0;
