@@ -31,8 +31,13 @@
   
   */
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
+
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
@@ -59,9 +64,32 @@ class UserChannelList
    WDL_PtrList<UserChannelValueRec> items;
 };
 
+#ifdef _WIN32
+
+const char *realpath(const char *path, char *resolved_path) 
+{
+  char *p;
+  if (GetFullPathName(path,1024,resolved_path,&p))
+    return resolved_path;
+  return NULL;
+}
+
+#define DIRCHAR '\\'
+#define DIRCHAR_S "\\"
+
+
+#else
+
+#define DIRCHAR '/'
+#define DIRCHAR_S "/"
+
+#endif
+
+
 
 int g_ogg_concatmode=0;
 int g_write_wavs=0;
+int g_write_wav_bits=16;
 int g_maxsilence=0;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
@@ -76,7 +104,7 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
   for (x = !!g_ogg_concatmode; x < sizeof(exts)/sizeof(exts[0]); x ++)
   {
     fnfind.Set(path);
-    fnfind.Append("\\");
+    fnfind.Append(DIRCHAR_S);
     fnfind.Append(name);
     fnfind.Append(exts[x]);
 
@@ -84,9 +112,9 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
     if (!tmp)
     {
       fnfind.Set(path);
-      fnfind.Append("\\");
+      fnfind.Append(DIRCHAR_S);
       // try adding guid subdir
-      char t[3]={name[0],'\\',0};
+      char t[3]={name[0],DIRCHAR,0};
       fnfind.Append(t);
 
       fnfind.Append(name);
@@ -101,12 +129,11 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
       if (l) 
       {
         char buf[4096];
-        char *p;
-        if (GetFullPathName(fnfind.Get(),sizeof(buf),buf,&p))
+        if (realpath(fnfind.Get(),buf))
         {
           outpath->Set(buf);
-          return 1;
         }       
+        return 1;
       }
     }
   }
@@ -150,6 +177,7 @@ void usage()
           "  -maxlen <intervals>\n"
           "  -concat\n"
           "  -decode\n"
+          "  -decodebits 16|24\n"
           "  -insertsilence maxseconds   -- valid only with -concat -decode\n"
 
       );
@@ -221,34 +249,23 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
 
       if (!concatout && !concatout_wav)
       {
-        // todo: g_write_wavs etc
+        concat_fn.Set(g_concatdir.Get());
+        char buf[4096];
+        sprintf(buf,DIRCHAR_S "%s_%03d.%s",chname,concat_filen++,g_write_wavs?"wav":"ogg");
+        concat_fn.Append(buf);
+
+        if (realpath(concat_fn.Get(),buf))
+        {
+          concat_fn.Set(buf);
+        }
+
         if (g_write_wavs)
         {
-          concat_fn.Set(g_concatdir.Get());
-          char buf[4096];
-          sprintf(buf,"\\%s_%03d.wav",chname,concat_filen++);
-          concat_fn.Append(buf);
-
-          char *p;
-          if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
-          {
-            concat_fn.Set(buf);
-          }
 
           concatout_wav = new WaveWriter;
         }
         else
         {
-          concat_fn.Set(g_concatdir.Get());
-          char buf[4096];
-          sprintf(buf,"\\%s_%03d.ogg",chname,concat_filen++);
-          concat_fn.Append(buf);
-
-          char *p;
-          if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
-          {
-            concat_fn.Set(buf);
-          }
 
           concatout = fopen(concat_fn.Get(),"wb");
           if (!concatout)
@@ -290,11 +307,10 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
 
                   concat_fn.Set(g_concatdir.Get());
                   char buf[4096];
-                  sprintf(buf,"\\%s_%03d.wav",chname,concat_filen++);
+                  sprintf(buf,DIRCHAR_S "%s_%03d.wav",chname,concat_filen++);
                   concat_fn.Append(buf);
 
-                  char *p;
-                  if (GetFullPathName(concat_fn.Get(),4096,buf,&p))
+                  if (realpath(concat_fn.Get(),buf))
                   {
                     concat_fn.Set(buf);
                   }
@@ -308,7 +324,7 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
                 if (!concatout_wav->Status() && decoder.GetNumChannels() && decoder.GetSampleRate())
                 {
 //                  printf("opening new wav\n");
-                  if (!concatout_wav->Open(concat_fn.Get(),24, decoder.GetNumChannels(), decoder.GetSampleRate(),0))
+                  if (!concatout_wav->Open(concat_fn.Get(),g_write_wav_bits, decoder.GetNumChannels(), decoder.GetSampleRate(),0))
                   {
                     printf("Warning: error opening %s to write WAV\n",concat_fn.Get());
                     break;
@@ -378,7 +394,7 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
             {
               if (!wr && decoder.GetNumChannels() && decoder.GetSampleRate())
               {
-                wr = new WaveWriter(newfn.Get(), 24, decoder.GetNumChannels(), decoder.GetSampleRate(),0);
+                wr = new WaveWriter(newfn.Get(), g_write_wav_bits, decoder.GetNumChannels(), decoder.GetSampleRate(),0);
               }
 
               if (wr)
@@ -464,7 +480,13 @@ int main(int argc, char **argv)
     else if (!stricmp(argv[p],"-concat"))
     {
       g_ogg_concatmode=1;
-    }
+    }    
+    else if (!stricmp(argv[p],"-decodebits"))
+    {
+      if (++p >= argc) usage();
+      g_write_wav_bits=atoi(argv[p]);
+      if (g_write_wav_bits != 24 && g_write_wav_bits != 16) usage();
+    }   
     else if (!stricmp(argv[p],"-decode"))
     {
       g_write_wavs=1;
@@ -479,7 +501,7 @@ int main(int argc, char **argv)
   end_interval += start_interval;
 
   WDL_String logfn(argv[1]);
-  logfn.Append("\\clipsort.log");
+  logfn.Append(DIRCHAR_S "clipsort.log");
   FILE *logfile=fopen(logfn.Get(),"rt");
   if (!logfile)
   {
@@ -490,8 +512,12 @@ int main(int argc, char **argv)
   if (g_ogg_concatmode)
   {
     g_concatdir.Set(argv[1]);
-    g_concatdir.Append("\\concat");
+    g_concatdir.Append(DIRCHAR_S "concat");
+#ifdef _WIN32
     CreateDirectory(g_concatdir.Get(),NULL);
+#else
+    mkdir(g_concatdir.Get(),0755);
+#endif
   }
 
   double m_cur_bpm=-1.0;
@@ -649,14 +675,14 @@ int main(int argc, char **argv)
   printf("Done analyzing log, building output...\n");
 
   WDL_String outfn(argv[1]);
-  outfn.Append("\\clipsort.txt");
+  outfn.Append(DIRCHAR_S "clipsort.txt");
   g_outfile_edl=fopen(outfn.Get(),"wt");
   if (!g_outfile_edl)
   {
     printf("Error opening EDL outfile\n");
   }
   outfn.Set(argv[1]);
-  outfn.Append("\\clipsort.lof");
+  outfn.Append(DIRCHAR_S "clipsort.lof");
   g_outfile_lof=fopen(outfn.Get(),"wt");
   if (!g_outfile_lof)
   {
