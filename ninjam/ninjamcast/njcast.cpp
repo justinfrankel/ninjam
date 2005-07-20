@@ -176,6 +176,7 @@ printf("couldn't log into sc server\n");
       if (nbytes > 0) {
         conn->send_bytes(encoder->outqueue.Get(), nbytes);
         encoder->outqueue.Advance(nbytes);
+        encoder->outqueue.Compact();
         work_done=1;
         conn->run();	// flush them bytes ASAP
       }
@@ -224,6 +225,13 @@ printf("LAME ENCODER ERROR\n");
     encoder->Encode(tmp, len);
     free(tmp);
 //printf("encoding %d samples\n", len);
+  }
+
+  if (encoder->outqueue.GetSize() > 512*1024) // 512KB in buffer, doh!
+  {
+    encoder->outqueue.Advance(256*1024); // flush out 256kb
+    encoder->outqueue.Compact(); 
+
   }
 #endif
 }
