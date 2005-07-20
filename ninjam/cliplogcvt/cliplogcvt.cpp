@@ -39,6 +39,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+
+
+#ifndef _WIN32
+#include <sys/types.h>
+#include <sys/stat.h>
+  #ifndef stricmp
+    #define stricmp strcasecmp
+  #endif
+#endif
+
 #include "../../WDL/string.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/lineparse.h"
@@ -101,7 +111,7 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
   char *exts[]={".wav",".ogg"};
   WDL_String fnfind;
   int x;
-  for (x = !!g_ogg_concatmode; x < sizeof(exts)/sizeof(exts[0]); x ++)
+  for (x = !!g_ogg_concatmode; x < (int)(sizeof(exts)/sizeof(exts[0])); x ++)
   {
     fnfind.Set(path);
     fnfind.Append(DIRCHAR_S);
@@ -459,7 +469,6 @@ int main(int argc, char **argv)
   {
     usage();
   }
-  int chunk_len=0x40000000;
   int start_interval=1;
   int end_interval=0x40000000;
 
@@ -620,7 +629,7 @@ int main(int argc, char **argv)
               char *guidtmp=lp.gettoken_str(1);
               char *username=lp.gettoken_str(2);
               int chidx=lp.gettoken_int(3);
-              char *channelname=lp.gettoken_str(4);
+//              char *channelname=lp.gettoken_str(4);
 
               //printf("Got user '%s' channel %d '%s' guid %s\n",username,chidx,channelname,guidtmp);
 
@@ -708,7 +717,7 @@ int main(int argc, char **argv)
   int id=1;
   int track_id=0;
   int x;
-  for (x= 0; x < sizeof(localrecs)/sizeof(localrecs[0]); x ++)
+  for (x= 0; x < (int)(sizeof(localrecs)/sizeof(localrecs[0])); x ++)
   {
     char chname[512];
     sprintf(chname,"local_%02d",x);
