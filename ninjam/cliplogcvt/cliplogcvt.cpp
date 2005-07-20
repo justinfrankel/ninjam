@@ -115,20 +115,25 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
 
 }
 
-void WriteRec(FILE *fp, char *name, int id, int trackid, double position, double len, char *path)
+FILE *g_outfile_edl;
+
+void WriteRec(char *name, int id, int trackid, double position, double len, char *path)
 {
-             //ID    Track    StartT  Length
-  fprintf(fp,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,position,len);
+  if (g_outfile_edl)
+  {
+               //ID    Track    StartT  Length
+    fprintf(g_outfile_edl,"%d;\t" "%d;\t" "%f;\t" "%f;\t",id,trackid,position,len);
 
-  //          PlayRate   Locked  Normali SM Looped OnRuler  MediaType
-  fprintf(fp,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
+    //          PlayRate   Locked  Normali SM Looped OnRuler  MediaType
+    fprintf(g_outfile_edl,"1.000000;\tFALSE;\tFALSE;\t0;\tFALSE;\tFALSE;\tAUDIO;\t");
 
-  //FileName
-  fprintf(fp,"\"%s\";\t",name);
+    //FileName
+    fprintf(g_outfile_edl,"\"%s\";\t",name);
 
-  //         Stream  StreamStart Len    FadeTimeIn   FadeTimeOut SustainGn  CurveInGainIn  CvO  GainOut  LayerColorCurveInRCurveOutR
-  fprintf(fp,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t0;\t0.000000;\t0;\t-1;\t0;\t0\n",
-    (double)len);
+    //         Stream  StreamStart Len    FadeTimeIn   FadeTimeOut SustainGn  CurveInGainIn  CvO  GainOut  LayerColorCurveInRCurveOutR
+    fprintf(g_outfile_edl,"0;\t" "0.0000;\t" "%f;\t" "0.0000;\t" "0.0000;\t" "1.000000;\t0;\t0.000000;\t0;\t0.000000;\t0;\t-1;\t0;\t0\n",
+      (double)len);
+  }
 }
 
 void usage()
@@ -150,7 +155,7 @@ void usage()
 
 WDL_String g_concatdir;
 
-void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *track_id, int *id, char *path)
+void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, char *path)
 {
   int y;
   FILE *concatout=NULL;
@@ -167,7 +172,7 @@ void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *trac
     {
       if (concatout || concatout_wav) 
       {
-        WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+        WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
         (*id)++;
         if (concatout) fclose(concatout);
         delete concatout_wav;
@@ -200,7 +205,7 @@ void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *trac
         }
         else
         {
-          WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+          WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
           (*id)++;
 
           if (concatout) fclose(concatout);
@@ -275,7 +280,7 @@ void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *trac
                   // output parameter change
   //                printf("foo\n");
 
-                  WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+                  WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
                   (*id)++;
                   delete concatout_wav;
 
@@ -408,14 +413,14 @@ void WriteOutTrack(char *chname, FILE *outfile, UserChannelList *list, int *trac
         }
       }
 
-      WriteRec(outfile,op.Get(), *id, *track_id, 
+      WriteRec(op.Get(), *id, *track_id, 
                    list->items.Get(y)->position, list->items.Get(y)->length, path);
       (*id)++;
     }
   }
   if (concatout || concatout_wav)
   {
-    WriteRec(outfile,concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
+    WriteRec(concat_fn.Get(), *id, *track_id, last_pos, last_len, path);
     (*id)++;
     if (concatout) fclose(concatout);
     delete concatout_wav;
@@ -638,17 +643,26 @@ int main(int argc, char **argv)
   fclose(logfile);
 
   printf("Done analyzing log, building output...\n");
+
   WDL_String outfn(argv[1]);
   outfn.Append("\\clipsort.txt");
-  FILE *outfile=fopen(outfn.Get(),"wt");
-  if (!outfile)
+  g_outfile_edl=fopen(outfn.Get(),"wt");
+  if (!g_outfile_edl)
   {
-    printf("Error opening outfile\n");
-    return -1;
+    printf("Error opening EDL outfile\n");
   }
-  fprintf(outfile,"%s", 
-    "\"ID\";\"Track\";\"StartTime\";\"Length\";\"PlayRate\";\"Locked\";\"Normalized\";\"StretchMethod\";\"Looped\";\"OnRuler\";\"MediaType\";\"FileName\";\"Stream\";\"StreamStart\";\"StreamLength\";\"FadeTimeIn\";\"FadeTimeOut\";\"SustainGain\";\"CurveIn\";\"GainIn\";\"CurveOut\";\"GainOut\";\"Layer\";\"Color\";\"CurveInR\";\"CurveOutR\"\n");
 
+  if (g_outfile_edl)
+  {
+    fprintf(g_outfile_edl,"%s", 
+      "\"ID\";\"Track\";\"StartTime\";\"Length\";\"PlayRate\";\"Locked\";\"Normalized\";\"StretchMethod\";\"Looped\";\"OnRuler\";\"MediaType\";\"FileName\";\"Stream\";\"StreamStart\";\"StreamLength\";\"FadeTimeIn\";\"FadeTimeOut\";\"SustainGain\";\"CurveIn\";\"GainIn\";\"CurveOut\";\"GainOut\";\"Layer\";\"Color\";\"CurveInR\";\"CurveOutR\"\n");
+  }
+
+  if (!g_outfile_edl && 1)
+  {
+    printf("Was unable to open any outputs\n");
+    return  0;
+  }
 
   int id=1;
   int track_id=0;
@@ -657,7 +671,7 @@ int main(int argc, char **argv)
   {
     char chname[512];
     sprintf(chname,"local_%02d",x);
-    WriteOutTrack(chname,outfile, localrecs+x, &track_id, &id, argv[1]);
+    WriteOutTrack(chname,localrecs+x, &track_id, &id, argv[1]);
 
   }
   for (x= 0; x < curintrecs.GetSize(); x ++)
@@ -671,14 +685,14 @@ int main(int argc, char **argv)
       p++;
     }
 
-    WriteOutTrack(chname,outfile, curintrecs.Get(x), &track_id, &id, argv[1]);
+    WriteOutTrack(chname, curintrecs.Get(x), &track_id, &id, argv[1]);
   }
   printf("wrote %d records, %d tracks\n",id-1,track_id);
 
 
 
 
-  fclose(outfile);
+  if (g_outfile_edl) fclose(g_outfile_edl);
 
 
   return 0;
