@@ -38,7 +38,6 @@
 #ifdef _MSC_VER 
 
 #if 1
-#define printf myPrintf
 static void myPrintf(char *s, ... ) { }
 
 
@@ -47,7 +46,6 @@ static void myPrintf(char *s, ... ) { }
 #include <stdarg.h>
 //#include <vargs.h>
 
-#define printf myPrintf
 static void myPrintf(char *s, ...)
 {
   char buf[1024];
@@ -281,12 +279,12 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
   CKsEnumFilters* pEnumerator = new CKsEnumFilters(&hr);
 	if(pEnumerator == NULL)
 	{
-		printf("Failed to allocate CKsEnumFilters\n");
+		myPrintf("Failed to allocate CKsEnumFilters\n");
 		return -1;
 	}
 	else if(!SUCCEEDED(pEnumerator))
 	{
-		printf("Failed to create CKsEnumFilters\n");
+		myPrintf("Failed to create CKsEnumFilters\n");
 		return -1;
 	}
 
@@ -306,7 +304,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 
   if(!SUCCEEDED(hr))
 	{
-		printf("CKsEnumFilters::EnumFilters failed\n");
+		myPrintf("CKsEnumFilters::EnumFilters failed\n");
 		return -1;
 	}
 
@@ -322,7 +320,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 	*/
   if(m_pFilter == NULL)
 	{
-		printf("No filters available for rendering\n");
+		myPrintf("No filters available for rendering\n");
 		return -1;
 	}
 
@@ -359,7 +357,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 
   if (!m_pPin)
   {
-    printf("Can't create pin for rendering!\n");
+    myPrintf("Can't create pin for rendering!\n");
     return -1;
   }
 
@@ -370,7 +368,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
     pEnumerator->m_listFilters.GetHead((CKsFilter**)&m_pFilter_cap);	// just grab the first one we find TODO> fixme
     if(m_pFilter_cap == NULL)
   	{
-  		printf("No filters available for capturing\n");
+  		myPrintf("No filters available for capturing\n");
   		return -1;
   	}
     int nch=2;
@@ -406,7 +404,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 
     if (!m_pPin_cap)
     {
-      printf("Can't create pin for capturing!\n");
+      myPrintf("Can't create pin for capturing!\n");
       return -1;
     }
 
@@ -445,7 +443,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 
 	if(!SUCCEEDED(hr))
 	{
-		printf("Error in pPin->SetState(KSSTATE_RUN) !\n");
+		myPrintf("Error in pPin->SetState(KSSTATE_RUN) !\n");
 		return -1;
 	}
 
@@ -477,7 +475,7 @@ int audioStreamer_KS::Read(char *buf, int len) // returns 0 if blocked, < 0 if e
     read_pos=0;
   }
   WaitForSingleObject(hEventPool[read_pos],INFINITE);
-  //printf("read: %x\n",Packets[dwWait].Header.DataUsed);
+  //myPrintf("read: %x\n",Packets[dwWait].Header.DataUsed);
 
   int rlen=Packets[read_pos].Header.DataUsed;
   memcpy(buf,Packets[read_pos].Header.Data,rlen);
