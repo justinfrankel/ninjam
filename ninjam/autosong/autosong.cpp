@@ -490,7 +490,7 @@ int main(int argc, char **argv)
       }        
     }
 
-#define MIN_VOL -50.0
+#define MIN_VOL -24.0
 #define MIN_INTELEN_SILENCE 2 // intervals
 
     int max_l=0;
@@ -633,10 +633,11 @@ int main(int argc, char **argv)
     if (!m_not_enough_cnt && !m_wavewrite && !m_mp3write)
     {
       printf("material, starting song %d at %.2f\n",songcnt,current_position/1000.0);
+      songcnt++;
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
-      sprintf(buf,"%04d.%s",songcnt++,g_mp3out?"mp3":"wav");
+      sprintf(buf,"%02d%02d.%s",(int)(current_position/60000.0),((int)(current_position/1000.0))%60,g_mp3out?"mp3":"wav");
       m_wavewrite_fn.Append(buf);
 
       if (g_mp3out)
