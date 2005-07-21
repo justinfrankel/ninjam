@@ -194,6 +194,7 @@ int main(int argc, char **argv)
   int start_interval=1;
   int end_interval=0x40000000;
 
+  printf("Using source path of \"%s\"\n",argv[1]);
 
   g_songpath.Set(".");
 
