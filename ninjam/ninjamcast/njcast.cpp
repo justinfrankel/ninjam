@@ -25,20 +25,20 @@ enum {
   RECONNECT,
 };
 
-extern char g_servername[4096];
-
 extern int g_bitrate;
-extern char g_sc_pass[4096];
-extern char *g_sc_address;
+
+extern char g_sc_streamname[];
+extern char g_sc_address[];
 extern int g_sc_port;
-extern char *g_sc_servergenre;
-extern char *g_sc_serverpub;
-extern char *g_sc_serverurl;
+extern char g_sc_pass[];
+extern char g_sc_genre[];
+extern int g_sc_public;
+extern char g_sc_url[];
+extern int g_sc_reconnect_interval;
 
-#define TITLE_SET_INTERVAL	10
-#define TITLE_SET_TIMEOUT	5
+extern int g_nj_titlesetinterval;
 
-#define RECONNECT_INTERVAL	15
+#define TITLE_SET_TIMEOUT	7
 
 NJCast::NJCast(NJClient *_client) {
   client = _client;
@@ -151,13 +151,14 @@ printf("couldn't log into sc server\n");
     break;
     case SENDSTREAMINFO: {
       WDL_String info;
-      info.Append("icy-name:"); info.Append(g_servername); info.Append("\r\n");
-      info.Append("icy-genre:"); info.Append(g_sc_servergenre); info.Append("\r\n");
-      info.Append("icy-pub:"); info.Append(g_sc_serverpub); info.Append("\r\n");
       char b[512];
+      info.Append("icy-name:"); info.Append(g_sc_streamname); info.Append("\r\n");
+      info.Append("icy-genre:"); info.Append(g_sc_genre); info.Append("\r\n");
+      sprintf(b, "%d", !!g_sc_public);
+      info.Append("icy-pub:"); info.Append(b); info.Append("\r\n");
       sprintf(b, "%d", g_bitrate);
       info.Append("icy-br:"); info.Append(b); info.Append("\r\n");
-      info.Append("icy-url:"); info.Append(g_sc_serverurl); info.Append("\r\n");
+      info.Append("icy-url:"); info.Append(g_sc_url); info.Append("\r\n");
       info.Append("\r\n");
       if (conn->send_bytes_available() < (int)strlen(info.Get())) return 0;// try again
       conn->send_string(info.Get());
@@ -187,7 +188,7 @@ printf("couldn't log into sc server\n");
     break;
     case RECONNECT: {
       time_t now = time(NULL);
-      if (now - reconnect_timer >= RECONNECT_INTERVAL) {
+      if (now - reconnect_timer >= g_sc_reconnect_interval) {
         state = CONNECTING;	// off we go
 printf("time to reconnect...\n");
       }
@@ -250,7 +251,7 @@ void NJCast::handleTitleSetting() {
   }
 
   if (titleset == NULL) {
-    if (now - last_titleset > TITLE_SET_INTERVAL) {
+    if (now - last_titleset > g_nj_titlesetinterval) {
       WDL_String url;
       url.Append("http://");
       url.Append(g_sc_address);

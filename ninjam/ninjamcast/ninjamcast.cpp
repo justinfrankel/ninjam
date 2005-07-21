@@ -16,6 +16,7 @@
 #include <float.h>
 
 #include "../../wdl/dirscan.h"
+#include "../../WDL/lineparse.h"
 
 #include "../njclient.h"
 
@@ -24,24 +25,31 @@
 NJClient *g_client;
 NJCast *g_njcast;
 
+// configurable stuff
 int g_srate = 44100;
 int g_bitrate = 64;
 int g_numchannels = 1;
 
-char g_servername[4096]="Ninjam";
-
-char *g_sc_address="brainio.badmofo.org";
-//char *g_sc_address="ninjam.com";
+char g_sc_streamname[4096]="Ninjam";
+char g_sc_address[4096]="brainio.badmofo.org";
 int g_sc_port = 8000;
-char g_sc_pass[4096]="hobo";//FUCKO config
-char *g_sc_servergenre="ninjam";
-char *g_sc_serverpub="1";
-char *g_sc_serverurl="http://ninjam.com/";
+char g_sc_pass[4096]="changeme";
+char g_sc_genre[4096]="ninjam";
+int g_sc_public=1;
+char g_sc_url[4096]="http://ninjam.com/";
+int g_sc_reconnect_interval=15;
+
+char g_nj_address[4096]="";	//
+char g_nj_user[4096]="njcast";	//
+char g_nj_pass[4096]="";	//
+int g_nj_titlesetinterval=10;
+int g_nj_reconnect_interval=20;
+float g_nj_mastervolume=0.0;	// in dB
+
+// end configurable
 
 int waiting_to_reconnect = 0;
 time_t waiting_to_reconnect_since = 0;
-
-#define NJRECONNECT_INTERVAL 20
 
 void doSamples() {
   static __int64 samples_out; // where we are, in samples
@@ -104,6 +112,182 @@ int displayLicense(int user32, char *licensetext) {
   return 1;
 }
 
+static int ConfigOnToken(LineParser *lp)
+{
+  const char *t=lp->gettoken_str(0);
+  if (!stricmp(t,"Mp3_Samplerate")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (!p) return -2;
+    g_srate = p;
+  } else
+  if (!stricmp(t,"Mp3_Bitrate")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (!p) return -2;
+    g_bitrate = p;
+  } else
+  if (!stricmp(t,"Mp3_Channels")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (!(p == 1 || p == 2)) return -2;
+    g_numchannels = p;
+  } else
+
+  if (!stricmp(t,"SC_Server_Name")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_sc_streamname, p, sizeof(g_sc_streamname)-1);
+  } else
+  if (!stricmp(t,"SC_Server_Address")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_sc_address, p, sizeof(g_sc_address)-1);
+  } else
+  if (!stricmp(t,"SC_Server_Port")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (p <= 0) return -2;
+    g_sc_port = p;
+  } else
+  if (!stricmp(t,"SC_Server_Password")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_sc_pass, p, sizeof(g_sc_pass)-1);
+  } else
+  if (!stricmp(t,"SC_Server_Genre")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_sc_genre, p, sizeof(g_sc_genre)-1);
+  } else
+  if (!stricmp(t,"SC_Server_Public")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=!!lp->gettoken_int(1);
+//    if (p < 0) return -2;
+    g_sc_public = p;
+  } else
+  if (!stricmp(t,"SC_Server_Url")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_sc_url, p, sizeof(g_sc_url)-1);
+  } else
+  if (!stricmp(t,"SC_Reconnect_Interval")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (p <= 0) return -2;
+    g_sc_reconnect_interval = p;
+  } else
+  if (!stricmp(t,"NJ_Reconnect_Interval")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (p <= 0) return -2;
+    g_nj_reconnect_interval = p;
+  } else
+  if (!stricmp(t,"NJ_Title_Set_Interval")) {
+    if (lp->getnumtokens() != 2) return -1;
+    int p=lp->gettoken_int(1);
+    if (p <= 0) return -2;
+    g_nj_titlesetinterval = p;
+  } else
+  if (!stricmp(t,"NJ_Address")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_nj_address, p, sizeof(g_nj_address)-1);
+  } else
+  if (!stricmp(t,"NJ_User")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_nj_user, p, sizeof(g_nj_user)-1);
+  } else
+  if (!stricmp(t,"NJ_Password")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    strncpy(g_nj_pass, p, sizeof(g_nj_pass)-1);
+  } else
+  return -3;
+
+  return 0;
+}
+
+static void readConfig() {
+const char *configfile="njcast.cfg";
+  FILE *fp=strcmp(configfile,"-")?fopen(configfile,"rt"):stdin; 
+
+  if (fp != NULL) {
+    int linecnt=0;
+    bool comment_state=0;
+    char buf[8192];
+    WDL_String linebuild;
+    while (fgets(buf, sizeof(buf), fp)) {
+      linecnt++;
+//CUT      if (!buf[0]) break;
+      if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
+
+      LineParser lp(comment_state);
+
+      if (buf[0] && buf[strlen(buf)-1]=='\\')
+      {
+        buf[strlen(buf)-1]=0;
+        linebuild.Append(buf);
+        continue;
+      }
+      linebuild.Append(buf);
+      int res=lp.parse(linebuild.Get());
+      linebuild.Set("");
+      if (res)
+      {
+        if (res==-2) 
+        {
+//          if (g_logfp) logText("[config] warning: unterminated string parsing line %d of %s\n",linecnt,configfile);
+          printf("[config] warning: unterminated string parsing line %d of %s\n",linecnt,configfile);
+        }
+        else 
+        {
+//          if (g_logfp) logText("[config] warning: error parsing line %d of %s\n",linecnt,configfile);
+          printf("[config] warning: error parsing line %d of %s\n",linecnt,configfile);
+        }
+      }
+      else
+      {
+        comment_state = lp.InCommentBlock();
+
+        if (lp.getnumtokens()>0)
+        {
+          int err=ConfigOnToken(&lp);
+          if (err)
+          {
+            if (err == -1)
+            {
+//              if (g_logfp) logText("[config] warning: wrong number of tokens on line %d of %s\n",linecnt,configfile);
+              printf("[config] warning: wrong number of tokens on line %d of %s\n",linecnt,configfile);
+            }
+            if (err == -2)
+            {
+//              if (g_logfp) logText("[config] warning: invalid parameter on line %d of %s\n",linecnt,configfile);
+              printf("[config] warning: invalid parameter on line %d of %s\n",linecnt,configfile);
+            }
+            if (err == -3)
+            {
+//              if (g_logfp) logText("[config] warning: invalid config command \"%s\" on line %d of %s\n",lp.gettoken_str(0),linecnt,configfile);
+              printf("[config] warning: invalid config command \"%s\" on line %d of %s\n",lp.gettoken_str(0),linecnt,configfile);
+            }
+          }
+        }
+      }
+    }
+    
+    if (fp != stdin) fclose(fp);
+  }
+}
+
 int main(int argc, char **argv)
 {
   signal(SIGINT,sigfunc);
@@ -114,18 +298,15 @@ int main(int argc, char **argv)
 
   float monitor=1.0;
   g_client=new NJClient;
-  g_client->config_savelocalaudio=-1;	// -1 means clean up after yourself
-
-  g_client->config_metronome = 0;
-  g_client->config_metronome_mute = 1;
 
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
-//  g_client->config_mastervolume = (float)DB2VAL(-6.0);//FUCKO config
+  g_client->config_mastervolume = (float)DB2VAL(g_nj_mastervolume);
 
   g_client->LicenseAgreementCallback=displayLicense;
 
   g_njcast = new NJCast(g_client);
 
+#if 0
   if (argc < 2) usage();
   {
     int p;
@@ -235,16 +416,26 @@ int main(int argc, char **argv)
       gets(passbuf);
     }
   }
+#endif
+
+  g_client->config_savelocalaudio=-1;	// -1 means clean up after yourself
+
+  // read config file
+  readConfig();
+
+  g_client->config_metronome = 0;
+  g_client->config_metronome_mute = 1;
+
+// go!
 
   JNL::open_socketlib();
 
-  printf("Connecting to Ninjam server %s...\n",argv[1]);
+//  printf("Connecting to Ninjam server %s...\n",argv[1]);
 //printf("user: '%s', pass: '%s'\n", parmuser, parmpass);
-  g_client->Connect(argv[1],parmuser,parmpass);
+  g_client->Connect(g_nj_address, g_nj_user, g_nj_pass);
 
-  printf("Connecting to shoutcast server %s...\n",g_sc_address);
+//  printf("Connecting to shoutcast server %s...\n",g_sc_address);
   g_njcast->Connect(g_sc_address, g_sc_port);
-
 
   if (!sessiondir.Get()[0])
   {
@@ -301,7 +492,7 @@ int main(int argc, char **argv)
 
     time_t now = time(NULL);
     if (waiting_to_reconnect) {
-      if (now - waiting_to_reconnect_since >= NJRECONNECT_INTERVAL) {
+      if (now - waiting_to_reconnect_since >= g_nj_reconnect_interval) {
         waiting_to_reconnect = 0;
         g_client->Connect(argv[1],parmuser,parmpass);
       }
