@@ -87,7 +87,7 @@ Section "ASIO Input/Output support"
 
 SectionEnd
 
-Section "NINJAM logfile to EDL TXT file converter tool (for Vegas)"
+Section "NINJAM Session Converter"
   File ..\cliplogcvt\release\cliplogcvt.exe
 SectionEnd
 
