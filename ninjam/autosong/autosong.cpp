@@ -107,6 +107,7 @@ int g_srate=44100;
 
 int g_min_chans=2;
 int g_min_users=2;
+int g_min_length=120; // 2 minute minimum length
 WDL_String g_songpath;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
@@ -174,8 +175,7 @@ void usage()
           "  -outdir <path>\n"
           "  -minchans 2 -- minimum number of channels for output to be usable\n"
           "  -minusers 2 -- minimum number of distinct users for output to be usable\n"
-          "  -skip <intervals>\n"
-          "  -maxlen <intervals>\n"
+          "  -minlen 120 -- minimum track length, in seconds\n"
 
       );
   exit(1);
@@ -200,20 +200,16 @@ int main(int argc, char **argv)
   int p;
   for (p = 2; p < argc; p++)
   {
-    if (!stricmp(argv[p],"-skip"))
+    if (!stricmp(argv[p],"-minlen"))
     {
       if (++p >= argc) usage();
-      start_interval = atoi(argv[p])+1;
+      g_min_length = atoi(argv[p])+1;
     }
+    
     else if (!stricmp(argv[p],"-outdir"))
     {
       if (++p >= argc) usage();
       g_songpath.Set(argv[p]);
-    }
-    else if (!stricmp(argv[p],"-maxlen"))
-    {
-      if (++p >= argc) usage();
-      end_interval = atoi(argv[p]);
     }
     else if (!stricmp(argv[p],"-minusers"))
     {
@@ -443,7 +439,7 @@ int main(int argc, char **argv)
   int songcnt=0;
   WaveWriter *m_wavewrite=NULL;
   mp3Writer *m_mp3write=NULL;
-  int m_wavewrite_pos=0;
+  double m_wavewrite_pos=0.0;
   WDL_String m_wavewrite_fn;
   int is_done;
   WDL_HeapBuf sample_workbuf;
@@ -495,7 +491,6 @@ int main(int argc, char **argv)
     }
 
 #define MIN_VOL -50.0
-#define MIN_LEN 16 // intervals
 #define MIN_INTELEN_SILENCE 2 // intervals
 
     int max_l=0;
@@ -617,15 +612,18 @@ int main(int argc, char **argv)
         delete m_mp3write;
         m_mp3write=0;
 
-        if (m_wavewrite_pos < MIN_LEN)
+        if ((int)m_wavewrite_pos < g_min_length)
         {
           if (m_wavewrite_fn.Get()[0])
+          {
+            printf("potential song too short, removing\n");
 #ifdef _WIN32
             DeleteFile(m_wavewrite_fn.Get());
 #else
             unlink(m_wavewrite_fn.Get());
 #endif
-          m_wavewrite_fn.Set("");
+            m_wavewrite_fn.Set("");
+          }
         }
       }
 
@@ -634,7 +632,7 @@ int main(int argc, char **argv)
 
     if (!m_not_enough_cnt && !m_wavewrite && !m_mp3write)
     {
-      printf("material, starting song at %.2f\n",current_position/1000.0);
+      printf("material, starting song %d at %.2f\n",songcnt,current_position/1000.0);
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
@@ -646,7 +644,7 @@ int main(int argc, char **argv)
       else
         m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,g_nch,g_srate,0);
 
-      m_wavewrite_pos=0;
+      m_wavewrite_pos=0.0;
     }
 
     if (m_wavewrite||m_mp3write)
@@ -708,7 +706,7 @@ int main(int argc, char **argv)
           m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*g_nch);
         if (m_mp3write)
           m_mp3write->WriteFloats((float *)sample_workbuf.Get(),max_l*g_nch);
-        m_wavewrite_pos++;
+        m_wavewrite_pos+=max_l/(double)g_srate;
       }
     }
 
