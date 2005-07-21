@@ -94,7 +94,7 @@ const char *realpath(const char *path, char *resolved_path)
 #endif
 
 int g_srate=44100;
-
+WDL_String g_songpath;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
 {
@@ -154,6 +154,7 @@ void usage()
           "  autosong session_directory [options]\n"
           "\n"
           "Options:\n"
+          "  -outdir <path>\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
 
@@ -175,6 +176,8 @@ int main(int argc, char **argv)
   int end_interval=0x40000000;
 
 
+  g_songpath.Set(".");
+
   int p;
   for (p = 2; p < argc; p++)
   {
@@ -182,6 +185,11 @@ int main(int argc, char **argv)
     {
       if (++p >= argc) usage();
       start_interval = atoi(argv[p])+1;
+    }
+    else if (!stricmp(argv[p],"-outdir"))
+    {
+      if (++p >= argc) usage();
+      g_songpath.Set(argv[p]);
     }
     else if (!stricmp(argv[p],"-maxlen"))
     {
@@ -211,7 +219,24 @@ int main(int argc, char **argv)
   UserChannelList localrecs[32];
   WDL_PtrList<UserChannelList> curintrecs;
   
+  g_songpath.Append(DIRCHAR_S);
+  char buf[4096];
+  if (realpath(argv[1],buf))
+  {
+    char *p=buf;
+    while (*p) p++;
+    if (p > buf) p--;
 
+    while (p>=buf && ((*p != '/' && *p != '\\') || !p[1])) 
+    {
+      if (*p == '/' || *p == '\\') *p=0;
+      p--;
+    }
+    
+    g_songpath.Append(p+1);
+    g_songpath.Append("_");
+  }
+  
   // go through the log file
   for (;;)
   {
@@ -368,6 +393,8 @@ int main(int argc, char **argv)
 
   int songcnt=0;
   WaveWriter *m_wavewrite=NULL;
+  int m_wavewrite_pos=0;
+  WDL_String m_wavewrite_fn;
   int is_done;
   WDL_HeapBuf sample_workbuf;
 
@@ -396,6 +423,7 @@ int main(int argc, char **argv)
 
         if (rec->position <= current_position+100.0)
         {
+//          printf("valid\n");
           double p=rec->position + rec->length;
 
           if (next_position < p) next_position=p;
@@ -408,14 +436,16 @@ int main(int argc, char **argv)
         }
         else
         {
+  //        printf("foo %f %f\n",rec->position, current_position);
           if (rec->position < min_next_pos)  min_next_pos=rec->position;
         }
       }        
     }
 
 #define MIN_VOL -50.0
+#define MIN_LEN 16 // intervals
 #define MIN_CHANNELS 2
-#define MIN_INTELEN_SILENCE 2
+#define MIN_INTELEN_SILENCE 2 // intervals
 
     int max_l=0;
 
@@ -489,6 +519,12 @@ int main(int argc, char **argv)
         // finish any open song
         delete m_wavewrite;
         m_wavewrite=0;
+        if (m_wavewrite_pos < MIN_LEN)
+        {
+          if (m_wavewrite_fn.Get()[0])
+            DeleteFile(m_wavewrite_fn.Get());
+          m_wavewrite_fn.Set("");
+        }
       }
 
       m_not_enough_cnt=65536;
@@ -498,8 +534,12 @@ int main(int argc, char **argv)
     {
       printf("material, starting song\n");
       char buf[512];
-      sprintf(buf,"c:\\song%04d.wav",songcnt++);
-      m_wavewrite=new WaveWriter(buf,16,2,g_srate,0);
+      m_wavewrite_fn.Set(g_songpath.Get());
+      
+      sprintf(buf,"%04d.wav",songcnt++);
+      m_wavewrite_fn.Append(buf);
+      m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,2,g_srate,0);
+      m_wavewrite_pos=0;
     }
 
     if (m_wavewrite)
@@ -534,7 +574,11 @@ int main(int argc, char **argv)
                     0.5f,0.0f,&s);
         }
       }
-      if (max_l > 0) m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l);
+      if (max_l > 0) 
+      {
+        m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
+        m_wavewrite_pos++;
+      }
     }
 
     // delete any decoders left
@@ -550,7 +594,7 @@ int main(int argc, char **argv)
   }
   while (!is_done);
 
-  printf("wrote %d records, %d tracks\n",id-1,track_id);
+  printf("wrote %d songs\n",songcnt);
 
 
 
