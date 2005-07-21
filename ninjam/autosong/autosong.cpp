@@ -93,6 +93,7 @@ const char *realpath(const char *path, char *resolved_path)
 
 #endif
 
+int g_srate=44100;
 
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
@@ -150,15 +151,11 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
 void usage()
 {
    printf("Usage: \n"
-          "  cliplogcvt session_directory [options]\n"
+          "  autosong session_directory [options]\n"
           "\n"
           "Options:\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
-          "  -concat\n"
-          "  -decode\n"
-          "  -decodebits 16|24\n"
-          "  -insertsilence maxseconds   -- valid only with -concat -decode\n"
 
       );
   exit(1);
@@ -168,9 +165,8 @@ void usage()
 
 int main(int argc, char **argv)
 {
-  printf("ClipLogCvt v0.02 - Copyright (C) 2005, Cockos, Inc.\n"
-         "(Converts NINJAM sessions to EDL/LOF,\n"
-         " optionally writing uncompressed WAVs etc)\n\n");
+  printf("autosong v0.0 - Copyright (C) 2005, Cockos, Inc.\n"
+         "(Generates mixed output for sessions, using some intelligence)\n\n");
   if (argc <  2 || argv[1][0] == '-')
   {
     usage();
@@ -370,7 +366,10 @@ int main(int argc, char **argv)
   }
 
 
+  int songcnt=0;
+  WaveWriter *m_wavewrite=NULL;
   int is_done;
+  WDL_HeapBuf sample_workbuf;
 
   int m_not_enough_cnt=0;
   double current_position=0.0;
@@ -395,7 +394,7 @@ int main(int argc, char **argv)
 
         UserChannelValueRec *rec=list->items.Get(list->step_pos);
 
-        if (rec->position <= current_position)
+        if (rec->position <= current_position+100.0)
         {
           double p=rec->position + rec->length;
 
@@ -417,6 +416,8 @@ int main(int argc, char **argv)
 #define MIN_VOL -50.0
 #define MIN_CHANNELS 2
 #define MIN_INTELEN_SILENCE 2
+
+    int max_l=0;
 
     // decode channels, remove ones that are too silent, gate etc.
     for (x = 0; x < m_useitems.GetSize(); x ++)
@@ -468,6 +469,8 @@ int main(int argc, char **argv)
         m_useitems.Delete(x--);
         continue;
       }
+
+      // valid channel, figure out it's length
     }
 
     if (m_useitems.GetSize() < MIN_CHANNELS)
@@ -480,13 +483,58 @@ int main(int argc, char **argv)
 
     if (m_not_enough_cnt >= MIN_INTELEN_SILENCE || is_done) 
     {
-      // finish any open song
+      if (m_wavewrite)
+      {
+        printf("silence, ending song\n");
+        // finish any open song
+        delete m_wavewrite;
+        m_wavewrite=0;
+      }
 
       m_not_enough_cnt=65536;
     }
 
-    if (!m_not_enough_cnt) // otherwise, open a new song
+    if (!m_not_enough_cnt && !m_wavewrite)
     {
+      printf("material, starting song\n");
+      char buf[512];
+      sprintf(buf,"c:\\song%04d.wav",songcnt++);
+      m_wavewrite=new WaveWriter(buf,16,2,g_srate,0);
+    }
+
+    if (m_wavewrite)
+    {
+      int max_l=0;
+      if (sample_workbuf.GetSize() > 0 && sample_workbuf.Get())
+        memset(sample_workbuf.Get(),0,sample_workbuf.GetSize());
+      for (x = 0; x < m_useitems.GetSize(); x ++)
+      {
+        UserChannelValueRec *rec=m_useitems.Get(x);
+        if (!rec->vdec || !rec->vdec->m_samples_used) continue;
+
+        double s=0.0;
+        int dest_len = (int) ((double)rec->vdec->m_samples_used * (double)g_srate / (double)(rec->vdec->GetSampleRate() * rec->vdec->GetNumChannels()));
+        if (dest_len > 0)
+        {
+          if (dest_len > max_l)
+          {
+            max_l=dest_len;
+            int ns=max_l*2*sizeof(float);
+            if (sample_workbuf.GetSize() < ns)
+            {
+              int os=sample_workbuf.GetSize();
+              sample_workbuf.Resize(ns);
+              memset((char *)sample_workbuf.Get() + os,0,ns-os);
+            }
+          }
+
+          mixFloats((float *)rec->vdec->m_samples.Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
+                    (float*)sample_workbuf.Get(),g_srate,2,dest_len,
+                 
+                    0.5f,0.0f,&s);
+        }
+      }
+      if (max_l > 0) m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l);
     }
 
     // delete any decoders left
