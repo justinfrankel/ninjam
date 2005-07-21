@@ -60,7 +60,7 @@ public:
 class UserChannelList
 {
   public:
-   UserChannelList() { step_pos=0; chidx=0; chan_peak_val=1.0; chan_last_vol=0.0; }
+   UserChannelList() { step_pos=0; chidx=0; chan_peak_val=1.0; chan_last_vol=0.0; chan_pan_lastsongid=-1; chan_pan=0.0; }
 
    WDL_String user;
    int chidx;
@@ -73,6 +73,9 @@ class UserChannelList
 
    double chan_peak_val;
    double chan_last_vol;
+
+   double chan_pan;
+   int chan_pan_lastsongid;
 
 };
 
@@ -97,6 +100,7 @@ const char *realpath(const char *path, char *resolved_path)
 
 #endif
 
+int g_panfun=1;
 int g_mp3out=128;
 int g_srate=44100;
 WDL_String g_songpath;
@@ -410,6 +414,8 @@ int main(int argc, char **argv)
   int is_done;
   WDL_HeapBuf sample_workbuf;
 
+  int panpos=0;
+
   int m_not_enough_cnt=0;
   double current_position=0.0;
   do
@@ -525,7 +531,26 @@ int main(int argc, char **argv)
         continue;
       }
 
-      // valid channel, figure out it's length
+      if (rec->channel->chan_pan_lastsongid < songcnt)
+      {
+        rec->channel->chan_pan_lastsongid = songcnt;
+        switch (panpos++&3)
+        {
+          case 0:
+            rec->channel->chan_pan=0.0;
+          break;
+          case 3:
+            rec->channel->chan_pan=0.0;
+          break;
+          case 1:
+            rec->channel->chan_pan=0.2;
+          break;
+          case 2:
+            rec->channel->chan_pan=-0.2;
+          break;
+        }
+
+      }
     }
 
     if (m_useitems.GetSize() < MIN_CHANNELS)
@@ -629,7 +654,7 @@ int main(int argc, char **argv)
           mixFloats((float *)rec->vdec->m_samples.Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
                     (float*)sample_workbuf.Get(),g_srate,2,dest_len,
                  
-                    (float) 0.5f,0.0f,&s);
+                    (float) 0.5f,g_panfun?(float)rec->channel->chan_pan:0.0f,&s);
         }
       }
       if (max_l > 0) 
