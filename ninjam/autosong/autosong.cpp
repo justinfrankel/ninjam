@@ -41,6 +41,7 @@
 #include "../../WDL/lineparse.h"
 #include "../../WDL/vorbisencdec.h"
 #include "../../WDL/wavwrite.h"
+#include "../../WDL/mp3write.h"
 
 class UserChannelList;
 
@@ -59,7 +60,7 @@ public:
 class UserChannelList
 {
   public:
-   UserChannelList() { step_pos=0; chidx=0; }
+   UserChannelList() { step_pos=0; chidx=0; chan_peak_val=1.0; chan_last_vol=0.0; }
 
    WDL_String user;
    int chidx;
@@ -69,6 +70,9 @@ class UserChannelList
 
    // stepping state
    int step_pos;
+
+   double chan_peak_val;
+   double chan_last_vol;
 
 };
 
@@ -229,7 +233,7 @@ int main(int argc, char **argv)
 
     while (p>=buf && ((*p != '/' && *p != '\\') || !p[1])) 
     {
-      if (*p == '/' || *p == '\\') *p=0;
+      if (*p == '.' || *p == '/' || *p == '\\') *p=0;
       p--;
     }
     
@@ -393,6 +397,7 @@ int main(int argc, char **argv)
 
   int songcnt=0;
   WaveWriter *m_wavewrite=NULL;
+  mp3Writer *m_mp3write=NULL;
   int m_wavewrite_pos=0;
   WDL_String m_wavewrite_fn;
   int is_done;
@@ -486,13 +491,26 @@ int main(int argc, char **argv)
 
       double mvol=pow(2.0,MIN_VOL/6.0);
 
+      double peak_vol=0.0;
       while (l-->0)
       {
-        if (fabs(*p) >= mvol) break;
+        double f=fabs(*p);
+        if (f > peak_vol) peak_vol=f;
         p++;
       }
 
-      if (l <= 0) // silence
+      // slowly transmute
+
+      if (peak_vol > rec->channel->chan_peak_val*1.5)
+      {
+        rec->channel->chan_peak_val=peak_vol*0.85;
+      }
+      else rec->channel->chan_peak_val = rec->channel->chan_peak_val*0.9 + peak_vol*0.1;
+
+      if (rec->channel->chan_peak_val < 0.25) rec->channel->chan_peak_val=0.25;
+      if (rec->channel->chan_peak_val > 2.0) rec->channel->chan_peak_val=2.0;
+
+      if (peak_vol <= mvol) // silence
       {
         delete rec->vdec;
         rec->vdec=0;
@@ -513,16 +531,23 @@ int main(int argc, char **argv)
 
     if (m_not_enough_cnt >= MIN_INTELEN_SILENCE || is_done) 
     {
-      if (m_wavewrite)
+      if (m_wavewrite||m_mp3write)
       {
         printf("silence, ending song\n");
         // finish any open song
         delete m_wavewrite;
         m_wavewrite=0;
+        delete m_mp3write;
+        m_mp3write=0;
+
         if (m_wavewrite_pos < MIN_LEN)
         {
           if (m_wavewrite_fn.Get()[0])
+#ifdef _WIN32
             DeleteFile(m_wavewrite_fn.Get());
+#else
+            unlink(m_wavewrite_fn.Get());
+#endif
           m_wavewrite_fn.Set("");
         }
       }
@@ -530,19 +555,24 @@ int main(int argc, char **argv)
       m_not_enough_cnt=65536;
     }
 
-    if (!m_not_enough_cnt && !m_wavewrite)
+    if (!m_not_enough_cnt && !m_wavewrite && !m_mp3write)
     {
       printf("material, starting song\n");
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
-      sprintf(buf,"%04d.wav",songcnt++);
+      sprintf(buf,"%04d.mp3",songcnt++);
       m_wavewrite_fn.Append(buf);
-      m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,2,g_srate,0);
+
+      if (1)
+        m_mp3write=new mp3Writer(m_wavewrite_fn.Get(),2,g_srate,128,0);
+      else
+        m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,2,g_srate,0);
+
       m_wavewrite_pos=0;
     }
 
-    if (m_wavewrite)
+    if (m_wavewrite||m_mp3write)
     {
       int max_l=0;
       if (sample_workbuf.GetSize() > 0 && sample_workbuf.Get())
@@ -568,15 +598,39 @@ int main(int argc, char **argv)
             }
           }
 
+          double val=rec->channel->chan_peak_val; // 0.25 .. 2.0 or so
+          if (val < 0.25) val=0.25;
+          else if (val > 2.0) val=2.0;
+
+          double vol = 1.0/val;
+
+          // adjust volume as gradient
+          int l=rec->vdec->m_samples_used;
+          float *p=(float *)rec->vdec->m_samples.Get();
+          double vp=rec->channel->chan_last_vol;
+          double dvp = (vol-vp) / (double) l;
+
+          rec->channel->chan_last_vol=vol;
+
+          while (l-- > 0)
+          {
+            *p++ *= (float)vp;
+            vp+=dvp;
+          }
+          
+
           mixFloats((float *)rec->vdec->m_samples.Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
                     (float*)sample_workbuf.Get(),g_srate,2,dest_len,
                  
-                    0.5f,0.0f,&s);
+                    (float) 0.5f,0.0f,&s);
         }
       }
       if (max_l > 0) 
       {
-        m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
+        if (m_wavewrite)
+          m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
+        if (m_mp3write)
+          m_mp3write->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
         m_wavewrite_pos++;
       }
     }
