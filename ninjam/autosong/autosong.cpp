@@ -97,6 +97,7 @@ const char *realpath(const char *path, char *resolved_path)
 
 #endif
 
+int g_mp3out=128;
 int g_srate=44100;
 WDL_String g_songpath;
 
@@ -158,6 +159,7 @@ void usage()
           "  autosong session_directory [options]\n"
           "\n"
           "Options:\n"
+          "  -bitrate <128|192|...|0>  -- bitrate of 0 means .wav instead of .mp3\n"
           "  -outdir <path>\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
@@ -200,6 +202,11 @@ int main(int argc, char **argv)
       if (++p >= argc) usage();
       end_interval = atoi(argv[p]);
     }
+    else if (!stricmp(argv[p],"-bitrate"))
+    {
+      if (++p >= argc) usage();
+      g_mp3out = atoi(argv[p]);
+    }    
     else usage();
   }
   end_interval += start_interval;
@@ -561,11 +568,11 @@ int main(int argc, char **argv)
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
-      sprintf(buf,"%04d.mp3",songcnt++);
+      sprintf(buf,"%04d.%s",songcnt++,g_mp3out?"mp3":"wav");
       m_wavewrite_fn.Append(buf);
 
-      if (1)
-        m_mp3write=new mp3Writer(m_wavewrite_fn.Get(),2,g_srate,128,0);
+      if (g_mp3out)
+        m_mp3write=new mp3Writer(m_wavewrite_fn.Get(),2,g_srate,g_mp3out,0);
       else
         m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,2,g_srate,0);
 
