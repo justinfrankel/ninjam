@@ -77,6 +77,7 @@ Section "Effect Processing and Drum Machine support"
 
   File /r release\Effects
   File /r release\Data
+  CreateDirectory $INSTDIR\Presets
 
 SectionEnd
 
