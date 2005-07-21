@@ -100,9 +100,13 @@ const char *realpath(const char *path, char *resolved_path)
 
 #endif
 
-int g_panfun=1;
+float global_vol=0.5f;
+int g_nch=2;
 int g_mp3out=128;
 int g_srate=44100;
+
+int g_min_chans=2;
+int g_min_users=2;
 WDL_String g_songpath;
 
 int resolveFile(char *name, WDL_String *outpath, char *path)
@@ -164,7 +168,12 @@ void usage()
           "\n"
           "Options:\n"
           "  -bitrate <128|192|...|0>  -- bitrate of 0 means .wav instead of .mp3\n"
+          "  -srate <srate>"
+          "  -mono\n"
+          "  -vol -6 -- global volume adjustment in dB (-6 is default)\n"
           "  -outdir <path>\n"
+          "  -minchans 2 -- minimum number of channels for output to be usable\n"
+          "  -minusers 2 -- minimum number of distinct users for output to be usable\n"
           "  -skip <intervals>\n"
           "  -maxlen <intervals>\n"
 
@@ -206,10 +215,35 @@ int main(int argc, char **argv)
       if (++p >= argc) usage();
       end_interval = atoi(argv[p]);
     }
+    else if (!stricmp(argv[p],"-minusers"))
+    {
+      if (++p >= argc) usage();
+      g_min_users = atoi(argv[p]);
+    }
+    else if (!stricmp(argv[p],"-minchans"))
+    {
+      if (++p >= argc) usage();
+      g_min_chans = atoi(argv[p]);
+    }
     else if (!stricmp(argv[p],"-bitrate"))
     {
       if (++p >= argc) usage();
       g_mp3out = atoi(argv[p]);
+    }    
+    else if (!stricmp(argv[p],"-srate"))
+    {
+      if (++p >= argc) usage();
+      g_srate = atoi(argv[p]);
+      if (!g_srate) usage();
+    }    
+    else if (!stricmp(argv[p],"-vol"))
+    {
+      if (++p >= argc) usage();
+      global_vol = (float)pow(2.0,atof(argv[p])/6.0);
+    }       
+    else if (!stricmp(argv[p],"-mono"))
+    {
+      g_nch=1;
     }    
     else usage();
   }
@@ -462,7 +496,6 @@ int main(int argc, char **argv)
 
 #define MIN_VOL -50.0
 #define MIN_LEN 16 // intervals
-#define MIN_CHANNELS 2
 #define MIN_INTELEN_SILENCE 2 // intervals
 
     int max_l=0;
@@ -553,7 +586,19 @@ int main(int argc, char **argv)
       }
     }
 
-    if (m_useitems.GetSize() < MIN_CHANNELS)
+    WDL_PtrList<UserChannelList> m_users;
+    int x;
+    for (x = 0; x < m_useitems.GetSize(); x ++) // count distinct users
+    {
+      int y;
+      for (y = 0; y < m_users.GetSize() && m_users.Get(y) != m_useitems.Get(x)->channel; y ++);
+      if (y == m_users.GetSize())
+      {
+        m_users.Add(m_useitems.Get(x)->channel);
+      }
+    }    
+
+    if (m_users.GetSize() < g_min_users || m_useitems.GetSize() < g_min_chans)
     {
       if (m_not_enough_cnt < 65536)
         m_not_enough_cnt++;
@@ -565,7 +610,7 @@ int main(int argc, char **argv)
     {
       if (m_wavewrite||m_mp3write)
       {
-        printf("silence, ending song\n");
+        printf("no material, ending song at %.2f\n",current_position/1000.0);
         // finish any open song
         delete m_wavewrite;
         m_wavewrite=0;
@@ -589,7 +634,7 @@ int main(int argc, char **argv)
 
     if (!m_not_enough_cnt && !m_wavewrite && !m_mp3write)
     {
-      printf("material, starting song\n");
+      printf("material, starting song at %.2f\n",current_position/1000.0);
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
@@ -597,9 +642,9 @@ int main(int argc, char **argv)
       m_wavewrite_fn.Append(buf);
 
       if (g_mp3out)
-        m_mp3write=new mp3Writer(m_wavewrite_fn.Get(),2,g_srate,g_mp3out,0);
+        m_mp3write=new mp3Writer(m_wavewrite_fn.Get(),g_nch,g_srate,g_mp3out,0);
       else
-        m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,2,g_srate,0);
+        m_wavewrite=new WaveWriter(m_wavewrite_fn.Get(),16,g_nch,g_srate,0);
 
       m_wavewrite_pos=0;
     }
@@ -621,7 +666,7 @@ int main(int argc, char **argv)
           if (dest_len > max_l)
           {
             max_l=dest_len;
-            int ns=max_l*2*sizeof(float);
+            int ns=max_l*g_nch*sizeof(float);
             if (sample_workbuf.GetSize() < ns)
             {
               int os=sample_workbuf.GetSize();
@@ -652,17 +697,17 @@ int main(int argc, char **argv)
           
 
           mixFloats((float *)rec->vdec->m_samples.Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
-                    (float*)sample_workbuf.Get(),g_srate,2,dest_len,
+                    (float*)sample_workbuf.Get(),g_srate,g_nch,dest_len,
                  
-                    (float) 0.5f,g_panfun?(float)rec->channel->chan_pan:0.0f,&s);
+                    (float) global_vol,(float)rec->channel->chan_pan,&s);
         }
       }
       if (max_l > 0) 
       {
         if (m_wavewrite)
-          m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
+          m_wavewrite->WriteFloats((float *)sample_workbuf.Get(),max_l*g_nch);
         if (m_mp3write)
-          m_mp3write->WriteFloats((float *)sample_workbuf.Get(),max_l*2);
+          m_mp3write->WriteFloats((float *)sample_workbuf.Get(),max_l*g_nch);
         m_wavewrite_pos++;
       }
     }
