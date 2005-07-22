@@ -100,6 +100,7 @@ const char *realpath(const char *path, char *resolved_path)
 
 #endif
 
+WDL_String localdef;
 float global_vol=0.5f;
 int g_nch=2;
 int g_mp3out=128;
@@ -176,6 +177,7 @@ void usage()
           "  -minchans 2 -- minimum number of channels for output to be usable\n"
           "  -minusers 2 -- minimum number of distinct users for output to be usable\n"
           "  -minlen 120 -- minimum track length, in seconds\n"
+          "  -localname <myusername> -- replaces 'local' user with your username\n"
 
       );
   exit(1);
@@ -245,6 +247,11 @@ int main(int argc, char **argv)
     {
       g_nch=1;
     }    
+    else if (!stricmp(argv[p],"-localname"))
+    {
+      if (++p >= argc) usage();
+      localdef.Set(argv[p]);
+    }
     else usage();
   }
   end_interval += start_interval;
@@ -646,8 +653,20 @@ int main(int argc, char **argv)
           for (y = 0; y < song_users.GetSize(); y ++)
           {
             WDL_String n(song_users.Get(y)->user.Get());
+
+            if (localdef.Get()[0] && !strcmp(n.Get(),"local"))
+              n.Set(localdef.Get());
+
             char *p=(char *)strstr(n.Get(),"@");
             if (p) *p=0;
+            else
+            {
+              p=strstr(n.Get(),"-"); // remove old -6.x.x addrs
+              if (p && atoi(p+1) && strstr(p+1,"."))
+              {
+                *p=0;
+              }
+            }
             p=n.Get();
             int cnt=8;
             while (*p)
