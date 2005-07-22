@@ -51,14 +51,26 @@ float g_nj_mastervolume=0.0;	// in dB
 int waiting_to_reconnect = 0;
 time_t waiting_to_reconnect_since = 0;
 
-void doSamples() {
-  static __int64 samples_out; // where we are, in samples
+#define INT64 __int64
 
-  static DWORD start_time;
-  if (start_time == 0) start_time = GetTickCount();
+static INT64 getTimeInMs() {
+#ifdef WIN32
+  return GetTickCount();
+#else
+  timeval now;
+  gettimeofday(&now, NULL);
+  return now.tv_sec * 1000 + now.tv_usec / 1000;
+#endif
+}
+
+void doSamples() {
+  static INT64 samples_out; // where we are, in samples
+
+  static INT64 start_time;
+  if (start_time == 0) start_time = getTimeInMs();
 
   // where we should be, in samples
-  __int64 sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
+  INT64 sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / 1000i64;
 
   int block_size=1024; // chunks of 1024 samples at a time
 //  int block_size=4096; // chunks of 1024 samples at a time
@@ -78,7 +90,7 @@ void doSamples() {
     samples_out += block_size;
 
     // keep up! (seems to help)
-    sample_pos = ((__int64)(GetTickCount()-start_time) * g_srate) / 1000i64;
+    sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / 1000i64;
   }
 }
 
@@ -97,12 +109,7 @@ void sigfunc(int sig)
 void usage()
 {
 
-  printf("Usage: ninjam hostname [options]\n"
-    "Options:\n"
-    "  -sessiondir <path>\n"
-    "  -user <username>\n"
-    "  -pass <password>\n"
-);
+  printf("Usage: ninjam configfile.cfg\n");
 
   exit(1);
 }
@@ -217,8 +224,7 @@ static int ConfigOnToken(LineParser *lp)
   return 0;
 }
 
-static void readConfig() {
-const char *configfile="njcast.cfg";
+static void readConfig(const char *configfile="njcast.cfg") {
   FILE *fp=strcmp(configfile,"-")?fopen(configfile,"rt"):stdin; 
 
   if (fp != NULL) {
@@ -228,7 +234,6 @@ const char *configfile="njcast.cfg";
     WDL_String linebuild;
     while (fgets(buf, sizeof(buf), fp)) {
       linecnt++;
-//CUT      if (!buf[0]) break;
       if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
       LineParser lp(comment_state);
@@ -292,8 +297,6 @@ int main(int argc, char **argv)
 {
   signal(SIGINT,sigfunc);
 
-  char *parmuser=NULL;
-  char *parmpass=NULL;
   WDL_String sessiondir;
 
   float monitor=1.0;
@@ -306,122 +309,11 @@ int main(int argc, char **argv)
 
   g_njcast = new NJCast(g_client);
 
-#if 0
-  if (argc < 2) usage();
-  {
-    int p;
-    for (p = 2; p < argc; p++)
-    {
-#if 0//CUT
-      if (!stricmp(argv[p],"-localchannels"))
-      {
-        if (++p >= argc) usage();
-        localchannels=atoi(argv[p]);
-        if (localchannels < 0 || localchannels > 2)
-        {
-          printf("Error: -localchannels must have parameter [0..2]\n");
-          return 1;
-        }
-      }
-      else if (!stricmp(argv[p],"-savelocalwavs"))
-      {
-        g_client->config_savelocalaudio=2;     
-      }
-      else if (!stricmp(argv[p],"-norecv"))
-      {
-        g_client->config_autosubscribe=0;
-      }
-      else if (!stricmp(argv[p],"-nosavelocal"))
-      {
-        g_client->config_savelocalaudio=0;
-      }
-      else if (!stricmp(argv[p],"-nostatus"))
-      {
-        nostatus=1;
-      }
-      else if (!stricmp(argv[p],"-monitor"))
-      {
-        if (++p >= argc) usage();
-        monitor=(float)pow(2.0,atof(argv[p])/6.0);
-      }
-      else if (!stricmp(argv[p],"-metronome"))
-      {
-        if (++p >= argc) usage();
-        g_client->config_metronome=(float)pow(2.0,atof(argv[p])/6.0);
-      }
-      else if (!stricmp(argv[p],"-debuglevel"))
-      {
-        if (++p >= argc) usage();
-        g_client->config_debug_level=atoi(argv[p]);
-      }
-      else if (!stricmp(argv[p],"-audiostr"))
-      {
-        if (++p >= argc) usage();
-        audioconfigstr=argv[p];
-      }
-#endif
-      if (!stricmp(argv[p],"-user"))
-      {
-        if (++p >= argc) usage();
-        parmuser=argv[p];
-      }
-      else if (!stricmp(argv[p],"-pass"))
-      {
-        if (++p >= argc) usage();
-        parmpass=argv[p];
-      }
-#if 0//CUT
-      else if (!stricmp(argv[p],"-nowritewav"))
-      {
-        nowav++;
-      }
-      else if (!stricmp(argv[p],"-nowritelog"))
-      {
-        nolog++;
-      }
-#endif
-#if 0//CUT
-#ifdef _WIN32
-      else if (!stricmp(argv[p],"-jesusonic"))
-      {
-        if (++p >= argc) usage();
-        jesusdir=argv[p];
-      }
-#endif
-#endif
-      if (!stricmp(argv[p],"-sessiondir"))
-      {
-        if (++p >= argc) usage();
-        sessiondir.Set(argv[p]);
-      }
-//      else usage();
-    }
-  }
-
-
-  char passbuf[512]="";
-  char userbuf[512]="";
-  if (!parmuser)
-  {
-    parmuser=userbuf;
-    printf("Enter username: ");
-    gets(userbuf);
-  }
-  if (!parmpass)
-  {
-    parmpass=passbuf;
-    if (strncmp(parmuser,"anonymous",9)||(parmuser[9] && parmuser[9] != ':'))
-    {
-      printf("Enter password: ");
-      gets(passbuf);
-    }
-  }
-#endif
-
   g_client->config_savelocalaudio=-1;	// -1 means clean up after yourself
 
+  if (argc != 2) usage();
   // read config file
-  readConfig();
+  readConfig(argv[1]);
 
   g_client->config_metronome = 0;
   g_client->config_metronome_mute = 1;
@@ -430,11 +322,8 @@ int main(int argc, char **argv)
 
   JNL::open_socketlib();
 
-//  printf("Connecting to Ninjam server %s...\n",argv[1]);
-//printf("user: '%s', pass: '%s'\n", parmuser, parmpass);
   g_client->Connect(g_nj_address, g_nj_user, g_nj_pass);
 
-//  printf("Connecting to shoutcast server %s...\n",g_sc_address);
   g_njcast->Connect(g_sc_address, g_sc_port);
 
   if (!sessiondir.Get()[0])
@@ -494,7 +383,7 @@ int main(int argc, char **argv)
     if (waiting_to_reconnect) {
       if (now - waiting_to_reconnect_since >= g_nj_reconnect_interval) {
         waiting_to_reconnect = 0;
-        g_client->Connect(argv[1],parmuser,parmpass);
+        g_client->Connect(g_nj_address, g_nj_user, g_nj_pass);
       }
     } else if (g_client->GetStatus() < 0) {	// krud, conne
       if (!waiting_to_reconnect) {
