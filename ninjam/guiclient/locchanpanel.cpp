@@ -6,7 +6,7 @@
 #include <wnd/wnds/os/osdialog.h>
 
 #include "../njclient.h"
-#include "../audiostream_asio.h"
+#include "../audiostream.h"
 extern audioStreamer *g_audio;
 
 #include "jesus.h"

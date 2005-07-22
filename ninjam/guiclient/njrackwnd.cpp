@@ -62,7 +62,7 @@ int NJRackWnd::onInit() {
   if (master_was_showing) addRackSlot(new MasterPanel(this));
   if (metro_was_showing) addRackSlot(new MetronomePanel(this));
 //  if (audio_was_showing) addRackSlot(new AudioPanel(this));
-//  if (sweep_was_showing) addRackSlot(new SweepPanel(this));
+  if (sweep_was_showing) addRackSlot(new SweepPanel(this));
   /*if (sweep_was_showing)*/ addRackSlot(new LocalSepPanel(this));
   /*if (sweep_was_showing)*/ addRackSlot(new ChanSepPanel(this));
 

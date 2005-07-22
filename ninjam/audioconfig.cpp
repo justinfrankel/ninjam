@@ -33,7 +33,7 @@
 #include "../WDL/ptrlist.h"
 #include "resource.h"
 
-#include "../njasiodrv/njasiodrv_if.h"
+#include "njasiodrv/njasiodrv_if.h"
 #include "audiostream.h"
 
 struct

@@ -10,7 +10,7 @@
 #include "attrs.h"
 #include "chatwnd.h"
 
-#define CHATHISTLEN 128	//FUCKO configable, minimum 40 or something
+#define CHATHISTLEN 64	//FUCKO configable, minimum 40 or something
 
 #define CMD_CHAR '/'
 

@@ -111,22 +111,6 @@ SOURCE=..\netmsg.cpp
 SOURCE=..\njclient.cpp
 # End Source File
 # End Group
-# Begin Group "asio"
-
-# PROP Default_Filter ""
-# Begin Source File
-
-SOURCE=..\asio\asio.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\asio\asiodrivers.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\asio\asiolist.cpp
-# End Source File
-# End Group
 # Begin Group "wdl"
 
 # PROP Default_Filter ""
@@ -219,6 +203,18 @@ SOURCE=..\ks\pin.cpp
 SOURCE="..\ks\util-ks.cpp"
 # End Source File
 # End Group
+# Begin Group "njasiodrv"
+
+# PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\njasiodrv\njasiodrv_if.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\njasiodrv\njasiodrv_if.h
+# End Source File
+# End Group
 # Begin Source File
 
 SOURCE=.\app.cpp
@@ -226,10 +222,6 @@ SOURCE=.\app.cpp
 # Begin Source File
 
 SOURCE=.\attrs.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\audiostream_asio.cpp
 # End Source File
 # Begin Source File
 
