@@ -445,6 +445,7 @@ int main(int argc, char **argv)
   mp3Writer *m_mp3write=NULL;
   double m_wavewrite_pos=0.0;
   WDL_String m_wavewrite_fn;
+  WDL_PtrList<UserChannelList> song_users;
   int is_done;
   WDL_HeapBuf sample_workbuf;
 
@@ -595,6 +596,14 @@ int main(int argc, char **argv)
       {
         m_users.Add(m_useitems.Get(x)->channel);
       }
+
+      // add to song user list
+      for (y = 0; y < song_users.GetSize() && song_users.Get(y) != m_useitems.Get(x)->channel; y ++);
+      if (y == song_users.GetSize())
+      {
+        song_users.Add(m_useitems.Get(x)->channel);
+      }
+      
     }    
 
     if (m_users.GetSize() < g_min_users || m_useitems.GetSize() < g_min_chans)
@@ -629,6 +638,46 @@ int main(int argc, char **argv)
             m_wavewrite_fn.Set("");
           }
         }
+        else // rename song
+        {
+          WDL_String newfn(m_wavewrite_fn.Get());
+          int y;
+          WDL_PtrList<WDL_String> strs;
+          for (y = 0; y < song_users.GetSize(); y ++)
+          {
+            WDL_String n(song_users.Get(y)->user.Get());
+            char *p=(char *)strstr(n.Get(),"@");
+            if (p) *p=0;
+            p=n.Get();
+            int cnt=8;
+            while (*p)
+            {
+              if (*p == '.' || *p == '/'||*p == '\\' || *p == '?' || *p == '*' || *p == ':' || *p == '\'' || *p == '\"' || *p == '|' || *p == '<' || *p == '>') *p='_';
+              p++;
+              if (!cnt--) *p=0;
+            }
+
+
+            int x;
+            for( x= 0 ;x  < strs.GetSize()  && stricmp(strs.Get(x)->Get(),n.Get()); x ++);
+            if (x >= strs.GetSize())
+            {
+              strs.Add(new WDL_String(n.Get()));
+            }           
+          }
+
+          for (y = 0; y < strs.GetSize(); y ++)
+          {
+            newfn.Append("_");
+            newfn.Append(strs.Get(y)->Get());
+            delete strs.Get(y);
+          }
+          newfn.Append(g_mp3out?".mp3":".wav");
+
+          MoveFile(m_wavewrite_fn.Get(),newfn.Get());
+          //song_users
+        }
+        song_users.Empty();
       }
 
       m_not_enough_cnt=65536;
@@ -641,7 +690,7 @@ int main(int argc, char **argv)
       char buf[512];
       m_wavewrite_fn.Set(g_songpath.Get());
       
-      sprintf(buf,"%02d%02d.%s",(int)(current_position/60000.0),((int)(current_position/1000.0))%60,g_mp3out?"mp3":"wav");
+      sprintf(buf,"%02d%02d",(int)(current_position/60000.0),((int)(current_position/1000.0))%60);
       m_wavewrite_fn.Append(buf);
 
       if (g_mp3out)
