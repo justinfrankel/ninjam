@@ -185,6 +185,9 @@ void usage()
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+  SetPriorityClass(GetCurrentProcess(),IDLE_PRIORITY_CLASS);
+#endif
   printf("autosong v0.0 - Copyright (C) 2005, Cockos, Inc.\n"
          "(Generates mixed output for sessions, using some intelligence)\n\n");
   if (argc <  2 || argv[1][0] == '-')
