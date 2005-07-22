@@ -1,7 +1,7 @@
 #ifndef _NJCAST_H
 #define _NJCAST_H
 
-#include "../../wdl/string.h"
+#include "../../WDL/string.h"
 
 class JNL_Connection;
 class JNL_HTTPGet;

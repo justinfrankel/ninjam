@@ -12,10 +12,14 @@
 
 #include "../njclient.h"
 
-#include "../../wdl/jnetlib/connection.h"
-#include "../../wdl/jnetlib/httpget.h"
-#include "../../wdl/lameencdec.h"
-#include "../../wdl/string.h"
+#include "../../WDL/jnetlib/connection.h"
+#include "../../WDL/jnetlib/httpget.h"
+#include "../../WDL/lameencdec.h"
+#include "../../WDL/string.h"
+
+#ifndef MIN
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
 
 enum {
   CONNECTING,
@@ -134,7 +138,6 @@ printf("send pass fail\n");
       char buf[4096];
 //FUCKO timeout
 //CUT printf("where's my ok\n");
-      int avail = conn->recv_lines_available();
       if (conn->recv_lines_available()<1) return 0;	// try again
       conn->recv_line(buf, 4095);
       buf[4095] = 0;
@@ -173,7 +176,7 @@ printf("couldn't log into sc server\n");
       for (;;) {
         int send_avail = conn->send_bytes_available();
         int avail_to_send = encoder->outqueue.GetSize();
-        int nbytes = min(send_avail, avail_to_send);
+        int nbytes = MIN(send_avail, avail_to_send);
 //if (nbytes > 0) printf("availtosend %d, nbytes %d\n", avail_to_send, nbytes);
         if (nbytes > 0) {
           conn->send_bytes(encoder->outqueue.Get(), nbytes);

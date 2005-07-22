@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <float.h>
 
-#include "../../wdl/dirscan.h"
+#include "../../WDL/dirscan.h"
 #include "../../WDL/lineparse.h"
 
 #include "../njclient.h"
@@ -45,13 +45,18 @@ char g_nj_pass[4096]="";	//
 int g_nj_titlesetinterval=10;
 int g_nj_reconnect_interval=20;
 float g_nj_mastervolume=0.0;	// in dB
+WDL_String g_nj_sessiondir;
 
 // end configurable
 
 int waiting_to_reconnect = 0;
 time_t waiting_to_reconnect_since = 0;
 
+#ifdef WIN32
 #define INT64 __int64
+#else
+#define INT64 long long
+#endif
 
 static INT64 getTimeInMs() {
 #ifdef WIN32
@@ -70,7 +75,7 @@ void doSamples() {
   if (start_time == 0) start_time = getTimeInMs();
 
   // where we should be, in samples
-  INT64 sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / 1000i64;
+  INT64 sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / (INT64)1000;
 
   int block_size=1024; // chunks of 1024 samples at a time
 //  int block_size=4096; // chunks of 1024 samples at a time
@@ -90,7 +95,7 @@ void doSamples() {
     samples_out += block_size;
 
     // keep up! (seems to help)
-    sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / 1000i64;
+    sample_pos = ((INT64)(getTimeInMs()-start_time) * g_srate) / (INT64)1000;
   }
 }
 
@@ -219,6 +224,12 @@ static int ConfigOnToken(LineParser *lp)
     if (!p || !*p) return -2;
     strncpy(g_nj_pass, p, sizeof(g_nj_pass)-1);
   } else
+  if (!stricmp(t,"NJ_Session_Dir")) {
+    if (lp->getnumtokens() != 2) return -1;
+    char *p=lp->gettoken_str(1);
+    if (!p || !*p) return -2;
+    g_nj_sessiondir.Set(p);
+  } else
   return -3;
 
   return 0;
@@ -297,9 +308,6 @@ int main(int argc, char **argv)
 {
   signal(SIGINT,sigfunc);
 
-  WDL_String sessiondir;
-
-  float monitor=1.0;
   g_client=new NJClient;
 
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
@@ -326,7 +334,7 @@ int main(int argc, char **argv)
 
   g_njcast->Connect(g_sc_address, g_sc_port);
 
-  if (!sessiondir.Get()[0])
+  if (!g_nj_sessiondir.Get()[0])
   {
     char buf[512];
 #ifdef _WIN32
@@ -360,22 +368,22 @@ int main(int argc, char **argv)
       buf[0]=0;
     }
       
-    sessiondir.Set(buf);
+    g_nj_sessiondir.Set(buf);
   }
   else
 #ifdef _WIN32
-    CreateDirectory(sessiondir.Get(),NULL);
+    CreateDirectory(g_nj_sessiondir.Get(),NULL);
 #else
-    mkdir(sessiondir.Get(),0700);
+    mkdir(g_nj_sessiondir.Get(),0700);
 #endif
-  if (sessiondir.Get()[0] && sessiondir.Get()[strlen(sessiondir.Get())-1]!='\\' && sessiondir.Get()[strlen(sessiondir.Get())-1]!='/')
+  if (g_nj_sessiondir.Get()[0] && g_nj_sessiondir.Get()[strlen(g_nj_sessiondir.Get())-1]!='\\' && g_nj_sessiondir.Get()[strlen(g_nj_sessiondir.Get())-1]!='/')
 #ifdef _WIN32
-    sessiondir.Append("\\");
+    g_nj_sessiondir.Append("\\");
 #else
-    sessiondir.Append("/");
+    g_nj_sessiondir.Append("/");
 #endif
 
-  g_client->SetWorkDir(sessiondir.Get());
+  g_client->SetWorkDir(g_nj_sessiondir.Get());
 
   while (!g_done) {
 
@@ -427,10 +435,10 @@ int main(int argc, char **argv)
   JNL::close_socketlib();
 
   // delete the sessiondir
-  if (sessiondir.Get()) {
-//printf("sessiondir: '%s'\n", sessiondir.Get());
+  if (g_nj_sessiondir.Get()) {
+//printf("sessiondir: '%s'\n", g_nj_sessiondir.Get());
     for (int i = 0; i < 16; i++) {
-      WDL_String subdir = sessiondir;
+      WDL_String subdir = g_nj_sessiondir;
       char buf[512];
       sprintf(buf, "%x", i);
       subdir.Append(buf);
@@ -457,15 +465,16 @@ int main(int argc, char **argv)
 //printf("rmdir: '%s'\n", subdir.Get());
     }
 
-    for (char *pt = sessiondir.Get(); *pt; pt++) { }	// go to last
-    if (pt > sessiondir.Get()) pt[-1] = 0;	// kill last char
+    char *pt;
+    for (pt = g_nj_sessiondir.Get(); *pt; pt++) { }	// go to last
+    if (pt > g_nj_sessiondir.Get()) pt[-1] = 0;	// kill last char (/ or \)
 
 #ifdef _WIN32
-    RemoveDirectory(sessiondir.Get());
+    RemoveDirectory(g_nj_sessiondir.Get());
 #else
-    rmdir(sessiondir.Get());
+    rmdir(g_nj_sessiondir.Get());
 #endif
-//printf("rm top dir %s\n", sessiondir.Get());
+//printf("rm top dir %s\n", g_nj_sessiondir.Get());
   }
 
   return 0;
