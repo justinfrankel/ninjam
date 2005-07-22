@@ -393,7 +393,7 @@ static int ConfigOnToken(LineParser *lp)
       char *ptr=lp->gettoken_str(3);
       while (*ptr)
       {
-        if (*ptr == '*') p->priv_flag|=~0;
+        if (*ptr == '*') p->priv_flag|=~PRIV_HIDDEN; // everything but hidden if * used
         else if (*ptr == 'T' || *ptr == 't') p->priv_flag |= PRIV_TOPIC;
         else if (*ptr == 'B' || *ptr == 'b') p->priv_flag |= PRIV_BPM;
         else if (*ptr == 'C' || *ptr == 'c') p->priv_flag |= PRIV_CHATSEND;
