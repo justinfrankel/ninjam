@@ -270,7 +270,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     for (user = 0; user < group->m_users.GetSize(); user ++)
     {
       User_Connection *u=group->m_users.Get(user);
-      if (u != this && u->m_auth_state > 0)
+      if (u != this && u->m_auth_state > 0 && !(u->m_auth_privs & PRIV_HIDDEN))
         cnt++;
     }
     if (cnt >= group->m_max_users)
@@ -348,7 +348,7 @@ void User_Connection::SendUserList(User_Group *group)
           acnt++;
         }
       }
-      if (!acnt && !group->m_allow_hidden_users && u->m_max_channels) // give users at least one channel
+      if (!acnt && !group->m_allow_hidden_users && u->m_max_channels && !(u->m_auth_privs & PRIV_HIDDEN)) // give users at least one channel
       {
           bh.build_add_rec(1,0,0,0,0,u->m_username.Get(),"");
       }
@@ -521,7 +521,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
               whichch++;
             }
-            if (!group->m_allow_hidden_users && m_max_channels)
+            if (!group->m_allow_hidden_users && m_max_channels && !(m_auth_privs&PRIV_HIDDEN))
             {
               for (whichch = 0; whichch < MAX_USER_CHANNELS && !m_channels[whichch].active; whichch ++);
 

@@ -50,6 +50,7 @@
 #define PRIV_KICK 8
 #define PRIV_RESERVE 16
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
+#define PRIV_HIDDEN 64   // hidden user, doesn't count for a slot, too
 
 
 

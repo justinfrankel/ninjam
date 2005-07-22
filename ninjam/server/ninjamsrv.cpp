@@ -400,6 +400,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'K' || *ptr == 'k') p->priv_flag |= PRIV_KICK;        
         else if (*ptr == 'R' || *ptr == 'r') p->priv_flag |= PRIV_RESERVE;        
         else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
+        else if (*ptr == 'H' || *ptr == 'h') p->priv_flag |= PRIV_HIDDEN;       
         else 
         {
           if (g_logfp)
