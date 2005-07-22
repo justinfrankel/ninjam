@@ -213,9 +213,11 @@ public:
 
   double decode_peak_vol;
   bool m_need_header;
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   I_NJEncoder  *m_enc;
   int m_enc_bitrate_used;
   Net_Message *m_enc_header_needsend;
+#endif
   
   WDL_String name;
   RemoteDownload m_curwritefile;
@@ -358,8 +360,10 @@ NJClient::NJClient()
   ChannelMixer_User32=0;
 
   waveWrite=0;
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   m_oggWrite=0;
   m_oggComp=0;
+#endif
   m_logFile=0;
 
   m_issoloactive=0;
@@ -600,10 +604,12 @@ void NJClient::Disconnect()
     c->m_wavewritefile=0;
     c->m_curwritefile.Close();
 
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
     delete c->m_enc;
     c->m_enc=0;
     delete c->m_enc_header_needsend;
     c->m_enc_header_needsend=0;
+#endif
 
     c->m_bq.Clear();
   }
@@ -662,6 +668,7 @@ int NJClient::Run() // nonzero if sleep ok
       float *f=(float*)p->Get();
       int hl=p->GetSize()/(2*sizeof(float));
       float *outbuf[2]={f,f+hl};
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
       if (m_oggWrite&&m_oggComp)
       {
         m_oggComp->Encode(f,hl,1,hl);
@@ -672,6 +679,7 @@ int NJClient::Run() // nonzero if sleep ok
           m_oggComp->outqueue.Compact();
         }
       }
+#endif
       if (waveWrite)
       {
         waveWrite->WriteFloatsNI(outbuf,0,hl);
@@ -980,6 +988,7 @@ int NJClient::Run() // nonzero if sleep ok
     }
   }
 
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   int u;
   for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
@@ -1159,6 +1168,7 @@ int NJClient::Run() // nonzero if sleep ok
       }
     }
   }
+#endif
 
   return wantsleep;
 
@@ -1267,7 +1277,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
     if (!justmonitor && lc->bcast_active) 
     {
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
       lc->m_bq.AddBlock(src,len);
+#endif
     }
 
 
@@ -1367,7 +1379,11 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
     // write out wave if necessary
 
-    if (waveWrite||(m_oggWrite&&m_oggComp))
+    if (waveWrite
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
+      ||(m_oggWrite&&m_oggComp)
+#endif
+      )
     {
       m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
     }
@@ -1996,8 +2012,13 @@ void RemoteDownload::Write(void *buf, int len)
 
 
 Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), pan(0.0f), 
-                muted(false), solo(false), broadcasting(false), m_enc(NULL), m_enc_header_needsend(NULL),
-                bcast_active(false), cbf(NULL), cbf_inst(NULL), m_enc_bitrate_used(0), 
+                muted(false), solo(false), broadcasting(false), 
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
+                m_enc(NULL), 
+                m_enc_bitrate_used(0), 
+                m_enc_header_needsend(NULL),
+#endif
+                bcast_active(false), cbf(NULL), cbf_inst(NULL), 
                 bitrate(64), m_need_header(true), m_wavewritefile(NULL),
                 decode_peak_vol(0.0)
 {
@@ -2069,10 +2090,12 @@ void BufferQueue::AddBlock(float *samples, int len, float *samples2)
 
 Local_Channel::~Local_Channel()
 {
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   delete m_enc;
   m_enc=0;
   delete m_enc_header_needsend;
   m_enc_header_needsend=0;
+#endif
 
   delete m_wavewritefile;
   m_wavewritefile=0;
@@ -2081,6 +2104,7 @@ Local_Channel::~Local_Channel()
 
 void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
 {
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   if (m_oggWrite)
   {
     if (m_oggComp)
@@ -2101,5 +2125,6 @@ void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
     m_oggComp=new I_NJEncoder(srate,nch,bitrate,WDL_RNG_int32());
     m_oggWrite=fp;
   }
+#endif
 }
 

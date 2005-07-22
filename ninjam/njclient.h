@@ -85,6 +85,9 @@ class Local_Channel;
 class DecodeState;
 class BufferQueue;
 
+// #define NJCLIENT_NO_XMIT_SUPPORT // might want to do this for njcast :)
+//  it also removes mixed ogg writing support
+
 class NJClient
 {
   friend class RemoteDownload;
@@ -211,8 +214,10 @@ protected:
   int m_max_localch;
   int m_connection_keepalive;
   FILE *m_logFile;
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
   FILE *m_oggWrite;
   I_NJEncoder *m_oggComp;
+#endif
 
   WDL_String m_user, m_pass, m_host;
 
@@ -235,7 +240,6 @@ protected:
   DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0);
 
   BufferQueue *m_wavebq;
-
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
