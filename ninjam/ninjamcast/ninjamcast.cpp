@@ -106,15 +106,24 @@ int g_done=0;
 
 void sigfunc(int sig)
 {
-  printf("Got Ctrl+C\n");
-  g_done++;
+  if (sig == SIGINT)
+  {
+    printf("Got Ctrl+C\n");
+    g_done++;
+  }
+#ifndef _WIN32
+  else if (sig == SIGHUP)
+  {
+    // reload config, etc? you decide
+  }
+#endif
 }
 
 
 void usage()
 {
 
-  printf("Usage: ninjam configfile.cfg\n");
+  printf("Usage: ninjamcast configfile.cfg\n");
 
   exit(1);
 }
@@ -307,7 +316,11 @@ static void readConfig(const char *configfile="njcast.cfg") {
 int main(int argc, char **argv)
 {
   signal(SIGINT,sigfunc);
+#ifndef _WIN32
+  signal(SIGPIPE,sigfunc); // some systems will send a SIGPIPE if you send to a socket that was closed remotely
+  signal(SIGHUP,sigfunc);
 
+#endif
   g_client=new NJClient;
 
 #define DB2VAL(x) (pow(2.0,(x)/6.0))
