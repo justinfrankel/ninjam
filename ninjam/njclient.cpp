@@ -859,6 +859,9 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->chanpresentmask &= ~(1<<cid);
                       theuser->submask &= ~(1<<cid);
 
+                      int chksolo=theuser->solomask == (1<<cid);
+                      theuser->solomask &= ~(1<<cid);
+
                       delete theuser->channels[cid].ds;
                       delete theuser->channels[cid].next_ds[0];
                       delete theuser->channels[cid].next_ds[1];
@@ -866,11 +869,20 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->channels[cid].next_ds[0]=0;
                       theuser->channels[cid].next_ds[1]=0;
 
-
                       if (!theuser->chanpresentmask) // user no longer exists, it seems
                       {
+                        chksolo=1;
                         delete theuser;
                         m_remoteusers.Delete(x);
+                      }
+
+                      if (chksolo)
+                      {
+                        int i;
+                        for (i = 0; i < m_remoteusers.GetSize() && !m_remoteusers.Get(i)->solomask; i ++);
+
+                        if (i < m_remoteusers.GetSize()) m_issoloactive|=1;
+                        else m_issoloactive&=~1;
                       }
                     }
                   }
