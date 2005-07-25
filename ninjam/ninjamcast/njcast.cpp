@@ -162,6 +162,7 @@ printf("couldn't log into sc server\n");
       sprintf(b, "%d", g_bitrate);
       info.Append("icy-br:"); info.Append(b); info.Append("\r\n");
       info.Append("icy-url:"); info.Append(g_sc_url); info.Append("\r\n");
+      info.Append("icy-reset:1"); info.Append("\r\n");
       info.Append("\r\n");
       if (conn->send_bytes_available() < (int)strlen(info.Get())) return 0;// try again
       conn->send_string(info.Get());
