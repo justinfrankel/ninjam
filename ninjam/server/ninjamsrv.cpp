@@ -892,11 +892,12 @@ int main(int argc, char **argv)
 	      nanosleep(&ts,NULL);
 #endif
 
-        if (g_reloadconfig && (strcmp(argv[1],"-") && !ReadConfig(argv[1])))
+        if (g_reloadconfig && strcmp(argv[1],"-"))
         {
           g_reloadconfig=0;
 
-          onConfigChange(argc,argv);
+          if (!ReadConfig(argv[1]))
+            onConfigChange(argc,argv);
         }
 
         time_t now;
