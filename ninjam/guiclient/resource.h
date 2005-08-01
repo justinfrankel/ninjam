@@ -30,12 +30,14 @@
 #define IDD_PANEL_LOCAL_SEPARATOR       121
 #define IDD_ABOUT                       122
 #define IDD_PANEL_AUDIO                 123
+#define IDD_MIDICLOCK_DEVICE            124
 #define IDC_BUTTON1                     1000
 #define IDC_PANEL_SOLO                  1000
 #define IDC_BUTTON2                     1001
 #define IDC_PANEL_MUTE                  1001
 #define IDC_SESSIONDIR_BROWSE           1001
 #define IDC_DELMULTI                    1001
+#define IDC_MIDICLOCK_STOP              1001
 #define IDC_BUTTON5                     1002
 #define IDC_DELOGG                      1002
 #define IDC_SLIDER1                     1003
@@ -127,14 +129,18 @@
 #define IDC_VERSION_TEXT                1084
 #define IDC_SRCCHAN                     1087
 #define IDC_DELWAV                      1088
+#define IDC_MIDICLOCK                   1089
+#define IDC_MIDICLOCK_ENABLE            1090
+#define IDC_MIDICLOCK_START             1091
+#define IDC_MIDIOUT_LIST                1092
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        124
+#define _APS_NEXT_RESOURCE_VALUE        125
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1089
+#define _APS_NEXT_CONTROL_VALUE         1093
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

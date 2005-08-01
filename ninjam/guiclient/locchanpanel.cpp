@@ -89,6 +89,14 @@ LocalChannelPanel::LocalChannelPanel(RackWnd *wnd, int id)
   registerAttribute(&src_channel_name, IDC_SRCCHAN);
   refreshSrcChanName();
 #endif
+
+  midiclock.setParentWnd(subclass_hwnd);
+  addSizeBinding(IDC_MIDICLOCK_ENABLE, OSDialogSizeBind::RIGHT);
+  addSizeBinding(IDC_MIDICLOCK_START, OSDialogSizeBind::RIGHT);
+  addSizeBinding(IDC_MIDICLOCK_STOP, OSDialogSizeBind::RIGHT);
+
+  registerAttribute(&midiclock_enabled, IDC_MIDICLOCK_ENABLE);
+
 }
 
 #if 0
@@ -137,6 +145,22 @@ void LocalChannelPanel::onPostApplyDlgToAttr(Attribute *attr, const char *newval
     g_client->SetLocalChannelInfo(channel_id, channel_name.ncv(), FALSE, 0, FALSE, 0, TRUE, broadcasting);
     g_client->NotifyServerOfChannelChange();
 
+  } else if (attr == &midiclock_enabled) {
+    midiclock.setEnabled(midiclock_enabled.getValueAsInt());
+    // turning on ?
+    if (midiclock_enabled.getValueAsInt()) {
+      if (!midiclock.isEnabled()) { // abort ?
+        midiclock_enabled.setValueAsInt(0);
+        enableControl(IDC_MIDICLOCK_START, 0);
+        enableControl(IDC_MIDICLOCK_STOP, 0);
+      } else {
+        enableControl(IDC_MIDICLOCK_START, 1);
+        enableControl(IDC_MIDICLOCK_STOP, 0);
+      }
+    } else {
+      enableControl(IDC_MIDICLOCK_START, 0);
+      enableControl(IDC_MIDICLOCK_STOP, 0);
+    }
   } else {
   }
 }
@@ -196,6 +220,9 @@ void LocalChannelPanel::onFx(bool fx) {
 void LocalChannelPanel::basicpanelOnApplyPrevAttrs() {
   onPostApplyDlgToAttr(&broadcasting, StringPrintf((int)broadcasting), IDC_BROADCAST);
 //CUT  onPostApplyDlgToAttr(&src_channel, StringPrintf((int)src_channel), -1);
+  midiclock.setEnabled(midiclock_enabled.getValueAsInt());
+  enableControl(IDC_MIDICLOCK_STOP, 0);
+  enableControl(IDC_MIDICLOCK_START, midiclock.isEnabled());
 }
 
 void LocalChannelPanel::panelAppendToPopup(PopupMenu *pop, int ofs) {
@@ -284,6 +311,16 @@ void LocalChannelPanel::onUserButton(int id) {
             }
     }
     break;
+    case IDC_MIDICLOCK_START:
+      midiclock.start();
+      enableControl(IDC_MIDICLOCK_START, 0);
+      enableControl(IDC_MIDICLOCK_STOP, 1);
+      break;
+    case IDC_MIDICLOCK_STOP:
+      midiclock.stop();
+      enableControl(IDC_MIDICLOCK_START, 1);
+      enableControl(IDC_MIDICLOCK_STOP, 0);
+      break;
   }
 }
 

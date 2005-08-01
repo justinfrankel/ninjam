@@ -4,6 +4,7 @@
 #include <bfc/attrib/attribs.h>
 
 #include "basicpanel.h"
+#include "midiclock.h"
 
 #define LOCALCHANNELPANEL_PARENT BasicPanel
 class LocalChannelPanel : public LOCALCHANNELPANEL_PARENT {
@@ -43,6 +44,9 @@ public:
   _string src_channel_name;
 
   _bool broadcasting;
+  
+  _bool midiclock_enabled;
+  MidiClock midiclock;
 };
 
 #endif

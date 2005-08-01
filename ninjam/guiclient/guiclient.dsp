@@ -249,6 +249,10 @@ SOURCE=.\mainwnd.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\midiclock.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\ninjam.rc
 # End Source File
 # Begin Source File
