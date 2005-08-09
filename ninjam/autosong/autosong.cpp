@@ -447,7 +447,7 @@ int main(int argc, char **argv)
   }
 
 
-  int songcnt=0;
+  int songcnt=0,songcnt2=0;
   WaveWriter *m_wavewrite=NULL;
   mp3Writer *m_mp3write=NULL;
   double m_wavewrite_pos=0.0;
@@ -647,6 +647,7 @@ int main(int argc, char **argv)
         }
         else // rename song
         {
+          songcnt2++;
           WDL_String newfn(m_wavewrite_fn.Get());
           int y;
           WDL_PtrList<WDL_String> strs;
@@ -796,7 +797,7 @@ int main(int argc, char **argv)
   }
   while (!is_done);
 
-  printf("wrote %d songs\n",songcnt);
+  printf("wrote %d/%d songs\n",songcnt2,songcnt);
 
 
 
