@@ -672,7 +672,7 @@ int main(int argc, char **argv)
             int cnt=8;
             while (*p)
             {
-              if (*p == '.' || *p == '/'||*p == '\\' || *p == '?' || *p == '*' || *p == ':' || *p == '\'' || *p == '\"' || *p == '|' || *p == '<' || *p == '>' || *p == '_') *p='-';
+              if (*p == '.' || *p == '/'||*p == '\\' || *p == '?' || *p == '*' || *p == ':' || *p == '\'' || *p == '\"' || *p == '|' || *p == '<' || *p == '>' || *p == '-') *p='_';
               p++;
               if (!cnt--) *p=0;
             }
@@ -688,7 +688,7 @@ int main(int argc, char **argv)
 
           for (y = 0; y < strs.GetSize(); y ++)
           {
-            newfn.Append("_");
+            newfn.Append("-");
             newfn.Append(strs.Get(y)->Get());
             delete strs.Get(y);
           }
