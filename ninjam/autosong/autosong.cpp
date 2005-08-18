@@ -561,7 +561,7 @@ int main(int argc, char **argv)
       else rec->channel->chan_peak_val = rec->channel->chan_peak_val*0.9 + peak_vol*0.1;
 
       if (rec->channel->chan_peak_val < 0.25) rec->channel->chan_peak_val=0.25;
-      if (rec->channel->chan_peak_val > 2.0) rec->channel->chan_peak_val=2.0;
+      //if (rec->channel->chan_peak_val > 2.0) rec->channel->chan_peak_val=2.0;
 
       if (peak_vol <= mvol) // silence
       {
@@ -749,7 +749,7 @@ int main(int argc, char **argv)
 
           double val=rec->channel->chan_peak_val; // 0.25 .. 2.0 or so
           if (val < 0.25) val=0.25;
-          else if (val > 2.0) val=2.0;
+          //else if (val > 2.0) val=2.0;
 
           double vol = 1.0/val;
 
