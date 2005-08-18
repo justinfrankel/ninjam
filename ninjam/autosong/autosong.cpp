@@ -583,10 +583,10 @@ int main(int argc, char **argv)
             rec->channel->chan_pan=0.0;
           break;
           case 1:
-            rec->channel->chan_pan=0.2;
+            rec->channel->chan_pan=0.5;
           break;
           case 2:
-            rec->channel->chan_pan=-0.2;
+            rec->channel->chan_pan=-0.5;
           break;
         }
 
