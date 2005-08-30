@@ -1,0 +1,19 @@
+On linux, install libogg, libvorbis, libasound, then do
+
+make
+
+
+and hope things work.
+
+On Mac OS X, once you have the dev tools installed, install libogg and 
+libvorbis, then do:
+
+export MAC=1
+make
+
+
+
+good luck!
+
+-Justin
+
