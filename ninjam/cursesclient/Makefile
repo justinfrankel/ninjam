@@ -6,8 +6,10 @@ OPTFLAGS =  -O2
 
 ifdef MAC
 OPTFLAGS += -D_MAC -mcpu=7450
+LFLAGS = -framework coreaudio -lncurses.5 -lm
 else
 OPTFLAGS += -malign-double 
+LFLAGS = -lncurses -lm -lasound
 endif
 
 #############################################################
@@ -17,7 +19,6 @@ endif
 # we MUST have -fomit-frame-pointer and -lm, otherwise we hate life
 CFLAGS = $(OPTFLAGS) -s 
 # CFLAGS += -Wshadow
-LFLAGS = -lm
 CC=gcc
 CXX=g++
 
@@ -30,7 +31,13 @@ OBJS += ../../WDL/sha.o
 OBJS += ../mpb.o
 OBJS += ../netmsg.o
 OBJS += ../njclient.o
+
+ifdef MAC
 OBJS += ../audiostream_mac.o
+else
+OBJS += ../audiostream_alsa.o
+endif
+
 OBJS += ../njmisc.o
 OBJS += cursesclient.o
 
@@ -40,7 +47,7 @@ CXXFLAGS = $(CFLAGS)
 default: cursesclient
 
 cursesclient: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o cursesclient $(OBJS) -lpthread -framework coreaudio -logg -lvorbis -lvorbisenc -lncurses.5
+	$(CXX) $(CXXFLAGS) -o cursesclient $(OBJS) -lpthread $(LFLAGS) -logg -lvorbis -lvorbisenc 
 
 clean:
 	-rm $(OBJS) cursesclient

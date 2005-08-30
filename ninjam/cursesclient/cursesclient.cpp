@@ -1082,7 +1082,11 @@ int main(int argc, char **argv)
 #else
   {
     char *dev_name_in=audioconfigstr;
+#ifdef _MAC
     g_audio=create_audioStreamer_CoreAudio(&dev_name_in,48000,2,16,audiostream_onsamples);
+#else
+    g_audio=create_audioStreamer_ALSA(dev_name_in,audiostream_onsamples);
+#endif
   }
 #endif
   if (!g_audio)

@@ -336,7 +336,7 @@ audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc)
   int srate=48000;
   int nch=2;
   int bps=16;
-  int fs=4096;
+  int fs=1024;
   int nf=16;
 
   if (in->Open(dev,0,srate,nch,bps,fs,nf,-1))
