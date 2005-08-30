@@ -1,3 +1,43 @@
+/*
+    NINJAM - audiostream_alsa.cpp
+    Copyright (C) 2004-2005 Cockos Incorporated
+
+    NINJAM is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    NINJAM is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with NINJAM; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/*
+
+  This file implements a audioStreamer that uses ALSA.
+  It only exposes the following functions:
+
+    audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc);
+  
+    cfg is a string that has a list of parameter/value pairs (space delimited) 
+    for the config:
+      in     - input device i.e. hw:0,0
+      out    - output device i.e. hw:0,0
+      srate  - sample rate i.e. 48000
+      bps    - bits/sample i.e. 16
+      nch    - channels i.e. 2
+      bsize  - block size (bytes) i.e. 2048
+      nblock - number of blocks i.e. 16
+
+
+  (everything else in this file is used internally)
+
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
