@@ -7,7 +7,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "jesusonic.h"
+#include <alsa/asoundlib.h>
+
+#include "../WDL/pcmfmtcvt.h"
+
+#include "../WDL/ptrlist.h"
+#include "audiostream.h"
 
 
 #include <sys/ioctl.h>
@@ -15,159 +20,37 @@
 
 #include "audiostream.h"
 
-//////////////// OSS driver
-
-audioStreamer_OSS::audioStreamer_OSS() 
+class audioStreamer_int
 {
-	audio_fd=-1;
-}
-audioStreamer_OSS::~audioStreamer_OSS()
+	public:
+		audioStreamer_int() { m_srate=48000; m_nch=2; m_bps=16; }
+		virtual ~audioStreamer_int() { }
+
+		virtual int Read(char *buf, int len)=0; // returns 0 if blocked, < 0 if error, > 0 if data
+		virtual int Write(char *buf, int len)=0; // returns 0 on success
+
+		int m_srate, m_nch, m_bps;
+};
+
+
+
+class audioStreamer_ALSA : public audioStreamer_int
 {
-	if (audio_fd >= 0) close(audio_fd);
-}
+	public:
+		audioStreamer_ALSA();
+		~audioStreamer_ALSA();
+		int Open(char *devname, int is_write, int srate, int nch, int bps, int fragsize, int nfrags, int dosleep);
 
-//#define IGNORE_OSS_ERRORS
+		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
+		int Write(char *buf, int len); // returns 0 on success
+	private:
+	snd_pcm_t *pcm_handle;
+	int m_sleep;
+	int m_bufsize;
+	int m_nfrags;
+	int m_started;
+};
 
-int audioStreamer_OSS::Open(char *dev, int perm, int srate, int nch, int bps, int sleep)
-{
-	m_sleep=sleep;
-	int ignore_errors=!strcmp(dev,"/dev/null") || !strcmp(dev,"/dev/zero");
-	m_nch = nch;
-	m_srate=srate;
-	audio_fd = open(dev,perm,0);
-	if (audio_fd < 0)
-	{
-		perror(dev);
-		return -1;
-	}
-#if 0
-	int caps=0;
-	if (ioctl(audio_fd,SNDCTL_DSP_GETCAPS,&caps)==-1)
-	{
-		perror("SNDCTL_DSP_GETCAPS");
-		return -1;
-	}
-	if (caps & DSP_CAP_DUPLEX) printf("full duplex!\n");
-	if (caps & DSP_CAP_REALTIME) printf("realtime!\n");
-	if (caps & DSP_CAP_MMAP) printf("mmap!\n");
-#endif
-	int format = AFMT_S16_LE;
-#ifdef AFMT_S32_LE
-	if (bps == 32) format=AFMT_S32_LE;
-	else if (bps == 24) format=AFMT_S24_LE;
-#endif
-	if (ioctl(audio_fd,SNDCTL_DSP_SETFMT, &format)==-1)
-	{
-#ifndef IGNORE_OSS_ERRORS
-		if (!ignore_errors)
-		{
-			perror("SNDCTL_DSP_SETFMT");
-			return -1;
-		}
-#endif
-	}
-	switch (format)
-	{
-		case AFMT_S16_LE: m_bps=16; break;
-#ifdef AFMT_S32_LE
-		case AFMT_S24_LE: m_bps=24; break;
-		case AFMT_S32_LE: m_bps=32; break;
-#endif
-		default:
-			  printf("Error setting sample type, got %d\n",format);
-			  return -1;
-
-	}
-	int stereo=m_nch;
-	if (ioctl(audio_fd, SNDCTL_DSP_CHANNELS, &stereo)==-1)
-	{
-#ifndef IGNORE_OSS_ERRORS
-		if (!ignore_errors)
-		{
-			perror("SNDCTL_DSP_CHANNELS");
-			return -1;
-		}
-#endif
-	}
-	if (stereo != m_nch)
-	{
-		printf("Warning: requested %d channels, got %d instead\n",m_nch,stereo);
-		m_nch=stereo;
-	}
-	int speed=m_srate;
-	if (ioctl(audio_fd, SNDCTL_DSP_SPEED, &speed)==-1)
-	{
-#ifndef IGNORE_OSS_ERRORS
-		if (!ignore_errors)
-		{
-			perror("SNDCTL_DSP_SPEED");
-			return -1;
-		}
-#endif
-	}
-	if (speed != m_srate)
-	{
-		printf("Warning: requested %dhz, got %d instead\n",m_srate,speed);
-		m_srate=speed;
-	}
-	int nonblock=1;
-	if (ioctl(audio_fd,SNDCTL_DSP_NONBLOCK,&nonblock)==-1)
-	{
-#ifndef IGNORE_OSS_ERRORS
-		if (!ignore_errors)
-		{
-			perror("SNDCTL_DSP_NONBLOCK");
-			return -1;
-		}
-#endif
-	}
-	if (!nonblock)
-	{
-		printf("Warning: device doesn't seem to support nonblocking\n");
-	}
-	return 0;
-}
-
-int audioStreamer_OSS::Read(char *buf, int len) // returns 0 if blocked, < 0 if error, > 0 if data
-{
-	if (m_sleep>=0)
-	{
-		struct pollfd pfds[1];
-		pfds[0].fd=audio_fd;
-		pfds[0].events=POLLIN;
-		pfds[0].revents=0;
-		poll(pfds,1,m_sleep);
-	}
-
-	int r=read(audio_fd,buf,len);
- 	//int qs;
-	if (r < 0)
-	{
-		if (errno == EAGAIN) return 0;
-		else 
-		{
-			perror("calling read");
-			return -1;
-		}
-	}
-	return r;
-}
-int audioStreamer_OSS::Write(char *buf, int len) // returns 0 on success
-{
-	if (len > 0)
-	{
-		int l=write(audio_fd,buf,len);
-		if (l<0)
-		{
-			if (errno != EAGAIN)
-			{
-				perror("calling write 2");
-				return -1;
-			}
-		}
-	}
-	return 0;
-}
 
 
 //////////////// ALSA driver
@@ -344,3 +227,127 @@ int audioStreamer_ALSA::Write(char *buf, int len) // returns 0 on success
 	return 0;
 }
 
+
+
+
+
+//============== asio simulation shit
+//
+class audioStreamer_asiosim : public audioStreamer
+{
+	public:
+    audioStreamer_asiosim(audioStreamer_int *i, audioStreamer_int *o, int bufsize, int srate, int bps, SPLPROC proc)
+    {
+      m_splproc=proc;
+      in=i;
+      out=o;
+      m_bps=bps;
+      m_innch=m_outnch=2;
+      m_bps=bps;
+      m_srate=srate;
+      m_done=0;
+      m_buf=(char *)malloc(bufsize);
+      m_bufsize=bufsize;
+
+      m_procbuf=(float *)malloc((bufsize*64)/bps);// allocated 2x, input and output
+
+      
+      // create thread
+      pthread_create(&hThread,NULL,threadProc,(void *)this);
+    }
+    ~audioStreamer_asiosim()
+    {
+      m_done=1;
+
+      // kill thread
+      pthread_join(hThread,NULL);
+
+      delete in;
+      delete out;
+      free(m_buf);
+      free(m_procbuf);
+    }
+
+    const char *GetChannelName(int idx)
+    {
+      if (idx == 0) return "Left";
+      if (idx == 1) return "Right";
+      return NULL;
+    }
+
+	private:
+    void tp();
+    static void threadProc(void *p)
+    {
+      audioStreamer_asiosim *t=(audioStreamer_asiosim*)p;
+      t->tp();
+      return 0;
+    }
+    audioStreamer_int *in, *out;
+    
+    pthread_t hThread;
+    int m_done,m_bufsize;
+    char *m_buf;
+    float *m_procbuf;
+
+    SPLPROC m_splproc;
+};
+
+void audioStreamer_asiosim::tp()
+{
+  while (!m_done)
+  {
+    int a=in->Read(m_buf,m_bufsize);
+    if (a>0)
+    {
+      int spllen=a*4/(m_bps); // a*8/m_bps/nch
+      float *inptrs[2], *outptrs[2];
+      inptrs[0]=m_procbuf;
+      inptrs[1]=m_procbuf+spllen;
+      outptrs[0]=m_procbuf+spllen*2;
+      outptrs[1]=m_procbuf+spllen*3;
+
+      pcmToFloats(m_buf,spllen,m_bps,2,inptrs[0],1);
+      pcmToFloats(m_buf+(m_bps/8),spllen,m_bps,2,inptrs[1],1);
+
+      if (m_splproc) m_splproc(inptrs,2,outptrs,2,spllen,m_srate);
+
+      floatsToPcm(outptrs[0],1,spllen,m_buf,m_bps,2);
+      floatsToPcm(outptrs[1],1,spllen,m_buf+(m_bps/8),m_bps,2);
+  
+      out->Write(m_buf,a);
+    }
+    else
+    {
+      struct timespec s={0,1000*1000}; // sleep 1ms;
+      nanosleep(&s,NULL);
+    }
+  }
+}
+
+audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc)
+{
+  audioStreamer_ALSA *in=new audioStreamer_ALSA();
+  // todo: parse from cfg
+  char *dev="hw:0,0";
+  int srate=48000;
+  int nch=2;
+  int bps=16;
+  int fs=4096;
+  int nf=16;
+
+  if (in->Open(dev,0,srate,nch,bps,fs,nf,-1))
+  {
+    delete in;
+    return 0;
+  }
+  audioStreamer_ALSA *out=new audioStreamer_ALSA();
+  if (out->Open(dev,1,srate,nch,bps,fs,nf,-1))
+  {
+    delete in;
+    delete out;
+    return 0;
+  }
+
+  return new audioStreamer_asiosim(in,out,*bufsize,srate,bps,proc);
+}
