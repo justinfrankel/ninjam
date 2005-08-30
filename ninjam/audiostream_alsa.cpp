@@ -6,19 +6,21 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include <alsa/asoundlib.h>
+#include <sys/ioctl.h>
+#include <sys/soundcard.h>
 
 #include "../WDL/pcmfmtcvt.h"
 
 #include "../WDL/ptrlist.h"
 #include "audiostream.h"
 
+static void audiostream_onunder() { }
+static void audiostream_onover() { }
 
-#include <sys/ioctl.h>
-#include <sys/soundcard.h>
 
-#include "audiostream.h"
 
 class audioStreamer_int
 {
@@ -199,6 +201,7 @@ int audioStreamer_ALSA::Read(char *buf, int len) // returns 0 if blocked, < 0 if
 	return ret*m_nch*(m_bps/8);
 }
 
+
 int audioStreamer_ALSA::Write(char *buf, int len) // returns 0 on success
 {
 	snd_pcm_sframes_t del=0;
@@ -277,7 +280,7 @@ class audioStreamer_asiosim : public audioStreamer
 
 	private:
     void tp();
-    static void threadProc(void *p)
+    static void *threadProc(void *p)
     {
       audioStreamer_asiosim *t=(audioStreamer_asiosim*)p;
       t->tp();
@@ -349,5 +352,5 @@ audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc)
     return 0;
   }
 
-  return new audioStreamer_asiosim(in,out,*bufsize,srate,bps,proc);
+  return new audioStreamer_asiosim(in,out,fs,srate,bps,proc);
 }
