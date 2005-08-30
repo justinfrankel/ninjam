@@ -811,7 +811,19 @@ void usage(int noexit=0)
     "  -noaudiocfg\n"
     "  -jesusonic <path to jesusonic root dir>\n"
 #else
+#ifdef _MAC
     "  -audiostr device_name[,output_device_name]\n"
+#else
+    "  -audiostr \"option value [option value ...]\"\n"
+    "     ALSA audio options are:\n"
+    "       in hw:0,0    -- set input device\n"
+    "       out hw:0,0   -- set output device\n"
+    "       srate 48000  -- set samplerate\n"
+    "       nch 2        -- set channels\n"
+    "       bps 16       -- set bits/sample\n"
+    "       bsize 2048   -- set blocksize (bytes)\n"
+    "       nblock 16    -- set number of blocks\n"
+#endif
 #endif
 
     "  -sessiondir <path>   -- sets the session directory (default: auto)\n"

@@ -330,22 +330,56 @@ void audioStreamer_asiosim::tp()
 
 audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc)
 {
-  audioStreamer_ALSA *in=new audioStreamer_ALSA();
   // todo: parse from cfg
-  char *dev="hw:0,0";
+  char *indev="hw:0,0";
+  char *outdev="hw:0,0";
   int srate=48000;
   int nch=2;
   int bps=16;
   int fs=1024;
   int nf=16;
 
-  if (in->Open(dev,0,srate,nch,bps,fs,nf,-1))
+  while (cfg && *cfg)
+  {
+    char *p=cfg;
+    while (*p && *p != ' ') p++;
+    if (!*p) break;
+    *p++=0;
+    while (*p == ' ') p++;
+    if (!*p)
+    {
+	    printf("config item '%s' has no parameter\n",cfg);
+	    return 0;
+    }
+
+    if (!strcasecmp(cfg,"in")) indev=p;
+    else if (!strcasecmp(cfg,"out")) outdev=p;
+    else if (!strcasecmp(cfg,"srate")) srate=atoi(p);
+    else if (!strcasecmp(cfg,"nch")) nch=atoi(p);
+    else if (!strcasecmp(cfg,"bps")) bps=atoi(p);
+    else if (!strcasecmp(cfg,"bsize")) fs=atoi(p);
+    else if (!strcasecmp(cfg,"nblock")) nf=atoi(p);
+    else 
+    {
+	    printf("unknown config item '%s'\n",cfg);
+	    return 0;
+    }
+
+    while (*p && *p != ' ') p++;
+    if (!*p) break;
+    *p++=0;
+    while (*p == ' ') p++;
+    cfg=p;
+  }
+
+  audioStreamer_ALSA *in=new audioStreamer_ALSA();
+  if (in->Open(indev,0,srate,nch,bps,fs,nf,-1))
   {
     delete in;
     return 0;
   }
   audioStreamer_ALSA *out=new audioStreamer_ALSA();
-  if (out->Open(dev,1,srate,nch,bps,fs,nf,-1))
+  if (out->Open(outdev,1,srate,nch,bps,fs,nf,-1))
   {
     delete in;
     delete out;
