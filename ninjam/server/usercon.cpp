@@ -968,7 +968,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         mpb_chat_message newmsg;
         newmsg.parms[0]="MSG";
         newmsg.parms[1]="";
-        newmsg.parms[2]=m_voting_threshold > 100 || m_voting_threshold < 1? "[voting system] Voting not enabled" : "[voting system] No vote permission";
+        newmsg.parms[2]=(char *)(m_voting_threshold > 100 || m_voting_threshold < 1? "[voting system] Voting not enabled" : "[voting system] No vote permission");
         con->Send(newmsg.build());
         return;
       }
