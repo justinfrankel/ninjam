@@ -189,7 +189,7 @@ public:
         }
       }
 
-      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | (g_config_allowanonymous_multi?PRIV_ALLOWMULTI:0);
+      privs=(g_config_allow_anonchat?PRIV_CHATSEND:0) | (g_config_allowanonymous_multi?PRIV_ALLOWMULTI:0) | PRIV_VOTE;
       max_channels=g_config_maxch_anon;
     }
     else
@@ -294,15 +294,15 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 2) return -1;
     g_default_bpi=lp->gettoken_int(1);
-    if (g_default_bpi<2) g_default_bpi=2;
-    else if (g_default_bpi > 1024) g_default_bpi=1024;
+    if (g_default_bpi<MIN_BPI) g_default_bpi=MIN_BPI;
+    else if (g_default_bpi > MAX_BPI) g_default_bpi=MAX_BPI;
   }
   else if (!stricmp(t,"DefaultBPM"))
   {
     if (lp->getnumtokens() != 2) return -1;
     g_default_bpm=lp->gettoken_int(1);
-    if (g_default_bpm<20) g_default_bpm=20;
-    else if (g_default_bpm > 400) g_default_bpm=400;
+    if (g_default_bpm<MIN_BPM) g_default_bpm=MIN_BPM;
+    else if (g_default_bpm > MAX_BPM) g_default_bpm=MAX_BPM;
   }
   else if (!stricmp(t,"DefaultTopic"))
   {
@@ -323,6 +323,16 @@ static int ConfigOnToken(LineParser *lp)
     m_group->m_keepalive=lp->gettoken_int(1);
     if (m_group->m_keepalive < 0 || m_group->m_keepalive > 255)
       m_group->m_keepalive=0;
+  }
+  else if (!stricmp(t,"SetVotingThreshold"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    m_group->m_voting_threshold=lp->gettoken_int(1);
+  }
+  else if (!stricmp(t,"SetVotingVoteTimeout"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    m_group->m_voting_timeout=lp->gettoken_int(1);
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -401,6 +411,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'R' || *ptr == 'r') p->priv_flag |= PRIV_RESERVE;        
         else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
         else if (*ptr == 'H' || *ptr == 'h') p->priv_flag |= PRIV_HIDDEN;       
+        else if (*ptr == 'V' || *ptr == 'v') p->priv_flag |= PRIV_VOTE;               
         else 
         {
           if (g_logfp)
@@ -410,7 +421,7 @@ static int ConfigOnToken(LineParser *lp)
         ptr++;
       }
     }
-    else p->priv_flag=PRIV_CHATSEND;// default privs
+    else p->priv_flag=PRIV_CHATSEND|PRIV_VOTE;// default privs
     g_userlist.Add(p);
   }
   else if (!stricmp(t,"AllowHiddenUsers"))
