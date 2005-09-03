@@ -960,7 +960,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 {
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
-    Net_Message *need_bcast=0;
+    WDL_PtrList<Net_Message> need_bcast;
     if (msg->parms[1] && !strncmp(msg->parms[1],"!vote",5)) // chat message
     {
       if (!(con->m_auth_privs & PRIV_VOTE) || m_voting_threshold > 100 || m_voting_threshold < 1)
@@ -979,12 +979,12 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       while (*p && *p != ' ') p++;
       while (*p == ' ') p++;
 
-      if (*p && strncmp(pn,"bpm",3) && atoi(p) >= MIN_BPM && atoi(p) <= MAX_BPM)
+      if (*p && !strncmp(pn,"bpm",3) && atoi(p) >= MIN_BPM && atoi(p) <= MAX_BPM)
       {
         con->m_vote_bpm=atoi(p);
         con->m_vote_bpm_lasttime=time(NULL);
       }
-      else if (*p && strncmp(pn,"bpi",3) && atoi(p) >= MIN_BPI && atoi(p) <= MAX_BPI)
+      else if (*p && !strncmp(pn,"bpi",3) && atoi(p) >= MIN_BPI && atoi(p) <= MAX_BPI)
       {
         con->m_vote_bpi=atoi(p);
         con->m_vote_bpi_lasttime=time(NULL);
@@ -1011,21 +1011,21 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         {
           User_Connection *p=m_users.Get(x);
           if (p->m_auth_state<=0) continue;
-          vucnt++;
+          if (!(p->m_auth_privs & PRIV_HIDDEN)) vucnt++;
           if (p->m_vote_bpi_lasttime >= now-m_voting_timeout && p->m_vote_bpi >= MIN_BPI && p->m_vote_bpi <= MAX_BPI)
           {
               int v=++bpis[p->m_vote_bpi-MIN_BPI];
-              if (v > bpis[maxbpi]) maxbpi=x;
+              if (v > bpis[maxbpi]) maxbpi=p->m_vote_bpi-MIN_BPI;
           }
           if (p->m_vote_bpm_lasttime >= now-m_voting_timeout && p->m_vote_bpm >= MIN_BPM && p->m_vote_bpm <= MAX_BPM)
           {
               int v=++bpms[p->m_vote_bpm-MIN_BPM];
-              if (v > bpms[maxbpm]) maxbpm=x;
+              if (v > bpms[maxbpm]) maxbpm=p->m_vote_bpm-MIN_BPM;
           }
         }
-        if (bpms[maxbpm] > 0)
+        if (bpms[maxbpm] > 0 && !strncmp(pn,"bpm",3))
         {
-          if (bpms[maxbpm] >= (vucnt * m_voting_threshold)/100)
+          if (bpms[maxbpm] >= (vucnt * m_voting_threshold + 50)/100)
           {
             m_last_bpm=maxbpm+MIN_BPM;
             char buf[512];
@@ -1035,30 +1035,32 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
             newmsg.parms[0]="MSG";
             newmsg.parms[1]="";
             newmsg.parms[2]=buf;
-            need_bcast=newmsg.build();
+            need_bcast.Add(newmsg.build());
 
 
 
             mpb_server_config_change_notify mk;
             mk.beats_interval=m_last_bpi;
             mk.beats_minute=m_last_bpm;
-            Broadcast(mk.build());
+            need_bcast.Add(mk.build());
+            for (x = 0; x < m_users.GetSize(); x ++)
+              m_users.Get(x)->m_vote_bpm_lasttime = 0;
           }
           else
           {
             char buf[512];
-            sprintf(buf,"[voting system] leading candidate: %d/%d votes for %d BPM [each vote expires in %ds]",bpms[maxbpm],(vucnt * m_voting_threshold)/100,maxbpm+MIN_BPM,m_voting_timeout);
+            sprintf(buf,"[voting system] leading candidate: %d/%d votes for %d BPM [each vote expires in %ds]",bpms[maxbpm],(vucnt * m_voting_threshold + 50)/100,maxbpm+MIN_BPM,m_voting_timeout);
 
             mpb_chat_message newmsg;
             newmsg.parms[0]="MSG";
             newmsg.parms[1]="";
             newmsg.parms[2]=buf;
-            need_bcast=newmsg.build();
+            need_bcast.Add(newmsg.build());
           }
         }
-        if (bpis[maxbpi] > 0)
+        if (bpis[maxbpi] > 0 && !strncmp(pn,"bpi",3))
         {
-          if (bpis[maxbpi] >= (vucnt * m_voting_threshold)/100)
+          if (bpis[maxbpi] >= (vucnt * m_voting_threshold + 50)/100)
           {
             m_last_bpi=maxbpi+MIN_BPI;
             char buf[512];
@@ -1068,25 +1070,25 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
             newmsg.parms[0]="MSG";
             newmsg.parms[1]="";
             newmsg.parms[2]=buf;
-            need_bcast=newmsg.build();
-
-
+            need_bcast.Add(newmsg.build());
 
             mpb_server_config_change_notify mk;
             mk.beats_interval=m_last_bpi;
-            mk.beats_minute=m_last_bpi;
-            Broadcast(mk.build());
+            mk.beats_minute=m_last_bpm;
+            need_bcast.Add(mk.build());
+            for (x = 0; x < m_users.GetSize(); x ++)
+              m_users.Get(x)->m_vote_bpi_lasttime = 0;
           }
           else
           {
             char buf[512];
-            sprintf(buf,"[voting system] leading candidate: %d/%d votes for %d BPI [each vote expires in %ds]",bpis[maxbpi],(vucnt * m_voting_threshold)/100,maxbpi+MIN_BPI,m_voting_timeout);
+            sprintf(buf,"[voting system] leading candidate: %d/%d votes for %d BPI [each vote expires in %ds]",bpis[maxbpi],(vucnt * m_voting_threshold + 50)/100,maxbpi+MIN_BPI,m_voting_timeout);
 
             mpb_chat_message newmsg;
             newmsg.parms[0]="MSG";
             newmsg.parms[1]="";
             newmsg.parms[2]=buf;
-            need_bcast=newmsg.build();
+            need_bcast.Add(newmsg.build());
           }
         }
       }
@@ -1110,9 +1112,10 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       newmsg.parms[2]=msg->parms[1];
       Broadcast(newmsg.build());
     }
-    if (need_bcast)
-      Broadcast(need_bcast);
-    need_bcast=0;
+    int x;
+    for (x = 0; x < need_bcast.GetSize(); x ++)
+      Broadcast(need_bcast.Get(x));
+    need_bcast.Empty();
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {
