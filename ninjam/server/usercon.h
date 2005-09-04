@@ -54,8 +54,8 @@
 #define PRIV_VOTE 128
 
 #define MAX_BPM 400
-#define MAX_BPI 1024
-#define MIN_BPM 20
+#define MAX_BPI 64
+#define MIN_BPM 40
 #define MIN_BPI 2
 
 class IUserInfoLookup // abstract base class, overridden by server
