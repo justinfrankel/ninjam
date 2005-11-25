@@ -82,6 +82,7 @@ class audioStreamer_ASIO  : public audioStreamer
 
 	private:
     
+    int m_latency;
     char *m_chnames[256];
     int m_driver_active;
 };
@@ -141,8 +142,8 @@ typedef struct DriverInfo
 	bool           postOutput;
 
 	// ASIOGetLatencies ()
-	//long           inputLatency;
-	//long           outputLatency;
+	long           inputLatency;
+	long           outputLatency;
 
 	// ASIOCreateBuffers ()
 	long inputBuffers;	// becomes number of actual created input buffers
@@ -342,6 +343,7 @@ long asioMessages(long selector, long value, void* message, double* opt)
 
 audioStreamer_ASIO::audioStreamer_ASIO()
 {
+  m_latency=0;
   m_driver_active=0;
   asioDrivers=0;
   memset(m_chnames,0,sizeof(m_chnames));
@@ -349,6 +351,10 @@ audioStreamer_ASIO::audioStreamer_ASIO()
 
 const char *audioStreamer_ASIO::GetChannelName(int idx)
 {
+  if (idx == 0x80000000)
+  {
+    return (const char *)m_latency;
+  }
   if (idx < 0 || idx >= m_innch) return NULL;
   return m_chnames[idx];
 }
@@ -614,14 +620,27 @@ int audioStreamer_ASIO::Open(char **dev)
 				break;
 		}
 
-		if (result == ASE_OK)
+		//if (result == ASE_OK)
 		{
 			// get the input and output latencies
 			// Latencies often are only valid after ASIOCreateBuffers()
 			// (input latency is the age of the first sample in the currently returned audio block)
 			// (output latency is the time the first sample in the currently returned audio block requires to get to the output)
-			//result = ASIOGetLatencies(&myDriverInfo.inputLatency, &myDriverInfo.outputLatency);
-			//if (result == ASE_OK)
+			result = ASIOGetLatencies(&myDriverInfo.inputLatency, &myDriverInfo.outputLatency);
+			if (result != ASE_OK)
+      {
+        m_latency = myDriverInfo.preferredSize*2;
+        myDriverInfo.inputLatency=myDriverInfo.outputLatency=0;
+      }
+      else
+      {
+        m_latency=myDriverInfo.inputLatency+myDriverInfo.outputLatency;
+        if (m_latency < myDriverInfo.preferredSize*2) m_latency=myDriverInfo.preferredSize*2;
+
+        char buf[512];
+        sprintf(buf,"Got latencies of %d/%d/%d",myDriverInfo.inputLatency,myDriverInfo.outputLatency,myDriverInfo.preferredSize);
+        OutputDebugString(buf);
+      }
 			//	myPrintf ("ASIOGetLatencies (input: %d, output: %d);\n", myDriverInfo.inputLatency, myDriverInfo.outputLatency);
 		}
 	}
