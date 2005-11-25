@@ -131,7 +131,7 @@ audioStreamer_waveOut::~audioStreamer_waveOut()
 
 int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device)
 {
-  m_bufs_active=iswrite?0:1;
+  m_bufs_active=iswrite?0:2;
   m_sleep =   WO_SLEEP;
 
   m_nch = nch;
