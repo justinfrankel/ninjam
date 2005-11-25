@@ -142,7 +142,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)((/*in?in->m_nbufs:*/0) + (out?out->m_nbufs:1));
+      if (idx == 0x80000000) return (const char *)((/*in?in->m_nbufs:*/0) + (out?out->m_nbufs:2)/2 );
       if (idx == 0) return "KS Left";
       if (idx == 1) return "KS Right";
       return NULL;
