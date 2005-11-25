@@ -44,7 +44,7 @@ class audioStreamer
 		audioStreamer() { m_srate=48000; m_outnch=m_innch=2; m_bps=16; }
 		virtual ~audioStreamer() { }
 
-    virtual const char *GetChannelName(int idx)=0;
+    virtual const char *GetChannelName(int idx)=0; // call with idx of 0x80000000 to get (int) numblocks_latency -- if NULL, should be 2.
 
 		int m_srate, m_innch, m_outnch, m_bps;
 };

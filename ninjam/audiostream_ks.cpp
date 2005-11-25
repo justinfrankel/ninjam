@@ -75,7 +75,9 @@ class audioStreamer_KS
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-	private:
+    int m_nbufs;
+
+  private:
 
 
     int m_srate, m_bps;
@@ -90,7 +92,6 @@ class audioStreamer_KS
     CKsAudCapPin *m_pPin_cap;
 
     // data packet stuff
-    int m_nbufs;
 
     struct DATA_PACKET
     {
@@ -127,6 +128,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
       hThread=CreateThread(NULL,0,threadProc,(LPVOID)this,0,&id);
       SetThreadPriority(hThread,THREAD_PRIORITY_HIGHEST);
     }
+
 		~audioStreamer_KS_asiosim()
     {
       m_done=1;
@@ -140,6 +142,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
+      if (idx == 0x80000000) return (const char *)((in?in->m_nbufs:1) + (out?out->m_nbufs:1));
       if (idx == 0) return "KS Left";
       if (idx == 1) return "KS Right";
       return NULL;

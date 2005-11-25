@@ -51,6 +51,8 @@ class audioStreamer_int
 		virtual int Read(char *buf, int len)=0; // returns 0 if blocked, < 0 if error, > 0 if data
 		virtual int Write(char *buf, int len)=0; // returns 0 on success
 
+    virtual int GetNumBufs()=0;
+
 		int m_srate, m_nch, m_bps;
 };
 
@@ -65,6 +67,8 @@ class audioStreamer_waveOut : public audioStreamer_int
 		int Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device=-1);
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
+
+    int GetNumBufs() { return m_bufs.GetSize(); }
 
 	private:
 	
@@ -341,6 +345,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
+      if (idx == 0x80000000) return (const char *)((in?in->GetNumBufs():1) + (out?out->GetNumBufs():1));
       if (idx == 0) return "Left";
       if (idx == 1) return "Right";
       return NULL;
@@ -406,6 +411,8 @@ class audioStreamer_ds : public audioStreamer_int
 		int Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, GUID *device=NULL);// guid anyway for device
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
+
+    int GetNumBufs() { return m_bufsize?(m_totalbufsize/m_bufsize):1; }
 
 	private:
 	
