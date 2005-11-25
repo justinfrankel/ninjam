@@ -75,11 +75,13 @@ class audioStreamer_KS
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-    int m_nbufs;
+
+    int GetLatency() { return m_inqueue; }
 
   private:
 
-
+    int m_inqueue;
+    int m_nbufs;
     int m_srate, m_bps;
     int read_pos;
     void StartRead(int idx, int len);
@@ -142,7 +144,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)((/*in?in->m_nbufs:*/0) + (out?out->m_nbufs:2)/2 );
+      if (idx == 0x80000000) return (const char *)(2);
       if (idx == 0) return "KS Left";
       if (idx == 1) return "KS Right";
       return NULL;
@@ -219,6 +221,7 @@ audioStreamer *create_audioStreamer_KS(int srate, int bps, int *nbufs, int *bufs
 
 audioStreamer_KS::audioStreamer_KS()
 {
+  m_inqueue=0;
   m_state=KSSTATE_STOP;
   m_pFilter=NULL;
   m_pFilter_cap=NULL;
@@ -269,6 +272,9 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
   if (*nbufs < 1) *nbufs=8;
   if (*nbufs > 128) *nbufs=128;
   m_nbufs=*nbufs;
+  if (iswrite) m_inqueue=m_nbufs;
+  else m_inqueue=0;
+
   if (*bufsize > 8192) *bufsize=8192;
   else if (*bufsize < 0) *bufsize=512;
 
@@ -492,6 +498,9 @@ int audioStreamer_KS::Write(char *buf, int len) // returns 0 on success
 	DWORD dwWait = WaitForMultipleObjects(m_nbufs, hEventPool, FALSE, INFINITE);
 	if(dwWait == WAIT_FAILED) return 1;
 
+  if (m_inqueue>0)
+    m_inqueue--;
+
 	dwWait -= WAIT_OBJECT_0;
 
 	memcpy(Packets[dwWait].Header.Data, buf, len);
@@ -502,6 +511,7 @@ int audioStreamer_KS::Write(char *buf, int len) // returns 0 on success
 	// key - no using autoreset events!!! (yes, I spent 3 hours figuring this out the *hard* way)
 	ResetEvent(Packets[dwWait].Signal.hEvent);
 
+  m_inqueue++;
 	HRESULT hr = m_pPin->WriteData(&Packets[dwWait].Header, &Packets[dwWait].Signal);
 	if(!SUCCEEDED(hr)) return 1;	// or does it really matter?
 
