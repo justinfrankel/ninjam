@@ -68,7 +68,7 @@ class audioStreamer_waveOut : public audioStreamer_int
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-    int GetNumBufs() { return m_bufs.GetSize(); }
+    int GetNumBufs() { return m_bufs_active; }
 
 	private:
 	
@@ -78,6 +78,7 @@ class audioStreamer_waveOut : public audioStreamer_int
 		HWAVEOUT m_hwo; 
 		HWAVEIN m_hwi;
     
+    int m_bufs_active;
 		WDL_PtrList<WDL_HeapBuf> m_bufs; // includes WAVEHDR and buffer each
    
 		int m_whichbuf; // used only for read mode
@@ -91,6 +92,7 @@ class audioStreamer_waveOut : public audioStreamer_int
 /// waveout
 audioStreamer_waveOut::audioStreamer_waveOut()
 {
+  m_bufs_active=0;
 	m_hwi=0;
 	m_hwo=0;
 }
@@ -129,6 +131,7 @@ audioStreamer_waveOut::~audioStreamer_waveOut()
 
 int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device)
 {
+  m_bufs_active=0;
   m_sleep =   WO_SLEEP;
 
   m_nch = nch;
@@ -257,16 +260,20 @@ int audioStreamer_waveOut::Write(char *buf, int len) // returns 0 on success
   {
     int x;
     cnt=0;
+    m_bufs_active=0;
     for (x = 0; x < m_bufs.GetSize(); x ++)
     {
         WAVEHDR *h=(WAVEHDR *)m_bufs.Get(x)->Get();
-        if (h->dwFlags & WHDR_DONE) h->dwFlags &= ~(WHDR_INQUEUE|WHDR_DONE); // remove done and in queue
-
+        if (h->dwFlags & WHDR_DONE) 
+        {
+          h->dwFlags &= ~(WHDR_INQUEUE|WHDR_DONE); // remove done and in queue
+        }
         if (!(h->dwFlags & WHDR_INQUEUE)) 
         {
           cnt++;
           use_addr=x;
         }
+        else m_bufs_active++;
     }
     if (use_addr < 0)
     {
@@ -345,7 +352,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)((in?in->GetNumBufs():1) + (out?out->GetNumBufs():1));
+      if (idx == 0x80000000) return (const char *)(1+(out?out->GetNumBufs():1));
       if (idx == 0) return "Left";
       if (idx == 1) return "Right";
       return NULL;
