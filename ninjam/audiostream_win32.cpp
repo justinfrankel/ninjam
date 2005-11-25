@@ -131,7 +131,7 @@ audioStreamer_waveOut::~audioStreamer_waveOut()
 
 int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, int device)
 {
-  m_bufs_active=0;
+  m_bufs_active=iswrite?0:1;
   m_sleep =   WO_SLEEP;
 
   m_nch = nch;
@@ -352,7 +352,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)(1+(out?out->GetNumBufs():1));
+      if (idx == 0x80000000) return (const char *)((out?out->GetNumBufs():1)+(in?in->GetNumBufs():1));
       if (idx == 0) return "Left";
       if (idx == 1) return "Right";
       return NULL;
@@ -419,7 +419,7 @@ class audioStreamer_ds : public audioStreamer_int
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-    int GetNumBufs() { return m_bufsize?(m_totalbufsize/m_bufsize):1; }
+    int GetNumBufs() { return m_buflatency; }
 
 	private:
 	
@@ -430,6 +430,7 @@ class audioStreamer_ds : public audioStreamer_int
     LPDIRECTSOUNDBUFFER m_outbuf;
     LPDIRECTSOUNDCAPTUREBUFFER m_inbuf;
 
+    int m_buflatency;
 		int m_has_started;
     int m_bufpos;
     int m_last_pos;
@@ -445,6 +446,7 @@ class audioStreamer_ds : public audioStreamer_int
 
 audioStreamer_ds::audioStreamer_ds()
 {
+  m_buflatency=1;
   m_lpds=0;
   m_outbuf=0;
   m_lpcap=0;
@@ -469,6 +471,7 @@ audioStreamer_ds::~audioStreamer_ds()
 
 int audioStreamer_ds::Open(int iswrite, int srate, int nch, int bps, int sleep, int nbufs, int bufsize, GUID *device)
 {
+  m_buflatency=1;
   // todo: use device
   m_sleep = sleep >= 0 ? sleep : 0;
 
@@ -563,6 +566,9 @@ int audioStreamer_ds::Read(char *buf, int len) // returns 0 if blocked, < 0 if e
     m_last_pos=cappos;
   }
 
+  m_buflatency=1+((m_i_lw - m_i_dw)*m_totalbufsize + m_last_pos - m_bufpos)/m_bufsize;
+
+
   //audiostream_instance->g_sound_in_overruns = (m_i_lw < m_i_dw ? (m_totalbufsize+cappos) : cappos ) -m_bufpos;
 
   void *v1=0, *v2=0;
@@ -650,6 +656,9 @@ int audioStreamer_ds::Write(char *buf, int len) // returns 0 on success
         m_bufpos -= m_totalbufsize;
         m_i_lw++;
       }
+
+      m_buflatency=1+((m_i_lw - m_i_dw)*m_totalbufsize + m_bufpos - m_last_pos)/m_bufsize;
+
     }
     else 
     {
