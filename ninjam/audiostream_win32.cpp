@@ -51,7 +51,7 @@ class audioStreamer_int
 		virtual int Read(char *buf, int len)=0; // returns 0 if blocked, < 0 if error, > 0 if data
 		virtual int Write(char *buf, int len)=0; // returns 0 on success
 
-    virtual int GetNumBufs()=0;
+    virtual int GetLatencySamples()=0;
 
 		int m_srate, m_nch, m_bps;
 };
@@ -68,12 +68,12 @@ class audioStreamer_waveOut : public audioStreamer_int
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-    int GetNumBufs() { return m_bufs_active; }
+    int GetLatencySamples() { return m_bufs_active*m_bufsize_samples; }
 
 	private:
 	
 		int m_sleep;
-		int m_bufsize;
+		int m_bufsize,m_bufsize_samples;
 
 		HWAVEOUT m_hwo; 
 		HWAVEIN m_hwi;
@@ -151,6 +151,7 @@ int audioStreamer_waveOut::Open(int iswrite, int srate, int nch, int bps, int sl
 	};
 
   m_bufsize=bufsize;
+  m_bufsize_samples=(m_bufsize*8)/m_nch/m_bps;
   m_whichbuf=0;
 
   if (iswrite)
@@ -352,7 +353,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)((out?out->GetNumBufs():1)+(in?in->GetNumBufs():1));
+      if (idx == 0x80000000) return (const char *)((out?out->GetLatencySamples():0)+(in?in->GetLatencySamples():0));
       if (idx == 0) return "Left";
       if (idx == 1) return "Right";
       return NULL;
@@ -419,7 +420,7 @@ class audioStreamer_ds : public audioStreamer_int
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
 
-    int GetNumBufs() { return m_buflatency; }
+    int GetLatencySamples() { return m_buflatency*m_bufsize_samples; }
 
 	private:
 	
@@ -438,7 +439,7 @@ class audioStreamer_ds : public audioStreamer_int
 
     int m_totalbufsize;
 		int m_sleep;
-		int m_bufsize;
+		int m_bufsize, m_bufsize_samples;
 
     // fucko: finish dsound implementation
 };
@@ -523,6 +524,7 @@ int audioStreamer_ds::Open(int iswrite, int srate, int nch, int bps, int sleep, 
   }
 
   m_bufsize=bufsize;
+  m_bufsize_samples=(m_bufsize*8)/m_nch/m_bps;
 
 
   return 0;

@@ -76,12 +76,13 @@ class audioStreamer_KS
 		int Write(char *buf, int len); // returns 0 on success
 
 
-    int GetLatency() { return m_inqueue; }
+    int GetLatency() { return m_inqueue*m_bufsize_samples; }
 
   private:
 
     int m_inqueue;
     int m_nbufs;
+    int m_bufsize_samples;
     int m_srate, m_bps;
     int read_pos;
     void StartRead(int idx, int len);
@@ -144,7 +145,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
 
     const char *GetChannelName(int idx)
     {
-      if (idx == 0x80000000) return (const char *)(2);
+      if (idx == 0x80000000) return (const char *)(0); // for now use defaults, later return accurate sample count usnig GetLatency()
       if (idx == 0) return "KS Left";
       if (idx == 1) return "KS Right";
       return NULL;
@@ -280,6 +281,7 @@ int audioStreamer_KS::Open(int iswrite, int srate, int bps, int *nbufs, int *buf
 
   m_srate=srate;
   m_bps=bps;
+  m_bufsize_samples=*bufsize*8/2/m_bps;
 
   // enumerate audio renderers
   HRESULT hr;
