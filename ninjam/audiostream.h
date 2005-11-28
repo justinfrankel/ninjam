@@ -45,6 +45,7 @@ class audioStreamer
 		virtual ~audioStreamer() { }
 
     // call with idx of 0x80000000 to get (int) samples_latency -- if NULL (old driver), use 2 x blocksize.
+    // call with idx of 0x80000001 to get (int) samples_latemcy of just output, if NULL, use blocksize
     virtual const char *GetChannelName(int idx)=0; 
 
 		int m_srate, m_innch, m_outnch, m_bps;

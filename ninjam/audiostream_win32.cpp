@@ -354,6 +354,7 @@ class audioStreamer_win32_asiosim : public audioStreamer
     const char *GetChannelName(int idx)
     {
       if (idx == 0x80000000) return (const char *)((out?out->GetLatencySamples():0)+(in?in->GetLatencySamples():0));
+      if (idx == 0x80000001) return (const char *)(out?out->GetLatencySamples():0);
       if (idx == 0) return "Left";
       if (idx == 1) return "Right";
       return NULL;

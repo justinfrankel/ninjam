@@ -146,6 +146,7 @@ class audioStreamer_KS_asiosim : public audioStreamer
     const char *GetChannelName(int idx)
     {
       if (idx == 0x80000000) return (const char *)(0); // for now use defaults, later return accurate sample count usnig GetLatency()
+      if (idx == 0x80000001) return (const char *)(0);
       if (idx == 0) return "KS Left";
       if (idx == 1) return "KS Right";
       return NULL;
