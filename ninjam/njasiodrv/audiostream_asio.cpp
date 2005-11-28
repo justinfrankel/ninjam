@@ -351,6 +351,7 @@ audioStreamer_ASIO::audioStreamer_ASIO()
 
 const char *audioStreamer_ASIO::GetChannelName(int idx)
 {
+  if (idx == 0x80000001) return (const char *)myDriverInfo.outputLatency;
   if (idx == 0x80000000)
   {
     return (const char *)m_latency;
