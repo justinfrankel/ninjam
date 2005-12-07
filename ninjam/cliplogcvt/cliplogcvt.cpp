@@ -150,7 +150,7 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
 
 }
 
-FILE *g_outfile_edl, *g_outfile_lof;
+FILE *g_outfile_edl, *g_outfile_lof, *g_outfile_rpp;
 
 void WriteRec(char *name, int id, int trackid, double position, double len)
 {
@@ -172,6 +172,27 @@ void WriteRec(char *name, int id, int trackid, double position, double len)
   if (g_outfile_lof)
   {
     fprintf(g_outfile_lof,"file \"%s\" offset %f\n",name,position/1000.0);
+  }
+  if (g_outfile_rpp)
+  {
+    char *stype=g_write_wavs?"WAVE" : "VORBIS";
+
+    fprintf(g_outfile_rpp,"    <ITEM\n"
+                          "       NAME ``\n"
+                          "       POSITION %f\n"
+                          "       LENGTH %f\n"
+                          "       FADEIN 0 0\n"
+                          "       FADEOUT 0 0\n"
+                          "       LOOP 1\n"
+                          "       SOFFS 0\n"
+                          "       SEL 0\n"
+                          "       PLAYRATE 1\n"
+                          "       <SOURCE %s\n"
+                          "         FILE \"%s\"\n"
+                          "       >\n"
+                          "     >\n",
+                            position/1000.0,len/1000.0,
+                            stype,name);
   }
 }
 
@@ -203,10 +224,26 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
   double last_pos=-1000.0, last_len=0.0;
   WDL_String concat_fn;
   int concat_filen=0;
+  int has_item=0;
 
   const double DELTA=0.0000001;
+
   for (y = 0; y < list->items.GetSize(); y ++)
   {
+    if (g_outfile_rpp && !has_item++)
+    {
+      WDL_String name(chname);
+      char *p=name.Get();
+      while (*p)
+      {
+        if (*p == '`') *p='\'';
+        p++;
+      }
+      fprintf(g_outfile_rpp,"  <TRACK\n"
+                            "    NAME `%s`\n",name.Get());
+                          
+    }
+
     WDL_String op;
     if (!resolveFile(list->items.Get(y)->guidstr.Get(),&op,path)) 
     {
@@ -457,6 +494,11 @@ void WriteOutTrack(char *chname, UserChannelList *list, int *track_id, int *id, 
     concatout_wav=0;
   }
   if (y) (*track_id)++;
+
+  if (g_outfile_rpp && has_item)
+  {
+    fprintf(g_outfile_rpp,"  >\n");
+  }
 }
 
 int main(int argc, char **argv)
@@ -696,6 +738,18 @@ int main(int argc, char **argv)
   {
     printf("Error opening LOF outfile\n");
   }
+  outfn.Set(argv[1]);
+  outfn.Append(DIRCHAR_S "clipsort.rpp");
+  g_outfile_rpp =fopen(outfn.Get(),"wt");
+  if (!g_outfile_rpp)
+  {
+    printf("Error opening RPP outfile\n");
+  }
+
+  if (g_outfile_rpp)
+  {
+    fprintf(g_outfile_rpp,"<REAPER_PROJECT 0.1\n");
+  }
 
   if (g_outfile_edl)
   {
@@ -739,6 +793,10 @@ int main(int argc, char **argv)
   printf("wrote %d records, %d tracks\n",id-1,track_id);
 
 
+  if (g_outfile_rpp)
+  {
+    fprintf(g_outfile_rpp,">\n");
+  }
 
 
   if (g_outfile_edl) fclose(g_outfile_edl);
