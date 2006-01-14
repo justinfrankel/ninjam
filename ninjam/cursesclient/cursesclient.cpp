@@ -805,8 +805,8 @@ void usage(int noexit=0)
 
   printf("Usage: NINJAM hostname [options]\n"
     "Options:\n"
-    "  -user <username>\n"
-    "  -pass <password>\n"
+    "  -user <username> (use anonymous:name for anonymous login)\n"
+    "  -pass <password> (omit if anonymous)\n"
 #ifdef _WIN32
     "  -noaudiocfg\n"
     "  -jesusonic <path to jesusonic root dir>\n"
@@ -814,7 +814,8 @@ void usage(int noexit=0)
 #ifdef _MAC
     "  -audiostr device_name[,output_device_name]\n"
 #else
-    "  -audiostr \"option value [option value ...]\"\n"
+    "  -jack (to use JACK)\n"
+    "  -alsaconfig \"option value [option value ...]\"\n"
     "     ALSA audio options are:\n"
     "       in hw:0,0    -- set input device\n"
     "       out hw:0,0   -- set output device\n"
@@ -1012,7 +1013,8 @@ int main(int argc, char **argv)
       {
         audioconfigstr="";
       }
-      else if (!stricmp(argv[p],"-audiostr"))
+      else if (!stricmp(argv[p],"-jack")) audioconfigstr="JACK";
+      else if (!stricmp(argv[p],"-alsaconfig"))
       {
         if (++p >= argc) usage();
         audioconfigstr=argv[p];
@@ -1097,7 +1099,9 @@ int main(int argc, char **argv)
 #ifdef _MAC
     g_audio=create_audioStreamer_CoreAudio(&dev_name_in,48000,2,16,audiostream_onsamples);
 #else
-    g_audio=create_audioStreamer_ALSA(dev_name_in,audiostream_onsamples);
+    if (dev_name_in && !strcmp(dev_name_in,"JACK"))
+	g_audio=create_audioStreamer_JACK(dev_name_in,audiostream_onsamples);
+    else g_audio=create_audioStreamer_ALSA(dev_name_in,audiostream_onsamples);
 #endif
   }
 #endif
