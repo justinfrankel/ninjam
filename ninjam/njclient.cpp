@@ -166,7 +166,7 @@ class BufferQueue
       WDL_HeapBuf **bufs=(WDL_HeapBuf **)m_samplequeue.Get();
       if (bufs) while (l--)
       {
-        if ((int)*bufs != 0 && (int)*bufs != -1) delete *bufs;
+        if (*bufs != (WDL_HeapBuf*)0 && *bufs != (WDL_HeapBuf*)-1) delete *bufs;
         bufs++;
       }
       m_samplequeue.Advance(m_samplequeue.Available());
@@ -1011,13 +1011,13 @@ int NJClient::Run() // nonzero if sleep ok
       wantsleep=0;
       if (u >= m_max_localch)
       {
-        if (p && (int)p != -1)
+        if (p && p != (WDL_HeapBuf*)-1)
           lc->m_bq.DisposeBlock(p);
         p=0;
         continue;
       }
 
-      if ((int)p == -1)
+      if (p == (WDL_HeapBuf*)-1)
       {
         mpb_client_upload_interval_begin cuib;
         cuib.chidx=lc->channel_idx;
@@ -2055,7 +2055,7 @@ int BufferQueue::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none ava
 void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 {
   m_cs.Enter();
-  if (b && (int)b != -1) m_emptybufs.Add(b);
+  if (b && b != (WDL_HeapBuf*)-1) m_emptybufs.Add(b);
   m_cs.Leave();
 }
 
