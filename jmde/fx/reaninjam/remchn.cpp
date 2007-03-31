@@ -81,7 +81,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
     case WM_INITDIALOG:
       SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
 
-      SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,0,MAKELPARAM(0,100));
+//      SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
 //      SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
       SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
@@ -133,15 +133,8 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
     break;
     case WM_LCUSER_VUUPDATE:
       {
-        double val=VAL2DB(g_client->GetUserChannelPeak(user,chan));
-        int ival=(int)((val+100.0));
-        if (ival < 0) ival=0;
-        else if (ival > 100) ival=100;
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
-
-        char buf[128];
-        sprintf(buf,"%s%.2f dB",val>0.0?"+":"",val);
-        SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
+        int ival=(int)floor(VAL2DB(g_client->GetUserChannelPeak(user,chan))*10.0);
+        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival);
       }
     return 0;
     case WM_HSCROLL:

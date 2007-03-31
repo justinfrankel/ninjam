@@ -63,7 +63,6 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,FALSE,MAKELONG(0,100));
         //SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
@@ -221,7 +220,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           for (chcnt = 0; chcnt < mch; chcnt++)
           {
             char buf[128];
-            sprintf(buf,"Input Channel %d",chcnt+1);
+            sprintf(buf,"Input %d",chcnt+1);
             SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
           }
         }
@@ -230,15 +229,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     return 0;
     case WM_LCUSER_VUUPDATE:
       {
-        double val=VAL2DB(g_client->GetLocalChannelPeak(m_idx));
-        int ival=(int)(val+100.0);
-        if (ival < 0) ival=0;
-        else if (ival > 100) ival=100;
-        SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETPOS,ival,0);
-
-        char buf[128];
-        sprintf(buf,"%s%.2f dB",val>0.0?"+":"",val);
-        SetDlgItemText(hwndDlg,IDC_VULBL,buf);      
+        int ival=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx))*10.0);
+        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival);
       }
     return 0;
 

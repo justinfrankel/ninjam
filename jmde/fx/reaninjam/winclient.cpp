@@ -561,17 +561,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         // top items
         resize.init_item(IDC_MASTERVOL,  0.0,  0.0,  0.7f,  0.0);
         resize.init_item(IDC_METROVOL,   0.0,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_MASTERVOLLBL,  0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_MASTERPANLBL,  0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROVOLLBL,   0.7f,  0.0,  0.7f,  0.0);
-        resize.init_item(IDC_METROPANLBL,   0.7f,  0.0,  0.7f,  0.0);
+        resize.init_item(IDC_MASTERVOLLBL,  0.8f,  0.0,  0.8f,  0.0);
+        resize.init_item(IDC_MASTERPANLBL,  0.8f,  0.0,  0.8f,  0.0);
+        resize.init_item(IDC_METROVOLLBL,   0.8f,  0.0,  0.8f,  0.0);
+        resize.init_item(IDC_METROPANLBL,   0.8f,  0.0,  0.8f,  0.0);
 
         resize.init_item(IDC_MASTERPAN,  0.7f,  0.0,  0.8f,  0.0);
         resize.init_item(IDC_METROPAN,   0.7f,  0.0,  0.8f,  0.0);
         resize.init_item(IDC_MASTERMUTE, 0.8f,  0.0,  0.8f,  0.0);
         resize.init_item(IDC_METROMUTE,  0.8f,  0.0,  0.8f,  0.0);
         resize.init_item(IDC_MASTERVU,   0.8f,  0.0,  1.0f,  0.0);
-        resize.init_item(IDC_MASTERVULBL,0.8f,  0.0,  1.0f,  0.0);
         
                
         resize.init_item(IDC_DIV1,        0.0,  0.0,  1.0f,  0.0);
@@ -726,8 +725,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
         }
 
-        SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETRANGE,0,MAKELPARAM(0,100));
-
         int ws= g_last_wndpos_state = GetPrivateProfileInt(CONFSEC,"wnd_state",0,g_ini_file.Get());
 
 
@@ -836,15 +833,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             }
             g_client_mutex.Leave();
 
-            double val=VAL2DB(g_client->GetOutputPeak());
-            int ival=(int)((val+100.0));
-            if (ival < 0) ival=0;
-            else if (ival > 100) ival=100;
-            SendDlgItemMessage(hwndDlg,IDC_MASTERVU,PBM_SETPOS,ival,0);
-
-            char buf[128];
-            sprintf(buf,"%s%.2f dB",val>0.0?"+":"",val);
-            SetDlgItemText(hwndDlg,IDC_MASTERVULBL,buf);
+            int ival=(int) floor(VAL2DB(g_client->GetOutputPeak(0))*10.0);
+            int ival2=(int) floor(VAL2DB(g_client->GetOutputPeak(1))*10.0);
+            SendDlgItemMessage(hwndDlg,IDC_MASTERVU,WM_USER+1010,ival,ival2);
 
 
             static int last_interval_len=-1;
