@@ -114,16 +114,15 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
           CheckDlgButton(hwndDlg,IDC_SAVELOCAL,BST_CHECKED);
         if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCALWAV,BST_CHECKED);
-        if (GetPrivateProfileInt(CONFSEC,"savewave",0,g_ini_file.Get()))
-          CheckDlgButton(hwndDlg,IDC_SAVEWAVE,BST_CHECKED);
-        if (GetPrivateProfileInt(CONFSEC,"saveogg",0,g_ini_file.Get()))
-          CheckDlgButton(hwndDlg,IDC_SAVEOGG,BST_CHECKED);
-        SetDlgItemInt(hwndDlg,IDC_SAVEOGGBR,GetPrivateProfileInt(CONFSEC,"saveoggbr",128,g_ini_file.Get()),FALSE);
 
         char str[2048];
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
         if (!str[0])
-          SetDlgItemText(hwndDlg,IDC_SESSIONDIR,g_exepath);
+        {
+          strcpy(str,g_exepath);
+          strcat(str,"\\NINJAMsessions");
+          SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
+        }
         else 
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
         
@@ -160,15 +159,14 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
           {
             WritePrivateProfileString(CONFSEC,"savelocal",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCAL)?"1":"0",g_ini_file.Get());
             WritePrivateProfileString(CONFSEC,"savelocalwav",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCALWAV)?"1":"0",g_ini_file.Get());
-            WritePrivateProfileString(CONFSEC,"savewave",IsDlgButtonChecked(hwndDlg,IDC_SAVEWAVE)?"1":"0",g_ini_file.Get());
-            WritePrivateProfileString(CONFSEC,"saveogg",IsDlgButtonChecked(hwndDlg,IDC_SAVEOGG)?"1":"0",g_ini_file.Get());
 
             char buf[2048];
-            GetDlgItemText(hwndDlg,IDC_SAVEOGGBR,buf,sizeof(buf));
-            if (atoi(buf)) WritePrivateProfileString(CONFSEC,"saveoggbr",buf,g_ini_file.Get());
-
             GetDlgItemText(hwndDlg,IDC_SESSIONDIR,buf,sizeof(buf));
-            if (!strcmp(g_exepath,buf))
+            char str[4096];
+            strcpy(str,g_exepath);
+            strcat(str,"\\NINJAMsessions");
+
+            if (!strcmp(str,buf))
               buf[0]=0;
             WritePrivateProfileString(CONFSEC,"sessiondir",buf,g_ini_file.Get());
 
@@ -369,7 +367,10 @@ static void do_connect()
   GetPrivateProfileString(CONFSEC,"sessiondir","",sroot,sizeof(sroot),g_ini_file.Get());
 
   if (!sroot[0])
+  {
     strcpy(sroot,g_exepath);
+    strcat(sroot,"\\NINJAMsessions");
+  }
 
   {
     char *p=sroot;
@@ -1252,6 +1253,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 
       delete g_client;
+      g_client=0;
 
     return 0;
   }
@@ -1268,7 +1270,7 @@ void InitializeInstance()
     CoInitialize(0);
 
     {
-      GetModuleFileName(g_hInst,g_exepath,sizeof(g_exepath));
+      GetModuleFileName(NULL,g_exepath,sizeof(g_exepath));
       char *p=g_exepath;
       while (*p) p++;
       while (p > g_exepath && *p != '\\') p--; *p=0;
@@ -1298,31 +1300,45 @@ void InitializeInstance()
       if (!GetClassInfo(NULL,"RichEdit20A",&wc))
       {
         GetClassInfo(NULL,"RICHEDIT",&wc);
-        wc.lpszClassName = "RichEdit20A";
-        RegisterClass(&wc);
       }
+//        wc.style &= ~CS_GLOBALCLASS;
+      wc.lpszClassName = "RichEditChild";
+      RegisterClass(&wc);
     }
 
 
     JNL::open_socketlib();
   }
-  g_client = new NJClient;
+  if (!g_client)
+  {
+    g_client = new NJClient;
 
-  g_client->LicenseAgreementCallback = licensecallback;
-  g_client->ChatMessage_Callback = chatmsg_cb;
+    g_client->LicenseAgreementCallback = licensecallback;
+    g_client->ChatMessage_Callback = chatmsg_cb;
+  }
 
 }
 
 void InitInstanceConfig()
 {
-  extern HWND (*GetMainHwnd)();
-  if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(),MainProc);
+  if (g_client)
+  {
+    extern HWND (*GetMainHwnd)();
+    if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(),MainProc);
+  }
 }
 
 void QuitInstance()
 {
-  if (g_hwnd) DestroyWindow(g_hwnd);
-  delete g_client;
-  g_client=0;
-  JNL::close_socketlib();
+  if (g_client)
+  {
+    if (g_hwnd) DestroyWindow(g_hwnd);
+    g_hwnd=0;
+    delete g_client;
+    g_client=0;
+  }
+  g_done=0;
+  m_locwnd=m_remwnd=0;
+  g_audio_enable=0;
+  //UnregisterClass("RichEditChild",NULL);
 }

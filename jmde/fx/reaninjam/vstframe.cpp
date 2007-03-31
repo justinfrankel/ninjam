@@ -479,8 +479,7 @@ public:
         if (_this && _this->m_hwndcfg) DestroyWindow(_this->m_hwndcfg);
       return 0;
       case effClose:
-        if (g_initted>1)
-          QuitInstance();
+        QuitInstance();
         g_initted=0;
         delete _this;
       return 0;

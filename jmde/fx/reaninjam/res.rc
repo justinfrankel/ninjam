@@ -83,9 +83,9 @@ BEGIN
                     SS_LEFTNOWORDWRAP | WS_GROUP,7,224,356,8
     CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
                     WS_BORDER,7,214,446,9
-    CONTROL         "",IDC_CHATDISP,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
+    CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,351,66,96,123
-    CONTROL         "",IDC_CHATENT,"RichEdit20A",WS_BORDER | WS_TABSTOP | 
+    CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
                     0xc4,351,193,96,14
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,13,
                     66,327,56
@@ -134,7 +134,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,82,195,119,10
     PUSHBUTTON      "Accept",IDOK,206,194,50,14,WS_DISABLED
     PUSHBUTTON      "Decline",IDCANCEL,259,194,50,14
-    CONTROL         "",IDC_LICENSETEXT,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
+    CONTROL         "",IDC_LICENSETEXT,"RichEditChild",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,7,7,302,183
 END
 
