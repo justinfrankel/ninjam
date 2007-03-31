@@ -596,7 +596,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
         float chat_ratio=0.0f;
 
-        resize.init_item(IDC_CHATGRP,     chat_ratio, 0.0f,  1.0f,  1.0f);
+        resize.init_item(IDC_CHATGRP,     chat_ratio, 0.0f,  chat_ratio,  1.0f);
+        resize.init_item(IDC_CHATLBL,     chat_ratio, 0.0f,  chat_ratio,  0.0f);
 
         resize.init_item(IDC_CHATDISP,     chat_ratio, 0.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATENT,      chat_ratio, 1.0f,  1.0f,  1.0f);
@@ -896,7 +897,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       {
         cap_mode=0;
         ReleaseCapture();
-        SetCursor(LoadCursor(NULL,IDC_ARROW));
       }
     return 0;
     case WM_MOUSEMOVE:
@@ -908,6 +908,20 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         }
       }
     return 0;
+    case WM_SETCURSOR:
+      {
+        POINT p;
+        GetCursorPos(&p);
+        RECT r;
+        GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
+        if (p.x >= r.left && p.x <= r.right && 
+            p.y >= r.top - 4 && p.y <= r.bottom + 4)
+        {
+          SetCursor(LoadCursor(NULL,IDC_SIZENS));
+          return 1;
+        } 
+      }
+    return 0;
     case WM_LBUTTONDOWN:
       {
         POINT p={GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
@@ -917,7 +931,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         if (p.x >= r.left && p.x <= r.right && 
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
-          SetCursor(LoadCursor(NULL,IDC_SIZENS));
           SetCapture(hwndDlg);
           cap_mode=1;
           cap_spos=p.y - r.top;

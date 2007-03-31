@@ -52,51 +52,52 @@ END
 // Dialog
 //
 
-IDD_MAIN DIALOG DISCARDABLE  0, 0, 460, 232
+IDD_MAIN DIALOG DISCARDABLE  0, 0, 460, 225
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
-CAPTION "NINJAM v0.666"
+CAPTION "ReaNINJAM v0.666"
 MENU IDR_MENU1
 FONT 8, "MS Sans Serif"
 BEGIN
-    LTEXT           "Master: ",IDC_STATIC,7,9,26,8
+    LTEXT           "Master: ",IDC_STATIC,7,8,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,49,6,
-                    162,15
-    RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,262,9,29,11,SS_NOTIFY
+                    162,12
+    RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,262,8,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,211,6,
-                    45,15
+                    45,12
     CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,321,8,32,10
-    LTEXT           "Metronome:",IDC_STATIC,7,28,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,49,25,
-                    162,15
-    RTEXT           "+0.0 dB",IDC_METROVOLLBL,262,28,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,211,25,
-                    45,15
+    LTEXT           "Metronome:",IDC_STATIC,7,25,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,49,23,
+                    162,12
+    RTEXT           "+0.0 dB",IDC_METROVOLLBL,262,26,29,11,SS_NOTIFY
+    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,211,23,
+                    45,12
     CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,321,27,32,10
-    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,23,446,1
+                    WS_TABSTOP,321,25,32,10
+    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,20,448,1
     CONTROL         "Status: No connection.",IDC_STATUS,"Static",
-                    SS_LEFTNOWORDWRAP | WS_GROUP,7,217,356,8
+                    SS_LEFTNOWORDWRAP | WS_GROUP,7,210,356,8
     CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
-                    WS_BORDER,7,207,446,9
+                    WS_BORDER,7,200,446,9
     CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
-                    WS_TABSTOP | 0x2804,330,59,117,123
+                    WS_TABSTOP | 0x2804,330,51,123,128
     CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
-                    0xc4,330,186,117,14
+                    0xc4,330,182,123,14
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,7,
-                    57,315,56
+                    50,315,56
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
-                    7,129,315,74
-    RTEXT           "",IDC_STATUS2,377,217,76,8
-    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,116,316,1
-    GROUPBOX        "Chat",IDC_CHATGRP,325,48,128,157
-    CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,43,445,1
-    LTEXT           "center",IDC_MASTERPANLBL,293,9,23,11,SS_NOTIFY
-    LTEXT           "center",IDC_METROPANLBL,293,28,23,11,SS_NOTIFY
-    CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,359,6,94,15
-    LTEXT           "Local Channels:",IDC_LOCGRP,7,48,52,8
-    LTEXT           "Remote Channels:",IDC_REMGRP,7,119,59,8
+                    7,122,315,74
+    RTEXT           "",IDC_STATUS2,377,210,76,8
+    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,109,316,1
+    CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,37,448,1
+    LTEXT           "center",IDC_MASTERPANLBL,293,8,23,11,SS_NOTIFY
+    LTEXT           "center",IDC_METROPANLBL,293,26,23,11,SS_NOTIFY
+    CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,359,6,94,12
+    LTEXT           "Local Channels:",IDC_LOCGRP,7,41,52,8
+    LTEXT           "Remote Channels:",IDC_REMGRP,7,112,59,8
+    CONTROL         "",IDC_CHATGRP,"Static",SS_ETCHEDVERT,326,40,1,158
+    LTEXT           "Chat:",IDC_CHATLBL,330,42,18,8
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 119
@@ -153,7 +154,7 @@ BEGIN
                     IDC_CHNOTE,7,65,227,8
 END
 
-IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 305, 31
+IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 305, 30
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -162,24 +163,24 @@ BEGIN
                     WS_TABSTOP,59,2,27,10
     COMBOBOX        IDC_AUDIOIN,88,0,55,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,0,16,85,13
-    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,86,16,56,13
-    RTEXT           "+0.0 dB",IDC_VOLLBL,145,18,28,8,SS_NOTIFY
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,0,14,85,13
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,86,14,56,13
+    RTEXT           "+0.0 dB",IDC_VOLLBL,145,16,28,8,SS_NOTIFY
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    203,18,30,8
+                    203,16,30,8
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    237,18,30,8
-    PUSHBUTTON      "Delete",IDC_REMOVE,271,16,33,11
-    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,29,304,1
+                    237,16,30,8
+    PUSHBUTTON      "Delete",IDC_REMOVE,271,14,33,11
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,27,305,1
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,175,18,23,8
-    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,144,0,160,15
+                    SS_NOTIFY | WS_GROUP,175,16,23,8
+    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,145,0,159,12
 END
 
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
 STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL
 EXSTYLE WS_EX_CONTROLPARENT
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
 END
 
@@ -190,38 +191,38 @@ BEGIN
     PUSHBUTTON      "Add Local Channel",IDC_ADDCH,0,0,76,14
 END
 
-IDD_REMOTECHANNEL DIALOG DISCARDABLE  0, 0, 306, 30
+IDD_REMOTECHANNEL DIALOG DISCARDABLE  0, 0, 306, 27
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
-    EDITTEXT        IDC_CHANNELNAME,21,0,98,14,ES_AUTOHSCROLL | ES_READONLY | 
+    EDITTEXT        IDC_CHANNELNAME,21,0,115,12,ES_AUTOHSCROLL | ES_READONLY | 
                     ES_WANTRETURN
     CONTROL         "Recv",IDC_RECV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    122,2,31,10
-    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,157,0,147,15
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,21,16,100,12
-    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,122,16,52,12
-    RTEXT           "+0.0 dB",IDC_VOLLBL,179,18,28,8,SS_NOTIFY
+                    140,2,31,10
+    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,175,0,129,13
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,21,14,100,12
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,122,14,52,12
+    RTEXT           "+0.0 dB",IDC_VOLLBL,179,16,28,8,SS_NOTIFY
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,209,18,23,8
+                    SS_NOTIFY | WS_GROUP,209,16,23,8
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    238,18,30,8
+                    238,16,30,8
     CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    271,18,30,8
+                    271,16,30,8
 END
 
 IDD_EMPTY DIALOGEX 0, 0, 127, 30
 STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN
 EXSTYLE WS_EX_CONTROLPARENT
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
 END
 
-IDD_REMOTEUSER DIALOG DISCARDABLE  0, 0, 308, 19
+IDD_REMOTEUSER DIALOG DISCARDABLE  0, 0, 308, 16
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
-    EDITTEXT        IDC_USERNAME,21,3,236,14,ES_AUTOHSCROLL | ES_READONLY | 
+    EDITTEXT        IDC_USERNAME,21,3,236,12,ES_AUTOHSCROLL | ES_READONLY | 
                     ES_WANTRETURN
     CONTROL         "",IDC_DIV,"Static",SS_ETCHEDHORZ,0,0,304,1
     LTEXT           "User:",IDC_STATIC,0,5,18,8
@@ -233,7 +234,7 @@ IDD_VSTCFG DIALOG DISCARDABLE  0, 0, 199, 53
 STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN
 FONT 8, "MS Sans Serif"
 BEGIN
-    PUSHBUTTON      "Show NINJAM Window",IDC_BUTTON1,7,7,144,14
+    PUSHBUTTON      "Show ReaNINJAM Console",IDC_BUTTON1,7,7,144,14
 END
 
 
@@ -250,7 +251,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 453
         TOPMARGIN, 6
-        BOTTOMMARGIN, 225
+        BOTTOMMARGIN, 218
     END
 
     IDD_CONNECT, DIALOG
@@ -279,7 +280,7 @@ BEGIN
 
     IDD_LOCALCHANNEL, DIALOG
     BEGIN
-        BOTTOMMARGIN, 30
+        BOTTOMMARGIN, 27
     END
 
     IDD_EMPTY_SCROLL, DIALOG
@@ -298,7 +299,7 @@ BEGIN
 
     IDD_REMOTECHANNEL, DIALOG
     BEGIN
-        BOTTOMMARGIN, 28
+        BOTTOMMARGIN, 25
     END
 
     IDD_EMPTY, DIALOG
@@ -312,7 +313,7 @@ BEGIN
     IDD_REMOTEUSER, DIALOG
     BEGIN
         RIGHTMARGIN, 307
-        BOTTOMMARGIN, 17
+        BOTTOMMARGIN, 14
     END
 
     IDD_VSTCFG, DIALOG
