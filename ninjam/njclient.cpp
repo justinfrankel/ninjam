@@ -32,14 +32,27 @@
 #include "../WDL/wavwrite.h"
 
 
-
-// todo: make an interface base class for vorbis enc/dec
-#define VorbisEncoder I_NJEncoder 
-#define VorbisDecoder I_NJDecoder 
 #define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
+
+#ifdef REANINJAM
+#define WDL_VORBIS_INTERFACE_ONLY
+#endif
+
+#define VorbisEncoderInterface I_NJEncoder 
+#define VorbisDecoderInterface I_NJDecoder 
 #include "../WDL/vorbisencdec.h"
-#undef VorbisEncoder
-#undef VorbisDecoder
+#undef VorbisEncoderInterface
+#undef VorbisDecoderInterface
+
+#ifdef REANINJAM
+  extern void *(*CreateVorbisEncoder)(int srate, int nch, int br, int serno);
+  extern void *(*CreateVorbisDecoder)();
+  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)CreateVorbisEncoder(srate,ch,br,id))
+  #define CreateNJDecoder() ((I_NJDecoder *)CreateVorbisDecoder())
+#else
+  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)new VorbisEncoder(srate,ch,br,id))
+  #define CreateNJDecoder() ((I_NJDecoder *)new VorbisDecoder)
+#endif
 
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
@@ -672,11 +685,11 @@ int NJClient::Run() // nonzero if sleep ok
       if (m_oggWrite&&m_oggComp)
       {
         m_oggComp->Encode(f,hl,1,hl);
-        if (m_oggComp->outqueue.Available())
+        if (m_oggComp->Available())
         {
-          fwrite((char *)m_oggComp->outqueue.Get(),1,m_oggComp->outqueue.Available(),m_oggWrite);
-          m_oggComp->outqueue.Advance(m_oggComp->outqueue.Available());
-          m_oggComp->outqueue.Compact();
+          fwrite((char *)m_oggComp->Get(),1,m_oggComp->Available(),m_oggWrite);
+          m_oggComp->Advance(m_oggComp->Available());
+          m_oggComp->Compact();
         }
       }
 #endif
@@ -1033,7 +1046,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = new I_NJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate,WDL_RNG_int32());
+          lc->m_enc = CreateNJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate,WDL_RNG_int32());
         }
 
         if (lc->m_need_header)
@@ -1086,7 +1099,7 @@ int NJClient::Run() // nonzero if sleep ok
           lc->m_enc->Encode((float*)p->Get(),p->GetSize()/sizeof(float));
 
           int s;
-          while ((s=lc->m_enc->outqueue.Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+          while ((s=lc->m_enc->Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
@@ -1094,7 +1107,7 @@ int NJClient::Run() // nonzero if sleep ok
               mpb_client_upload_interval_write wh;
               memcpy(wh.guid,lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
               wh.flags=0;
-              wh.audio_data=lc->m_enc->outqueue.Get();
+              wh.audio_data=lc->m_enc->Get();
               wh.audio_data_len=s;
               lc->m_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
@@ -1115,9 +1128,9 @@ int NJClient::Run() // nonzero if sleep ok
               m_netcon->Send(wh.build());
             }
 
-            lc->m_enc->outqueue.Advance(s);
+            lc->m_enc->Advance(s);
           }
-          lc->m_enc->outqueue.Compact();
+          lc->m_enc->Compact();
         }
         lc->m_bq.DisposeBlock(p);
         p=0;
@@ -1134,17 +1147,17 @@ int NJClient::Run() // nonzero if sleep ok
           do
           {
             mpb_client_upload_interval_write wh;
-            int l=lc->m_enc->outqueue.Available();
+            int l=lc->m_enc->Available();
             if (l>MAX_ENC_BLOCKSIZE) l=MAX_ENC_BLOCKSIZE;
 
             memcpy(wh.guid,lc->m_curwritefile.guid,sizeof(wh.guid));
-            wh.audio_data=lc->m_enc->outqueue.Get();
+            wh.audio_data=lc->m_enc->Get();
             wh.audio_data_len=l;
 
             lc->m_curwritefile.Write(wh.audio_data,wh.audio_data_len);
 
-            lc->m_enc->outqueue.Advance(l);
-            wh.flags=lc->m_enc->outqueue.GetSize()>0 ? 0 : 1;
+            lc->m_enc->Advance(l);
+            wh.flags=lc->m_enc->Available()>0 ? 0 : 1;
 
             if (lc->m_enc_header_needsend)
             {
@@ -1161,8 +1174,8 @@ int NJClient::Run() // nonzero if sleep ok
             if (config_debug_level>1) printf("SEND BLOCK %s%s %d bytes\n",guidtostr_tmp(wh.guid),wh.flags&1?"end":"",wh.audio_data_len);
             m_netcon->Send(wh.build());
           }
-          while (lc->m_enc->outqueue.Available()>0);
-          lc->m_enc->outqueue.Compact(); // free any memory left
+          while (lc->m_enc->Available()>0);
+          lc->m_enc->Compact(); // free any memory left
 
           //delete m_enc;
         //  m_enc=0;
@@ -1215,10 +1228,10 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc)
     {
       newstate->delete_on_delete.Set(s.Get());
     }
-    newstate->decode_codec= new I_NJDecoder;
+    newstate->decode_codec= CreateNJDecoder();
     // run some decoding
 
-    while (newstate->decode_codec->m_samples_used <= 0)
+    while (newstate->decode_codec->Available() <= 0)
     {
       int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(128),1,128,newstate->decode_fp);          
       if (l) newstate->decode_codec->DecodeWrote(l);
@@ -1489,7 +1502,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
   if (!chan->decode_codec || !chan->decode_fp) return;
 
   int needed;
-  while (chan->decode_codec->m_samples_used <= 
+  while (chan->decode_codec->Available() <= 
         (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
   {
     int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
@@ -1501,9 +1514,9 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     }
   }
 
-  if (chan->decode_codec->m_samples_used >= needed+chan->dump_samples)
+  if (chan->decode_codec->Available() >= needed+chan->dump_samples)
   {
-    float *sptr=(float *)chan->decode_codec->m_samples.Get();
+    float *sptr=chan->decode_codec->Get();
 
     // process VU meter, yay for powerful CPUs
     if (!muted && vol > 0.0000001) 
@@ -1532,8 +1545,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
 
     // advance the queue
     chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
-    chan->decode_codec->m_samples_used -= needed+chan->dump_samples;
-    memcpy(sptr,sptr+needed+chan->dump_samples,chan->decode_codec->m_samples_used*sizeof(float));
+    chan->decode_codec->Skip(needed+chan->dump_samples);
     chan->dump_samples=0;
   }
   else
@@ -1547,14 +1559,14 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     guidtostr(chan->guid,s);
 
     char buf[512];
-    sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->m_samples_used,needed);
+    sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->Available(),needed);
 #ifdef _WIN32
     OutputDebugString(buf);
 #endif
     }
 
-    chan->decode_samplesout += chan->decode_codec->m_samples_used/chan->decode_codec->GetNumChannels();
-    chan->decode_codec->m_samples_used=0;
+    chan->decode_samplesout += chan->decode_codec->Available()/chan->decode_codec->GetNumChannels();
+    chan->decode_codec->Skip(chan->decode_codec->Available());
     chan->dump_samples+=needed;
 
   }
@@ -2122,8 +2134,8 @@ void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
     if (m_oggComp)
     {
       m_oggComp->Encode(NULL,0);
-      if (m_oggComp->outqueue.Available())
-        fwrite((char *)m_oggComp->outqueue.Get(),1,m_oggComp->outqueue.Available(),m_oggWrite);
+      if (m_oggComp->Available())
+        fwrite((char *)m_oggComp->Get(),1,m_oggComp->Available(),m_oggWrite);
     }
     fclose(m_oggWrite);
     m_oggWrite=0;
@@ -2134,7 +2146,7 @@ void NJClient::SetOggOutFile(FILE *fp, int srate, int nch, int bitrate)
   if (fp)
   {
     //fucko
-    m_oggComp=new I_NJEncoder(srate,nch,bitrate,WDL_RNG_int32());
+    m_oggComp=CreateNJEncoder(srate,nch,bitrate,WDL_RNG_int32());
     m_oggWrite=fp;
   }
 #endif
