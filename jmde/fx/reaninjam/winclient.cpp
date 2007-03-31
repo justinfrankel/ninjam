@@ -505,7 +505,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
     }
   }
 
-  int tab[]={IDC_DIV2,IDC_LOCGRP,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
+  int tab[]={IDC_DIV2,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
   
   // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
   int x;
@@ -516,16 +516,22 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
     RECT new_l=rec->last;
 
-    if (!x || x > 2) // do top
+    if (!x || x > 1) // do top
     {
       // the output formula for top is: 
       // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
       // so we compute the inverse, to find rec->orig.top
 
       rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      if (x==2)
+      {
+        rec->orig.bottom=rec->orig.top + (rec->real_orig.bottom-rec->real_orig.top);
+      }
     }
 
-    if (x <= 2) // do bottom
+
+
+    if (x <= 1) // do bottom
     {
       // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
       rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
@@ -598,11 +604,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         float loc_ratio = 0.5f;
 
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  loc_ratio);
+        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  0.0f);
         
         resize.init_item(IDC_REMOTERECT,  0.0f, loc_ratio,  chat_ratio,  1.0f);      
         resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_REMGRP,  0.0f, loc_ratio,  chat_ratio,  1.0f);      
+        resize.init_item(IDC_REMGRP,  0.0f, loc_ratio,  chat_ratio,  loc_ratio);      
 
         chatInit(hwndDlg);
 
