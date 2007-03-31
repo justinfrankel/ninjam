@@ -40,10 +40,9 @@ typedef struct
    double slidershape;
 } parameterInfo; 
 
-int g_initted;
+DWORD g_object_allocated;
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) ;
 void InitializeInstance();
-void InitInstanceConfig();
 void QuitInstance();
 
 
@@ -419,6 +418,20 @@ public:
       return 0;
       case effSetBlockSize:
 
+        // initialize, yo
+        if (GetCurrentThreadId()==g_object_allocated) 
+        {
+          static int first;
+          if (!first)
+          {
+            first=1;
+            char buf[4096];
+            GetModuleFileName(g_hInst,buf,sizeof(buf));
+            LoadLibrary(buf);// keep us resident
+          }
+          InitializeInstance();
+        }
+
       return 0;
       case effSetSampleRate:
         if (_this) 
@@ -467,11 +480,6 @@ public:
       case effEditOpen:
         if (_this)
         {
-          if (g_initted==1)
-          {
-            g_initted=2;
-            InitInstanceConfig();
-          }
           if (_this->m_hwndcfg) DestroyWindow(_this->m_hwndcfg);
 
           return !!CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_VSTCFG),(HWND)ptr,dlgProc,(long)_this);
@@ -482,7 +490,7 @@ public:
       return 0;
       case effClose:
         QuitInstance();
-        g_initted=0;
+        g_object_allocated=0;
         if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(-1);
         delete _this;
       return 0;
@@ -637,9 +645,10 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
   }
   if (!DB2SLIDER||!SLIDER2DB||!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
 
-  if (g_initted) return 0;
-  g_initted=1;
-  InitializeInstance();
+  if (g_object_allocated) return 0;
+
+  g_object_allocated=GetCurrentThreadId();
+
   if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
   VSTEffectClass *obj = new VSTEffectClass(hostcb);
   if (obj)

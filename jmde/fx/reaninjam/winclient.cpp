@@ -93,7 +93,7 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
-  if (!g_audio_enable) 
+  if (!g_audio_enable||!g_client) 
   {
     int x;
     // clear all output buffers
@@ -1154,7 +1154,13 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       }
     break;
     case WM_CLOSE:
-      ShowWindow(hwndDlg,SW_HIDE);
+      {
+        extern DWORD g_object_allocated;
+        if (g_object_allocated)
+          ShowWindow(hwndDlg,SW_HIDE);
+        else 
+          DestroyWindow(hwndDlg);
+      }
     break;  
     case WM_ENDSESSION:
     case WM_DESTROY:
@@ -1257,6 +1263,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
       delete g_client;
       g_client=0;
+      g_done=0;
+      m_locwnd=m_remwnd=0;
+      g_audio_enable=0;
 
     return 0;
   }
@@ -1319,29 +1328,29 @@ void InitializeInstance()
     g_client->LicenseAgreementCallback = licensecallback;
     g_client->ChatMessage_Callback = chatmsg_cb;
   }
-
-}
-
-void InitInstanceConfig()
-{
   if (g_client)
   {
     if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(),MainProc);
   }
+
 }
+
 
 void QuitInstance()
 {
-  if (g_client)
+  if (!g_hwnd || !IsWindowVisible(g_hwnd))
   {
-    if (g_hwnd) DestroyWindow(g_hwnd);
-    g_hwnd=0;
-    delete g_client;
-    g_client=0;
+    if (g_client)
+    {
+      if (g_hwnd) DestroyWindow(g_hwnd);
+      g_hwnd=0;
+      delete g_client;
+      g_client=0;
+    }
+    g_done=0;
+    m_locwnd=m_remwnd=0;
+    g_audio_enable=0;
   }
-  g_done=0;
-  m_locwnd=m_remwnd=0;
-  g_audio_enable=0;
   //UnregisterClass("RichEditChild",NULL);
 }
 
