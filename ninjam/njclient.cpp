@@ -1387,7 +1387,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           src2++;
         }
         lc->decode_peak_vol[0]=maxf;
-        lc->decode_peak_vol[0]=maxf2;
+        lc->decode_peak_vol[1]=maxf2;
       }
       else
       {
