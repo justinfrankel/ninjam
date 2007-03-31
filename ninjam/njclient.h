@@ -121,7 +121,7 @@ public:
   int   config_play_prebuffer; // -1 means play instantly, 0 means play when full file is there, otherwise refers to how many
                                // bytes of compressed source to have before play. the default value is 4096.
 
-  float GetOutputPeak();
+  float GetOutputPeak(int ch=-1);
 
   enum { NJC_STATUS_DISCONNECTED=-3,NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT};
   int GetStatus();
@@ -195,7 +195,7 @@ public:
 
 
 protected:
-  double output_peaklevel;
+  double output_peaklevel[2];
 
   void _reinit();
 

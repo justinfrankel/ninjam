@@ -416,7 +416,7 @@ NJClient::NJClient()
 void NJClient::_reinit()
 {
   m_max_localch=MAX_LOCAL_CHANNELS;
-  output_peaklevel=0.0;
+  output_peaklevel[0]=output_peaklevel[1]=0.0;
 
   m_connection_keepalive=0;
   m_status=-1;
@@ -1272,9 +1272,11 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc)
   return newstate;
 }
 
-float NJClient::GetOutputPeak()
+float NJClient::GetOutputPeak(int ch)
 {
-  return (float)output_peaklevel;
+  if (ch==0) return (float)output_peaklevel[0];
+  else if(ch==1) return (float)output_peaklevel[1];
+  return (float)(output_peaklevel[0]+output_peaklevel[1])*0.5f;
 }
 
 void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
@@ -1444,7 +1446,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   {
     int x=len;
     float *ptr1=outbuf[0]+offset;
-    float maxf=(float)(output_peaklevel*decay);
+    float maxf1=(float)(output_peaklevel[0]*decay);
+    float maxf2=(float)(output_peaklevel[1]*decay);
 
     if (outnch >= 2)
     {
@@ -1457,12 +1460,12 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       while (x--)
       {
         float f = *ptr1++ *= vol1;
-        if (f > maxf) maxf=f;
-        else if (f < -maxf) maxf=-f;
+        if (f > maxf1) maxf1=f;
+        else if (f < -maxf1) maxf1=-f;
 
         f = *ptr2++ *= vol2;
-        if (f > maxf) maxf=f;
-        else if (f < -maxf) maxf=-f;
+        if (f > maxf2) maxf2=f;
+        else if (f < -maxf2) maxf2=-f;
       }
     }
     else
@@ -1471,11 +1474,13 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       while (x--)
       {
         float f = *ptr1++ *= vol1;
-        if (f > maxf) maxf=f;
-        else if (f < -maxf) maxf=-f;
+        if (f > maxf1) maxf1=f;
+        else if (f < -maxf1) maxf1=-f;
       }
+      maxf2=maxf1;
     }
-    output_peaklevel=maxf;
+    output_peaklevel[0]=maxf1;
+    output_peaklevel[1]=maxf2;
   }
 
   // mix in (super shitty) metronome (fucko!!!!)
