@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "../../../sdks/libvorbis-1.1.2/include" /I "../../../sdks/libogg-1.1.3/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "../../../sdks/libvorbis-1.1.2/include" /I "../../../sdks/libogg-1.1.3/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -53,7 +53,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib  wsock32.lib comctl32.lib /nologo /dll /machine:I386 /out:"../../Release/plugins/fx/reaninjam.dll" /opt:nowin98
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib /nologo /dll /machine:I386 /out:"../../Release/plugins/fx/reaninjam.dll" /opt:nowin98
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
@@ -70,7 +70,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "../../../sdks/libvorbis-1.1.2/include" /I "../../../sdks/libogg-1.1.3/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "../../../sdks/libvorbis-1.1.2/include" /I "../../../sdks/libogg-1.1.3/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -148,106 +148,6 @@ SOURCE=..\..\..\WDL\jnetlib\util.cpp
 # Begin Source File
 
 SOURCE=..\..\..\WDL\jnetlib\util.h
-# End Source File
-# End Group
-# Begin Group "vorbis"
-
-# PROP Default_Filter ""
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\analysis.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\bitrate.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libogg-1.1.3\src\bitwise.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\block.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\codebook.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\envelope.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\floor0.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\floor1.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libogg-1.1.3\src\framing.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\info.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\lookup.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\lpc.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\lsp.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\mapping0.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\mdct.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\psy.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\registry.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\res0.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\sharedbook.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\smallft.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\synthesis.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\vorbisenc.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\vorbisfile.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\..\..\sdks\libvorbis-1.1.2\lib\window.c"
 # End Source File
 # End Group
 # Begin Source File

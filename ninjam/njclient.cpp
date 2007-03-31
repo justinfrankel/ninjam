@@ -45,9 +45,35 @@
 #undef VorbisDecoderInterface
 
 #ifdef REANINJAM
-  extern void *(*CreateVorbisEncoder)(int srate, int nch, int br, int serno);
+  extern void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
   extern void *(*CreateVorbisDecoder)();
-  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)CreateVorbisEncoder(srate,ch,br,id))
+  static void *__CreateVorbisEncoder(int srate, int nch, int bitrate, int serno)
+  {
+    float qv=0.0;
+    if (nch == 2) bitrate=  (bitrate*5)/8;
+    // at least for mono 44khz
+    //-0.1 = ~40kbps
+    //0.0 == ~64kbps
+    //0.1 == 75
+    //0.3 == 95
+    //0.5 == 110
+    //0.75== 140
+    //1.0 == 240
+ 
+    if (bitrate < 40) qv=-0.1f;
+    else if (bitrate < 64) qv=-0.10f + (bitrate-40)*(0.10f/24.0f);
+    else if (bitrate < 75) qv=(bitrate-64)*(0.1f/9.0f);
+    else if (bitrate < 95) qv=0.1f+(bitrate-75)*(0.2f/20.0f);
+    else if (bitrate < 110) qv=0.3f+(bitrate-95)*(0.2f/15.0f);
+    else if (bitrate < 140) qv=0.5f+(bitrate-110)*(0.25f/30.0f);
+    else qv=0.75f+(bitrate-140)*(0.25f/100.0f);
+
+    if (qv<-0.10f)qv=-0.10f;
+    if (qv>1.0f)qv=1.0f;
+    return CreateVorbisEncoder(srate,nch,serno,qv,-1,-1,-1);
+
+  }
+  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)__CreateVorbisEncoder(srate,ch,br,id))
   #define CreateNJDecoder() ((I_NJDecoder *)CreateVorbisDecoder())
 #else
   #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)new VorbisEncoder(srate,ch,br,id))

@@ -81,6 +81,8 @@ static double VAL2DB(double x)
 HWND (*GetMainHwnd)();
 double (*DB2SLIDER)(double);
 double (*SLIDER2DB)(double);
+void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
+void *(*CreateVorbisDecoder)();
 
 double NormalizeParm(int parm, double val)
 {
@@ -603,17 +605,34 @@ public:
 
 extern "C" {
 
+
 __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
 {
   g_hostcb=hostcb;
 
+  char *(*GetExePath)()=0;
   if (hostcb)
   {
     *(long *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"DB2SLIDER",0.0);
     *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"SLIDER2DB",0.0);
     *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetMainHwnd",0.0);
+    *(long *)&GetExePath=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetExePath",0.0);
   }
-  if (!DB2SLIDER||!SLIDER2DB) return 0;
+  if (!GetExePath) return 0;
+
+  if (!CreateVorbisDecoder || !CreateVorbisEncoder)
+  {
+    char buf[4096];
+    strcpy(buf,GetExePath());
+    strcat(buf,"\\plugins\\reaper_ogg.dll");
+    HINSTANCE lib=LoadLibrary(buf);
+    if (lib)
+    {
+      *(void **)&CreateVorbisEncoder=(void*)GetProcAddress(lib,"CreateVorbisEncoder");
+      *(void **)&CreateVorbisDecoder=(void*)GetProcAddress(lib,"CreateVorbisDecoder");
+    }
+  }
+  if (!DB2SLIDER||!SLIDER2DB||!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
 
   if (g_initted) return 0;
   g_initted=1;
