@@ -46,6 +46,7 @@ void InitializeInstance();
 void InitInstanceConfig();
 void QuitInstance();
 
+
 static double sliderscale_sq(double in, int dir, double n)
 {
   if (dir < 0) return (pow((double) in,n)/pow(1000.0,n-1.0));
@@ -83,6 +84,7 @@ double (*DB2SLIDER)(double);
 double (*SLIDER2DB)(double);
 void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
 void *(*CreateVorbisDecoder)();
+void (*PluginWantsAlwaysRunFx)(int amt);
 
 double NormalizeParm(int parm, double val)
 {
@@ -481,6 +483,7 @@ public:
       case effClose:
         QuitInstance();
         g_initted=0;
+        if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(-1);
         delete _this;
       return 0;
       case effOpen:
@@ -616,6 +619,7 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
     *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"SLIDER2DB",0.0);
     *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetMainHwnd",0.0);
     *(long *)&GetExePath=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetExePath",0.0);
+    *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"PluginWantsAlwaysRunFx",0.0);
   }
   if (!GetExePath) return 0;
 
@@ -636,6 +640,7 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
   if (g_initted) return 0;
   g_initted=1;
   InitializeInstance();
+  if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
   VSTEffectClass *obj = new VSTEffectClass(hostcb);
   if (obj)
     return &obj->m_effect;
