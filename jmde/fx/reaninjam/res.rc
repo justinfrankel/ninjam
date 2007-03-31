@@ -1,0 +1,367 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MAIN DIALOGEX 0, 0, 460, 238
+STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
+    WS_THICKFRAME
+CAPTION "NINJAM v0.666"
+MENU IDR_MENU1
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LTEXT           "Master: ",IDC_STATIC,7,10,26,8
+    CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
+                    49,6,162,17
+    RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,213,9,29,11,SS_NOTIFY
+    CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
+                    270,6,45,17
+    CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,321,8,32,10
+    CONTROL         "Progress1",IDC_MASTERVU,"msctls_progress32",PBS_SMOOTH | 
+                    WS_BORDER,358,9,93,8
+    LTEXT           "Metronome:",IDC_STATIC,7,35,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,49,
+                    31,162,17
+    RTEXT           "+0.0 dB",IDC_METROVOLLBL,213,34,29,11,SS_NOTIFY
+    CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
+                    270,31,45,17
+    CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,321,33,32,10
+    CTEXT           "-120.0 dB",IDC_MASTERVULBL,358,19,93,8
+    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,28,446,1
+    CONTROL         "Status: No connection.",IDC_STATUS,"Static",
+                    SS_LEFTNOWORDWRAP | WS_GROUP,7,224,356,8
+    CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
+                    WS_BORDER,7,214,446,9
+    CONTROL         "",IDC_CHATDISP,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
+                    WS_TABSTOP | 0x2804,351,66,96,123
+    CONTROL         "",IDC_CHATENT,"RichEdit20A",WS_BORDER | WS_TABSTOP | 
+                    0xc4,351,193,96,14
+    CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,13,
+                    66,327,56
+    CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
+                    13,144,327,63
+    RTEXT           "",IDC_STATUS2,377,224,76,8
+    GROUPBOX        "Local Channels",IDC_LOCGRP,7,55,337,74,0,
+                    WS_EX_TRANSPARENT
+    GROUPBOX        "Remote Channels",IDC_REMGRP,7,133,337,79,0,
+                    WS_EX_TRANSPARENT
+    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,131,336,1
+    GROUPBOX        "Chat",IDC_CHATGRP,348,55,105,157
+    CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,51,445,1
+    LTEXT           "center",IDC_MASTERPANLBL,244,9,23,11,SS_NOTIFY
+    LTEXT           "center",IDC_METROPANLBL,244,34,23,11,SS_NOTIFY
+END
+
+IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 119
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NINJAM Connection Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    COMBOBOX        IDC_HOST,63,14,155,186,CBS_DROPDOWN | WS_VSCROLL | 
+                    WS_TABSTOP
+    EDITTEXT        IDC_USER,63,32,155,12,ES_AUTOHSCROLL
+    CONTROL         "Connect &anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,64,49,85,10
+    EDITTEXT        IDC_PASS,63,61,155,12,ES_PASSWORD | ES_AUTOHSCROLL | NOT 
+                    WS_VISIBLE
+    CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",
+                    BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,64,77,82,
+                    10
+    DEFPUSHBUTTON   "Connect",IDOK,112,98,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,168,98,50,14
+    LTEXT           "Connect to host:",IDC_STATIC,7,16,53,8
+    LTEXT           "Username:",IDC_STATIC,7,34,35,8
+    LTEXT           "Password:",IDC_PASSLBL,7,63,34,8,NOT WS_VISIBLE
+END
+
+IDD_LICENSE DIALOG DISCARDABLE  0, 0, 316, 215
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NINJAM Server License Agreement"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         "I &agree to the above license terms",IDC_CHECK1,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,82,195,119,10
+    PUSHBUTTON      "Accept",IDOK,206,194,50,14,WS_DISABLED
+    PUSHBUTTON      "Decline",IDCANCEL,259,194,50,14
+    CONTROL         "",IDC_LICENSETEXT,"RichEdit20A",WS_BORDER | WS_VSCROLL | 
+                    WS_TABSTOP | 0x2804,7,7,302,183
+END
+
+IDD_PREFS DIALOG DISCARDABLE  0, 0, 241, 108
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NINJAM Preferences"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,129,87,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,184,87,50,14
+    CONTROL         "Save multitrack recordings for remixing later",
+                    IDC_SAVELOCAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,
+                    152,10
+    CONTROL         "Save uncompressed .WAV recordings too",IDC_SAVELOCALWAV,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,19,148,10
+    LTEXT           "Save session files in:",IDC_STATIC,7,35,66,8
+    EDITTEXT        IDC_SESSIONDIR,7,45,182,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...",IDC_BROWSE,192,45,42,12
+    LTEXT           "Changes to the above settings will take effect on the next connection.",
+                    IDC_CHNOTE,7,65,227,8
+END
+
+IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 316, 49
+STYLE DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_NAME,0,2,82,12,ES_AUTOHSCROLL | ES_WANTRETURN
+    CONTROL         "Transmit",IDC_TRANSMIT,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,85,3,43,10
+    COMBOBOX        IDC_AUDIOIN,130,1,112,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
+                    WS_BORDER,246,6,70,8
+    LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,18,81,
+                    18
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,18,
+                    39,18
+    RTEXT           "+0.0 dB",IDC_VOLLBL,123,20,30,8,SS_NOTIFY
+    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    181,20,30,8
+    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    214,20,30,8
+    PUSHBUTTON      "Remove",IDC_REMOVE,264,31,50,13
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,46,316,1
+    CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
+                    SS_NOTIFY | WS_GROUP,155,20,23,8
+END
+
+IDD_EMPTY_SCROLL DIALOG DISCARDABLE  0, 0, 201, 35
+STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL
+FONT 8, "MS Sans Serif"
+BEGIN
+END
+
+IDD_LOCALLIST DIALOG DISCARDABLE  0, 0, 133, 22
+STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Add Local Channel",IDC_ADDCH,0,0,76,14
+END
+
+IDD_REMOTECHANNEL DIALOG DISCARDABLE  0, 0, 316, 40
+STYLE DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_CHANNELNAME,21,0,172,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    ES_WANTRETURN
+    CONTROL         "Receive",IDC_RECV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    199,3,43,10
+    CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
+                    WS_BORDER,246,6,70,8
+    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,16,18,
+                    81,18
+    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,99,18,
+                    39,18
+    LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
+    RTEXT           "+0.0 dB",IDC_VOLLBL,139,20,30,8,SS_NOTIFY
+    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    199,20,30,8
+    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    232,20,30,8
+    CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
+                    SS_NOTIFY | WS_GROUP,171,20,23,8
+END
+
+IDD_EMPTY DIALOG DISCARDABLE  0, 0, 127, 30
+STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN
+FONT 8, "MS Sans Serif"
+BEGIN
+END
+
+IDD_REMOTEUSER DIALOG DISCARDABLE  0, 0, 316, 22
+STYLE DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_USERNAME,21,6,236,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    ES_WANTRETURN
+    CONTROL         "",IDC_DIV,"Static",SS_ETCHEDHORZ,0,0,315,1
+    LTEXT           "User:",IDC_STATIC,0,8,18,8
+    CONTROL         "Mute user",IDC_MUTE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,263,8,47,10
+END
+
+IDD_VSTCFG DIALOG DISCARDABLE  0, 0, 199, 53
+STYLE DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Show NINJAM Window",IDC_BUTTON1,7,7,144,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_MAIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 453
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 231
+    END
+
+    IDD_CONNECT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 218
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 112
+    END
+
+    IDD_LICENSE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 309
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 208
+    END
+
+    IDD_PREFS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 234
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 101
+    END
+
+    IDD_LOCALCHANNEL, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 47
+    END
+
+    IDD_EMPTY_SCROLL, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 184
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 18
+    END
+
+    IDD_LOCALLIST, DIALOG
+    BEGIN
+        RIGHTMARGIN, 126
+        BOTTOMMARGIN, 15
+    END
+
+    IDD_REMOTECHANNEL, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 38
+    END
+
+    IDD_EMPTY, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 120
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 23
+    END
+
+    IDD_REMOTEUSER, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 20
+    END
+
+    IDD_VSTCFG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 192
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 46
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU1 MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Connect...",                 ID_FILE_CONNECT
+        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
+        MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
+    END
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
