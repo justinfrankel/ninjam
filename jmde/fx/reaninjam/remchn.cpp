@@ -133,8 +133,9 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
     break;
     case WM_LCUSER_VUUPDATE:
       {
-        int ival=(int)floor(VAL2DB(g_client->GetUserChannelPeak(user,chan))*10.0);
-        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival);
+        int ival=(int)floor(VAL2DB(g_client->GetUserChannelPeak(user,chan,0))*10.0);
+        int ival2=(int)floor(VAL2DB(g_client->GetUserChannelPeak(user,chan,1))*10.0);
+        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival2);
       }
     return 0;
     case WM_HSCROLL:

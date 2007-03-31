@@ -229,8 +229,9 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     return 0;
     case WM_LCUSER_VUUPDATE:
       {
-        int ival=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx))*10.0);
-        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival);
+        int ival=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,0))*10.0);
+        int ival2=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,1))*10.0);
+        SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival2);
       }
     return 0;
 

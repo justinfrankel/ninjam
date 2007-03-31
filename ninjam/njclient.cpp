@@ -87,8 +87,9 @@ class DecodeState
 {
   public:
     DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
-                                           decode_samplesout(0), resample_state(0.0), decode_peak_vol(0.0)
+                                           decode_samplesout(0), resample_state(0.0)
     { 
+      decode_peak_vol[0]=decode_peak_vol[1]=0.0;
       memset(guid,0,sizeof(guid));
     }
     ~DecodeState()
@@ -109,7 +110,7 @@ class DecodeState
     }
 
     unsigned char guid[16];
-    double decode_peak_vol;
+    double decode_peak_vol[2];
 
     WDL_String delete_on_delete;
 
@@ -191,29 +192,25 @@ class BufferQueue
       Clear();
     }
 
-    void AddBlock(float *samples, int len, float *samples2=NULL);
-    int GetBlock(WDL_HeapBuf **b); // return 0 if got one, 1 if none avail
+    void AddBlock(int attr, float *samples, int len, float *samples2=NULL);
+    int GetBlock(WDL_HeapBuf **b, int *attr=NULL); // return 0 if got one, 1 if none avail
     void DisposeBlock(WDL_HeapBuf *b);
 
     void Clear()
     {
-      int x;
-      for (x = 0; x < m_emptybufs.GetSize(); x ++)
-        delete m_emptybufs.Get(x);
-      m_emptybufs.Empty();
-      int l=m_samplequeue.Available()/4;
-      WDL_HeapBuf **bufs=(WDL_HeapBuf **)m_samplequeue.Get();
+      m_emptybufs.Empty(true);
+      int l=m_samplequeue.GetSize()/2;
+      WDL_HeapBuf **bufs=m_samplequeue.GetList();
       if (bufs) while (l--)
       {
         if (*bufs != (WDL_HeapBuf*)0 && *bufs != (WDL_HeapBuf*)-1) delete *bufs;
-        bufs++;
+        bufs+=2;
       }
-      m_samplequeue.Advance(m_samplequeue.Available());
-      m_samplequeue.Compact();
+      m_samplequeue.Empty();
     }
 
   private:
-    WDL_Queue m_samplequeue; // a list of pointers, with NULL to define spaces
+    WDL_PtrList<WDL_HeapBuf> m_samplequeue; // a list of pointers, with NULL to define spaces
     WDL_PtrList<WDL_HeapBuf> m_emptybufs;
     WDL_Mutex m_cs;
 };
@@ -227,7 +224,7 @@ public:
 
   int channel_idx;
 
-  int src_channel; // 0 or 1
+  int src_channel; // 0 or 1 etc.. &1024 = stereo!
   int bitrate;
 
   float volume;
@@ -250,7 +247,7 @@ public:
 
   BufferQueue m_bq;
 
-  double decode_peak_vol;
+  double decode_peak_vol[2];
   bool m_need_header;
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
   I_NJEncoder  *m_enc;
@@ -443,7 +440,10 @@ void NJClient::_reinit()
 
   int x;
   for (x = 0; x < m_locchannels.GetSize(); x ++)
-    m_locchannels.Get(x)->decode_peak_vol=0.0f;
+  {
+    m_locchannels.Get(x)->decode_peak_vol[0]=0.0f;
+    m_locchannels.Get(x)->decode_peak_vol[1]=0.0f;
+  }
 
 }
 
@@ -1303,12 +1303,20 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
-    int sc=lc->src_channel;
-    float *src=NULL;
+    int sc=lc->src_channel&1023;
+    int sc_nch=(lc->src_channel&1024)?2:1;
+
+    float *src=NULL,*src2=NULL;
     if (sc >= 0 && sc < innch) src=inbuf[sc]+offset;
+    if (sc_nch>1) 
+    {
+      if (sc+1 >= 0 && sc+1 < innch) src2=inbuf[sc+1]+offset;
+      if (!src2) src2=src;
+    }
 
     if (lc->cbf || !src || ChannelMixer)
     {
+      // todo: support stereo on chanmixer, silent, and effect processing stuff
       int bytelen=len*(int)sizeof(float);
       if (tmpblock.GetSize() < bytelen) tmpblock.Resize(bytelen);
 
@@ -1319,7 +1327,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       else if (src) memcpy(tmpblock.Get(),src,bytelen);
       else memset(tmpblock.Get(),0,bytelen);
 
-      src=(float* )tmpblock.Get();
+      src2=src=(float* )tmpblock.Get();
 
       // processor
       if (lc->cbf)
@@ -1331,10 +1339,11 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     if (!justmonitor && lc->bcast_active) 
     {
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
-      lc->m_bq.AddBlock(src,len);
+      lc->m_bq.AddBlock(sc_nch,src,len,src2);
 #endif
     }
 
+    if (!src2) src2=src;
 
     // monitor this channel
     if ((!m_issoloactive && !lc->muted) || lc->solo)
@@ -1349,7 +1358,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
         else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
 
-        float maxf=(float) (lc->decode_peak_vol*decay);
+        float maxf=(float) (lc->decode_peak_vol[0]*decay);
+        float maxf2=(float) (lc->decode_peak_vol[1]*decay);
 
         int x=len;
         while (x--) 
@@ -1364,26 +1374,28 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
           *out1++ += f;
 
-          f=src[0]*vol2;
+          f=src2[0]*vol2;
 
-          if (f > maxf) maxf=f;
-          else if (f < -maxf) maxf=-f;
+          if (f > maxf2) maxf2=f;
+          else if (f < -maxf2) maxf2=-f;
 
           if (f > 1.0) f=1.0;
           else if (f < -1.0) f=-1.0;
 
           *out2++ += f;
           src++;
+          src2++;
         }
-        lc->decode_peak_vol=maxf;
+        lc->decode_peak_vol[0]=maxf;
+        lc->decode_peak_vol[0]=maxf2;
       }
       else
       {
-        float maxf=(float) (lc->decode_peak_vol*decay);
+        float maxf=(float) (lc->decode_peak_vol[0]*decay);
         int x=len;
         while (x--) 
         {
-          float f=*src++ * vol1;
+          float f=(*src++ + *src2++)*0.5f * vol1;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
@@ -1392,10 +1404,10 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
           *out1++ += f;
         }
-        lc->decode_peak_vol=maxf;
+        lc->decode_peak_vol[1]=lc->decode_peak_vol[0]=maxf;
       }
     }
-    else lc->decode_peak_vol=0.0;
+    else lc->decode_peak_vol[0]=lc->decode_peak_vol[1]=0.0;
   }
 
   m_locchan_cs.Leave();
@@ -1438,7 +1450,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 #endif
       )
     {
-      m_wavebq->AddBlock(outbuf[0]+offset,len,outbuf[outnch>1]+offset);
+      m_wavebq->AddBlock(2,outbuf[0]+offset,len,outbuf[outnch>1]+offset);
     }
   }
 
@@ -1553,26 +1565,46 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     if (!muted && vol > 0.0000001) 
     {
       float *p=sptr;
-      int l=(needed+chan->dump_samples)*chan->decode_codec->GetNumChannels();
-      float maxf=(float) (chan->decode_peak_vol*vudecay/vol);
-      while (l--)
+      int nc=chan->decode_codec->GetNumChannels();
+      int l=(needed+chan->dump_samples)*nc;
+      float maxf=(float) (chan->decode_peak_vol[0]*vudecay/vol);
+      float maxf2=(float) (chan->decode_peak_vol[1]*vudecay/vol);
+      if (nc>=2)
       {
-        float f=*p++;
-        if (f > maxf) maxf=f;
-        else if (f < -maxf) maxf=-f;
+        l/=2;
+        while (l--)
+        {
+          float f=*p++;
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+          f=*p++;
+          if (f > maxf2) maxf2=f;
+          else if (f < -maxf2) maxf2=-f;
+        }
       }
-      chan->decode_peak_vol=maxf*vol;
+      else
+      {
+        while (l--)
+        {
+          float f=*p++;
+          if (f > maxf) maxf=f;
+          else if (f < -maxf) maxf=-f;
+        }
+        maxf2=maxf;
+      }
+      chan->decode_peak_vol[0]=maxf*vol;
+      chan->decode_peak_vol[1]=maxf2*vol;
 
       float *tmpbuf[2]={outbuf[0]+offs,outnch > 1 ? (outbuf[1]+offs) : 0};
       mixFloatsNIOutput(sptr+chan->dump_samples,
               chan->decode_codec->GetSampleRate(),
-              chan->decode_codec->GetNumChannels(),
+              nc,
               tmpbuf,
               srate,outnch>1?2:1,len,
               vol,pan,&chan->resample_state);
     }
     else 
-      chan->decode_peak_vol=0.0;
+      chan->decode_peak_vol[0]=chan->decode_peak_vol[1]=0.0;
 
     // advance the queue
     chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
@@ -1619,7 +1651,7 @@ void NJClient::on_new_interval()
 
     if (lc->bcast_active) 
     {
-      lc->m_bq.AddBlock(NULL,0);
+      lc->m_bq.AddBlock(0,NULL,0);
     }
 
     int wasact=lc->bcast_active;
@@ -1628,7 +1660,7 @@ void NJClient::on_new_interval()
 
     if (wasact && !lc->bcast_active)
     {
-      lc->m_bq.AddBlock(NULL,-1);
+      lc->m_bq.AddBlock(0,NULL,-1);
     }
 
   }
@@ -1780,7 +1812,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 }
 
 
-float NJClient::GetUserChannelPeak(int useridx, int channelidx)
+float NJClient::GetUserChannelPeak(int useridx, int channelidx, int whichch)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return 0.0f;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
@@ -1788,16 +1820,21 @@ float NJClient::GetUserChannelPeak(int useridx, int channelidx)
   if (!(user->chanpresentmask & (1<<channelidx))) return 0.0f;
   if (!p->ds) return 0.0f;
 
-  return (float)p->ds->decode_peak_vol;
+  if (whichch==0) return (float)p->ds->decode_peak_vol[0];
+  if (whichch==1) return (float)p->ds->decode_peak_vol[1];
+  return (float) (p->ds->decode_peak_vol[0]+p->ds->decode_peak_vol[1])*0.5f;
+
 }
 
-float NJClient::GetLocalChannelPeak(int ch)
+float NJClient::GetLocalChannelPeak(int ch, int whichch)
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x == m_locchannels.GetSize()) return 0.0f;
   Local_Channel *c=m_locchannels.Get(x);
-  return (float)c->decode_peak_vol;
+  if (whichch==0) return (float)c->decode_peak_vol[0];
+  if (whichch==1) return (float)c->decode_peak_vol[1];
+  return (float) (c->decode_peak_vol[0]+c->decode_peak_vol[1])*0.5f;
 }
 
 void NJClient::DeleteLocalChannel(int ch)
@@ -2074,20 +2111,21 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 m_enc_header_needsend(NULL),
 #endif
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), 
-                bitrate(64), m_need_header(true), m_wavewritefile(NULL),
-                decode_peak_vol(0.0)
+                bitrate(64), m_need_header(true), m_wavewritefile(NULL)
 {
+  decode_peak_vol[0]=decode_peak_vol[1]=0.0;
 }
 
 
-int BufferQueue::GetBlock(WDL_HeapBuf **b) // return 0 if got one, 1 if none avail
+int BufferQueue::GetBlock(WDL_HeapBuf **b, int *attr) // return 0 if got one, 1 if none avail
 {
   m_cs.Enter();
-  if (m_samplequeue.Available())
+  if (m_samplequeue.GetSize()>1)
   {
-    *b=*(WDL_HeapBuf **)m_samplequeue.Get();
-    m_samplequeue.Advance(sizeof(WDL_HeapBuf *));
-    if (m_samplequeue.Available()<256) m_samplequeue.Compact();
+    *b=m_samplequeue.Get(0);
+    if (attr) *attr= (int) m_samplequeue.Get(1);
+    m_samplequeue.Delete(0);
+    m_samplequeue.Delete(0);
     m_cs.Leave();
     return 0;
   }
@@ -2103,14 +2141,14 @@ void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void BufferQueue::AddBlock(float *samples, int len, float *samples2)
+void BufferQueue::AddBlock(int attr, float *samples, int len, float *samples2)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
   {
     m_cs.Enter();
 
-    if (m_samplequeue.Available() > 512)
+    if (m_samplequeue.GetSize() > 512*2)
     {
       m_cs.Leave();
       return;
@@ -2139,7 +2177,8 @@ void BufferQueue::AddBlock(float *samples, int len, float *samples2)
   else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 
   m_cs.Enter();
-  m_samplequeue.Add(&mybuf,sizeof(mybuf));
+  m_samplequeue.Add(mybuf);
+  m_samplequeue.Add((WDL_HeapBuf *)attr);
   m_cs.Leave();
 }
 
