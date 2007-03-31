@@ -660,7 +660,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           if (cnt < 0)
           {
             // add a default channel
-            g_client->SetLocalChannelInfo(0,"default channel",false,0,false,0,true,true);
+            g_client->SetLocalChannelInfo(0,"default channel",true,1024,false,0,true,true);
             SendMessage(m_locwnd,WM_LCUSER_ADDCHILD,0,0);
           }
           for (x = 0; x < cnt; x ++)

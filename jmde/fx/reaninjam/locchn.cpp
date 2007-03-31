@@ -289,7 +289,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         if (idx < maxc) 
         {
-          g_client->SetLocalChannelInfo(idx,"new channel",true,0,false,0,true,true);
+          g_client->SetLocalChannelInfo(idx,"new channel",true,1024,false,0,true,true);
           g_client->NotifyServerOfChannelChange();  
         }
         g_client_mutex.Leave();
