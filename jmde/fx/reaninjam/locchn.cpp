@@ -64,8 +64,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
         SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,63);       
+        //SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
 
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
@@ -143,12 +143,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         case IDC_REMOVE:
           {
             // remove JS for this channel
-            void *i=0;
             g_client_mutex.Enter();
-            g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-            if (i) deleteJesusonicProc(i,m_idx);
-            g_client->SetLocalChannelProcessor(m_idx,NULL,NULL);
-
             // remove the channel
             g_client->DeleteLocalChannel(m_idx);
             g_client_mutex.Leave();

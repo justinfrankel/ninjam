@@ -60,7 +60,7 @@ static parameterInfo param_infos[NUM_PARAMS]=
 audioMasterCallback g_hostcb;
 
 
-static double VAL2DB(double x)
+double VAL2DB(double x)
 {
   static double g_ilog2x6;
   static int a;

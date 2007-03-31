@@ -109,10 +109,6 @@ SOURCE=..\..\..\ninjam\netmsg.cpp
 
 SOURCE=..\..\..\ninjam\njclient.cpp
 # End Source File
-# Begin Source File
-
-SOURCE=..\..\..\ninjam\njmisc.cpp
-# End Source File
 # End Group
 # Begin Group "jnetlib"
 

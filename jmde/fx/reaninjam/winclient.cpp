@@ -53,7 +53,6 @@ NJClient *g_client;
 int g_done;
 WDL_String jesusdir;
 WDL_String g_topic;
-jesusonicAPI *JesusonicAPI;
 
 static HINSTANCE jesus_hDllInst;
 HWND g_hwnd;
@@ -603,14 +602,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 
         char tmp[512];
-        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,63);       
+//        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,-1);       
         GetPrivateProfileString(CONFSEC,"mastervol","1.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_mastervolume=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
 
-        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
-        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,63);       
+//        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,-1);       
         GetPrivateProfileString(CONFSEC,"metrovol","0.5",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_metronome=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
@@ -1342,3 +1341,27 @@ void QuitInstance()
   g_audio_enable=0;
   //UnregisterClass("RichEditChild",NULL);
 }
+
+
+void mkvolpanstr(char *str, double vol, double pan)
+{
+  mkvolstr(str,vol);
+  char *p=str+strlen(str);
+  *p++=' ';
+  mkpanstr(p,pan);
+}
+
+void mkpanstr(char *str, double pan)
+{
+  if (fabs(pan) < 0.0001) strcpy(str,"center");
+  else sprintf(str,"%d%%%s", (int)fabs(pan*100.0),(pan>0.0 ? "R" : "L"));
+}
+
+void mkvolstr(char *str, double vol)
+{
+  double v=VAL2DB(vol);
+  if (vol < 0.0000001 || v < -120.0) v=-120.0;
+  sprintf(str,"%s%2.1fdB",v>0.0?"+":"",v);   
+}
+
+

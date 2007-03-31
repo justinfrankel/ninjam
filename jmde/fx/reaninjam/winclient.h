@@ -30,11 +30,18 @@
 #define WM_RCUSER_UPDATE WM_USER+54
 
 #include "../../../ninjam/njclient.h"
-#include "../../../ninjam/njmisc.h"
 
 #include "../../../WDL/mutex.h"
 #include "../../../WDL/string.h"
 
+
+extern double (*DB2SLIDER)(double x);
+extern double (*SLIDER2DB)(double y);
+double VAL2DB(double x);
+#define DB2VAL(x) (pow(2.0,(x)/6.0))
+void mkvolpanstr(char *str, double vol, double pan);
+void mkvolstr(char *str, double vol);
+void mkpanstr(char *str, double pan);
 
 extern WDL_Mutex g_client_mutex;
 extern WDL_String g_ini_file;

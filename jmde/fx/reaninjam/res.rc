@@ -60,20 +60,20 @@ MENU IDR_MENU1
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,7,10,26,8
-    CONTROL         "Slider1",IDC_MASTERVOL,"msctls_trackbar32",WS_TABSTOP,
+    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,
                     49,6,162,17
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,213,9,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_MASTERPAN,"msctls_trackbar32",WS_TABSTOP,
+    CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,
                     270,6,45,17
     CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,321,8,32,10
     CONTROL         "Progress1",IDC_MASTERVU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,358,9,93,8
     LTEXT           "Metronome:",IDC_STATIC,7,35,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"msctls_trackbar32",WS_TABSTOP,49,
+    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,49,
                     31,162,17
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,213,34,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_METROPAN,"msctls_trackbar32",WS_TABSTOP,
+    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,
                     270,31,45,17
     CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,321,33,32,10
@@ -169,9 +169,9 @@ BEGIN
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,246,6,70,8
     LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,0,18,81,
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,0,18,81,
                     18
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,83,18,
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,83,18,
                     39,18
     RTEXT           "+0.0 dB",IDC_VOLLBL,123,20,30,8,SS_NOTIFY
     CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
@@ -207,9 +207,9 @@ BEGIN
                     199,3,43,10
     CONTROL         "Progress1",IDC_VU,"msctls_progress32",PBS_SMOOTH | 
                     WS_BORDER,246,6,70,8
-    CONTROL         "Slider1",IDC_VOL,"msctls_trackbar32",WS_TABSTOP,16,18,
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,16,18,
                     81,18
-    CONTROL         "Slider1",IDC_PAN,"msctls_trackbar32",WS_TABSTOP,99,18,
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,99,18,
                     39,18
     LTEXT           "-120.0 dB",IDC_VULBL,270,17,46,8
     RTEXT           "+0.0 dB",IDC_VOLLBL,139,20,30,8,SS_NOTIFY
