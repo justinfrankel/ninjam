@@ -252,6 +252,7 @@ public:
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
   I_NJEncoder  *m_enc;
   int m_enc_bitrate_used;
+  int m_enc_nch_used;
   Net_Message *m_enc_header_needsend;
 #endif
   
@@ -1073,7 +1074,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = CreateNJEncoder(m_srate,block_nch,lc->m_enc_bitrate_used = lc->bitrate+(block_nch>1?lc->bitrate/3:0),WDL_RNG_int32());
+          lc->m_enc = CreateNJEncoder(m_srate,lc->m_enc_nch_used=block_nch,lc->m_enc_bitrate_used = lc->bitrate+(block_nch>1?lc->bitrate/3:0),WDL_RNG_int32());
         }
 
         if (lc->m_need_header)
@@ -1216,7 +1217,13 @@ int NJClient::Run() // nonzero if sleep ok
 
           //delete m_enc;
         //  m_enc=0;
-          lc->m_enc->reinit();
+          if (lc->m_enc_nch_used != block_nch)
+          {
+            delete lc->m_enc;
+            lc->m_enc=0;
+          }
+          else
+            lc->m_enc->reinit();
         }
 
         if (lc->m_enc && lc->bitrate != lc->m_enc_bitrate_used)
@@ -2119,6 +2126,7 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
                 m_enc(NULL), 
                 m_enc_bitrate_used(0), 
+                m_enc_nch_used(0),
                 m_enc_header_needsend(NULL),
 #endif
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), 
