@@ -37,8 +37,8 @@ void mkpanstr(char *str, double pan);
 
 #ifdef _WIN32
 
-#include "../../WDL/string.h"
-#include "../../jesusonic/jesusonic_dll.h"
+#include "../WDL/string.h"
+#include "../jesusonic/jesusonic_dll.h"
 
 extern WDL_String jesusdir;
 extern jesusonicAPI *JesusonicAPI;  

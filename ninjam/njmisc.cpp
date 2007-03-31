@@ -110,7 +110,7 @@ void jesusonic_processor(float *buf, int len, void *inst)
 {
   if (inst)
   {
-    JesusonicAPI->jesus_process_samples(inst,(char*)buf,len*sizeof(float));
+    JesusonicAPI->jesus_process_samples(inst,(char*)buf,len*sizeof(float),0.0f);
     JesusonicAPI->osc_run(inst,(char*)buf,len);
   }
 }
