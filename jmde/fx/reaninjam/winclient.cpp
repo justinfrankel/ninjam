@@ -46,6 +46,8 @@
 
 #define CONFSEC "ninjam"
 
+extern HWND (*GetMainHwnd)();
+
 
 WDL_String g_ini_file;
 WDL_Mutex g_client_mutex;
@@ -551,6 +553,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   {
     case WM_INITDIALOG:
       {
+        {
+          HWND h;
+          if (GetMainHwnd && (h=GetMainHwnd()))
+            SetClassLong(hwndDlg,GCL_HICON,GetClassLong(h,GCL_HICON));
+        }
         GetWindowRect(hwndDlg,&init_r);
 
         SetWindowText(hwndDlg,"ReaNINJAM v" VERSION);
@@ -1313,7 +1320,6 @@ void InitInstanceConfig()
 {
   if (g_client)
   {
-    extern HWND (*GetMainHwnd)();
     if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(),MainProc);
   }
 }
