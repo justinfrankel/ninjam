@@ -32,6 +32,8 @@
 
 #include "resource.h"
 
+#define NUM_INPUTS 4
+
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
@@ -108,6 +110,11 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             int a=SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_GETCURSEL,0,0);
             if (a != CB_ERR)
             {
+              if (a>=NUM_INPUTS)
+              {
+                a-=NUM_INPUTS;
+                a|=1024;
+              }
               g_client_mutex.Enter();
               g_client->SetLocalChannelInfo(m_idx,NULL,true,a,false,0,false,false);
               g_client_mutex.Leave();
@@ -215,16 +222,25 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         g_client_mutex.Leave();
         int chcnt=0;
         {
-          int mch=4;
+          int mch=NUM_INPUTS;
 
           for (chcnt = 0; chcnt < mch; chcnt++)
           {
             char buf[128];
-            sprintf(buf,"Input %d",chcnt+1);
+            sprintf(buf,"Mono %d",chcnt+1);
+            SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
+          }
+          for (chcnt = 0; chcnt < mch-1; chcnt++)
+          {
+            char buf[128];
+            sprintf(buf,"Stereo %d/%d",chcnt+1,chcnt+2);
             SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_ADDSTRING,0,(LPARAM)buf);         
           }
         }
-        SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,(sch >= 0 ? sch : chcnt),0);
+        if (sch & 1024)
+          SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,NUM_INPUTS+(sch&1023),0);
+        else
+          SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_SETCURSEL,sch,0);
       }
     return 0;
     case WM_LCUSER_VUUPDATE:

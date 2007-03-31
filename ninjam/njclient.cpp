@@ -1045,7 +1045,8 @@ int NJClient::Run() // nonzero if sleep ok
   {
     Local_Channel *lc=m_locchannels.Get(u);
     WDL_HeapBuf *p=0;
-    while (!lc->m_bq.GetBlock(&p))
+    int block_nch=1;
+    while (!lc->m_bq.GetBlock(&p,&block_nch))
     {
       wantsleep=0;
       if (u >= m_max_localch)
@@ -1072,7 +1073,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = CreateNJEncoder(m_srate,1,lc->m_enc_bitrate_used = lc->bitrate,WDL_RNG_int32());
+          lc->m_enc = CreateNJEncoder(m_srate,block_nch,lc->m_enc_bitrate_used = lc->bitrate+(block_nch>1?lc->bitrate/3:0),WDL_RNG_int32());
         }
 
         if (lc->m_need_header)
@@ -1117,13 +1118,23 @@ int NJClient::Run() // nonzero if sleep ok
         }
 
         if (lc->m_enc)
-        {
-          if (lc->m_wavewritefile)
+        {        
           {
-            lc->m_wavewritefile->WriteFloats((float*)p->Get(),p->GetSize()/sizeof(float));
-          }
-          lc->m_enc->Encode((float*)p->Get(),p->GetSize()/sizeof(float));
+            int sz=p->GetSize()/sizeof(float);
+            if (block_nch>1)  sz/=2;
 
+            if (lc->m_wavewritefile)
+            {
+              float *ps[2]={(float *)p->Get(),0};
+              if (block_nch>1) ps[1]=ps[0]+sz;
+              else ps[1]=ps[0]; 
+
+              lc->m_wavewritefile->WriteFloatsNI(ps,0,sz,2);
+            }
+
+            lc->m_enc->Encode((float*)p->Get(),sz,1,block_nch>1 ? sz:0);
+
+          }
           int s;
           while ((s=lc->m_enc->Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
           {
