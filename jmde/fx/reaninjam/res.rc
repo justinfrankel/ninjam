@@ -85,22 +85,22 @@ BEGIN
     CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
                     0xc4,330,182,123,14
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,7,
-                    50,315,56
+                    50,315,31
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
-                    7,122,315,74
+                    7,96,315,100
     RTEXT           "",IDC_STATUS2,377,210,76,8
-    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,109,316,1
+    CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,83,316,1
     CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,37,448,1
     LTEXT           "center",IDC_MASTERPANLBL,293,8,23,11,SS_NOTIFY
     LTEXT           "center",IDC_METROPANLBL,293,26,23,11,SS_NOTIFY
     CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,359,6,94,12
     LTEXT           "Local Channels:",IDC_LOCGRP,7,41,52,8
-    LTEXT           "Remote Channels:",IDC_REMGRP,7,112,59,8
+    LTEXT           "Remote Channels:",IDC_REMGRP,7,86,59,8
     CONTROL         "",IDC_CHATGRP,"Static",SS_ETCHEDVERT,326,40,1,158
     LTEXT           "Chat:",IDC_CHATLBL,330,42,18,8
 END
 
-IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 119
+IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 146
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Connection Configuration"
 FONT 8, "MS Sans Serif"
@@ -115,11 +115,13 @@ BEGIN
     CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",
                     BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,64,77,82,
                     10
-    DEFPUSHBUTTON   "Connect",IDOK,112,98,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,168,98,50,14
+    DEFPUSHBUTTON   "Connect",IDOK,112,92,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,168,92,50,14
     LTEXT           "Connect to host:",IDC_STATIC,7,16,53,8
     LTEXT           "Username:",IDC_STATIC,7,34,35,8
     LTEXT           "Password:",IDC_PASSLBL,7,63,34,8,NOT WS_VISIBLE
+    LTEXT           "To test, try using test.ninjam.com or test.ninjam.com:2050\r\nFor information on setting up your own server,  visit http://www.ninjam.com/",
+                    IDC_STATIC,7,112,211,27
 END
 
 IDD_LICENSE DIALOG DISCARDABLE  0, 0, 316, 215
@@ -259,7 +261,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 218
         TOPMARGIN, 7
-        BOTTOMMARGIN, 112
+        BOTTOMMARGIN, 139
     END
 
     IDD_LICENSE, DIALOG
