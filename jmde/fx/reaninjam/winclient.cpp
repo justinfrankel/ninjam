@@ -96,8 +96,28 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   if (!g_audio_enable||!g_client) 
   {
     int x;
-    // clear all output buffers
-    for (x = 0; x < outnch; x ++) memcpy(outbuf[x],inbuf[x],sizeof(float)*len);
+    if (outnch <= innch)
+    {
+      // clear all output buffers
+      for (x = 0; x < outnch; x ++) 
+      {
+        memcpy(outbuf[x],inbuf[x],sizeof(float)*len);
+      }
+      for (x = 2; x < innch-1; x += 2)
+      {
+        int a=len;
+        float *inptr=inbuf[x];
+        float *inptr2=inbuf[x+1];
+
+        float *outptr=outbuf[0];
+        float *outptr2=outbuf[1];
+        while (a--) 
+        {
+          *outptr++ += *inptr++;
+          *outptr2++ += *inptr2++;
+        }
+      }
+    }
     return;
   }
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);

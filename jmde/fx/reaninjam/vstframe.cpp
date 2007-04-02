@@ -19,7 +19,7 @@
 #define SAMPLETYPE float
 
 
-#define NUM_INPUTS 4
+#define NUM_INPUTS 8
 #define NUM_OUTPUTS 2
 
 #define NUM_PARAMS 1

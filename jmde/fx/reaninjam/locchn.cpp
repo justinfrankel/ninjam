@@ -32,7 +32,7 @@
 
 #include "resource.h"
 
-#define NUM_INPUTS 4
+#define NUM_INPUTS 8
 
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
