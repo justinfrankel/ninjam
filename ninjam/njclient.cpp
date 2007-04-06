@@ -1773,7 +1773,7 @@ int NJClient::EnumUserChannels(int useridx, int i)
   return -1;
 }
 
-char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo)
+char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo, int *outchannel)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
@@ -1785,13 +1785,14 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
   if (pan) *pan=p->pan;
   if (mute) *mute=!!(user->mutedmask & (1<<channelidx));
   if (solo) *solo=!!(user->solomask & (1<<channelidx));
+  if (outchannel) *outchannel=p->out_chan_index;
   
   return p->name.Get();
 }
 
 
 void NJClient::SetUserChannelState(int useridx, int channelidx, 
-                                   bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo)
+                                   bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo, bool setoutch, int outchannel)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
   RemoteUser *user=m_remoteusers.Get(useridx);
@@ -1828,6 +1829,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
   }
   if (setvol) p->volume=vol;
   if (setpan) p->pan=pan;
+  if (setoutch) p->out_chan_index=outchannel;
   if (setmute) 
   {
     if (mute)
@@ -1924,7 +1926,7 @@ void NJClient::GetLocalChannelProcessor(int ch, void **func, void **inst)
 }
 
 void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
-                                   bool setbitrate, int bitrate, bool setbcast, bool broadcast)
+                                   bool setbitrate, int bitrate, bool setbcast, bool broadcast, bool setoutch, int outch)
 {  
   m_locchan_cs.Enter();
   int x;
@@ -1940,10 +1942,11 @@ void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
   if (setsrcch) c->src_channel=srcch;
   if (setbitrate) c->bitrate=bitrate;
   if (setbcast) c->broadcasting=broadcast;
+  if (setoutch) c->out_chan_index=outch;
   m_locchan_cs.Leave();
 }
 
-char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast)
+char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast, int *outch)
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
@@ -1952,6 +1955,7 @@ char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broa
   if (srcch) *srcch=c->src_channel;
   if (bitrate) *bitrate=c->bitrate;
   if (broadcast) *broadcast=c->broadcasting;
+  if (outch) *outch=c->out_chan_index;
 
   return c->name.Get();
 }
