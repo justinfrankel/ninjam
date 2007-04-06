@@ -130,6 +130,7 @@ class RemoteUser_Channel
     ~RemoteUser_Channel();
 
     float volume, pan;
+    int out_chan_index;
 
     WDL_String name;
 
@@ -249,6 +250,8 @@ public:
 
   double decode_peak_vol[2];
   bool m_need_header;
+  int out_chan_index;
+
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
   I_NJEncoder  *m_enc;
   int m_enc_bitrate_used;
@@ -1366,13 +1369,19 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     // monitor this channel
     if ((!m_issoloactive && !lc->muted) || lc->solo)
     {
-      float *out1=outbuf[0]+offset;
+      int use_nch=2;
+      if (outnch < 2 || (lc->out_chan_index&1024)) use_nch=1;
+      int idx=(lc->out_chan_index&1023);
+      if (idx+use_nch>outnch) idx=outnch-use_nch;
+      if (idx< 0)idx=0;
+
+      float *out1=outbuf[idx]+offset;
 
       float vol1=lc->volume;
-      if (outnch > 1)
+      if (use_nch > 1)
       {
         float vol2=vol1;
-        float *out2=outbuf[1]+offset;
+        float *out2=outbuf[idx+1]+offset;
         if (lc->pan > 0.0f) vol1 *= 1.0f-lc->pan;
         else if (lc->pan < 0.0f) vol2 *= 1.0f+lc->pan;
 
@@ -1454,7 +1463,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         if (user->channels[ch].ds)
           mixInChannel(muteflag,
             user->volume*user->channels[ch].volume,lpan,
-              user->channels[ch].ds,outbuf,len,srate,outnch,offset,decay);
+              user->channels[ch].ds,outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay);
       }
     }
     m_users_cs.Leave();
@@ -1558,7 +1567,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
 }
 
-void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int len, int srate, int outnch, int offs, double vudecay)
+void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay)
 {
   if (!chan->decode_codec || !chan->decode_fp) return;
 
@@ -1622,12 +1631,19 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       chan->decode_peak_vol[0]=maxf*vol;
       chan->decode_peak_vol[1]=maxf2*vol;
 
-      float *tmpbuf[2]={outbuf[0]+offs,outnch > 1 ? (outbuf[1]+offs) : 0};
+      int use_nch=2;
+      if (outnch < 2 || (out_channel&1024)) use_nch=1;
+      int idx=(out_channel&1023);
+      if (idx+use_nch>outnch) idx=outnch-use_nch;
+      if (idx< 0)idx=0;
+
+      float *tmpbuf[2]={outbuf[idx]+offs,use_nch > 1 ? (outbuf[idx+1]+offs) : 0};
+
       mixFloatsNIOutput(sptr+chan->dump_samples,
               chan->decode_codec->GetSampleRate(),
               nc,
               tmpbuf,
-              srate,outnch>1?2:1,len,
+              srate,use_nch,len,
               vol,pan,&chan->resample_state);
     }
     else 
@@ -2041,7 +2057,7 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), ds(NULL)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), ds(NULL)
 {
   memset(next_ds,0,sizeof(next_ds));
 }
@@ -2139,7 +2155,7 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 m_enc_header_needsend(NULL),
 #endif
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), 
-                bitrate(64), m_need_header(true), m_wavewritefile(NULL)
+                bitrate(64), m_need_header(true), out_chan_index(0), m_wavewritefile(NULL)
 {
   decode_peak_vol[0]=decode_peak_vol[1]=0.0;
 }
