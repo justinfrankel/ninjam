@@ -1387,8 +1387,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
-          if (f > 1.0) f=1.0;
-          else if (f < -1.0) f=-1.0;
+//          if (f > 1.0) f=1.0;
+  //        else if (f < -1.0) f=-1.0;
 
           *out1++ += f;
 
@@ -1397,8 +1397,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (f > maxf2) maxf2=f;
           else if (f < -maxf2) maxf2=-f;
 
-          if (f > 1.0) f=1.0;
-          else if (f < -1.0) f=-1.0;
+//          if (f > 1.0) f=1.0;
+  //        else if (f < -1.0) f=-1.0;
 
           *out2++ += f;
           src++;
