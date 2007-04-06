@@ -1587,26 +1587,35 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
       int l=(needed+chan->dump_samples)*nc;
       float maxf=(float) (chan->decode_peak_vol[0]*vudecay/vol);
       float maxf2=(float) (chan->decode_peak_vol[1]*vudecay/vol);
-      if (nc>=2)
+      if (nc>=2) // vu meter + clipping
       {
         l/=2;
         while (l--)
         {
-          float f=*p++;
+          float f=*p;
+          if (f<-1.0f) f=*p=-1.0f;
+          else if (f>1.0f) f=*p=1.0f;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
-          f=*p++;
+
+          f=*++p;
+          if (f<-1.0f) f=*p=-1.0f;
+          else if (f>1.0f) f=*p=1.0f;
           if (f > maxf2) maxf2=f;
           else if (f < -maxf2) maxf2=-f;
+          p++;
         }
       }
       else
       {
         while (l--)
         {
-          float f=*p++;
+          float f=*p;
+          if (f<-1.0f) f=*p=-1.0f;
+          else if (f>1.0f) f=*p=1.0f;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
+          p++;
         }
         maxf2=maxf;
       }
