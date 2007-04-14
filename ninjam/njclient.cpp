@@ -963,7 +963,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=m_lowlatencymode?2048:config_play_prebuffer;
+                  ds->playtime=m_lowlatencymode?200:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1572,6 +1572,14 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if (!userchan) return;
 
   DecodeState *chan=userchan->ds;
+/*  if (m_lowlatencymode && userchan->next_ds[0])
+  {
+    delete userchan->ds;
+    chan = userchan->ds = userchan->next_ds[0];
+    userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
+    userchan->next_ds[1]=0;
+  }
+  */
   if (!chan || !chan->decode_codec || !chan->decode_fp) 
   {
     if (m_lowlatencymode && userchan->next_ds[0])
