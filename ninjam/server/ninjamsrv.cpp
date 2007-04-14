@@ -897,9 +897,9 @@ int main(int argc, char **argv)
          
 
         }
-        Sleep(20);
+        Sleep(1);
 #else
-	      struct timespec ts={0,20*1000*1000};
+	      struct timespec ts={0,1*1000*1000};
 	      nanosleep(&ts,NULL);
 #endif
 
