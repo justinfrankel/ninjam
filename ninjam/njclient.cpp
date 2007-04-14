@@ -963,7 +963,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=config_play_prebuffer;
+                  ds->playtime=m_lowlatencymode?2048:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1597,11 +1597,14 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
   }
 
+  int len_out=len;
   if (m_lowlatencymode) chan->dump_samples=0;
-  int oneeded=needed;
   if (m_lowlatencymode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
   {
     needed=chan->decode_codec->Available();
+    len_out = (int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state));
+    if (len_out<0)len_out=0;
+    else if (len_out>len)len_out=len;    
   }
 
   if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed+chan->dump_samples)
@@ -1663,7 +1666,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
               chan->decode_codec->GetSampleRate(),
               nc,
               tmpbuf,
-              srate,use_nch,len,
+              srate,use_nch,len_out,
               vol,pan,&chan->resample_state);
     }
     else 
@@ -1696,7 +1699,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->dump_samples+=needed;
 
   }
-  if (m_lowlatencymode && needed < oneeded && userchan->next_ds[0])
+  if (m_lowlatencymode && len_out < len && userchan->next_ds[0])
   {
     // call again 
     delete userchan->ds;
@@ -1704,7 +1707,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
     userchan->next_ds[1]=0;
     if (chan && chan->decode_codec && chan->decode_fp) 
-      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,oneeded-needed,srate,outnch,offs+needed,vudecay);
+      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay);
   }
 }
 
