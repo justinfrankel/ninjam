@@ -487,7 +487,7 @@ static DWORD WINAPI ThreadFunc(LPVOID p)
     g_client_mutex.Enter();
     while (!g_client->Run());
     g_client_mutex.Leave();
-    Sleep(20);
+    Sleep(1);
   }
   return 0;
 }
@@ -633,6 +633,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         chatInit(hwndDlg);
 
+        g_client->SetLowLatencyMode(!!GetPrivateProfileInt(CONFSEC,"lowlat",0,g_ini_file.Get()));
+        CheckMenuItem(GetMenu(hwndDlg),ID_LOW_LAT,MF_BYCOMMAND|(g_client->IsLowLatencyMode()?MF_CHECKED:MF_UNCHECKED));
 
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
@@ -1044,6 +1046,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case ID_LOW_LAT:
+          g_client->SetLowLatencyMode(!g_client->IsLowLatencyMode());
+          WritePrivateProfileString(CONFSEC,"lowlat",g_client->IsLowLatencyMode() ? "1":"0",g_ini_file.Get());
+          CheckMenuItem(GetMenu(hwndDlg),ID_LOW_LAT,MF_BYCOMMAND|(g_client->IsLowLatencyMode()?MF_CHECKED:MF_UNCHECKED));
+        break;
         case ID_HELP_ABOUTNINJAM:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
         break;

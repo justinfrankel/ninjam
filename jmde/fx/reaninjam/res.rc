@@ -340,7 +340,10 @@ BEGIN
     BEGIN
         MENUITEM "&Connect...",                 ID_FILE_CONNECT
         MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
+        MENUITEM SEPARATOR
         MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
+        MENUITEM SEPARATOR
+        MENUITEM "Low-latency voice chat mode", ID_LOW_LAT
     END
 END
 
