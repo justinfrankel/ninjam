@@ -816,7 +816,7 @@ int NJClient::Run() // nonzero if sleep ok
                 for (x = 0; x < m_locchannels.GetSize(); x ++)
                 {
                   Local_Channel *ch=m_locchannels.Get(x);
-                  sci.build_add_rec(ch->name.Get(),0,0,0);
+                  sci.build_add_rec(ch->name.Get(),0,0,ch->flags);
                 }
                 m_netcon->Send(sci.build());
                 m_status=2;
