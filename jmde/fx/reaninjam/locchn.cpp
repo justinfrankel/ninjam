@@ -128,8 +128,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             if (!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)))
             {
               if (MessageBox(hwndDlg,"Disabling TempoSync for this local channel will result in other people hearing\r\n"
-                                 "your audio as soon as possible, making synchronizing music/etc difficult and/or\r\n"
-                                 "not possible. \r\n"
+                                 "this channel's audio as soon as possible, making synchronizing music using the classic\r\n"
+                                 "NINJAM technique difficult and/or not possible. \r\n"
                                  "\r\n"
                                  "Normally you disable TempoSync to do voice chat, or to monitor sessions.\r\n\r\n"
                                  "Disable TempoSync now?","TempoSync Confirmation",MB_OKCANCEL)==IDCANCEL)
