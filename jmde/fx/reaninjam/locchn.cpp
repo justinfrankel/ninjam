@@ -63,7 +63,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
         if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
         if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
-        if (f&2) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
+        if (!(f&2)) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
@@ -125,10 +125,23 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         break;
         case IDC_ASYNCXMIT:
           {
+            if (!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)))
+            {
+              if (MessageBox(hwndDlg,"Disabling TempoSync for this local channel will result in other people hearing\r\n"
+                                 "your audio as soon as possible, making synchronizing music/etc difficult and/or\r\n"
+                                 "not possible. \r\n"
+                                 "\r\n"
+                                 "Normally you disable TempoSync to do voice chat, or to monitor sessions.\r\n\r\n"
+                                 "Disable TempoSync now?","TempoSync Confirmation",MB_OKCANCEL)==IDCANCEL)
+              {
+                CheckDlgButton(hwndDlg,LOWORD(wParam),BST_CHECKED);
+                return 0;
+              }
+            }
             g_client_mutex.Enter();
             int f=0;
             g_client->GetLocalChannelInfo(m_idx,NULL,NULL,NULL,&f);
-            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
+            if (!IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
             else f&=~2;
             g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,false,0,false,0,true,f);
             g_client->NotifyServerOfChannelChange();

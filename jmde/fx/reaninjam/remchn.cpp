@@ -112,7 +112,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         if (flags&2)
         {
           char buf[512];
-          sprintf(buf,"[async] %.23s",cn?cn:"");
+          sprintf(buf,"[Non-TempoSync] %.23s",cn?cn:"");
           SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
         }
         else SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
