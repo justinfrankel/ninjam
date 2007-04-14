@@ -49,7 +49,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         g_client_mutex.Enter();
 
-        char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc);
+        int f=0;
+        char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc,NULL,&f);
         float vol=0.0,pan=0.0 ;
         bool ismute=0,issolo=0;
         g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
@@ -62,6 +63,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
         if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
         if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
+        if (f&2) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
@@ -119,6 +121,18 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
               g_client->SetLocalChannelInfo(m_idx,NULL,true,a,false,0,false,false);
               g_client_mutex.Leave();
             }
+          }
+        break;
+        case IDC_ASYNCXMIT:
+          {
+            g_client_mutex.Enter();
+            int f=0;
+            g_client->GetLocalChannelInfo(m_idx,NULL,NULL,NULL,&f);
+            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
+            else f&=~2;
+            g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,false,0,false,0,true,f);
+            g_client->NotifyServerOfChannelChange();
+            g_client_mutex.Leave();
           }
         break;
         case IDC_TRANSMIT:

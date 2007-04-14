@@ -106,10 +106,17 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
         bool sub=0,m=0,s=0;
         float v=0,p=0;
-        char *cn=g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s);
-        g_client_mutex.Leave();
+        int flags=0;
+        char *cn=g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s,NULL,&flags);
 
-        SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
+        if (flags&2)
+        {
+          char buf[512];
+          sprintf(buf,"[async] %.23s",cn?cn:"");
+          SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
+        }
+        else SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
+        g_client_mutex.Leave();
 
         CheckDlgButton(hwndDlg,IDC_RECV,sub?BST_CHECKED:0);
         CheckDlgButton(hwndDlg,IDC_MUTE,m?BST_CHECKED:0);

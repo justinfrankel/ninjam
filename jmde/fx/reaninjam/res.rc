@@ -176,7 +176,9 @@ BEGIN
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,27,305,1
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
                     SS_NOTIFY | WS_GROUP,175,16,23,8
-    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,145,0,159,12
+    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,185,0,119,12
+    CONTROL         "Async",IDC_ASYNCXMIT,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,145,1,32,10
 END
 
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
@@ -342,8 +344,6 @@ BEGIN
         MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
-        MENUITEM SEPARATOR
-        MENUITEM "Low-latency voice chat mode", ID_LOW_LAT
     END
 END
 

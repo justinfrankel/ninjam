@@ -633,9 +633,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         chatInit(hwndDlg);
 
-        g_client->SetLowLatencyMode(!!GetPrivateProfileInt(CONFSEC,"lowlat",0,g_ini_file.Get()));
-        CheckMenuItem(GetMenu(hwndDlg),ID_LOW_LAT,MF_BYCOMMAND|(g_client->IsLowLatencyMode()?MF_CHECKED:MF_UNCHECKED));
-
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,-1);       
@@ -715,7 +712,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               char *name=NULL;
               if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
               {
-                switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0jesus\0name\0"))
+                switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0jesus\0name\0flag\0"))
                 {
                   case 0: // source 
                     {
@@ -746,6 +743,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                   case 7: //name
                     g_client->SetLocalChannelInfo(ch,name=lp.gettoken_str(n+1),false,false,false,0,false,false);
                     ok|=1;
+                  break;
+                  case 8: //flag
+                    g_client->SetLocalChannelInfo(ch,NULL,false,false,false,0,false,false,false,0,true,lp.gettoken_int(n+1));
                   break;
                   default:
                   break;
@@ -1046,11 +1046,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
-        case ID_LOW_LAT:
-          g_client->SetLowLatencyMode(!g_client->IsLowLatencyMode());
-          WritePrivateProfileString(CONFSEC,"lowlat",g_client->IsLowLatencyMode() ? "1":"0",g_ini_file.Get());
-          CheckMenuItem(GetMenu(hwndDlg),ID_LOW_LAT,MF_BYCOMMAND|(g_client->IsLowLatencyMode()?MF_CHECKED:MF_UNCHECKED));
-        break;
         case ID_HELP_ABOUTNINJAM:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
         break;
@@ -1228,8 +1223,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           char *lcn;
           float v=0.0f,p=0.0f;
           bool m=0,s=0;
+          int flag=0;
       
-          lcn=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc);
+          lcn=g_client->GetLocalChannelInfo(a,&sch,NULL,&bc,NULL,&flag);
           g_client->GetLocalChannelMonitoring(a,&v,&p,&m,&s);
           g_client->GetLocalChannelProcessor(a,NULL,&has_jesus);
 
@@ -1245,7 +1241,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           sprintf(buf,"%d",sch);
           sstr.Set(buf);           
           
-          sprintf(buf,"%d source '%s' bc %d mute %d solo %d volume %f pan %f jesus %d name `%s`",a,sstr.Get(),bc,m,s,v,p,!!has_jesus,lcn);
+          sprintf(buf,"%d source '%s' bc %d mute %d solo %d volume %f pan %f jesus %d flag %d name `%s`",a,sstr.Get(),bc,m,s,v,p,!!has_jesus,flag,lcn);
           char specbuf[64];
           sprintf(specbuf,"lc_%d",cnt++);
           WritePrivateProfileString(CONFSEC,specbuf,buf,g_ini_file.Get());

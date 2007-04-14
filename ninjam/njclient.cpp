@@ -132,6 +132,8 @@ class RemoteUser_Channel
     float volume, pan;
     int out_chan_index;
 
+    int flags;
+
     WDL_String name;
 
     // decode/mixer state, used by mixer
@@ -251,6 +253,7 @@ public:
   double decode_peak_vol[2];
   bool m_need_header;
   int out_chan_index;
+  int flags;
 
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
   I_NJEncoder  *m_enc;
@@ -366,7 +369,6 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
-  m_lowlatencymode=false;
   m_wavebq=new BufferQueue;
   m_userinfochange=0;
   m_loopcnt=0;
@@ -883,6 +885,16 @@ int NJClient::Run() // nonzero if sleep ok
                       m_remoteusers.Add(theuser);
                     }
 
+                    if ((theuser->channels[cid].flags^f)&2) // if flags changed instamode, flush out the samples
+                    {
+                      delete theuser->channels[cid].ds;
+                      delete theuser->channels[cid].next_ds[0];
+                      delete theuser->channels[cid].next_ds[1];
+                      theuser->channels[cid].ds=0;
+                      theuser->channels[cid].next_ds[0]=0;
+                      theuser->channels[cid].next_ds[1]=0;
+                    }
+                    theuser->channels[cid].flags = f;
                     theuser->channels[cid].name.Set(chn);
                     theuser->chanpresentmask |= 1<<cid;
 
@@ -963,7 +975,8 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=m_lowlatencymode?200:config_play_prebuffer;
+                  int ll=(theuser->channels[dib.chidx].flags&2);
+                  ds->playtime=ll?200:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1571,8 +1584,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 {
   if (!userchan) return;
 
+  int llmode=(userchan->flags&2);
   DecodeState *chan=userchan->ds;
-/*  if (m_lowlatencymode && userchan->next_ds[0])
+/*  if (llmode && userchan->next_ds[0])
   {
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
@@ -1582,7 +1596,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   */
   if (!chan || !chan->decode_codec || !chan->decode_fp) 
   {
-    if (m_lowlatencymode && userchan->next_ds[0])
+    if (llmode && userchan->next_ds[0])
     {
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
@@ -1606,8 +1620,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
   int len_out=len;
-  if (m_lowlatencymode) chan->dump_samples=0;
-  if (m_lowlatencymode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
+  if (llmode) chan->dump_samples=0;
+  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
   {
     needed=chan->decode_codec->Available();
     len_out = (int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state));
@@ -1685,7 +1699,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->decode_codec->Skip(needed+chan->dump_samples);
     chan->dump_samples=0;
   }
-  else if (!m_lowlatencymode)
+  else if (!llmode)
   {
 
     if (config_debug_level>0)
@@ -1707,7 +1721,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->dump_samples+=needed;
 
   }
-  if (m_lowlatencymode && len_out < len && userchan->next_ds[0])
+  if (llmode && len_out < len && userchan->next_ds[0])
   {
     // call again 
     delete userchan->ds;
@@ -1750,24 +1764,25 @@ void NJClient::on_new_interval()
   }
   m_locchan_cs.Leave();
 
-  if (!m_lowlatencymode)
+  m_users_cs.Enter();
+  for (u = 0; u < m_remoteusers.GetSize(); u ++)
   {
-    m_users_cs.Enter();
-    for (u = 0; u < m_remoteusers.GetSize(); u ++)
+    RemoteUser *user=m_remoteusers.Get(u);
+    int ch;
+//    printf("submask=%d,cpm=%d\n",user->submask , user->chanpresentmask);
+    for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
     {
-      RemoteUser *user=m_remoteusers.Get(u);
-      int ch;
-  //    printf("submask=%d,cpm=%d\n",user->submask , user->chanpresentmask);
-      for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+      RemoteUser_Channel *chan=&user->channels[ch];
+
+      if (!(chan->flags&2))
       {
-        RemoteUser_Channel *chan=&user->channels[ch];
         delete chan->ds;
         chan->ds=0;
         if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
         else delete chan->next_ds[0];
         chan->next_ds[0]=chan->next_ds[1]; // advance queue
         chan->next_ds[1]=0;
-        ;
+        
         if (chan->ds)
         {
           char guidstr[64];
@@ -1776,8 +1791,8 @@ void NJClient::on_new_interval()
         }
       }
     }
-    m_users_cs.Leave();
-  }  
+  }
+  m_users_cs.Leave();
 }  //if (m_enc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
 
@@ -1814,7 +1829,7 @@ int NJClient::EnumUserChannels(int useridx, int i)
   return -1;
 }
 
-char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo, int *outchannel)
+char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo, int *outchannel, int *flags)
 {
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
@@ -1827,6 +1842,7 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
   if (mute) *mute=!!(user->mutedmask & (1<<channelidx));
   if (solo) *solo=!!(user->solomask & (1<<channelidx));
   if (outchannel) *outchannel=p->out_chan_index;
+  if (flags) *flags=p->flags;
   
   return p->name.Get();
 }
@@ -1967,7 +1983,7 @@ void NJClient::GetLocalChannelProcessor(int ch, void **func, void **inst)
 }
 
 void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
-                                   bool setbitrate, int bitrate, bool setbcast, bool broadcast, bool setoutch, int outch)
+                                   bool setbitrate, int bitrate, bool setbcast, bool broadcast, bool setoutch, int outch, bool setflags, int flags)
 {  
   m_locchan_cs.Enter();
   int x;
@@ -1984,10 +2000,11 @@ void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
   if (setbitrate) c->bitrate=bitrate;
   if (setbcast) c->broadcasting=broadcast;
   if (setoutch) c->out_chan_index=outch;
+  if (setflags) c->flags=flags;
   m_locchan_cs.Leave();
 }
 
-char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast, int *outch)
+char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast, int *outch, int *flags)
 {
   int x;
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
@@ -1997,6 +2014,7 @@ char *NJClient::GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broa
   if (bitrate) *bitrate=c->bitrate;
   if (broadcast) *broadcast=c->broadcasting;
   if (outch) *outch=c->out_chan_index;
+  if (flags) *flags=c->flags;
 
   return c->name.Get();
 }
@@ -2065,7 +2083,7 @@ void NJClient::NotifyServerOfChannelChange()
     for (x = 0; x < m_locchannels.GetSize(); x ++)
     {
       Local_Channel *ch=m_locchannels.Get(x);
-      sci.build_add_rec(ch->name.Get(),0,0,0);
+      sci.build_add_rec(ch->name.Get(),0,0,ch->flags);
     }
     m_netcon->Send(sci.build());
   }
@@ -2102,7 +2120,7 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), ds(NULL)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), flags(0), ds(NULL)
 {
   memset(next_ds,0,sizeof(next_ds));
 }
@@ -2200,7 +2218,7 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 m_enc_header_needsend(NULL),
 #endif
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), 
-                bitrate(64), m_need_header(true), out_chan_index(0), m_wavewritefile(NULL)
+                bitrate(64), m_need_header(true), out_chan_index(0), flags(0), m_wavewritefile(NULL)
 {
   decode_peak_vol[0]=decode_peak_vol[1]=0.0;
 }
