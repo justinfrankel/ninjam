@@ -366,6 +366,7 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
+  m_lowlatencymode=false;
   m_wavebq=new BufferQueue;
   m_userinfochange=0;
   m_loopcnt=0;
@@ -1461,9 +1462,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
         if (user->channels[ch].ds)
-          mixInChannel(muteflag,
+          mixInChannel(&user->channels[ch],muteflag,
             user->volume*user->channels[ch].volume,lpan,
-              user->channels[ch].ds,outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay);
+              outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay);
       }
     }
     m_users_cs.Leave();
@@ -1567,9 +1568,22 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
 }
 
-void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay)
+void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay)
 {
-  if (!chan->decode_codec || !chan->decode_fp) return;
+  if (!userchan) return;
+
+  DecodeState *chan=userchan->ds;
+  if (!chan || !chan->decode_codec || !chan->decode_fp) 
+  {
+    if (m_lowlatencymode && userchan->next_ds[0])
+    {
+      delete userchan->ds;
+      chan = userchan->ds = userchan->next_ds[0];
+      userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
+      userchan->next_ds[1]=0;
+    }
+    if (!chan || !chan->decode_codec || !chan->decode_fp) return;
+  }
 
   int needed;
   while (chan->decode_codec->Available() <= 
@@ -1584,7 +1598,14 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     }
   }
 
-  if (chan->decode_codec->Available() >= needed+chan->dump_samples)
+  if (m_lowlatencymode) chan->dump_samples=0;
+  int oneeded=needed;
+  if (m_lowlatencymode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
+  {
+    needed=chan->decode_codec->Available();
+  }
+
+  if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed+chan->dump_samples)
   {
     float *sptr=chan->decode_codec->Get();
 
@@ -1654,7 +1675,7 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     chan->decode_codec->Skip(needed+chan->dump_samples);
     chan->dump_samples=0;
   }
-  else
+  else if (!m_lowlatencymode)
   {
 
     if (config_debug_level>0)
@@ -1675,6 +1696,11 @@ void NJClient::mixInChannel(bool muted, float vol, float pan, DecodeState *chan,
     chan->decode_codec->Skip(chan->decode_codec->Available());
     chan->dump_samples+=needed;
 
+  }
+  if (m_lowlatencymode && needed < oneeded && userchan->next_ds[0])
+  {
+    // call again 
+    mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,oneeded-needed,srate,outnch,offs+needed,vudecay);
   }
 }
 
@@ -1709,36 +1735,36 @@ void NJClient::on_new_interval()
   }
   m_locchan_cs.Leave();
 
-  m_users_cs.Enter();
-  for (u = 0; u < m_remoteusers.GetSize(); u ++)
+  if (!m_lowlatencymode)
   {
-    RemoteUser *user=m_remoteusers.Get(u);
-    int ch;
-//    printf("submask=%d,cpm=%d\n",user->submask , user->chanpresentmask);
-    for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+    m_users_cs.Enter();
+    for (u = 0; u < m_remoteusers.GetSize(); u ++)
     {
-      RemoteUser_Channel *chan=&user->channels[ch];
-      delete chan->ds;
-      chan->ds=0;
-      if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
-      else delete chan->next_ds[0];
-      chan->next_ds[0]=chan->next_ds[1]; // advance queue
-      chan->next_ds[1]=0;
-      ;
-      if (chan->ds)
+      RemoteUser *user=m_remoteusers.Get(u);
+      int ch;
+  //    printf("submask=%d,cpm=%d\n",user->submask , user->chanpresentmask);
+      for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
       {
-        char guidstr[64];
-        guidtostr(chan->ds->guid,guidstr);
-        writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
+        RemoteUser_Channel *chan=&user->channels[ch];
+        delete chan->ds;
+        chan->ds=0;
+        if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
+        else delete chan->next_ds[0];
+        chan->next_ds[0]=chan->next_ds[1]; // advance queue
+        chan->next_ds[1]=0;
+        ;
+        if (chan->ds)
+        {
+          char guidstr[64];
+          guidtostr(chan->ds->guid,guidstr);
+          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
+        }
       }
     }
-  }
-  m_users_cs.Leave();
-  
-  //if (m_enc->isError()) printf("ERROR\n");
+    m_users_cs.Leave();
+  }  
+}  //if (m_enc->isError()) printf("ERROR\n");
   //else printf("YAY\n");
-
-}
 
 
 char *NJClient::GetUserState(int idx, float *vol, float *pan, bool *mute)

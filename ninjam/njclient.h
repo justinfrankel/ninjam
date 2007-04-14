@@ -81,6 +81,7 @@
 class I_NJEncoder;
 class RemoteDownload;
 class RemoteUser;
+class RemoteUser_Channel;
 class Local_Channel;
 class DecodeState;
 class BufferQueue;
@@ -160,6 +161,9 @@ public:
   int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo); // 0 on success
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
 
+  bool IsLowLatencyMode() { return m_lowlatencymode; }
+  void SetLowLatencyMode(bool s) { m_lowlatencymode=s; }
+
   int IsASoloActive() { return m_issoloactive; }
 
   void SetLogFile(char *name=NULL);
@@ -236,6 +240,7 @@ protected:
   int m_interval_length;
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
+  bool m_lowlatencymode;
 
   DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0);
 
@@ -243,7 +248,7 @@ protected:
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
-  void mixInChannel(bool muted, float vol, float pan, DecodeState *chan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay);
+  void mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay);
 
   WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
