@@ -1461,10 +1461,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
         else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
-        if (user->channels[ch].ds)
-          mixInChannel(&user->channels[ch],muteflag,
-            user->volume*user->channels[ch].volume,lpan,
-              outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay);
+        mixInChannel(&user->channels[ch],muteflag,
+          user->volume*user->channels[ch].volume,lpan,
+            outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay);
       }
     }
     m_users_cs.Leave();
@@ -1700,7 +1699,12 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if (m_lowlatencymode && needed < oneeded && userchan->next_ds[0])
   {
     // call again 
-    mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,oneeded-needed,srate,outnch,offs+needed,vudecay);
+    delete userchan->ds;
+    chan = userchan->ds = userchan->next_ds[0];
+    userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
+    userchan->next_ds[1]=0;
+    if (chan && chan->decode_codec && chan->decode_fp) 
+      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,oneeded-needed,srate,outnch,offs+needed,vudecay);
   }
 }
 
