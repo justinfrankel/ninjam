@@ -83,10 +83,54 @@
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
+class DecodeMediaBuffer
+{
+public:
+  DecodeMediaBuffer()
+  {
+    refcnt=1;
+    rdpos=0;
+  }
+  ~DecodeMediaBuffer()
+  {
+  }
+  void AddRef() { refcnt++; }
+  void Release() { if (!--refcnt) delete this; }
+
+  void Write(const void *buf, int len)
+  {
+    mutex.Enter();
+    m_buf.Add(buf,len);
+    mutex.Leave();
+  }
+
+  int Avail() { return m_buf.Available() - rdpos; }
+  int Size() { return m_buf.Available(); }
+  int Read(void *buf, int len)
+  {
+    mutex.Enter();
+    int l=Avail();
+    if (l >len)l=len;
+    if (l>0) 
+    {
+      memcpy(buf,(char *)m_buf.Get()+rdpos,l);
+      rdpos+=l;
+    }
+    mutex.Leave();
+    return l;
+  }
+
+private:
+  WDL_Mutex mutex;
+  int rdpos;
+  int refcnt;
+  WDL_Queue m_buf;
+};
+
 class DecodeState
 {
   public:
-    DecodeState() : decode_fp(0), decode_codec(0), dump_samples(0),
+    DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), dump_samples(0),
                                            decode_samplesout(0), resample_state(0.0)
     { 
       decode_peak_vol[0]=decode_peak_vol[1]=0.0;
@@ -96,25 +140,18 @@ class DecodeState
     {
       delete decode_codec;
       decode_codec=0;
-      if (decode_fp) fclose(decode_fp);
+      if (decode_fp ) fclose(decode_fp);
       decode_fp=0;
+      if (decode_buf) decode_buf->Release();
+      decode_buf=0;
 
-      if (delete_on_delete.Get()[0])
-      {
-#ifdef _WIN32
-        DeleteFile(delete_on_delete.Get());
-#else
-        unlink(delete_on_delete.Get());
-#endif
-      }
     }
 
     unsigned char guid[16];
     double decode_peak_vol[2];
 
-    WDL_String delete_on_delete;
-
     FILE *decode_fp;
+    DecodeMediaBuffer *decode_buf;
     I_NJDecoder *decode_codec;
     int decode_samplesout;
     int dump_samples;
@@ -181,7 +218,8 @@ public:
 private:
   unsigned int m_fourcc;
   NJClient *m_parent;
-  FILE *fp;
+  FILE *m_fp;
+  DecodeMediaBuffer *m_decbuf;
 };
 
 
@@ -355,12 +393,15 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
   guidtostr(guid,buf);
 
   s->Set(m_workdir.Get());
-#ifdef _WIN32
-  char tmp[3]={buf[0],'\\',0};
-#else
-  char tmp[3]={buf[0],'/',0};
-#endif
-  s->Append(tmp);
+  if (config_savelocalaudio>0)
+  {
+  #ifdef _WIN32
+    char tmp[3]={buf[0],'\\',0};
+  #else
+    char tmp[3]={buf[0],'/',0};
+  #endif
+    s->Append(tmp);
+  }
   s->Append(buf);
 }
 
@@ -975,7 +1016,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?500:config_play_prebuffer;
+                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?1024:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1171,9 +1212,10 @@ int NJClient::Run() // nonzero if sleep ok
             lc->m_enc->Encode((float*)p->Get(),sz,1,block_nch>1 ? sz:0);
 
           }
+
           int s;
           while ((s=lc->m_enc->Available())>=
-            ((lc->m_enc_header_needsend?(lc->flags&2)?1024:MIN_ENC_BLOCKSIZE*4:(lc->flags&2)?256:MIN_ENC_BLOCKSIZE))
+            ((lc->m_enc_header_needsend?(lc->flags&2)?MIN_ENC_BLOCKSIZE:MIN_ENC_BLOCKSIZE*4:(lc->flags&2)?MIN_ENC_BLOCKSIZE/4:MIN_ENC_BLOCKSIZE))
             )
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
@@ -1281,46 +1323,60 @@ int NJClient::Run() // nonzero if sleep ok
 }
 
 
-DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc)
+DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, DecodeMediaBuffer *decbuf)
 {
-  DecodeState *newstate=new DecodeState;
+  DecodeState *newstate=new DecodeState;  
+  if (decbuf) 
+  {
+    decbuf->AddRef();
+    newstate->decode_buf=decbuf;
+  }
   memcpy(newstate->guid,guid,sizeof(newstate->guid));
 
-  WDL_String s;
-
-  makeFilenameFromGuid(&s,guid);
 
   // todo: make plug-in system to allow encoders to add types allowed
   // todo: with a preference for 'fourcc' if specified
   unsigned int types[]={MAKE_NJ_FOURCC('O','G','G','v')}; // only types we understand
 
-  int oldl=strlen(s.Get())+1;
-  s.Append(".XXXXXXXXX");
-  unsigned int x;
-  for (x = 0; !newstate->decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
+  if (!newstate->decode_buf)
   {
-    type_to_string(types[x],s.Get()+oldl);
-    newstate->decode_fp=fopen(s.Get(),"rb");
+    WDL_String s;
+
+    makeFilenameFromGuid(&s,guid);
+    int oldl=strlen(s.Get())+1;
+    s.Append(".XXXXXXXXX");
+    unsigned int x;
+    for (x = 0; !newstate->decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
+    {
+      type_to_string(types[x],s.Get()+oldl);
+      newstate->decode_fp=fopen(s.Get(),"rb");
+    }
   }
 
-  if (newstate->decode_fp)
+  if (newstate->decode_fp||newstate->decode_buf)
   {
-    if (config_savelocalaudio<0)
-    {
-      newstate->delete_on_delete.Set(s.Get());
-    }
     newstate->decode_codec= CreateNJDecoder();
     // run some decoding
 
-    while (newstate->decode_codec->Available() <= 0)
+    if (newstate->decode_codec) while (newstate->decode_codec->Available() <= 0)
     {
-      int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(128),1,128,newstate->decode_fp);          
-      if (l) newstate->decode_codec->DecodeWrote(l);
-      if (!l) 
+      if (newstate->decode_fp)
       {
-        clearerr(newstate->decode_fp);
-        break;
+        int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(128),1,128,newstate->decode_fp);          
+        newstate->decode_codec->DecodeWrote(l);
+        if (!l) 
+        {
+          clearerr(newstate->decode_fp);
+          break;
+        }
       }
+      else if (newstate->decode_buf)
+      {
+        int l=newstate->decode_buf->Read(newstate->decode_codec->DecodeGetSrcBuffer(128),128);
+        newstate->decode_codec->DecodeWrote(l);
+        if (!l) break;
+      }
+      else break;
     }
   }
 
@@ -1614,7 +1670,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     userchan->next_ds[1]=0;
   }
   */
-  if (!chan || !chan->decode_codec || !chan->decode_fp) 
+  if (!chan || !chan->decode_codec || (!chan->decode_fp && !chan->decode_buf)) 
   {
     if (llmode && userchan->next_ds[0])
     {
@@ -1623,13 +1679,15 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
       userchan->next_ds[1]=0;
     }
-    if (!chan || !chan->decode_codec || !chan->decode_fp) return;
+    if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) return;
   }
 
-  if (chan->dump_samples>0)
+  int mdump=llmode?2048:0;
+
+  if (chan->dump_samples>mdump)
   {
     int av=chan->decode_codec->Available();
-    if (av > chan->dump_samples) av=chan->dump_samples;
+    if (av > chan->dump_samples-mdump) av=chan->dump_samples-mdump;
     chan->decode_codec->Skip(av);
     chan->dump_samples-=av;
   }
@@ -1638,31 +1696,45 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int srcnch=chan->decode_codec->GetNumChannels();
   while (chan->decode_codec->Available() <= (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state))*srcnch)
   {
-    int l=fread(chan->decode_codec->DecodeGetSrcBuffer(256),1,256,chan->decode_fp);          
+    int l=0;
+    
+    if (chan->decode_fp)
+    {
+      l=fread(chan->decode_codec->DecodeGetSrcBuffer(256),1,256,chan->decode_fp);          
+    }
+    else if (chan->decode_buf)
+    {
+      l=chan->decode_buf->Read(chan->decode_codec->DecodeGetSrcBuffer(256),256);          
+    }
+    else break;
+
     chan->decode_codec->DecodeWrote(l);
-    if (chan->dump_samples>0)
+
+    if (chan->dump_samples>mdump)
     {
       int av=chan->decode_codec->Available();
-      if (av > chan->dump_samples) av=chan->dump_samples;
+      if (av > chan->dump_samples-mdump) av=chan->dump_samples-mdump;
       chan->decode_codec->Skip(av);
       chan->dump_samples-=av;
     }
 
     if (!l) 
     {
-      clearerr(chan->decode_fp);
+      if (chan->decode_fp) clearerr(chan->decode_fp);
       break;
     }
   }
 
 
   int len_out=len;
-  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() <= needed*srcnch)
+  if (llmode && chan->decode_codec->Available()>0 && chan->decode_codec->Available() <= needed*srcnch)
   {
+    int oneeded=needed;
     needed=chan->decode_codec->Available()/srcnch;  
     len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
     if (len_out<0)len_out=0;
     else if (len_out>len)len_out=len;    
+    chan->dump_samples+=oneeded-needed;
   }
 
   if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed*srcnch)
@@ -1733,10 +1805,10 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->decode_samplesout += needed;
     chan->decode_codec->Skip(needed*srcnch);
   }
-  else 
+  else if (needed>0)
   {
 
-    if (config_debug_level>0)
+    if (1)//config_debug_level>0)
     {
       static int cnt=0;
 
@@ -1744,15 +1816,21 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       guidtostr(chan->guid,s);
 
       char buf[512];
-      sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->Available(),needed);
+      sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
   #ifdef _WIN32
       OutputDebugString(buf);
   #endif
     }
 
-    chan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
-    chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
-    chan->decode_codec->Skip(chan->decode_codec->Available());
+    if (!llmode)
+    {
+      chan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
+      chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
+      chan->decode_codec->Skip(chan->decode_codec->Available());
+    }
+    else
+    {
+    }
 
   }
   if (llmode && len_out < len && userchan->next_ds[0])
@@ -1762,7 +1840,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
     userchan->next_ds[1]=0;
-    if (chan && chan->decode_codec && chan->decode_fp) 
+    if (chan && chan->decode_codec && (chan->decode_fp||chan->decode_buf)) 
       mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay);
   }
 }
@@ -2139,7 +2217,7 @@ void NJClient::SetWorkDir(char *path)
 
   // create subdirectories for ogg files
   int a;
-  for (a = 0; a < 16; a ++)
+  if (config_savelocalaudio>0) for (a = 0; a < 16; a ++)
   {
     WDL_String tmp(m_workdir.Get());
     char buf[5];
@@ -2169,7 +2247,7 @@ RemoteUser_Channel::~RemoteUser_Channel()
 }
 
 
-RemoteDownload::RemoteDownload() : chidx(-1), playtime(0), fp(0)
+RemoteDownload::RemoteDownload() : chidx(-1), playtime(0), m_fp(0), m_decbuf(0)
 {
   memset(&guid,0,sizeof(guid));
   time(&last_time);
@@ -2182,32 +2260,54 @@ RemoteDownload::~RemoteDownload()
 
 void RemoteDownload::Close()
 {
-  if (fp) fclose(fp);
-  fp=0;
+  if (m_fp) fclose(m_fp);
+  m_fp=0;
   startPlaying(1);
+  if (m_decbuf)
+  {
+    m_decbuf->Release();
+    m_decbuf=0;
+  }
+
 }
 
 void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
 {    
   m_parent=parent;
   Close();
-  WDL_String s;
-  parent->makeFilenameFromGuid(&s,guid);
+  m_fp=0;
+  m_decbuf=new DecodeMediaBuffer;
+  if (!m_decbuf || !parent || parent->config_savelocalaudio>0) 
+  {
+    WDL_String s;
+    parent->makeFilenameFromGuid(&s,guid);
 
 
-  // append extension from fourcc
-  char buf[8];
-  type_to_string(fourcc, buf);
-  s.Append(".");
-  s.Append(buf);
+    // append extension from fourcc
+    char buf[8];
+    type_to_string(fourcc, buf);
+    s.Append(".");
+    s.Append(buf);
 
-  m_fourcc=fourcc;
-  fp=fopen(s.Get(),"wb");
+    m_fourcc=fourcc;
+    m_fp=fopen(s.Get(),"wb");
+  }
 }
 
 void RemoteDownload::startPlaying(int force)
 {
-  if (m_parent && chidx >= 0 && (force || (playtime && fp && ftell(fp)>playtime))) 
+  if (!m_parent || chidx<0) return;
+  if (!force)
+  {
+    if (playtime)
+    {
+      if (m_fp && ftell(m_fp)>playtime) force=1;
+      else if (m_decbuf && m_decbuf->Size()>playtime) force=1;
+    }
+
+  }
+
+  if (force)
     // wait until we have config_play_prebuffer of data to start playing, or if config_play_prebuffer is 0, we are forced to play (download finished)
   {
     int x;
@@ -2215,7 +2315,7 @@ void RemoteDownload::startPlaying(int force)
     for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
     if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
-       DecodeState *tmp=m_parent->start_decode(guid,m_fourcc);
+       DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
 
        DecodeState *tmp2;
        m_parent->m_users_cs.Enter();
@@ -2231,12 +2331,14 @@ void RemoteDownload::startPlaying(int force)
 
 void RemoteDownload::Write(void *buf, int len)
 {
-  int pos=len;
-  if (fp)
+  if (m_fp)
   {
-    fwrite(buf,1,len,fp);
-    fflush(fp);
-    pos = ftell(fp);
+    fwrite(buf,1,len,m_fp);
+    fflush(m_fp);
+  }
+  if (m_decbuf)
+  {
+    m_decbuf->Write(buf,len);
   }
 
   startPlaying();  

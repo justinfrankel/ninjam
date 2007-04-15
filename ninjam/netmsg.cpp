@@ -93,7 +93,11 @@ Net_Message *Net_Connection::Run(int *wantsleep)
 {
   if (!m_con || m_error) return 0;
 
-  m_con->run();
+  {
+    int s=0,r=0;
+    m_con->run(-1,-1,&s,&r);
+    if (wantsleep && (s||r)) *wantsleep=0;
+  }
 
   time_t now=time(NULL);
 
@@ -149,6 +153,11 @@ Net_Message *Net_Connection::Run(int *wantsleep)
       m_sendq.Advance(sizeof(Net_Message*));
       m_msgsendpos=-1;
     }
+    {
+      int s=0,r=0;
+      m_con->run(-1,-1,&s,&r);
+      if (wantsleep && (s||r)) *wantsleep=0;
+    }
   }
 
   m_sendq.Compact();
@@ -192,7 +201,11 @@ Net_Message *Net_Connection::Run(int *wantsleep)
     if (wantsleep) *wantsleep=0;
   }
 
-  m_con->run();
+  {
+    int s=0,r=0;
+    m_con->run(-1,-1,&s,&r);
+    if (wantsleep && (s||r)) *wantsleep=0;
+  }
 
 
   if (retv)
@@ -220,6 +233,59 @@ int Net_Connection::Send(Net_Message *msg)
       msg->releaseRef(); // todo: debug message to log overrun error
       return -1;
     }
+
+#if 0
+    if (m_con) 
+    {
+      m_con->run();
+
+      while (m_con->send_bytes_available()>64 && m_sendq.Available()>0)
+      {
+        Net_Message **topofq = (Net_Message **)m_sendq.Get();
+
+        if (!topofq) break;
+        Net_Message *sendm=*topofq;
+        if (sendm)
+        {
+          if (m_msgsendpos<0) // send header
+          {
+            char buf[32];
+            int hdrlen=sendm->makeMessageHeader(buf);
+            m_con->send_bytes(buf,hdrlen);
+
+            m_msgsendpos=0;
+          }
+
+          int sz=sendm->get_size()-m_msgsendpos;
+          if (sz < 1) // end of message, discard and move to next
+          {
+            sendm->releaseRef();
+            m_sendq.Advance(sizeof(Net_Message*));
+            m_msgsendpos=-1;
+          }
+          else
+          {
+            int avail=m_con->send_bytes_available();
+            if (sz > avail) sz=avail;
+            if (sz>0)
+            {
+              m_con->send_bytes((char*)sendm->get_data()+m_msgsendpos,sz);
+              m_msgsendpos+=sz;
+            }
+          }
+        }
+        else
+        {
+          m_sendq.Advance(sizeof(Net_Message*));
+          m_msgsendpos=-1;
+        }
+        m_con->run();
+      }
+
+      m_sendq.Compact();
+    }
+  #endif 
+
   }
   return 0;
 }

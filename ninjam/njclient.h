@@ -85,6 +85,7 @@ class RemoteUser_Channel;
 class Local_Channel;
 class DecodeState;
 class BufferQueue;
+class DecodeMediaBuffer;
 
 // #define NJCLIENT_NO_XMIT_SUPPORT // might want to do this for njcast :)
 //  it also removes mixed ogg writing support
@@ -238,7 +239,7 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
-  DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0);
+  DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0, DecodeMediaBuffer *decbuf=NULL);
 
   BufferQueue *m_wavebq;
 
