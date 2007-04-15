@@ -212,7 +212,7 @@ class BufferQueue
       m_samplequeue.Empty();
     }
 
-  private:
+//  private:
     WDL_PtrList<WDL_HeapBuf> m_samplequeue; // a list of pointers, with NULL to define spaces
     WDL_PtrList<WDL_HeapBuf> m_emptybufs;
     WDL_Mutex m_cs;
@@ -975,8 +975,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  int ll=(theuser->channels[dib.chidx].flags&2);
-                  ds->playtime=ll?200:config_play_prebuffer;
+                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?100:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1064,6 +1063,25 @@ int NJClient::Run() // nonzero if sleep ok
     Local_Channel *lc=m_locchannels.Get(u);
     WDL_HeapBuf *p=0;
     int block_nch=1;
+
+#if 0
+    {
+      char buf[512];
+      int sz=0;
+      int x;
+      lc->m_bq.m_cs.Enter();
+      for (x = 0; x < lc->m_bq.m_samplequeue.GetSize(); x += 2)
+      {
+        WDL_HeapBuf *p=lc->m_bq.m_samplequeue.Get(x);
+        if (p && p != (WDL_HeapBuf*)-1)
+          sz+=p->GetSize();
+      }
+      lc->m_bq.m_cs.Leave();
+      sprintf(buf,"bq size=%d\n",sz); 
+      if (sz) OutputDebugString(buf);
+    }
+#endif
+    
     while (!lc->m_bq.GetBlock(&p,&block_nch))
     {
       wantsleep=0;
@@ -1154,7 +1172,9 @@ int NJClient::Run() // nonzero if sleep ok
 
           }
           int s;
-          while ((s=lc->m_enc->Available())>(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+          while ((s=lc->m_enc->Available())>
+            ((lc->flags&2)?0:(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+            )
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
 
