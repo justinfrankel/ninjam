@@ -1618,6 +1618,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   {
     if (llmode && userchan->next_ds[0])
     {
+      chan->dump_samples=0;
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
