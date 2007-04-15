@@ -315,6 +315,10 @@ public:
 
 #define MIN_ENC_BLOCKSIZE 2048
 #define MAX_ENC_BLOCKSIZE (8192+1024)
+#define DEFAULT_CONFIG_PREBUFFER  8192
+#define LIVE_PREBUFFER 1024
+#define LIVE_ENC_BLOCKSIZE1 1400
+#define LIVE_ENC_BLOCKSIZE2 64
 
 
 #define NJ_PORT 2049
@@ -433,7 +437,7 @@ NJClient::NJClient()
   config_mastervolume=1.0f;
   config_masterpan=0.0f;
   config_mastermute=false;
-  config_play_prebuffer=8192;
+  config_play_prebuffer=DEFAULT_CONFIG_PREBUFFER;
 
 
   LicenseAgreement_User32=0;
@@ -1016,7 +1020,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?1024:config_play_prebuffer;
+                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?LIVE_PREBUFFER:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1215,7 +1219,7 @@ int NJClient::Run() // nonzero if sleep ok
 
           int s;
           while ((s=lc->m_enc->Available())>=
-            ((lc->m_enc_header_needsend?(lc->flags&2)?MIN_ENC_BLOCKSIZE:MIN_ENC_BLOCKSIZE*4:(lc->flags&2)?MIN_ENC_BLOCKSIZE/4:MIN_ENC_BLOCKSIZE))
+            ((lc->m_enc_header_needsend?(lc->flags&2)?LIVE_ENC_BLOCKSIZE1:MIN_ENC_BLOCKSIZE*4:(lc->flags&2)?LIVE_ENC_BLOCKSIZE2:MIN_ENC_BLOCKSIZE))
             )
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
