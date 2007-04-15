@@ -1172,8 +1172,8 @@ int NJClient::Run() // nonzero if sleep ok
 
           }
           int s;
-          while ((s=lc->m_enc->Available())>
-            ((lc->flags&2)?1024:(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+          while ((s=lc->m_enc->Available())>=
+            ((lc->m_enc_header_needsend?(lc->flags&2)?1024:MIN_ENC_BLOCKSIZE*4:(lc->flags&2)?256:MIN_ENC_BLOCKSIZE))
             )
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
