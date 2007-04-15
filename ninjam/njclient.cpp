@@ -130,7 +130,7 @@ private:
 class DecodeState
 {
   public:
-    DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), dump_samples(0),
+    DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), 
                                            decode_samplesout(0), resample_state(0.0)
     { 
       decode_peak_vol[0]=decode_peak_vol[1]=0.0;
@@ -154,7 +154,6 @@ class DecodeState
     DecodeMediaBuffer *decode_buf;
     I_NJDecoder *decode_codec;
     int decode_samplesout;
-    int dump_samples;
     double resample_state;
 
 };
@@ -174,6 +173,7 @@ class RemoteUser_Channel
     WDL_String name;
 
     // decode/mixer state, used by mixer
+    int dump_samples;
     DecodeState *ds;
     DecodeState *next_ds[2]; // prepared by main thread, for audio thread
 
@@ -1688,12 +1688,12 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
   int mdump=llmode?2048:0;
 
-  if (chan->dump_samples>mdump)
+  if (userchan->dump_samples>mdump)
   {
     int av=chan->decode_codec->Available();
-    if (av > chan->dump_samples-mdump) av=chan->dump_samples-mdump;
+    if (av > userchan->dump_samples-mdump) av=userchan->dump_samples-mdump;
     chan->decode_codec->Skip(av);
-    chan->dump_samples-=av;
+    userchan->dump_samples-=av;
   }
 
   int needed=0;
@@ -1714,12 +1714,12 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
     chan->decode_codec->DecodeWrote(l);
 
-    if (chan->dump_samples>mdump)
+    if (userchan->dump_samples>mdump)
     {
       int av=chan->decode_codec->Available();
-      if (av > chan->dump_samples-mdump) av=chan->dump_samples-mdump;
+      if (av > userchan->dump_samples-mdump) av=userchan->dump_samples-mdump;
       chan->decode_codec->Skip(av);
-      chan->dump_samples-=av;
+      userchan->dump_samples-=av;
     }
 
     if (!l) 
@@ -1738,7 +1738,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
     if (len_out<0)len_out=0;
     else if (len_out>len)len_out=len;    
-    chan->dump_samples+=oneeded-needed;
+    userchan->dump_samples+=oneeded-needed;
   }
 
   if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed*srcnch)
@@ -1828,7 +1828,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
     if (!llmode)
     {
-      chan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
+      userchan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
       chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
       chan->decode_codec->Skip(chan->decode_codec->Available());
     }
@@ -1892,6 +1892,7 @@ void NJClient::on_new_interval()
 
       if (!(chan->flags&2))
       {
+        chan->dump_samples=0;
         delete chan->ds;
         chan->ds=0;
         if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
@@ -1987,6 +1988,8 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
       tmp2=p->next_ds[0]; p->next_ds[0]=0;
       tmp3=p->next_ds[1]; p->next_ds[1]=0;
       m_users_cs.Leave();
+
+      p->dump_samples=0;
 
       delete tmp;
       delete tmp2;   
@@ -2236,7 +2239,7 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), flags(0), ds(NULL)
+RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), flags(0), dump_samples(0), ds(NULL)
 {
   memset(next_ds,0,sizeof(next_ds));
 }
