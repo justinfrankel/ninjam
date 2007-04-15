@@ -1808,7 +1808,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   else if (needed>0)
   {
 
-    if (1)//config_debug_level>0)
+    if (config_debug_level>0)
     {
       static int cnt=0;
 
