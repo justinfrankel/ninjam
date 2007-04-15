@@ -975,7 +975,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?200:config_play_prebuffer;
+                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?500:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1173,7 +1173,7 @@ int NJClient::Run() // nonzero if sleep ok
           }
           int s;
           while ((s=lc->m_enc->Available())>
-            ((lc->flags&2)?0:(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
+            ((lc->flags&2)?1024:(lc->m_enc_header_needsend?MIN_ENC_BLOCKSIZE*4:MIN_ENC_BLOCKSIZE))
             )
           {
             if (s > MAX_ENC_BLOCKSIZE) s=MAX_ENC_BLOCKSIZE;
@@ -1756,6 +1756,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
   if (llmode && len_out < len && userchan->next_ds[0])
   {
+    chan->dump_samples=0;
     // call again 
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
