@@ -1618,7 +1618,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   {
     if (llmode && userchan->next_ds[0])
     {
-      chan->dump_samples=0;
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
@@ -1627,25 +1626,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (!chan || !chan->decode_codec || !chan->decode_fp) return;
   }
 
-  int needed;
-  while (chan->decode_codec->Available() <= 
-        (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state)*chan->decode_codec->GetNumChannels()))
-  {
-    int l=fread(chan->decode_codec->DecodeGetSrcBuffer(128),1,128,chan->decode_fp);          
-    chan->decode_codec->DecodeWrote(l);
-    if (!l) 
-    {
-      clearerr(chan->decode_fp);
-      break;
-    }
-    if (chan->dump_samples>0)
-    {
-      int av=chan->decode_codec->Available();
-      if (av > chan->dump_samples) av=chan->dump_samples;
-      chan->decode_codec->Skip(av);
-      chan->dump_samples-=av;
-    }
-  }
   if (chan->dump_samples>0)
   {
     int av=chan->decode_codec->Available();
@@ -1654,17 +1634,38 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->dump_samples-=av;
   }
 
+  int needed=0;
+  int srcnch=chan->decode_codec->GetNumChannels();
+  while (chan->decode_codec->Available() <= (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state))*srcnch)
+  {
+    int l=fread(chan->decode_codec->DecodeGetSrcBuffer(256),1,256,chan->decode_fp);          
+    chan->decode_codec->DecodeWrote(l);
+    if (chan->dump_samples>0)
+    {
+      int av=chan->decode_codec->Available();
+      if (av > chan->dump_samples) av=chan->dump_samples;
+      chan->decode_codec->Skip(av);
+      chan->dump_samples-=av;
+    }
+
+    if (!l) 
+    {
+      clearerr(chan->decode_fp);
+      break;
+    }
+  }
+
 
   int len_out=len;
-  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
+  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() <= needed*srcnch)
   {
-    needed=chan->decode_codec->Available();
-    len_out = (int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state));
+    needed=chan->decode_codec->Available()/srcnch;  
+    len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
     if (len_out<0)len_out=0;
     else if (len_out>len)len_out=len;    
   }
 
-  if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed)
+  if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed*srcnch)
   {
     float *sptr=chan->decode_codec->Get();
 
@@ -1672,11 +1673,10 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (!muted && vol > 0.0000001) 
     {
       float *p=sptr;
-      int nc=chan->decode_codec->GetNumChannels();
-      int l=(needed)*nc;
+      int l=(needed)*srcnch;
       float maxf=(float) (chan->decode_peak_vol[0]*vudecay/vol);
       float maxf2=(float) (chan->decode_peak_vol[1]*vudecay/vol);
-      if (nc>=2) // vu meter + clipping
+      if (srcnch>=2) // vu meter + clipping
       {
         l/=2;
         while (l--)
@@ -1721,7 +1721,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
       mixFloatsNIOutput(sptr,
               chan->decode_codec->GetSampleRate(),
-              nc,
+              srcnch,
               tmpbuf,
               srate,use_nch,len_out,
               vol,pan,&chan->resample_state);
@@ -1730,34 +1730,33 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       chan->decode_peak_vol[0]=chan->decode_peak_vol[1]=0.0;
 
     // advance the queue
-    chan->decode_samplesout += needed/chan->decode_codec->GetNumChannels();
-    chan->decode_codec->Skip(needed);
+    chan->decode_samplesout += needed;
+    chan->decode_codec->Skip(needed*srcnch);
   }
   else 
   {
 
     if (config_debug_level>0)
     {
-    static int cnt=0;
+      static int cnt=0;
 
-    char s[512];
-    guidtostr(chan->guid,s);
+      char s[512];
+      guidtostr(chan->guid,s);
 
-    char buf[512];
-    sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->Available(),needed);
-#ifdef _WIN32
-    OutputDebugString(buf);
-#endif
+      char buf[512];
+      sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,ftell(chan->decode_fp),s,chan->decode_codec->Available(),needed);
+  #ifdef _WIN32
+      OutputDebugString(buf);
+  #endif
     }
 
-    chan->decode_samplesout += chan->decode_codec->Available()/chan->decode_codec->GetNumChannels();
+    chan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
+    chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
     chan->decode_codec->Skip(chan->decode_codec->Available());
-    chan->dump_samples+=needed;
 
   }
   if (llmode && len_out < len && userchan->next_ds[0])
   {
-    chan->dump_samples=0;
     // call again 
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
