@@ -975,7 +975,7 @@ int NJClient::Run() // nonzero if sleep ok
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
                   ds->Open(this,dib.fourcc);
 
-                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?100:config_play_prebuffer;
+                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?200:config_play_prebuffer;
                   ds->chidx=dib.chidx;
                   ds->username.Set(dib.username);
 
@@ -1640,16 +1640,19 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
   int len_out=len;
-  if (llmode) chan->dump_samples=0;
-  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() < needed)
+  if (llmode && userchan->next_ds[0] && chan->decode_codec->Available() < needed+chan->dump_samples)
   {
-    needed=chan->decode_codec->Available();
-    len_out = (int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state));
-    if (len_out<0)len_out=0;
-    else if (len_out>len)len_out=len;    
+    needed=chan->decode_codec->Available()-chan->dump_samples;
+    if (needed<1)needed=len_out=0;
+    else
+    {
+      len_out = (int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state));
+      if (len_out<0)len_out=0;
+      else if (len_out>len)len_out=len;    
+    }
   }
 
-  if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed+chan->dump_samples)
+  if (len_out>0 && chan->decode_codec->Available() && chan->decode_codec->Available() >= needed+chan->dump_samples)
   {
     float *sptr=chan->decode_codec->Get();
 
@@ -1719,7 +1722,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->decode_codec->Skip(needed+chan->dump_samples);
     chan->dump_samples=0;
   }
-  else if (!llmode)
+  else 
   {
 
     if (config_debug_level>0)
@@ -1740,16 +1743,16 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan->decode_codec->Skip(chan->decode_codec->Available());
     chan->dump_samples+=needed;
 
-  }
-  if (llmode && len_out < len && userchan->next_ds[0])
-  {
-    // call again 
-    delete userchan->ds;
-    chan = userchan->ds = userchan->next_ds[0];
-    userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
-    userchan->next_ds[1]=0;
-    if (chan && chan->decode_codec && chan->decode_fp) 
-      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay);
+    if (llmode && len_out < len && userchan->next_ds[0])
+    {
+      // call again 
+      delete userchan->ds;
+      chan = userchan->ds = userchan->next_ds[0];
+      userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
+      userchan->next_ds[1]=0;
+      if (chan && chan->decode_codec && chan->decode_fp) 
+        mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay);
+    }
   }
 }
 
