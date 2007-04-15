@@ -93,7 +93,7 @@ static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
 { 
-  if (!g_audio_enable||!g_client) 
+  if (/*!g_audio_enable||*/!g_client) 
   {
     int x;
     if (outnch <= innch)
@@ -120,7 +120,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     }
     return;
   }
-  g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate);
+  g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable);
 }
 
 

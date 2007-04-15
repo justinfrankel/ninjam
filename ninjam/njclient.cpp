@@ -589,14 +589,14 @@ unsigned int NJClient::GetSessionPosition()// returns milliseconds
   return a;
 }
 
-void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate)
+void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor)
 {
   m_srate=srate;
   // zero output
   int x;
   for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
 
-  if (!m_audio_enable)
+  if (!m_audio_enable||justmonitor)
   {
     process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1);
     return;
