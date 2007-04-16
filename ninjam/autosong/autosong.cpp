@@ -502,7 +502,7 @@ int main(int argc, char **argv)
       }        
     }
 
-#define MIN_VOL -24.0
+#define MIN_VOL -40.0
 #define MIN_INTELEN_SILENCE 2 // intervals
 
     int max_l=0;
@@ -544,13 +544,15 @@ int main(int argc, char **argv)
 
       double mvol=pow(2.0,MIN_VOL/6.0);
 
-      double peak_vol=0.0;
+      double rmssum=0.0;
+      int rmscnt=0;
       while (l-->0)
       {
-        double f=fabs(*p);
-        if (f > peak_vol) peak_vol=f;
+        rmssum += *p * *p;
+        rmscnt++;
         p++;
       }
+      double peak_vol=rmscnt ? rmssum/(double)rmscnt : 0.0f;
 
       // slowly transmute
 
@@ -560,7 +562,7 @@ int main(int argc, char **argv)
       }
       else rec->channel->chan_peak_val = rec->channel->chan_peak_val*0.9 + peak_vol*0.1;
 
-      if (rec->channel->chan_peak_val < 0.25) rec->channel->chan_peak_val=0.25;
+      if (rec->channel->chan_peak_val < 0.1) rec->channel->chan_peak_val=0.1;
       //if (rec->channel->chan_peak_val > 2.0) rec->channel->chan_peak_val=2.0;
 
       if (peak_vol <= mvol) // silence
