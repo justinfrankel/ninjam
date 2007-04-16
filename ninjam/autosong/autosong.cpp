@@ -552,7 +552,7 @@ int main(int argc, char **argv)
         rmscnt++;
         p++;
       }
-      double peak_vol=rmscnt ? rmssum/(double)rmscnt : 0.0f;
+      double peak_vol=rmscnt ? sqrt(rmssum/(double)rmscnt) : 0.0f;
 
       // slowly transmute
 
