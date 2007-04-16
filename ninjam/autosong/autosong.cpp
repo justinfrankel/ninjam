@@ -750,10 +750,13 @@ int main(int argc, char **argv)
           }
 
           double val=rec->channel->chan_peak_val; // 0.25 .. 2.0 or so
-          if (val < 0.25) val=0.25;
+          if (val < 0.1) val=0.1;
           //else if (val > 2.0) val=2.0;
 
-          double vol = 1.0/val;
+          double vol = 0.5/val;
+
+          if (m_useitems.GetSize()>2)
+            vol *= 1.5/(double)(m_useitems.GetSize());
 
           // adjust volume as gradient
           int l=rec->vdec->m_samples_used;
