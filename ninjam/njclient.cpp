@@ -133,7 +133,6 @@ class DecodeState
     DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), 
                                            decode_samplesout(0), resample_state(0.0)
     { 
-      decode_peak_vol[0]=decode_peak_vol[1]=0.0;
       memset(guid,0,sizeof(guid));
     }
     ~DecodeState()
@@ -148,7 +147,6 @@ class DecodeState
     }
 
     unsigned char guid[16];
-    double decode_peak_vol[2];
 
     FILE *decode_fp;
     DecodeMediaBuffer *decode_buf;
@@ -176,6 +174,8 @@ class RemoteUser_Channel
     int dump_samples;
     DecodeState *ds;
     DecodeState *next_ds[2]; // prepared by main thread, for audio thread
+
+    double decode_peak_vol[2];
 
 };
 
@@ -1663,6 +1663,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay)
 {
   if (!userchan) return;
+  userchan->decode_peak_vol[0]*=vudecay;
+  userchan->decode_peak_vol[1]*=vudecay;
 
   int llmode=(userchan->flags&2);
   DecodeState *chan=userchan->ds;
@@ -1683,7 +1685,10 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
       userchan->next_ds[1]=0;
     }
-    if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) return;
+    if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
+    {
+      return;
+    }
   }
 
   int mdump=llmode?2048:0;
@@ -1750,8 +1755,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     {
       float *p=sptr;
       int l=(needed)*srcnch;
-      float maxf=(float) (chan->decode_peak_vol[0]*vudecay/vol);
-      float maxf2=(float) (chan->decode_peak_vol[1]*vudecay/vol);
+      float maxf=(float) (userchan->decode_peak_vol[0]/vol);
+      float maxf2=(float) (userchan->decode_peak_vol[1]/vol);
       if (srcnch>=2) // vu meter + clipping
       {
         l/=2;
@@ -1784,8 +1789,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
         }
         maxf2=maxf;
       }
-      chan->decode_peak_vol[0]=maxf*vol;
-      chan->decode_peak_vol[1]=maxf2*vol;
+      userchan->decode_peak_vol[0]=maxf*vol;
+      userchan->decode_peak_vol[1]=maxf2*vol;
 
       int use_nch=2;
       if (outnch < 2 || (out_channel&1024)) use_nch=1;
@@ -1802,8 +1807,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
               srate,use_nch,len_out,
               vol,pan,&chan->resample_state);
     }
-    else 
-      chan->decode_peak_vol[0]=chan->decode_peak_vol[1]=0.0;
 
     // advance the queue
     chan->decode_samplesout += needed;
@@ -2039,11 +2042,10 @@ float NJClient::GetUserChannelPeak(int useridx, int channelidx, int whichch)
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
   if (!(user->chanpresentmask & (1<<channelidx))) return 0.0f;
-  if (!p->ds) return 0.0f;
 
-  if (whichch==0) return (float)p->ds->decode_peak_vol[0];
-  if (whichch==1) return (float)p->ds->decode_peak_vol[1];
-  return (float) (p->ds->decode_peak_vol[0]+p->ds->decode_peak_vol[1])*0.5f;
+  if (whichch==0) return (float)p->decode_peak_vol[0];
+  if (whichch==1) return (float)p->decode_peak_vol[1];
+  return (float) (p->decode_peak_vol[0]+p->decode_peak_vol[1])*0.5f;
 
 }
 
@@ -2241,6 +2243,7 @@ void NJClient::SetWorkDir(char *path)
 
 RemoteUser_Channel::RemoteUser_Channel() : volume(0.25f), pan(0.0f), out_chan_index(0), flags(0), dump_samples(0), ds(NULL)
 {
+  decode_peak_vol[0]=decode_peak_vol[1]=0.0;
   memset(next_ds,0,sizeof(next_ds));
 }
 
