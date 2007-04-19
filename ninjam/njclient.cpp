@@ -1798,14 +1798,21 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       if (idx+use_nch>outnch) idx=outnch-use_nch;
       if (idx< 0)idx=0;
 
+      float lvol=vol;
       float *tmpbuf[2]={outbuf[idx]+offs,use_nch > 1 ? (outbuf[idx+1]+offs) : 0};
+      if (use_nch==1 && srcnch>1)
+      {
+        tmpbuf[1]=tmpbuf[0];
+        lvol*=0.5f;
+        use_nch=2;
+      }
 
       mixFloatsNIOutput(sptr,
               chan->decode_codec->GetSampleRate(),
               srcnch,
               tmpbuf,
               srate,use_nch,len_out,
-              vol,pan,&chan->resample_state);
+              lvol,pan,&chan->resample_state);
     }
 
     // advance the queue
