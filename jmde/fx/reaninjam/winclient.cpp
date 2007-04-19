@@ -67,28 +67,6 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
-static BOOL WINAPI AboutProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-      SetDlgItemText(hwndDlg,IDC_VER,"Version " VERSION " compiled on " __DATE__ " at " __TIME__);
-    break;
-    case WM_CLOSE:
-      EndDialog(hwndDlg,0);
-    break;
-    case WM_COMMAND:
-      switch (LOWORD(wParam))
-      {
-        case IDOK:
-        case IDCANCEL:
-          EndDialog(hwndDlg,0);
-        break;
-      }
-    break;
-  }
-  return 0;
-}
 
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
@@ -622,19 +600,19 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     
         
         float loc_ratio = 0.5f;
-        resize.init_item(IDC_CHATGRP,     0.0f, 0.0f,  0.0f,  1.0f);
+        resize.init_item(IDC_CHATGRP,     1.0f, 0.0f,  1.0f,  1.0f);
         resize.init_item(IDC_CHATLBL,     0.0f, loc_ratio,  0.0f,  loc_ratio);
 
-        resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  0.0f,  1.0f);
-        resize.init_item(IDC_CHATENT,      0.0f, 1.0f,  0.0f,  1.0f);
+        resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  1.0f,  1.0f);
+        resize.init_item(IDC_CHATENT,      0.0f, 1.0f,  1.0f,  1.0f);
         
 
-        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.0f,  loc_ratio);
+        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  1.0f,  loc_ratio);
         resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  0.0f,  0.0f);
         
-        resize.init_item(IDC_REMOTERECT,  0.0f, 0.0f,  1.0f,  1.0f);      
-        resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  0.0f,  loc_ratio);
-        resize.init_item(IDC_REMGRP,  0.0f, 0.0f,  0.0f,  0.0f);      
+        resize.init_item(IDC_REMOTERECT,  1.0f, 0.0f,  1.0f,  1.0f);      
+        resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  1.0f,  loc_ratio);
+        resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
 
         chatInit(hwndDlg);
 
@@ -1051,9 +1029,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
-        case ID_HELP_ABOUTNINJAM:
-          DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
-        break;
         case IDC_MASTERMUTE:
           g_client->config_mastermute=!g_client->config_mastermute;
           SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
