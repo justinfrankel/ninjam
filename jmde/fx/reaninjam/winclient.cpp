@@ -42,7 +42,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.07"
+#define VERSION "0.08"
 
 #define CONFSEC "ninjam"
 
@@ -525,7 +525,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
     }
   }
 
-  int tab[]={IDC_DIV2,IDC_LOCRECT,IDC_REMGRP,IDC_REMOTERECT};
+  int tab[]={IDC_DIV2,IDC_LOCRECT,IDC_CHATLBL,IDC_CHATDISP};
   
   // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
   int x;
@@ -621,22 +621,20 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
     
         
-        float chat_ratio=0.0f;
-
-        resize.init_item(IDC_CHATGRP,     chat_ratio, 0.0f,  chat_ratio,  1.0f);
-        resize.init_item(IDC_CHATLBL,     chat_ratio, 0.0f,  chat_ratio,  0.0f);
-
-        resize.init_item(IDC_CHATDISP,     chat_ratio, 0.0f,  1.0f,  1.0f);
-        resize.init_item(IDC_CHATENT,      chat_ratio, 1.0f,  1.0f,  1.0f);
-        
         float loc_ratio = 0.5f;
+        resize.init_item(IDC_CHATGRP,     0.0f, 0.0f,  0.0f,  1.0f);
+        resize.init_item(IDC_CHATLBL,     0.0f, loc_ratio,  0.0f,  loc_ratio);
 
-        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  chat_ratio,  0.0f);
+        resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  0.0f,  1.0f);
+        resize.init_item(IDC_CHATENT,      0.0f, 1.0f,  0.0f,  1.0f);
         
-        resize.init_item(IDC_REMOTERECT,  0.0f, loc_ratio,  chat_ratio,  1.0f);      
-        resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  chat_ratio,  loc_ratio);
-        resize.init_item(IDC_REMGRP,  0.0f, loc_ratio,  chat_ratio,  loc_ratio);      
+
+        resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  0.0f,  loc_ratio);
+        resize.init_item(IDC_LOCGRP,     0.0f, 0.0f,  0.0f,  0.0f);
+        
+        resize.init_item(IDC_REMOTERECT,  0.0f, 0.0f,  1.0f,  1.0f);      
+        resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  0.0f,  loc_ratio);
+        resize.init_item(IDC_REMGRP,  0.0f, 0.0f,  0.0f,  0.0f);      
 
         chatInit(hwndDlg);
 
