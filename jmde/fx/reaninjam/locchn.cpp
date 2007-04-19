@@ -31,6 +31,7 @@
 #include "winclient.h"
 
 #include "resource.h"
+#include "../../../WDL/wingui/wndsize.h"
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
@@ -38,11 +39,29 @@ extern HANDLE * (*GetIconThemePointer)(const char *name);
 
 #define NUM_INPUTS 8
 
+class LocalChannelRec
+{
+public:
+  LocalChannelRec(int idx) { m_idx=idx; } 
+  ~LocalChannelRec() {}
+
+  int m_idx;
+  WDL_WndSizer wndsizer;
+};
+
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
+  if (uMsg == WM_INITDIALOG) 
+  {
+    SetWindowLong(hwndDlg,GWL_USERDATA,(long)new LocalChannelRec(lParam));
+  }
+  LocalChannelRec *_this = (LocalChannelRec*)GetWindowLong(hwndDlg,GWL_USERDATA);
+  int m_idx=_this?_this->m_idx:0;
   switch (uMsg)
   {
+    case WM_DESTROY:
+      delete _this;
+    return 0;
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
@@ -51,10 +70,20 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
-      m_idx=lParam;
-      SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
-  
       {
+        if (_this)
+        {
+          _this->wndsizer.init(hwndDlg);
+          _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_VOL,0.0f,0.0f,0.8f,0.0f);
+          _this->wndsizer.init_item(IDC_PAN,0.8f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_MUTE,1.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_SOLO,1.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_VOLLBL,1.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_PANLBL,1.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_REMOVE,1.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_EDGE,0.0f,0.0f,1.0f,0.0f);
+        }
         int sch;
         bool bc;
 
@@ -75,7 +104,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
 
-        if (!(f&2)) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
+        if ((f&2)) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
@@ -98,6 +127,9 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         }
 
       }
+    return 0;
+    case WM_SIZE:
+      if (_this) _this->wndsizer.onResize();
     return 0;
     case WM_TIMER:
       if (wParam == 1)
@@ -137,23 +169,23 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         break;
         case IDC_ASYNCXMIT:
           {
-            if (!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)))
+            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam)))
             {
-              if (MessageBox(hwndDlg,"Disabling TempoSync for this local channel will result in other people hearing\r\n"
+              if (MessageBox(hwndDlg,"Enabling Voice Chat Mode for this local channel will result in other people hearing\r\n"
                                  "this channel's audio as soon as possible, making synchronizing music using the classic\r\n"
                                  "NINJAM technique difficult and/or not possible. \r\n"
                                  "\r\n"
-                                 "Normally you disable TempoSync to do voice chat, or to monitor sessions.\r\n\r\n"
-                                 "Disable TempoSync now?","TempoSync Confirmation",MB_OKCANCEL)==IDCANCEL)
+                                 "Normally you enable Voice Chat Mode to do voice chat, or to monitor sessions.\r\n\r\n"
+                                 "Enable Voice Chat Mode now?","Voice Chat Mode Confirmation",MB_OKCANCEL)==IDCANCEL)
               {
-                CheckDlgButton(hwndDlg,LOWORD(wParam),BST_CHECKED);
+                CheckDlgButton(hwndDlg,LOWORD(wParam),BST_UNCHECKED);
                 return 0;
               }
             }
             g_client_mutex.Enter();
             int f=0;
             g_client->GetLocalChannelInfo(m_idx,NULL,NULL,NULL,&f);
-            if (!IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
+            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
             else f&=~2;
             g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,false,0,false,0,true,f);
             g_client->NotifyServerOfChannelChange();
@@ -357,9 +389,11 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         HWND hwnd=CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_LOCALCHANNEL),hwndDlg,LocalChannelItemProc,wParam);
         if (hwnd)
         {
+          RECT r;
+          GetClientRect(hwndDlg,&r);
           RECT sz;
           GetClientRect(hwnd,&sz);
-          SetWindowPos(hwnd,NULL,0,sz.bottom*m_num_children,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+          SetWindowPos(hwnd,NULL,0,sz.bottom*m_num_children,r.right,sz.bottom,SWP_NOZORDER|SWP_NOACTIVATE);
           ShowWindow(hwnd,SW_SHOWNA);
           m_num_children++;
 
@@ -392,7 +426,8 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         int w=0;
         int h=0;
-        while (hwnd)
+        int n=300;
+        while (hwnd && n--)
         {
           RECT tr;
           GetWindowRect(hwnd,&tr);
@@ -416,6 +451,24 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,0);
+      }
+    break;
+    case WM_SIZE:
+      {
+        HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
+
+        int n=300;
+        RECT r,r2;
+        GetClientRect(hwndDlg,&r2);
+        while (hwnd && n--)
+        {
+          if (GetWindowLong(hwnd,GWL_USERDATA))
+          {
+            GetClientRect(hwnd,&r);
+            SetWindowPos(hwnd,0,0,0,r2.right,r.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+          }
+          hwnd=GetWindow(hwnd,GW_HWNDNEXT);
+        }        
       }
     break;
     case WM_CTLCOLOREDIT:
@@ -490,6 +543,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
           }
           SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
         }
+#if 0
         {
           SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_w,};
           si.nPage=m_ww;
@@ -506,6 +560,13 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 
           SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
         }
+#endif
+      }
+      {
+        RECT r,r2;
+        GetClientRect(m_child,&r);
+        GetClientRect(hwndDlg,&r2);
+        SetWindowPos(m_child,0,0,0,r2.right,r.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
       }
       if (uMsg == WM_LCUSER_RESIZE && lParam == 1)
       {
@@ -568,6 +629,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         }
       }
     break;
+#if 0
     case WM_HSCROLL:
       {
         int nSBCode=LOWORD(wParam);
@@ -608,6 +670,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         }
       }
     break; 
+#endif
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:

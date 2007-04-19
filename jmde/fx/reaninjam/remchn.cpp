@@ -134,7 +134,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         if (flags&2)
         {
           char buf[512];
-          sprintf(buf,"[Non-TempoSync] %.23s",cn?cn:"");
+          sprintf(buf,"[Voice Chat] %.23s",cn?cn:"");
           SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
         }
         else SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
@@ -452,6 +452,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
           }
           SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
         }
+#if 0
         {
           SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_PAGE,0,m_w,};
           si.nPage=m_ww;
@@ -468,6 +469,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 
           SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
         }
+#endif
       }
 
       // update scrollbars and shit
@@ -515,6 +517,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         }
       }
     break;
+#if 0
     case WM_HSCROLL:
       {
         int nSBCode=LOWORD(wParam);
@@ -555,6 +558,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         }
       }
     break; 
+#endif
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
