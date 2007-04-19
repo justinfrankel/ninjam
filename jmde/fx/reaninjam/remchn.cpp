@@ -48,6 +48,11 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
   int m_user=-1-GetWindowLong(hwndDlg,GWL_USERDATA);
   switch (uMsg)
   {
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_RCUSER_UPDATE: // update the items
@@ -88,6 +93,11 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
   int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
@@ -370,6 +380,13 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       }
       // update channel list, creating and destroying window as necessary
     break;
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
   return 0;
 }
@@ -538,6 +555,13 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         }
       }
     break; 
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
   return 0;
 }

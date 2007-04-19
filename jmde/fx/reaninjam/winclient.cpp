@@ -577,6 +577,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   static WDL_WndSizer resize;
   switch (uMsg)
   {
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:

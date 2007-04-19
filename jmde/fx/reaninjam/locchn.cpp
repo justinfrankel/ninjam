@@ -43,6 +43,11 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
   int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
   switch (uMsg)
   {
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
@@ -413,6 +418,13 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,0);
       }
     break;
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
   return 0;
 }
@@ -596,6 +608,13 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         }
       }
     break; 
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC :
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
   return 0;
 }
