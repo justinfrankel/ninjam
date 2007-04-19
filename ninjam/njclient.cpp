@@ -2239,7 +2239,7 @@ void NJClient::SetWorkDir(char *path)
 }
 
 
-RemoteUser_Channel::RemoteUser_Channel() : volume(1.0f), pan(0.0f), out_chan_index(0), flags(0), dump_samples(0), ds(NULL)
+RemoteUser_Channel::RemoteUser_Channel() : volume(0.25f), pan(0.0f), out_chan_index(0), flags(0), dump_samples(0), ds(NULL)
 {
   memset(next_ds,0,sizeof(next_ds));
 }

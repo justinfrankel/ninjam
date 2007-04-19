@@ -293,7 +293,11 @@ public:
         if (LOWORD(wParam)==IDC_BUTTON1)
         {
           extern HWND g_hwnd;
-          if (g_hwnd) ShowWindow(g_hwnd,SW_SHOW);
+          if (g_hwnd) 
+          {
+            ShowWindow(g_hwnd,SW_SHOWNORMAL);
+            SetForegroundWindow(g_hwnd); 
+          }
         }
         if (!m_ignore_editmsg && HIWORD(wParam) == CBN_SELCHANGE)
         {
