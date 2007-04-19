@@ -1,6 +1,6 @@
 /*
     NINJAM Server - ninjamsrv.cpp
-    Copyright (C) 2005 Cockos Incorporated
+    Copyright (C) 2005-2007 Cockos Incorporated
 
     NINJAM is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,9 +51,9 @@
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/string.h"
 
-#define VERSION "v0.03"
+#define VERSION "v0.04"
 
-const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005, Cockos, Inc.\n";
+const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005-2007, Cockos, Inc.\n";
 
 int g_set_uid=-1;
 int g_default_bpm,g_default_bpi;

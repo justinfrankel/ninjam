@@ -1,6 +1,6 @@
 /*
     NINJAM Server - usercon.h
-    Copyright (C) 2005 Cockos Incorporated
+    Copyright (C) 2005-2007 Cockos Incorporated
 
     NINJAM is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
