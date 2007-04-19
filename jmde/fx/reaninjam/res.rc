@@ -65,16 +65,12 @@ BEGIN
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,262,8,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,211,6,
                     45,12
-    CONTROL         "Mute",IDC_MASTERMUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,321,8,32,10
     LTEXT           "Metronome:",IDC_STATIC,7,25,38,8
     CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,49,23,
                     162,12
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,262,26,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,211,23,
                     45,12
-    CONTROL         "Mute",IDC_METROMUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,321,25,32,10
     CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,7,20,448,1
     CONTROL         "Status: No connection.",IDC_STATUS,"Static",
                     SS_LEFTNOWORDWRAP | WS_GROUP,7,210,356,8
@@ -91,13 +87,17 @@ BEGIN
     RTEXT           "",IDC_STATUS2,377,210,76,8
     CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,7,83,316,1
     CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,7,37,448,1
-    LTEXT           "center",IDC_MASTERPANLBL,293,8,23,11,SS_NOTIFY
-    LTEXT           "center",IDC_METROPANLBL,293,26,23,11,SS_NOTIFY
-    CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,359,6,94,12
+    LTEXT           "center",IDC_MASTERPANLBL,293,8,22,11,SS_NOTIFY
+    LTEXT           "center",IDC_METROPANLBL,293,26,22,11,SS_NOTIFY
+    CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,334,6,119,12
     LTEXT           "Local Channels:",IDC_LOCGRP,7,41,52,8
     LTEXT           "Remote Channels:",IDC_REMGRP,7,86,59,8
     CONTROL         "",IDC_CHATGRP,"Static",SS_ETCHEDVERT,326,40,1,158
     LTEXT           "Chat:",IDC_CHATLBL,330,42,18,8
+    CONTROL         "mastermute",IDC_MASTERMUTE,"HotTrackButton",0x4b,320,7,
+                    12,11
+    CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,320,24,
+                    12,11
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 146
@@ -165,20 +165,18 @@ BEGIN
                     WS_TABSTOP,59,2,27,10
     COMBOBOX        IDC_AUDIOIN,88,0,55,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,0,14,85,13
-    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,86,14,56,13
-    RTEXT           "+0.0 dB",IDC_VOLLBL,145,16,28,8,SS_NOTIFY
-    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    203,16,30,8
-    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    237,16,30,8
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,0,14,107,13
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,109,14,71,13
+    RTEXT           "+0.0 dB",IDC_VOLLBL,185,16,28,8,SS_NOTIFY
     PUSHBUTTON      "Delete",IDC_REMOVE,271,14,33,11
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,27,305,1
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,175,16,23,8
+                    SS_NOTIFY | WS_GROUP,215,16,23,8
     CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,201,0,103,12
     CONTROL         "TempoSync",IDC_ASYNCXMIT,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,145,2,52,10
+    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,241,14,12,11
+    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,255,14,12,11
 END
 
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
@@ -203,16 +201,14 @@ BEGIN
                     ES_WANTRETURN
     CONTROL         "Recv",IDC_RECV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     140,2,31,10
-    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,175,0,129,13
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,21,14,100,12
-    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,122,14,52,12
-    RTEXT           "+0.0 dB",IDC_VOLLBL,179,16,28,8,SS_NOTIFY
+    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,175,0,125,13
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,21,14,127,12
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,149,14,65,12
+    RTEXT           "+0.0 dB",IDC_VOLLBL,217,16,28,8,SS_NOTIFY
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,209,16,23,8
-    CONTROL         "Mute",IDC_MUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    238,16,30,8
-    CONTROL         "Solo",IDC_SOLO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    271,16,30,8
+                    SS_NOTIFY | WS_GROUP,247,16,23,8
+    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,274,14,12,11
+    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,288,14,12,11
 END
 
 IDD_EMPTY DIALOGEX 0, 0, 127, 30
@@ -226,12 +222,11 @@ IDD_REMOTEUSER DIALOG DISCARDABLE  0, 0, 308, 16
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif"
 BEGIN
-    EDITTEXT        IDC_USERNAME,21,3,236,12,ES_AUTOHSCROLL | ES_READONLY | 
+    EDITTEXT        IDC_USERNAME,21,3,249,12,ES_AUTOHSCROLL | ES_READONLY | 
                     ES_WANTRETURN
     CONTROL         "",IDC_DIV,"Static",SS_ETCHEDHORZ,0,0,304,1
     LTEXT           "User:",IDC_STATIC,0,5,18,8
-    CONTROL         "Mute user",IDC_MUTE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,260,5,47,10
+    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,274,3,12,11
 END
 
 IDD_VSTCFG DIALOG DISCARDABLE  0, 0, 199, 53

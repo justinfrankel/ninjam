@@ -32,6 +32,10 @@
 
 #include "resource.h"
 
+extern HWND (*GetMainHwnd)();
+extern HANDLE * (*GetIconThemePointer)(const char *name);
+
+
 #define NUM_INPUTS 8
 
 static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -39,6 +43,8 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
   int m_idx=GetWindowLong(hwndDlg,GWL_USERDATA);
   switch (uMsg)
   {
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       m_idx=lParam;
       SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
@@ -61,8 +67,9 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         if (buf) SetDlgItemText(hwndDlg,IDC_NAME,buf);
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
-        if (ismute) CheckDlgButton(hwndDlg,IDC_MUTE,BST_CHECKED);
-        if (issolo) CheckDlgButton(hwndDlg,IDC_SOLO,BST_CHECKED);
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
+
         if (!(f&2)) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
@@ -155,16 +162,30 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           g_client_mutex.Leave();
         break;
         case IDC_SOLO:
-          g_client_mutex.Enter();
-          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,false,false,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client->NotifyServerOfChannelChange();
-          g_client_mutex.Leave();
+          {
+            g_client_mutex.Enter();
+            float vol=0.0,pan=0.0 ;
+            bool ismute=0,issolo=0;
+            g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
+            issolo=!issolo;
+            g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,false,false,true,issolo);
+            g_client->NotifyServerOfChannelChange();
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
+          }
         break;
         case IDC_MUTE:
-          g_client_mutex.Enter();
-          g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
-          g_client->NotifyServerOfChannelChange();
-          g_client_mutex.Leave();
+          {
+            g_client_mutex.Enter();
+            float vol=0.0,pan=0.0 ;
+            bool ismute=0,issolo=0;
+            g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
+            ismute=!ismute;
+            g_client->SetLocalChannelMonitoring(m_idx,false,0.0,false,0.0,true,ismute,false,false);
+            g_client->NotifyServerOfChannelChange();
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
+          }
         break;
         case IDC_NAME:
           if (HIWORD(wParam) == EN_CHANGE)

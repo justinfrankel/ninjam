@@ -47,7 +47,7 @@
 #define CONFSEC "ninjam"
 
 extern HWND (*GetMainHwnd)();
-
+extern HANDLE * (*GetIconThemePointer)(const char *name);
 
 WDL_String g_ini_file;
 WDL_Mutex g_client_mutex;
@@ -577,6 +577,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   static WDL_WndSizer resize;
   switch (uMsg)
   {
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       {
         {
@@ -664,14 +666,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
         if (GetPrivateProfileInt(CONFSEC,"mastermute",0,g_ini_file.Get()))
         {
-          CheckDlgButton(hwndDlg,IDC_MASTERMUTE,BST_CHECKED);
           g_client->config_mastermute=true;
         }
         if (GetPrivateProfileInt(CONFSEC,"metromute",0,g_ini_file.Get()))
         {
-          CheckDlgButton(hwndDlg,IDC_METROMUTE,BST_CHECKED);
           g_client->config_metronome_mute=true;
         }
+        SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
 
         updateMasterControlLabels(hwndDlg);
 
@@ -1050,7 +1052,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_ABOUT),hwndDlg,AboutProc);
         break;
         case IDC_MASTERMUTE:
-          g_client->config_mastermute=!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+          g_client->config_mastermute=!g_client->config_mastermute;
+          SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
         break;
         case IDC_MASTERVOLLBL:
           if (HIWORD(wParam) == STN_DBLCLK) {
@@ -1085,7 +1088,8 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           }
         break;
         case IDC_METROMUTE:
-          g_client->config_metronome_mute =!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam));
+          g_client->config_metronome_mute =!g_client->config_metronome_mute;
+          SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
         break;
         case ID_FILE_DISCONNECT:
           do_disconnect();

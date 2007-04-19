@@ -31,6 +31,8 @@
 
 #include "resource.h"
 
+extern HWND (*GetMainHwnd)();
+extern HANDLE * (*GetIconThemePointer)(const char *name);
 
 static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -46,6 +48,8 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
   int m_user=-1-GetWindowLong(hwndDlg,GWL_USERDATA);
   switch (uMsg)
   {
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_RCUSER_UPDATE: // update the items
       {
         g_client_mutex.Enter();
@@ -56,16 +60,22 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         g_client_mutex.Leave();
 
         ShowWindow(GetDlgItem(hwndDlg,IDC_DIV),m_user ? SW_SHOW : SW_HIDE);
-        CheckDlgButton(hwndDlg,IDC_MUTE,mute?BST_CHECKED:0);
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
       }
     break;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
         case IDC_MUTE:
-          g_client_mutex.Enter();
-          g_client->SetUserState(m_user,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client_mutex.Leave();
+          {
+            g_client_mutex.Enter();
+            bool mute=false;
+            g_client->GetUserState(m_user,NULL,NULL,&mute);
+            mute=!mute;
+            g_client->SetUserState(m_user,false,0.0,false,0.0,true,mute);
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
+          }
         break;
       }
     break;
@@ -78,6 +88,8 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
   int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
+    case WM_DRAWITEM:
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
 
@@ -119,9 +131,9 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         g_client_mutex.Leave();
 
         CheckDlgButton(hwndDlg,IDC_RECV,sub?BST_CHECKED:0);
-        CheckDlgButton(hwndDlg,IDC_MUTE,m?BST_CHECKED:0);
-        CheckDlgButton(hwndDlg,IDC_SOLO,s?BST_CHECKED:0);
-
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(s?"track_solo_on":"track_solo_off"));
+        
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(v)));
 
         int t=(int)(p*50.0) + 50;
@@ -183,14 +195,30 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           g_client_mutex.Leave();
         break;
         case IDC_SOLO:
-          g_client_mutex.Enter();
-          g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,false,false,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)));
-          g_client_mutex.Leave();
+          {
+            g_client_mutex.Enter();
+            bool sub=0,m=0,s=0;
+            float v=0,p=0;
+            int flags=0;
+            g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s,NULL,&flags);
+            s=!s;
+            g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,false,false,true,s);
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(s?"track_solo_on":"track_solo_off"));
+          }
         break;
         case IDC_MUTE:
-          g_client_mutex.Enter();
-          g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,false);
-          g_client_mutex.Leave();
+          {
+            g_client_mutex.Enter();
+            bool sub=0,m=0,s=0;
+            float v=0,p=0;
+            int flags=0;
+            g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s,NULL,&flags);
+            m=!m;
+            g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,m,false,false);
+            g_client_mutex.Leave();
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
+          }
         break;
         case IDC_VOLLBL:
           if (HIWORD(wParam) == STN_DBLCLK) {
