@@ -87,6 +87,12 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         int sch;
         bool bc;
 
+        extern void (*RemoveXPStyle)(HWND hwnd, int rem);
+        if (RemoveXPStyle)
+        {
+          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_ASYNCXMIT),1);
+          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_TRANSMIT),1);
+        }
         g_client_mutex.Enter();
 
         int f=0;

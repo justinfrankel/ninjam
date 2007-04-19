@@ -85,6 +85,7 @@ double (*SLIDER2DB)(double);
 void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
 void *(*CreateVorbisDecoder)();
 void (*PluginWantsAlwaysRunFx)(int amt);
+void (*RemoveXPStyle)(HWND hwnd, int rem);
 
 double NormalizeParm(int parm, double val)
 {
@@ -634,6 +635,8 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
     *(long *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetIconThemePointer",0.0);
     *(long *)&GetExePath=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetExePath",0.0);
     *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"PluginWantsAlwaysRunFx",0.0);
+    *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"RemoveXPStyle",0.0);
+    
   }
   if (!GetExePath||!GetIconThemePointer) return 0;
 

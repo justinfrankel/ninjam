@@ -109,6 +109,13 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
       SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
       SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
+      {
+        extern void (*RemoveXPStyle)(HWND hwnd, int rem);
+        if (RemoveXPStyle)
+        {
+          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_RECV),1);
+        }
+      }
 
     return 0;
     case WM_RCUSER_UPDATE:
