@@ -190,13 +190,9 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 static JNL_HTTPGet *m_httpget=NULL;
 static int m_getServerList_status;
-//static WDL_HeapBuf m_listbuf;
 static WDL_String m_listbuf;
 static void getServerList_setStatusTxt(HWND hwndDlg, char *txt)
 {
-  /*m_serverListView.Clear();
-  m_serverListView.InsertItem(0,txt,-1);
-  setStatusTxt(txt);*/
   HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
   ListView_DeleteAllItems(list);
   LVITEM item={0,};
@@ -207,7 +203,6 @@ static void getServerList_setStatusTxt(HWND hwndDlg, char *txt)
 }
 static void getServerList_step(HWND hwnd)
 {
-  //static char curhost[256];
   switch(m_getServerList_status)
   {
   case 0:
