@@ -348,6 +348,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
+        ListView_SetExtendedListViewStyleEx(GetDlgItem(hwndDlg,IDC_LIST1),LVS_EX_FULLROWSELECT,LVS_EX_FULLROWSELECT);
 
         if (!serverlist_last_valid_t || serverlist_last_valid_t < time(NULL)-60*2 || !m_listbuf.Get()[0] || !RepopulateServerList(hwndDlg))
         {
