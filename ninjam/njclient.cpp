@@ -2074,8 +2074,18 @@ void NJClient::DeleteLocalChannel(int ch)
   for (x = 0; x < m_locchannels.GetSize() && m_locchannels.Get(x)->channel_idx!=ch; x ++);
   if (x < m_locchannels.GetSize())
   {
+    bool spoo=m_locchannels.Get(x)->solo;
     delete m_locchannels.Get(x);
     m_locchannels.Delete(x);
+    if (spoo)
+    {
+      for (x = 0; x < m_locchannels.GetSize(); x ++)
+      {
+        if (m_locchannels.Get(x)->solo) break;
+      }
+      if (x == m_locchannels.GetSize())
+        m_issoloactive&=~2;
+    }
   }
   m_locchan_cs.Leave();
 }
