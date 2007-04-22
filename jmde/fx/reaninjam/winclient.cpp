@@ -345,7 +345,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,250,"Users"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
 
