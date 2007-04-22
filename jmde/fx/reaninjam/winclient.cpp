@@ -261,12 +261,11 @@ static void getServerList_step(HWND hwnd)
   case 1:
     if (m_httpget)
     {
-      int ret;
-      ret=m_httpget->run();
-      while(m_httpget->bytes_available())
+      int ret=m_httpget->run();
+      while(m_httpget->bytes_available()>0)
       {
         char tmp[4096];
-        int l = m_httpget->get_bytes(tmp,4096);
+        int l = m_httpget->get_bytes(tmp,4095);
         tmp[l]=0;
         m_listbuf.Append(tmp);
       }
@@ -277,7 +276,7 @@ static void getServerList_step(HWND hwnd)
         getServerList_setStatusTxt(hwnd, "Error requesting server list!");
         m_getServerList_status=9999;
       }
-      if(ret==1)
+      if(ret==1||strlen(m_listbuf.Get()) > 1024*1024*8) // prevent us from eating more than 8mb ram
       {
         delete(m_httpget);
         m_httpget=NULL;
