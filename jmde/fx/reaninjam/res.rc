@@ -58,7 +58,7 @@ STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU |
 EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "ReaNINJAM v0.666"
 MENU IDR_MENU1
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,2,4,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,44,2,
@@ -101,28 +101,30 @@ BEGIN
                     12,11
 END
 
-IDD_CONNECT DIALOG DISCARDABLE  0, 0, 225, 146
+IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 254
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Connection Configuration"
 FONT 8, "MS Sans Serif"
 BEGIN
-    COMBOBOX        IDC_HOST,63,14,155,186,CBS_DROPDOWN | WS_VSCROLL | 
+    COMBOBOX        IDC_HOST,65,141,155,186,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
-    EDITTEXT        IDC_USER,63,32,155,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_USER,65,160,155,12,ES_AUTOHSCROLL
     CONTROL         "Connect &anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,64,49,85,10
-    EDITTEXT        IDC_PASS,63,61,155,12,ES_PASSWORD | ES_AUTOHSCROLL | NOT 
-                    WS_VISIBLE
+                    WS_TABSTOP,68,176,85,10
+    EDITTEXT        IDC_PASS,65,189,155,12,ES_PASSWORD | ES_AUTOHSCROLL | 
+                    NOT WS_VISIBLE
     CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",
-                    BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,64,77,82,
+                    BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,68,205,82,
                     10
-    DEFPUSHBUTTON   "Connect",IDOK,112,92,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,168,92,50,14
-    LTEXT           "Connect to host:",IDC_STATIC,7,16,53,8
-    LTEXT           "Username:",IDC_STATIC,7,34,35,8
-    LTEXT           "Password:",IDC_PASSLBL,7,63,34,8,NOT WS_VISIBLE
+    DEFPUSHBUTTON   "Connect",IDOK,249,215,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,304,215,50,14
+    LTEXT           "Connect to host:",IDC_STATIC,7,143,53,8
+    LTEXT           "Username:",IDC_STATIC,7,161,35,8
+    LTEXT           "Password:",IDC_PASSLBL,7,190,34,8,NOT WS_VISIBLE
     LTEXT           "To test, try using test.ninjam.com or test.ninjam.com:2050\r\nFor information on setting up your own server,  visit http://www.ninjam.com/",
-                    IDC_STATIC,7,112,211,27
+                    IDC_STATIC,7,230,347,17
+    CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,7,7,347,126
 END
 
 IDD_LICENSE DIALOG DISCARDABLE  0, 0, 316, 215
@@ -183,7 +185,7 @@ END
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
 STYLE DS_CONTROL | WS_CHILD | WS_VSCROLL
 EXSTYLE WS_EX_TRANSPARENT | WS_EX_CONTROLPARENT
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
 END
 
@@ -237,6 +239,30 @@ BEGIN
     PUSHBUTTON      "Show ReaNINJAM Console",IDC_BUTTON1,7,7,144,14
 END
 
+IDD_CONNECT_OLD DIALOG DISCARDABLE  0, 0, 225, 146
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NINJAM Connection Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    COMBOBOX        IDC_HOST,63,14,155,186,CBS_DROPDOWN | WS_VSCROLL | 
+                    WS_TABSTOP
+    EDITTEXT        IDC_USER,63,32,155,12,ES_AUTOHSCROLL
+    CONTROL         "Connect &anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,64,49,85,10
+    EDITTEXT        IDC_PASS,63,61,155,12,ES_PASSWORD | ES_AUTOHSCROLL | NOT 
+                    WS_VISIBLE
+    CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",
+                    BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,64,77,82,
+                    10
+    DEFPUSHBUTTON   "Connect",IDOK,112,92,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,168,92,50,14
+    LTEXT           "Connect to host:",IDC_STATIC,7,16,53,8
+    LTEXT           "Username:",IDC_STATIC,7,34,35,8
+    LTEXT           "Password:",IDC_PASSLBL,7,63,34,8,NOT WS_VISIBLE
+    LTEXT           "To test, try using test.ninjam.com or test.ninjam.com:2050\r\nFor information on setting up your own server,  visit http://www.ninjam.com/",
+                    IDC_STATIC,7,112,211,27
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -257,9 +283,9 @@ BEGIN
     IDD_CONNECT, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 218
+        RIGHTMARGIN, 354
         TOPMARGIN, 7
-        BOTTOMMARGIN, 139
+        BOTTOMMARGIN, 247
     END
 
     IDD_LICENSE, DIALOG
@@ -323,6 +349,14 @@ BEGIN
         RIGHTMARGIN, 192
         TOPMARGIN, 7
         BOTTOMMARGIN, 46
+    END
+
+    IDD_CONNECT_OLD, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 218
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 139
     END
 END
 #endif    // APSTUDIO_INVOKED

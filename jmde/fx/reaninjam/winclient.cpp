@@ -40,6 +40,8 @@
 #include "../../../WDL/dirscan.h"
 #include "../../../WDL/lineparse.h"
 
+#include "../../../WDL/jnetlib/httpget.h"
+
 #include "winclient.h"
 
 #define VERSION "0.08"
@@ -186,6 +188,97 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 #define MAX_HIST_ENTRIES 8
 
+static JNL_HTTPGet *m_httpget=NULL;
+static int m_getServerList_status;
+//static WDL_HeapBuf m_listbuf;
+static WDL_String m_listbuf;
+static void getServerList_setStatusTxt(HWND hwndDlg, char *txt)
+{
+  /*m_serverListView.Clear();
+  m_serverListView.InsertItem(0,txt,-1);
+  setStatusTxt(txt);*/
+  HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
+  ListView_DeleteAllItems(list);
+  LVITEM item={0,};
+  item.mask = LVIF_TEXT;
+  item.iItem = 0;
+  item.pszText = txt;
+  ListView_InsertItem(list, &item);
+}
+static void getServerList_step(HWND hwnd)
+{
+  //static char curhost[256];
+  switch(m_getServerList_status)
+  {
+  case 0:
+    getServerList_setStatusTxt(hwnd, "Requesting list...");
+    m_listbuf.Set("");
+    m_httpget=new JNL_HTTPGet;
+    m_httpget->connect("http://ninjam.com/serverlist.php");
+    m_getServerList_status++;
+    break;
+  case 1:
+    int ret;
+    ret=m_httpget->run();
+    while(m_httpget->bytes_available())
+    {
+      char tmp[4096];
+      int l = m_httpget->get_bytes(tmp,4096);
+      tmp[l]=0;
+      m_listbuf.Append(tmp);
+    }
+    if(ret==-1)
+    {
+      delete(m_httpget);
+      m_httpget=NULL;
+      getServerList_setStatusTxt(hwnd, "Error requesting server list!");
+      m_getServerList_status=9999;
+    }
+    if(ret==1)
+    {
+      delete(m_httpget);
+      m_httpget=NULL;
+      m_getServerList_status++;
+    }
+    break;
+  case 2:
+    {
+      HWND list = GetDlgItem(hwnd, IDC_LIST1);
+      ListView_DeleteAllItems(list);
+
+      LineParser lp(false);
+      char *p = m_listbuf.Get();
+      int i = 0;
+      do 
+      {
+        char *d = strstr(p,"\n");
+        if(!d) break;
+        *d = 0;
+
+        lp.parse(p);
+        if(lp.getnumtokens()>3)
+        {
+          if(!stricmp(lp.gettoken_str(0),"server"))
+          {
+            LVITEM item={0,};
+            item.mask = LVIF_TEXT;
+            item.iItem = i++;
+            item.pszText = lp.gettoken_str(1);
+            int a = ListView_InsertItem(list, &item);
+            ListView_SetItemText(list, a, 1, lp.gettoken_str(2));
+            ListView_SetItemText(list, a, 2, lp.gettoken_str(3));
+          }
+        }
+        
+        p = d+1;
+      } while(1);
+
+    }
+    m_getServerList_status++;
+    break;
+  }
+}
+
 static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
@@ -218,6 +311,23 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
         }
         else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
+
+        HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
+        {
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,200,"Server"};
+          ListView_InsertColumn(list,0,&lvc);
+        }
+        {
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,200,"Name"};
+          ListView_InsertColumn(list,1,&lvc);
+        }
+        {
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Info"};
+          ListView_InsertColumn(list,2,&lvc);
+        }
+
+        m_getServerList_status = 0;
+        SetTimer(hwndDlg, 0x456, 100, 0);
       }
     return 0;
 
@@ -280,7 +390,12 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
         break;
       }
     return 0;
+    case WM_TIMER:
+      if(wParam == 0x456) getServerList_step(hwndDlg);
+      break;
     case WM_CLOSE:
+      delete m_httpget;
+      m_httpget = NULL;
       EndDialog(hwndDlg,0);
     return 0;
   }

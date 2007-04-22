@@ -24,6 +24,7 @@
 #define IDD_REMOTEUSER                  119
 #define IDD_VSTCFG                      120
 #define IDI_ICON2                       121
+#define IDD_CONNECT_OLD                 121
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -113,6 +114,7 @@
 #define IDC_CHATLBL                     1063
 #define IDC_ASYNCXMIT                   1064
 #define IDC_EDGE                        1065
+#define IDC_LIST1                       1066
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -128,7 +130,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        122
 #define _APS_NEXT_COMMAND_VALUE         40009
-#define _APS_NEXT_CONTROL_VALUE         1066
+#define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

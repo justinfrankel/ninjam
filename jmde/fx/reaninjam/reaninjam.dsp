@@ -131,6 +131,10 @@ SOURCE=..\..\..\WDL\jnetlib\connection.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\WDL\jnetlib\httpget.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\WDL\jnetlib\jnetlib.h
 # End Source File
 # Begin Source File
