@@ -341,11 +341,11 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           ListView_InsertColumn(list,0,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Name"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Info"};
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,250,"Info"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,250,"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
 
