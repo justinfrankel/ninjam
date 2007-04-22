@@ -412,9 +412,19 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
             WritePrivateProfileString(CONFSEC,"anon",g_connect_anon?"1":"0",g_ini_file.Get());
             char buf[512];
             GetDlgItemText(hwndDlg,IDC_HOST,buf,sizeof(buf));
+            if(!buf[0])
+            {
+              MessageBox(hwndDlg,"You must enter a server hostname!","Error",0);
+              break;
+            }
             g_connect_host.Set(buf);
             WritePrivateProfileString(CONFSEC,"host",buf,g_ini_file.Get());
             GetDlgItemText(hwndDlg,IDC_USER,buf,sizeof(buf));
+            if(!buf[0] && !g_connect_anon)
+            {
+              MessageBox(hwndDlg,"You must enter a username!","Error",0);
+              break;
+            }
             g_connect_user.Set(buf);
             WritePrivateProfileString(CONFSEC,"user",buf,g_ini_file.Get());
             GetDlgItemText(hwndDlg,IDC_PASS,buf,sizeof(buf));
