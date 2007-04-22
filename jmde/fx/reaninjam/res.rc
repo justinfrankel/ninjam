@@ -119,8 +119,8 @@ BEGIN
     DEFPUSHBUTTON   "Connect",IDOK,249,215,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,304,215,50,14
     LTEXT           "Connect to host:",IDC_STATIC,7,143,53,8
-    LTEXT           "Username:",IDC_STATIC,7,161,35,8
-    LTEXT           "Password:",IDC_PASSLBL,7,190,34,8,NOT WS_VISIBLE
+    LTEXT           "Username:",IDC_STATIC,7,162,35,8
+    LTEXT           "Password:",IDC_PASSLBL,7,191,34,8,NOT WS_VISIBLE
     LTEXT           "For information on setting up a server, visit http://www.ninjam.com",
                     IDC_STATIC,7,220,220,10
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
