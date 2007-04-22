@@ -201,6 +201,51 @@ static void getServerList_setStatusTxt(HWND hwndDlg, char *txt)
   item.pszText = txt;
   ListView_InsertItem(list, &item);
 }
+
+
+static time_t serverlist_last_valid_t;
+
+static int RepopulateServerList(HWND hwnd) // return 1 if END encountered
+{
+  HWND list = GetDlgItem(hwnd, IDC_LIST1);
+  ListView_DeleteAllItems(list);
+
+  LineParser lp(false);
+  WDL_String tmp(m_listbuf.Get());
+  char *p = tmp.Get();
+  int i = 0;
+  do 
+  {
+    char *d = strstr(p,"\n");
+    if(!d) break;
+    *d = 0;
+
+    lp.parse(p);
+    if(lp.getnumtokens()>0)
+    {
+      if(!stricmp(lp.gettoken_str(0),"end"))
+        return 1;
+    }
+    if(lp.getnumtokens()>3)
+    {
+      if(!stricmp(lp.gettoken_str(0),"server"))
+      {
+        LVITEM item={0,};
+        item.mask = LVIF_TEXT;
+        item.iItem = i++;
+        item.pszText = lp.gettoken_str(1);
+        int a = ListView_InsertItem(list, &item);
+        ListView_SetItemText(list, a, 1, lp.gettoken_str(2));
+        ListView_SetItemText(list, a, 2, lp.gettoken_str(3));
+      }
+    }
+  
+    p = d+1;
+  } while(1);
+  return 0;
+}
+
+
 static void getServerList_step(HWND hwnd)
 {
   switch(m_getServerList_status)
@@ -208,66 +253,46 @@ static void getServerList_step(HWND hwnd)
   case 0:
     getServerList_setStatusTxt(hwnd, "Requesting list...");
     m_listbuf.Set("");
+    delete m_httpget;
     m_httpget=new JNL_HTTPGet;
     m_httpget->connect("http://ninjam.com/serverlist.php");
     m_getServerList_status++;
     break;
   case 1:
-    int ret;
-    ret=m_httpget->run();
-    while(m_httpget->bytes_available())
+    if (m_httpget)
     {
-      char tmp[4096];
-      int l = m_httpget->get_bytes(tmp,4096);
-      tmp[l]=0;
-      m_listbuf.Append(tmp);
-    }
-    if(ret==-1)
-    {
-      delete(m_httpget);
-      m_httpget=NULL;
-      getServerList_setStatusTxt(hwnd, "Error requesting server list!");
-      m_getServerList_status=9999;
-    }
-    if(ret==1)
-    {
-      delete(m_httpget);
-      m_httpget=NULL;
-      m_getServerList_status++;
+      int ret;
+      ret=m_httpget->run();
+      while(m_httpget->bytes_available())
+      {
+        char tmp[4096];
+        int l = m_httpget->get_bytes(tmp,4096);
+        tmp[l]=0;
+        m_listbuf.Append(tmp);
+      }
+      if(ret==-1)
+      {
+        delete(m_httpget);
+        m_httpget=NULL;
+        getServerList_setStatusTxt(hwnd, "Error requesting server list!");
+        m_getServerList_status=9999;
+      }
+      if(ret==1)
+      {
+        delete(m_httpget);
+        m_httpget=NULL;
+        m_getServerList_status++;
+      }
     }
     break;
   case 2:
     {
-      HWND list = GetDlgItem(hwnd, IDC_LIST1);
-      ListView_DeleteAllItems(list);
+      delete m_httpget;
+      m_httpget=0;
 
-      LineParser lp(false);
-      char *p = m_listbuf.Get();
-      int i = 0;
-      do 
-      {
-        char *d = strstr(p,"\n");
-        if(!d) break;
-        *d = 0;
-
-        lp.parse(p);
-        if(lp.getnumtokens()>3)
-        {
-          if(!stricmp(lp.gettoken_str(0),"server"))
-          {
-            LVITEM item={0,};
-            item.mask = LVIF_TEXT;
-            item.iItem = i++;
-            item.pszText = lp.gettoken_str(1);
-            int a = ListView_InsertItem(list, &item);
-            ListView_SetItemText(list, a, 1, lp.gettoken_str(2));
-            ListView_SetItemText(list, a, 2, lp.gettoken_str(3));
-          }
-        }
-        
-        p = d+1;
-      } while(1);
-
+      
+      if (RepopulateServerList(hwnd))
+        serverlist_last_valid_t=time(NULL);
     }
     m_getServerList_status++;
     break;
@@ -278,6 +303,10 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 {
   switch (uMsg)
   {
+    case WM_DESTROY:
+        delete m_httpget;
+        m_httpget=0;
+     return 0;
     case WM_INITDIALOG:
       {
         int x;
@@ -321,7 +350,12 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
           ListView_InsertColumn(list,2,&lvc);
         }
 
-        m_getServerList_status = 0;
+        if (!serverlist_last_valid_t || serverlist_last_valid_t < time(NULL)-60*2 || !m_listbuf.Get()[0] || !RepopulateServerList(hwndDlg))
+        {
+          m_getServerList_status = 0;
+        }
+          
+
         SetTimer(hwndDlg, 0x456, 100, 0);
       }
     return 0;
@@ -329,6 +363,9 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_BUTTON1:
+          m_getServerList_status = 0;
+        break;
         case IDC_ANON:
           if (IsDlgButtonChecked(hwndDlg,IDC_ANON))
           {
