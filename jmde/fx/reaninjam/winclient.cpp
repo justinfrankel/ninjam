@@ -358,7 +358,31 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
         SetTimer(hwndDlg, 0x456, 100, 0);
       }
     return 0;
+    case WM_NOTIFY:
+      if (((LPNMHDR)lParam)->idFrom == IDC_LIST1 && (((LPNMHDR)lParam)->code == NM_DBLCLK || ((LPNMHDR)lParam)->code == LVN_ITEMCHANGED))
+      {
+        int i = SendDlgItemMessage(hwndDlg,IDC_LIST1,LVM_GETNEXTITEM,-1,LVNI_FOCUSED);
+        if (i != -1 && !m_httpget)
+        {
+            char buf1[512];
+            buf1[0]=0;
+            LVITEM item={0,};
+            item.mask = LVIF_TEXT;
+            item.iItem = i;
+            item.pszText = (char *)buf1;
+            item.cchTextMax=sizeof(buf1);
+            ListView_GetItem(GetDlgItem(hwndDlg,IDC_LIST1),&item);
+            if (buf1[0])
+            {
+              SetDlgItemText(hwndDlg,IDC_HOST,buf1);
 
+              // select item
+              if (((LPNMHDR)lParam)->code == NM_DBLCLK)
+                SendMessage(hwndDlg,WM_COMMAND,IDOK,0);
+            }
+        }
+      }
+    return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {

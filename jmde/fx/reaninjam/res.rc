@@ -101,7 +101,7 @@ BEGIN
                     12,11
 END
 
-IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 254
+IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Connection Configuration"
 FONT 8, "MS Sans Serif"
@@ -121,10 +121,11 @@ BEGIN
     LTEXT           "Connect to host:",IDC_STATIC,7,143,53,8
     LTEXT           "Username:",IDC_STATIC,7,161,35,8
     LTEXT           "Password:",IDC_PASSLBL,7,190,34,8,NOT WS_VISIBLE
-    LTEXT           "To test, try using test.ninjam.com or test.ninjam.com:2050\r\nFor information on setting up your own server,  visit http://www.ninjam.com/",
-                    IDC_STATIC,7,230,347,17
+    LTEXT           "For information on setting up a server, visit http://www.ninjam.com",
+                    IDC_STATIC,7,220,220,10
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
-                    LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,7,7,347,126
+                    LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | 
+                    WS_TABSTOP,7,7,347,126
     PUSHBUTTON      "Refresh list",IDC_BUTTON1,304,138,50,14
 END
 
@@ -286,7 +287,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 354
         TOPMARGIN, 7
-        BOTTOMMARGIN, 247
+        BOTTOMMARGIN, 229
     END
 
     IDD_LICENSE, DIALOG
