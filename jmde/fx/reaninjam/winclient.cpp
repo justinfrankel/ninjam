@@ -337,15 +337,15 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 
         HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,200,"Server"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,140,"Server"};
           ListView_InsertColumn(list,0,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,200,"Name"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Name"};
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Info"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,250,"Info"};
           ListView_InsertColumn(list,2,&lvc);
         }
 
