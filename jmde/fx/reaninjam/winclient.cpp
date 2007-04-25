@@ -44,7 +44,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.08"
+#define VERSION "0.09"
 
 #define CONFSEC "ninjam"
 
