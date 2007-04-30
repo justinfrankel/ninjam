@@ -1117,6 +1117,16 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       Broadcast(need_bcast.Get(x));
     need_bcast.Empty();
   }
+  else if (!strcmp(msg->parms[0],"SESSION")) // session block descriptor message
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="SESSION";
+    newmsg.parms[1]=con->m_username.Get();
+    newmsg.parms[2]=msg->parms[1]; // guid
+    newmsg.parms[3]=msg->parms[2]; // index
+    newmsg.parms[4]=msg->parms[3]; // offset, length
+    Broadcast(newmsg.build());
+  }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {
     if (!(con->m_auth_privs & PRIV_CHATSEND))
