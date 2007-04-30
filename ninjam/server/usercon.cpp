@@ -210,6 +210,26 @@ int User_Connection::OnRunAuth(User_Group *group)
       Send(newmsg.build());
     }
 
+    {
+      int cnt=0;
+      int user;
+      for (user = 0; user < group->m_users.GetSize(); user ++)
+      {
+        User_Connection *u=group->m_users.Get(user);
+        if (u != this && u->m_auth_state > 0 && !(u->m_auth_privs & PRIV_HIDDEN))
+          cnt++;
+      }
+      char buf[64],buf2[64];
+      sprintf(buf,"%d",cnt);
+      sprintf(buf2,"%d",group->m_max_users);
+
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="USERCOUNT";
+      newmsg.parms[1]=buf;;
+      newmsg.parms[2]=buf2;
+      Send(newmsg.build());
+    }
+
     return 0;
   }
 
