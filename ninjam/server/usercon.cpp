@@ -1145,7 +1145,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
     newmsg.parms[2]=msg->parms[1]; // guid
     newmsg.parms[3]=msg->parms[2]; // index
     newmsg.parms[4]=msg->parms[3]; // offset, length
-    Broadcast(newmsg.build());
+    Broadcast(newmsg.build(),con);
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {

@@ -41,7 +41,7 @@ typedef struct
 } parameterInfo; 
 
 DWORD g_object_allocated;
-void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) ;
+void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) ;
 void InitializeInstance();
 void QuitInstance();
 
@@ -155,6 +155,7 @@ public:
     m_effect.object=this;
     m_effect.ioRatio=1.0;
     m_lasttransportpos=-1000.0;
+    m_lastplaytrackpos=-1000.0;
 
     onParmChange();
 
@@ -586,23 +587,42 @@ public:
     {
       VstTimeInfo *p=(VstTimeInfo *)g_hostcb(effect,audioMasterVendorSpecific,0xdeadbeef,audioMasterGetTime,NULL,0.0f);
 
+      bool isPlaying=false;
+      bool isSeek=false;
+
       // we call our extended audiomastergettime which just returns everything as seconds
-      if (p && (p->flags&(kVstPpqPosValid|kVstCyclePosValid)) == (kVstPpqPosValid|kVstCyclePosValid) &&
-            (p->flags&(kVstTransportPlaying|kVstTransportRecording)))
+      if (p) // &&  &&
+           // )
       {
-        // if we've looped, and are before the start position (meaning we're a duped block)
-        if (p->ppqPos < _this->m_lasttransportpos-0.001 && p->ppqPos < p->cycleStartPos-1.0/_this->m_samplerate+0.0000000001)
+        isPlaying = !!(p->flags&(kVstTransportPlaying|kVstTransportRecording));
+
+
+        if (isPlaying)
         {
+          // if we've looped, and are before the start position (meaning we're a duped block)
+          if ((p->flags&(kVstPpqPosValid|kVstCyclePosValid)) == (kVstPpqPosValid|kVstCyclePosValid) &&
+              p->ppqPos < _this->m_lasttransportpos-0.001 && p->ppqPos < p->cycleStartPos-1.0/_this->m_samplerate+0.0000000001)
+          {
+            _this->m_lasttransportpos=p->ppqPos;
+            // leave the output buffers as is (which should preserve them from the last time, we hope)
+            return;
+          }
           _this->m_lasttransportpos=p->ppqPos;
-          // leave the output buffers as is (which should preserve them from the last time, we hope)
-          return;
+
         }
-        _this->m_lasttransportpos=p->ppqPos;
+        else _this->m_lasttransportpos=-1000.0;
 
       }
       else _this->m_lasttransportpos=-1000.0;
 
-      audiostream_onsamples(inputs,NUM_INPUTS,outputs,NUM_OUTPUTS,sampleframes,(int)(_this->m_samplerate+0.5));
+
+      if (_this->m_lasttransportpos <= _this->m_lastplaytrackpos || _this->m_lasttransportpos > _this->m_lastplaytrackpos + 0.5)
+      {
+        isSeek=true;
+      }
+      _this->m_lastplaytrackpos=_this->m_lasttransportpos;
+
+      audiostream_onsamples(inputs,NUM_INPUTS,outputs,NUM_OUTPUTS,sampleframes,(int)(_this->m_samplerate+0.5),isPlaying,isSeek,_this->m_lastplaytrackpos);
     }
   }
 
@@ -636,7 +656,7 @@ public:
   double m_parms[NUM_PARAMS];
   WDL_Mutex m_mutex;
 
-  double m_lasttransportpos;
+  double m_lasttransportpos,m_lastplaytrackpos;
 
 };
 

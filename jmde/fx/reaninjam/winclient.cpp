@@ -71,7 +71,7 @@ static int g_last_wndpos_state;
 
 
 
-void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
+void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) 
 { 
   if (/*!g_audio_enable||*/!g_client) 
   {
@@ -100,7 +100,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     }
     return;
   }
-  g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable);
+  g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable, isPlaying, isSeek,curpos);
 }
 
 
