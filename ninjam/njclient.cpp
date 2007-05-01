@@ -1958,21 +1958,22 @@ void NJClient::on_new_interval()
   {
     Local_Channel *lc=m_locchannels.Get(u);
 
-
-    if (lc->bcast_active) 
+    if (!(lc->flags&4)) 
     {
-      lc->m_bq.AddBlock(0,NULL,0);
+      if (lc->bcast_active) 
+      {
+        lc->m_bq.AddBlock(0,NULL,0);
+      }
+
+      int wasact=lc->bcast_active;
+
+      lc->bcast_active = lc->broadcasting;
+
+      if (wasact && !lc->bcast_active)
+      {
+        lc->m_bq.AddBlock(0,NULL,-1);
+      }
     }
-
-    int wasact=lc->bcast_active;
-
-    lc->bcast_active = lc->broadcasting;
-
-    if (wasact && !lc->bcast_active)
-    {
-      lc->m_bq.AddBlock(0,NULL,-1);
-    }
-
   }
   m_locchan_cs.Leave();
 
@@ -1986,7 +1987,7 @@ void NJClient::on_new_interval()
     {
       RemoteUser_Channel *chan=&user->channels[ch];
 
-      if (!(chan->flags&2))
+      if (!(chan->flags&2) && !(chan->flags&4))
       {
         chan->dump_samples=0;
         delete chan->ds;
@@ -2000,7 +2001,7 @@ void NJClient::on_new_interval()
         {
           char guidstr[64];
           guidtostr(chan->ds->guid,guidstr);
-          if (!(chan->flags&4)) writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
+          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
         }
       }
     }
