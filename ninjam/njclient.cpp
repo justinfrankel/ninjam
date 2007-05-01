@@ -1354,19 +1354,6 @@ int NJClient::Run() // nonzero if sleep ok
             lc->m_enc->Advance(s);
           }
           lc->m_enc->Compact();
-
-          if (lc->flags&4)
-          {
-            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0)
-            {
-              char guidstr[64],idxstr[64],offslenstr[128];
-              guidtostr(lc->m_curwritefile.guid,guidstr);
-              sprintf(idxstr,"%d",u);
-              sprintf(offslenstr,"%f %f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
-              // send "SESSION" chat message
-              ChatMessage_Send(guidstr,idxstr,offslenstr);
-            }
-          }
         }
         lc->m_bq.DisposeBlock(p);
         p=0;
@@ -1412,6 +1399,23 @@ int NJClient::Run() // nonzero if sleep ok
           }
           while (lc->m_enc->Available()>0);
           lc->m_enc->Compact(); // free any memory left
+
+          if (lc->flags&4)
+          {
+            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0)
+            {
+              char guidstr[64],idxstr[64],offslenstr[128];
+              guidtostr(lc->m_curwritefile.guid,guidstr);
+              sprintf(idxstr,"%d",u);
+              sprintf(offslenstr,"%f %f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+              // send "SESSION" chat message
+
+              char buf[512];
+              sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+              OutputDebugString(buf);
+              ChatMessage_Send("SESSION",guidstr,idxstr,offslenstr);
+            }
+          }
 
           //delete m_enc;
         //  m_enc=0;
@@ -1591,6 +1595,8 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           }
           else
             lc->bcast_active=false;
+
+          lc->m_curwritefile_curbuflen=0.0;
         }
       }
       else
