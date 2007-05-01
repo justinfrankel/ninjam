@@ -264,7 +264,7 @@ class BufferQueue
       Clear();
     }
 
-    void AddBlock(bool atStart, int attr, double blockstart, float *samples, int len, float *samples2=NULL);
+    void AddBlock(int attr, double blockstart, float *samples, int len, float *samples2=NULL);
     int GetBlock(WDL_HeapBuf **b, int *attr=NULL, double *startpos=NULL); // return 0 if got one, 1 if none avail
     void DisposeBlock(WDL_HeapBuf *b);
 
@@ -336,6 +336,7 @@ public:
   RemoteDownload m_curwritefile;
   double m_curwritefile_starttime;
   double m_curwritefile_writelen;
+  double m_curwritefile_curbuflen;
   WaveWriter *m_wavewritefile;
 
   //DecodeState too, eventually
@@ -647,7 +648,7 @@ unsigned int NJClient::GetSessionPosition()// returns milliseconds
   return a;
 }
 
-void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor)
+void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor, bool isSeek, double cursessionpos)
 {
   m_srate=srate;
   // zero output
@@ -656,7 +657,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
   if (!m_audio_enable||justmonitor)
   {
-    process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1);
+    process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1,isSeek,cursessionpos);
     return;
   }
 
@@ -719,11 +720,17 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
     if (x > len) x=len;
 
-    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs);
+    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs,false,isSeek,cursessionpos);
 
     m_interval_pos+=x;
     offs += x;
     len -= x;    
+
+    if (len>0 && cursessionpos > -1.0)
+    {
+      isSeek=false;
+      cursessionpos += x/(double)srate;
+    }
   }  
 
 }
@@ -1310,15 +1317,6 @@ int NJClient::Run() // nonzero if sleep ok
 
             lc->m_enc->Encode((float*)p->Get(),sz,1,block_nch>1 ? sz:0);
             lc->m_curwritefile_writelen+=sz/(double)m_srate;
-            if ((lc->flags&4) && lc->m_curwritefile_writelen>=SESSION_CHUNK_SIZE)
-            {
-
-              //insert a "new interval" message at next queue slot
-              lc->m_bq.AddBlock(true,0,lc->m_curwritefile_starttime + lc->m_curwritefile_writelen,NULL,-1); 
-              lc->m_bq.AddBlock(true,0,0.0,NULL,0);
-
-            }
-
           }
 
           int s;
@@ -1521,7 +1519,7 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor)
+void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isSeek, double cursessionpos)
 {
                    // -36dB/sec
   double decay=pow(.25*0.25*0.25,len/(double)srate);
@@ -1564,12 +1562,38 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       }
     }
 
-    if (!justmonitor && lc->bcast_active) 
-    {
+
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
-      lc->m_bq.AddBlock(false,sc_nch,0.0,src,len,src2);
-#endif
+    if (!justmonitor)
+    {
+      if (lc->flags&4)
+      {
+        if (isSeek||lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE)
+        {
+          if (lc->bcast_active)
+          {
+            lc->m_bq.AddBlock(0,0.0,NULL,0);
+          }
+
+          if (lc->broadcasting)
+          {
+            lc->bcast_active=true;
+            lc->m_bq.AddBlock(0,cursessionpos,NULL,-1); 
+          }
+          else
+            lc->bcast_active=false;
+        }
+      }
+      else
+        lc->m_curwritefile_curbuflen=0.0;
+
+      if (lc->bcast_active) 
+      {
+        lc->m_bq.AddBlock(sc_nch,0.0,src,len,src2);
+        lc->m_curwritefile_curbuflen += len/(double)m_srate;
+      }
     }
+#endif
 
     if (!src2) src2=src;
 
@@ -1683,7 +1707,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 #endif
       )
     {
-      m_wavebq->AddBlock(false,2,0.0,outbuf[0]+offset,len,outbuf[outnch>1]+offset);
+      m_wavebq->AddBlock(2,0.0,outbuf[0]+offset,len,outbuf[outnch>1]+offset);
     }
   }
 
@@ -1979,7 +2003,6 @@ void NJClient::on_new_interval()
 
   m_metronome_pos=0.0;
 
-  double cpos=0.0;
   int u;
   m_locchan_cs.Enter();
   for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
@@ -1990,7 +2013,7 @@ void NJClient::on_new_interval()
     {
       if (lc->bcast_active) 
       {
-        lc->m_bq.AddBlock(false,0,0.0,NULL,0);
+        lc->m_bq.AddBlock(0,0.0,NULL,0);
       }
 
       int wasact=lc->bcast_active;
@@ -1999,7 +2022,7 @@ void NJClient::on_new_interval()
 
       if (wasact && !lc->bcast_active)
       {
-        lc->m_bq.AddBlock(false,0,cpos,NULL,-1);
+        lc->m_bq.AddBlock(0,-1.0,NULL,-1);
       }
     }
   }
@@ -2564,6 +2587,7 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 bitrate(64), m_need_header(true), out_chan_index(0), flags(0), 
                 m_curwritefile_starttime(0.0), 
                 m_curwritefile_writelen(0.0),
+                m_curwritefile_curbuflen(0.0),
                 m_wavewritefile(NULL)
 {
   decode_peak_vol[0]=decode_peak_vol[1]=0.0;
@@ -2607,7 +2631,7 @@ void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void BufferQueue::AddBlock(bool atStart, int attr, double startpos, float *samples, int len, float *samples2)
+void BufferQueue::AddBlock(int attr, double startpos, float *samples, int len, float *samples2)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
@@ -2658,16 +2682,8 @@ void BufferQueue::AddBlock(bool atStart, int attr, double startpos, float *sampl
   as->attr=attr;
   as->startpos=startpos;
 
-  if (atStart) 
-  {
-    m_samplequeue.Insert(0,mybuf);
-    m_samplequeue.Insert(1,attrbuf);
-  }
-  else 
-  {
-    m_samplequeue.Add(mybuf);
-    m_samplequeue.Add(attrbuf);
-  }
+  m_samplequeue.Add(mybuf);
+  m_samplequeue.Add(attrbuf);
   
   m_cs.Leave();
 }

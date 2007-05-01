@@ -107,7 +107,7 @@ public:
 
   int IsAudioRunning() { return m_audio_enable; }
   // call AudioProc, (and only AudioProc) from your audio thread
-  void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor=false); // len is number of sample pairs or samples
+  void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor=false, bool isSeek=false, double cursessionpos=-1.0); // len is number of sample pairs or samples
 
 
   // basic configuration
@@ -204,7 +204,7 @@ protected:
   void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
 
   void updateBPMinfo(int bpm, int bpi);
-  void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor=0);
+  void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isSeek, double cursessionpos);
   void on_new_interval();
 
   void writeLog(char *fmt, ...);
