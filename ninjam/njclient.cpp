@@ -156,6 +156,26 @@ class DecodeState
 
 };
 
+class ChannelSessionInfo
+{
+public:
+  ChannelSessionInfo(const unsigned char *_guid, double st, double len)
+  {
+    memcpy(guid,_guid,16);
+    start_time=st;
+    length=len;
+    offset=0.0;
+  }
+  ~ChannelSessionInfo()
+  {
+  }
+
+  double start_time;
+  double length;
+  double offset;
+  unsigned char guid[16];
+
+};
 
 class RemoteUser_Channel
 {
@@ -177,7 +197,16 @@ class RemoteUser_Channel
 
     double decode_peak_vol[2];
 
+
+
+    void AddSessionInfo(const unsigned char *guid, double st, double len);
+
+  private:
+    WDL_Mutex sessionlist_mutex;
+    WDL_PtrList<ChannelSessionInfo> sessioninfo;
+
 };
+
 
 class RemoteUser
 {
@@ -1127,7 +1156,7 @@ int NJClient::Run() // nonzero if sleep ok
                     {
                       const char *p=foo.parms[4];
                       double st=atof(p);
-                      while (*p != ',' && *p) p++;
+                      while (*p != ' ' && *p) p++;
                       while (*p == ' ') p++;
                       if (*p) 
                       {
@@ -1135,7 +1164,7 @@ int NJClient::Run() // nonzero if sleep ok
                         double len=atof(p);
 
                         // add to this channel's session list
-
+                        theuser->channels[chanidx].AddSessionInfo(guid,st,len);
 
                         char guidstr[64];
                         guidtostr(guid,guidstr);
@@ -2330,7 +2359,66 @@ RemoteUser_Channel::~RemoteUser_Channel()
   delete next_ds[0];
   delete next_ds[1];
   memset(next_ds,0,sizeof(next_ds));
+  sessioninfo.Empty(true);
 }
+
+void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, double len)
+{
+  if (st<0.0 || len < 0.2) return;
+  const double min_length=0.1;
+  const int max_entries=65536;
+
+  int x;
+  for (x = 0; x < sessioninfo.GetSize(); x ++)
+  {
+    if (st < sessioninfo.Get(x)->start_time) break;
+  }
+  ChannelSessionInfo *prev=sessioninfo.Get(x-1);
+  ChannelSessionInfo *next=sessioninfo.Get(x);
+
+
+
+  WDL_MutexLock lock(&sessionlist_mutex);
+  // merge this in as a channel
+
+  if (prev)
+  {
+    if (st < prev->start_time + prev->length)
+    {
+      prev->length = st-prev->start_time;
+      if (prev->length < min_length)
+      {
+        sessioninfo.Delete(--x);
+        delete prev;
+        prev=0;
+      }
+    }
+  }
+  if (next)
+  {
+    if (st+len > next->start_time)
+    {
+      double adj=(st+len) - next->start_time;
+      next->start_time += adj;
+      next->length -= adj;
+      next->offset += adj;
+
+      if (next->length < min_length)
+      {
+        sessioninfo.Delete(x);
+        delete next;
+        next=0;
+      }
+
+    }
+  }
+  if (len >= min_length && sessioninfo.GetSize()<max_entries)
+  {
+    sessioninfo.Insert(x,new ChannelSessionInfo(guid,st,len));
+  }
+
+}
+
 
 
 RemoteDownload::RemoteDownload() : chidx(-1), playtime(0), m_fp(0), m_decbuf(0)
