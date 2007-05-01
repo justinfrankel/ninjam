@@ -1357,9 +1357,14 @@ int NJClient::Run() // nonzero if sleep ok
 
           if (lc->flags&4)
           {
-            if (lc->m_curwritefile_writelen > 0.2)
+            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0)
             {
+              char guidstr[64],idxstr[64],offslenstr[128];
+              guidtostr(lc->m_curwritefile.guid,guidstr);
+              sprintf(idxstr,"%d",u);
+              sprintf(offslenstr,"%f %f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
               // send "SESSION" chat message
+              ChatMessage_Send(guidstr,idxstr,offslenstr);
             }
           }
         }
