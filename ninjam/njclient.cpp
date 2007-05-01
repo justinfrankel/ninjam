@@ -81,6 +81,8 @@
 #endif
 
 
+#define SESSION_CHUNK_SIZE 2.0
+
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
 class DecodeMediaBuffer
@@ -262,26 +264,27 @@ class BufferQueue
       Clear();
     }
 
-    void AddBlock(int attr, float *samples, int len, float *samples2=NULL);
-    int GetBlock(WDL_HeapBuf **b, int *attr=NULL); // return 0 if got one, 1 if none avail
+    void AddBlock(bool atStart, int attr, double blockstart, float *samples, int len, float *samples2=NULL);
+    int GetBlock(WDL_HeapBuf **b, int *attr=NULL, double *startpos=NULL); // return 0 if got one, 1 if none avail
     void DisposeBlock(WDL_HeapBuf *b);
+
+    typedef struct
+    {
+      int attr;
+      double startpos;
+    } AttrStruct;
 
     void Clear()
     {
       m_emptybufs.Empty(true);
-      int l=m_samplequeue.GetSize()/2;
-      WDL_HeapBuf **bufs=m_samplequeue.GetList();
-      if (bufs) while (l--)
-      {
-        if (*bufs != (WDL_HeapBuf*)0 && *bufs != (WDL_HeapBuf*)-1) delete *bufs;
-        bufs+=2;
-      }
-      m_samplequeue.Empty();
+      m_emptybufs_attr.Empty(true);
+      m_samplequeue.Empty(true);
     }
 
 //  private:
     WDL_PtrList<WDL_HeapBuf> m_samplequeue; // a list of pointers, with NULL to define spaces
     WDL_PtrList<WDL_HeapBuf> m_emptybufs;
+    WDL_PtrList<WDL_HeapBuf> m_emptybufs_attr;
     WDL_Mutex m_cs;
 };
 
@@ -331,6 +334,8 @@ public:
   
   WDL_String name;
   RemoteDownload m_curwritefile;
+  double m_curwritefile_starttime;
+  double m_curwritefile_writelen;
   WaveWriter *m_wavewritefile;
 
   //DecodeState too, eventually
@@ -1213,7 +1218,8 @@ int NJClient::Run() // nonzero if sleep ok
     }
 #endif
     
-    while (!lc->m_bq.GetBlock(&p,&block_nch))
+    double blockstarttime=0.0;
+    while (!lc->m_bq.GetBlock(&p,&block_nch,&blockstarttime))
     {
       wantsleep=0;
       if (u >= m_max_localch)
@@ -1226,6 +1232,9 @@ int NJClient::Run() // nonzero if sleep ok
 
       if (p == (WDL_HeapBuf*)-1)
       {
+        // context 
+        lc->m_curwritefile_starttime = blockstarttime;
+        lc->m_curwritefile_writelen=0.0;
         mpb_client_upload_interval_begin cuib;
         cuib.chidx=lc->channel_idx;
         memset(cuib.guid,0,sizeof(cuib.guid));
@@ -1300,6 +1309,15 @@ int NJClient::Run() // nonzero if sleep ok
             }
 
             lc->m_enc->Encode((float*)p->Get(),sz,1,block_nch>1 ? sz:0);
+            lc->m_curwritefile_writelen+=sz/(double)m_srate;
+            if ((lc->flags&4) && lc->m_curwritefile_writelen>=SESSION_CHUNK_SIZE)
+            {
+
+              //insert a "new interval" message at next queue slot
+              lc->m_bq.AddBlock(true,0,lc->m_curwritefile_starttime + lc->m_curwritefile_writelen,NULL,-1); 
+              lc->m_bq.AddBlock(true,0,0.0,NULL,0);
+
+            }
 
           }
 
@@ -1338,6 +1356,14 @@ int NJClient::Run() // nonzero if sleep ok
             lc->m_enc->Advance(s);
           }
           lc->m_enc->Compact();
+
+          if (lc->flags&4)
+          {
+            if (lc->m_curwritefile_writelen > 0.2)
+            {
+              // send "SESSION" chat message
+            }
+          }
         }
         lc->m_bq.DisposeBlock(p);
         p=0;
@@ -1393,6 +1419,7 @@ int NJClient::Run() // nonzero if sleep ok
           }
           else
             lc->m_enc->reinit();
+
         }
 
         if (lc->m_enc && lc->bitrate != lc->m_enc_bitrate_used)
@@ -1540,7 +1567,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     if (!justmonitor && lc->bcast_active) 
     {
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
-      lc->m_bq.AddBlock(sc_nch,src,len,src2);
+      lc->m_bq.AddBlock(false,sc_nch,0.0,src,len,src2);
 #endif
     }
 
@@ -1656,7 +1683,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 #endif
       )
     {
-      m_wavebq->AddBlock(2,outbuf[0]+offset,len,outbuf[outnch>1]+offset);
+      m_wavebq->AddBlock(false,2,0.0,outbuf[0]+offset,len,outbuf[outnch>1]+offset);
     }
   }
 
@@ -1952,6 +1979,7 @@ void NJClient::on_new_interval()
 
   m_metronome_pos=0.0;
 
+  double cpos=0.0;
   int u;
   m_locchan_cs.Enter();
   for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
@@ -1962,7 +1990,7 @@ void NJClient::on_new_interval()
     {
       if (lc->bcast_active) 
       {
-        lc->m_bq.AddBlock(0,NULL,0);
+        lc->m_bq.AddBlock(false,0,0.0,NULL,0);
       }
 
       int wasact=lc->bcast_active;
@@ -1971,7 +1999,7 @@ void NJClient::on_new_interval()
 
       if (wasact && !lc->bcast_active)
       {
-        lc->m_bq.AddBlock(0,NULL,-1);
+        lc->m_bq.AddBlock(false,0,cpos,NULL,-1);
       }
     }
   }
@@ -2533,19 +2561,35 @@ Local_Channel::Local_Channel() : channel_idx(0), src_channel(0), volume(1.0f), p
                 m_enc_header_needsend(NULL),
 #endif
                 bcast_active(false), cbf(NULL), cbf_inst(NULL), 
-                bitrate(64), m_need_header(true), out_chan_index(0), flags(0), m_wavewritefile(NULL)
+                bitrate(64), m_need_header(true), out_chan_index(0), flags(0), 
+                m_curwritefile_starttime(0.0), 
+                m_curwritefile_writelen(0.0),
+                m_wavewritefile(NULL)
 {
   decode_peak_vol[0]=decode_peak_vol[1]=0.0;
 }
 
 
-int BufferQueue::GetBlock(WDL_HeapBuf **b, int *attr) // return 0 if got one, 1 if none avail
+int BufferQueue::GetBlock(WDL_HeapBuf **b, int *attr, double *startpos) // return 0 if got one, 1 if none avail
 {
   m_cs.Enter();
   if (m_samplequeue.GetSize()>1)
   {
     *b=m_samplequeue.Get(0);
-    if (attr) *attr= (int) m_samplequeue.Get(1);
+    WDL_HeapBuf *oa=m_samplequeue.Get(1);
+    if (oa && oa->GetSize() == sizeof(AttrStruct))
+    {
+      AttrStruct *as=(AttrStruct *)oa->Get();
+      if (attr)  *attr= as->attr;
+      if (startpos) *startpos = as->startpos;
+    }
+    else 
+    {
+      if (attr)  *attr=0;
+      if (startpos) *startpos = 0.0;
+    }
+
+    if (oa) m_emptybufs_attr.Add(oa);
     m_samplequeue.Delete(0);
     m_samplequeue.Delete(0);
     m_cs.Leave();
@@ -2563,7 +2607,7 @@ void BufferQueue::DisposeBlock(WDL_HeapBuf *b)
 }
 
 
-void BufferQueue::AddBlock(int attr, float *samples, int len, float *samples2)
+void BufferQueue::AddBlock(bool atStart, int attr, double startpos, float *samples, int len, float *samples2)
 {
   WDL_HeapBuf *mybuf=0;
   if (len>0)
@@ -2599,8 +2643,32 @@ void BufferQueue::AddBlock(int attr, float *samples, int len, float *samples2)
   else if (len == -1) mybuf=(WDL_HeapBuf *)-1;
 
   m_cs.Enter();
-  m_samplequeue.Add(mybuf);
-  m_samplequeue.Add((WDL_HeapBuf *)attr);
+
+  WDL_HeapBuf *attrbuf=NULL;
+  int esz=m_emptybufs_attr.GetSize();
+  if (esz)
+  {
+    attrbuf=m_emptybufs_attr.Get(esz-1);
+    m_emptybufs_attr.Delete(esz-1);
+  }
+
+  if (!attrbuf) attrbuf=new WDL_HeapBuf;
+  AttrStruct *as=(AttrStruct *)attrbuf->Resize(sizeof(AttrStruct));
+
+  as->attr=attr;
+  as->startpos=startpos;
+
+  if (atStart) 
+  {
+    m_samplequeue.Insert(0,mybuf);
+    m_samplequeue.Insert(1,attrbuf);
+  }
+  else 
+  {
+    m_samplequeue.Add(mybuf);
+    m_samplequeue.Add(attrbuf);
+  }
+  
   m_cs.Leave();
 }
 
