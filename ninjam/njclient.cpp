@@ -648,7 +648,7 @@ unsigned int NJClient::GetSessionPosition()// returns milliseconds
   return a;
 }
 
-void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor, bool isSeek, double cursessionpos)
+void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor, bool isPlaying, bool isSeek, double cursessionpos)
 {
   m_srate=srate;
   // zero output
@@ -657,7 +657,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
   if (!m_audio_enable||justmonitor)
   {
-    process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1,isSeek,cursessionpos);
+    process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1,isPlaying,isSeek,cursessionpos);
     return;
   }
 
@@ -720,7 +720,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
     if (x > len) x=len;
 
-    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs,false,isSeek,cursessionpos);
+    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs,false,isPlaying,isSeek,cursessionpos);
 
     m_interval_pos+=x;
     offs += x;
@@ -1524,7 +1524,7 @@ void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *par
   }
 }
 
-void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isSeek, double cursessionpos)
+void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isPlaying, bool isSeek, double cursessionpos)
 {
                    // -36dB/sec
   double decay=pow(.25*0.25*0.25,len/(double)srate);
@@ -1573,14 +1573,18 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     {
       if (lc->flags&4)
       {
-        if (isSeek||lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE)
+        if (isSeek|| // if seeked, too long, playing and not broadcasting, or not playing and broadcasting
+            lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE || 
+            (isPlaying && !lc->bcast_active && lc->broadcasting) ||
+            (!isPlaying && lc->bcast_active)
+          )
         {
           if (lc->bcast_active)
           {
             lc->m_bq.AddBlock(0,0.0,NULL,0);
           }
 
-          if (lc->broadcasting)
+          if (lc->broadcasting&&isPlaying)
           {
             lc->bcast_active=true;
             lc->m_bq.AddBlock(0,cursessionpos,NULL,-1); 
