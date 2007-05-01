@@ -204,7 +204,7 @@ public:
   ~RemoteDownload();
 
   void Close();
-  void Open(NJClient *parent, unsigned int fourcc);
+  void Open(NJClient *parent, unsigned int fourcc, bool forceToDisk);
   void Write(void *buf, int len);
   void startPlaying(int force=0); // call this with 1 to make sure it gets played ASAP, or let RemoteDownload call it automatically
 
@@ -326,11 +326,35 @@ public:
 static unsigned char zero_guid[16];
 
 
-static void guidtostr(unsigned char *guid, char *str)
+static void guidtostr(const unsigned char *guid, char *str)
 {
   int x;
   for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
 }
+static bool strtoguid(const char *str, unsigned char *guid)
+{
+  int n=16;
+  while(n--)
+  {
+    unsigned char v=0;
+    if (str[0]>='0' && str[0]<='9') v+=str[0]-'0';
+    else if (str[0]>='a' && str[0]<='f') v+=10 + str[0]-'a';
+    else if (str[0]>='A' && str[0]<='F') v+=10 + str[0]-'A';
+    else return false;
+    v<<=4;
+
+    str++;
+    if (str[0]>='0' && str[0]<='9') v+=str[0]-'0';
+    else if (str[0]>='a' && str[0]<='f') v+=10 + str[0]-'a';
+    else if (str[0]>='A' && str[0]<='F') v+=10 + str[0]-'A';
+    else return false;
+
+    str++;
+    *guid++=v;
+  }
+  return true;
+}
+
 static char *guidtostr_tmp(unsigned char *guid)
 {
   static char tmp[64];
@@ -397,7 +421,7 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
   guidtostr(guid,buf);
 
   s->Set(m_workdir.Get());
-  if (config_savelocalaudio>0)
+  //if (config_savelocalaudio>0)
   {
   #ifdef _WIN32
     char tmp[3]={buf[0],'\\',0};
@@ -1018,7 +1042,7 @@ int NJClient::Run() // nonzero if sleep ok
                   if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
                   RemoteDownload *ds=new RemoteDownload;
                   memcpy(ds->guid,dib.guid,sizeof(ds->guid));
-                  ds->Open(this,dib.fourcc);
+                  ds->Open(this,dib.fourcc,!!(theuser->channels[dib.chidx].flags&4));
 
                   ds->playtime=(theuser->channels[dib.chidx].flags&2)?LIVE_PREBUFFER:config_play_prebuffer;
                   ds->chidx=dib.chidx;
@@ -1088,7 +1112,40 @@ int NJClient::Run() // nonzero if sleep ok
             mpb_chat_message foo;
             if (!foo.parse(msg))
             {
-              ChatMessage_Callback(ChatMessage_User32,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              if (foo.parms[0] && !strcmp(foo.parms[0],"SESSION"))
+              {
+                if (foo.parms[1] && foo.parms[2] && foo.parms[3] && foo.parms[4])
+                {
+                  int x;
+                  RemoteUser *theuser;
+                  for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),foo.parms[1]); x ++);
+                  int chanidx=atoi(foo.parms[2]);
+                  if (x < m_remoteusers.GetSize() && chanidx >= 0 && chanidx < MAX_USER_CHANNELS && (theuser->channels[chanidx].flags&4))
+                  {
+                    unsigned char guid[16];
+                    if (strtoguid(foo.parms[3],guid))
+                    {
+                      const char *p=foo.parms[4];
+                      double st=atof(p);
+                      while (*p != ',' && *p) p++;
+                      while (*p == ' ') p++;
+                      if (*p) 
+                      {
+                        p++;
+                        double len=atof(p);
+
+                        // add to this channel's session list
+
+
+                        char guidstr[64];
+                        guidtostr(guid,guidstr);
+                        writeLog("sessionlog %s \"%s\" %d \"%s\" %f %f\n",guidstr,theuser->name.Get(),chanidx,theuser->channels[chanidx].name.Get(),st,len);
+                      }
+                    }
+                  }
+                }               
+              }
+              else ChatMessage_Callback(ChatMessage_User32,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
             }
           }
         break;
@@ -1164,10 +1221,10 @@ int NJClient::Run() // nonzero if sleep ok
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
-            writeLog("local %s %d\n",guidstr,lc->channel_idx);
+            if (!(lc->flags&4)) writeLog("local %s %d\n",guidstr,lc->channel_idx);
             if (config_savelocalaudio>0) 
             {
-              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE);
+              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE,false);
               if (lc->m_wavewritefile) delete lc->m_wavewritefile;
               lc->m_wavewritefile=0;
               if (config_savelocalaudio>1)
@@ -1914,7 +1971,7 @@ void NJClient::on_new_interval()
         {
           char guidstr[64];
           guidtostr(chan->ds->guid,guidstr);
-          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
+          if (!(chan->flags&4)) writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
         }
       }
     }
@@ -2243,7 +2300,9 @@ void NJClient::SetWorkDir(char *path)
 
   // create subdirectories for ogg files
   int a;
-  if (config_savelocalaudio>0) for (a = 0; a < 16; a ++)
+//  if (config_savelocalaudio>0) 
+
+  for (a = 0; a < 16; a ++)
   {
     WDL_String tmp(m_workdir.Get());
     char buf[5];
@@ -2298,13 +2357,13 @@ void RemoteDownload::Close()
 
 }
 
-void RemoteDownload::Open(NJClient *parent, unsigned int fourcc)
+void RemoteDownload::Open(NJClient *parent, unsigned int fourcc, bool forceToDisk)
 {    
   m_parent=parent;
   Close();
   m_fp=0;
   m_decbuf=new DecodeMediaBuffer;
-  if (!m_decbuf || !parent || parent->config_savelocalaudio>0) 
+  if (!m_decbuf || !parent || parent->config_savelocalaudio>0 || forceToDisk) 
   {
     WDL_String s;
     parent->makeFilenameFromGuid(&s,guid);
@@ -2342,15 +2401,19 @@ void RemoteDownload::startPlaying(int force)
     for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
     if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
-       DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
 
-       DecodeState *tmp2;
-       m_parent->m_users_cs.Enter();
-       int useidx=!!theuser->channels[chidx].next_ds[0];
-       tmp2=theuser->channels[chidx].next_ds[useidx];
-       theuser->channels[chidx].next_ds[useidx]=tmp;
-       m_parent->m_users_cs.Leave();
-       delete tmp2;
+      if (!(theuser->channels[chidx].flags&4)) // only "play" if not a session channel
+      {
+        DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
+
+        DecodeState *tmp2;
+        m_parent->m_users_cs.Enter();
+        int useidx=!!theuser->channels[chidx].next_ds[0];
+        tmp2=theuser->channels[chidx].next_ds[useidx];
+        theuser->channels[chidx].next_ds[useidx]=tmp;
+        m_parent->m_users_cs.Leave();
+        delete tmp2;
+      }
     }
     chidx=-1;
   }
