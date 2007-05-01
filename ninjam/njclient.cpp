@@ -81,7 +81,7 @@
 #endif
 
 
-#define SESSION_CHUNK_SIZE 2.0
+#define SESSION_CHUNK_SIZE 4.0
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
@@ -202,7 +202,7 @@ class RemoteUser_Channel
     double curds_lenleft;
 
     void AddSessionInfo(const unsigned char *guid, double st, double len);
-    bool GetSessionInfo(double time, unsigned char *guid, double *offs, double *len);
+    bool GetSessionInfo(double time, unsigned char *guid, double *offs, double *len, double mv);
 
   private:
     WDL_Mutex sessionlist_mutex;
@@ -1164,11 +1164,11 @@ int NJClient::Run() // nonzero if sleep ok
                   int x;
                   RemoteUser *theuser;
                   for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),foo.parms[1]); x ++);
-                  int chanidx=atoi(foo.parms[2]);
+                  int chanidx=atoi(foo.parms[3]);
                   if (x < m_remoteusers.GetSize() && chanidx >= 0 && chanidx < MAX_USER_CHANNELS && (theuser->channels[chanidx].flags&4))
                   {
                     unsigned char guid[16];
-                    if (strtoguid(foo.parms[3],guid))
+                    if (strtoguid(foo.parms[2],guid))
                     {
                       const char *p=foo.parms[4];
                       double st=atof(p);
@@ -1176,7 +1176,6 @@ int NJClient::Run() // nonzero if sleep ok
                       while (*p == ' ') p++;
                       if (*p) 
                       {
-                        p++;
                         double len=atof(p);
 
                         // add to this channel's session list
@@ -1836,7 +1835,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       return;
     }
 
-    if (isSeek || !userchan->ds || userchan->curds_lenleft < 1.0/(double)srate)
+    if (isSeek || userchan->curds_lenleft <= 0.0)
     {
       delete userchan->ds;
       userchan->ds=0;
@@ -1844,13 +1843,26 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       unsigned char guid[16];
       double offs=0.0;
 
-      if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft))
+      char buf[512];
+      sprintf(buf,"querying %f\n",playPos);
+      OutputDebugString(buf);
+      if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate))
       {
+        userchan->curds_lenleft+=32.0/srate;
+        char guidstr[256];
+        guidtostr(guid,guidstr);
+        sprintf(buf,"at %f got %s %f %f\n",playPos,guidstr,offs,userchan->curds_lenleft);
+        OutputDebugString(buf);
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
-          userchan->dump_samples = (int) (offs * userchan->ds->decode_codec->GetSampleRate());
+          userchan->dump_samples = ((int) (offs * userchan->ds->decode_codec->GetSampleRate()))*userchan->ds->decode_codec->GetNumChannels();
           if (userchan->dump_samples<0)userchan->dump_samples=0;
+        }
+        else
+        {
+          delete userchan->ds;
+          userchan->ds=0;
         }
       }
 
@@ -1879,6 +1891,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
     if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
     {
+      userchan->curds_lenleft -= len/(double)srate;
       return;
     }
   }
@@ -1927,11 +1940,24 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
 
+  int codecavail=chan->decode_codec->Available();
+  if (sessionmode) 
+  {
+    double sr=chan->decode_codec->GetSampleRate();
+    int a= (int)(userchan->curds_lenleft * sr);
+    if (a<1) a=1;
+    userchan->curds_lenleft -= needed/(double)sr;
+
+    a*=srcnch;
+    if (codecavail > a) codecavail=a;
+  }
+
+
   int len_out=len;
-  if ((llmode||sessionmode) && chan->decode_codec->Available()>0 && chan->decode_codec->Available() <= needed*srcnch)
+  if ((llmode||sessionmode) && codecavail>0 && codecavail <= needed*srcnch)
   {
     int oneeded=needed;
-    needed=chan->decode_codec->Available()/srcnch;  
+    needed=codecavail/srcnch;  
     len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
     if (len_out<0)len_out=0;
     else if (len_out>len)len_out=len;    
@@ -1939,10 +1965,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (llmode)
       userchan->dump_samples+=oneeded-needed;
   }
-  //   
-  // userchan->curds_lenleft
 
-  if (chan->decode_codec->Available() && chan->decode_codec->Available() >= needed*srcnch)
+  if (codecavail && codecavail >= needed*srcnch)
   {
     float *sptr=chan->decode_codec->Get();
 
@@ -2046,6 +2070,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||sessionmode))
   {
     // call again 
+    userchan->curds_lenleft=-1.0;
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
@@ -2476,7 +2501,7 @@ RemoteUser_Channel::~RemoteUser_Channel()
 }
 
 
-bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double *offs, double *len)
+bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double *offs, double *len, double mv)
 {
   WDL_MutexLock lock(&sessionlist_mutex);
 
@@ -2484,16 +2509,24 @@ bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double
   int x;
   for (x = 0; x < sessioninfo.GetSize(); x ++)
   {
-    if (time >= sessioninfo.Get(x)->start_time + sessioninfo.Get(x)->length) break;
+    if (time < sessioninfo.Get(x)->start_time) 
+    {
+      *len = sessioninfo.Get(x)->start_time-time;
+      if (*len > 1.0) *len=1.0;
+      return false;
+    }
 
-    if (time >= sessioninfo.Get(x)->start_time) 
+    if (time+mv < sessioninfo.Get(x)->start_time+ sessioninfo.Get(x)->length) 
     {
       memcpy(guid,sessioninfo.Get(x)->guid,16);
-      *offs=(sessioninfo.Get(x)->start_time-time) + sessioninfo.Get(x)->offset;
+      if (time < sessioninfo.Get(x)->start_time) time=sessioninfo.Get(x)->start_time;
+
+      *offs=(time - sessioninfo.Get(x)->start_time) + sessioninfo.Get(x)->offset;
       *len = (sessioninfo.Get(x)->start_time+sessioninfo.Get(x)->length)-time;
       return true;
     }
   }
+  *len = 1.0;
   return false;
 }
 
