@@ -245,7 +245,8 @@ protected:
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
-  void mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, int len, int srate, int outnch, int offs, double vudecay);
+  void mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
+                    int len, int srate, int outnch, int offs, double vudecay, bool isPlaying, bool isSeek, double playPos);
 
   WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
   Net_Connection *m_netcon;
