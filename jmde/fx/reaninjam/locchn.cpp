@@ -90,7 +90,6 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         extern void (*RemoveXPStyle)(HWND hwnd, int rem);
         if (RemoveXPStyle)
         {
-          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_ASYNCXMIT),1);
           RemoveXPStyle(GetDlgItem(hwndDlg,IDC_TRANSMIT),1);
         }
         g_client_mutex.Enter();
@@ -110,7 +109,15 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
 
-        if ((f&2)) CheckDlgButton(hwndDlg,IDC_ASYNCXMIT,BST_CHECKED);
+        SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Normal NINJAM");
+        SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Voice Chat");
+        SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Session Mode");
+        if (f&2)
+          SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_SETCURSEL,1,0);
+        else if (f&4)
+          SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_SETCURSEL,2,0);
+        else 
+          SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_SETCURSEL,0,0);
 
         SendMessage(hwndDlg,WM_LCUSER_REPOP_CH,0,0);        
 
@@ -174,8 +181,12 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           }
         break;
         case IDC_ASYNCXMIT:
+          if (HIWORD(wParam) == CBN_SELCHANGE)
           {
-            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam)))
+            int w=SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_GETCURSEL,0,0);
+            if (w<0) break;
+
+            if (w==1)
             {
               if (MessageBox(hwndDlg,"Enabling Voice Chat Mode for this local channel will result in other people hearing\r\n"
                                  "this channel's audio as soon as possible, making synchronizing music using the classic\r\n"
@@ -184,15 +195,30 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
                                  "Normally you enable Voice Chat Mode to do voice chat, or to monitor sessions.\r\n\r\n"
                                  "Enable Voice Chat Mode now?","Voice Chat Mode Confirmation",MB_OKCANCEL)==IDCANCEL)
               {
-                CheckDlgButton(hwndDlg,LOWORD(wParam),BST_UNCHECKED);
+                SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_SETCURSEL,0,0);
                 return 0;
               }
             }
+
+            if (w==2)
+            {
+              if (MessageBox(hwndDlg,"Enabling Session Mode for this local channel will send session-timestamped audio\r\n"
+                                 "to other people, whose clients must support session mode. This is _NOT_ for jamming!\r\n"
+                                 "\r\n"
+                                 "Normally you enable Session Mode to collaborate on a project.\r\n\r\n"
+                                 "Enable Session Mode now?","Session Mode Confirmation",MB_OKCANCEL)==IDCANCEL)
+              {
+                SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_SETCURSEL,0,0);
+                return 0;
+              }
+            }
+
             g_client_mutex.Enter();
             int f=0;
             g_client->GetLocalChannelInfo(m_idx,NULL,NULL,NULL,&f);
-            if (IsDlgButtonChecked(hwndDlg,LOWORD(wParam))) f|=2;
-            else f&=~2;
+            f&=~(2|4);
+            if (w==1) f|=2;
+            else if (w==2) f|=4;
             g_client->SetLocalChannelInfo(m_idx,NULL,false,0,false,0,false,0,false,0,true,f);
             g_client->NotifyServerOfChannelChange();
             g_client_mutex.Leave();

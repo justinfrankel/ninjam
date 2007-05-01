@@ -144,6 +144,12 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           sprintf(buf,"[Voice Chat] %.23s",cn?cn:"");
           SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
         }
+        else if (flags&4)
+        {
+          char buf[512];
+          sprintf(buf,"[Session] %.23s",cn?cn:"");
+          SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
+        }
         else SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
         g_client_mutex.Leave();
 
