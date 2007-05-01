@@ -1413,16 +1413,16 @@ int NJClient::Run() // nonzero if sleep ok
               sprintf(offslenstr,"%f %f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
               // send "SESSION" chat message
 
-              char buf[512];
-              sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
-              OutputDebugString(buf);
+    //          char buf[512];
+  //            sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+//              OutputDebugString(buf);
               ChatMessage_Send("SESSION",guidstr,idxstr,offslenstr);
             }
           }
 
           //delete m_enc;
         //  m_enc=0;
-          if (lc->m_enc_nch_used != block_nch)
+          if (lc->m_enc_nch_used != ((lc->src_channel&1024)?2:1))
           {
             delete lc->m_enc;
             lc->m_enc=0;
