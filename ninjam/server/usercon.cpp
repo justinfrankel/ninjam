@@ -498,14 +498,16 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             {
               if (!chnp) chnp=""; 
 
+              int doactive=!(f&0x80);
+
               // only if something changes, do we add it to the rec
-              int hadch=!m_channels[whichch].active;
+              int hadch=!m_channels[whichch].active != !doactive;
               if (!hadch) hadch = strcmp(chnp,m_channels[whichch].name.Get());
               if (!hadch) hadch = m_channels[whichch].volume!=v;
               if (!hadch) hadch = m_channels[whichch].panning!=p;
               if (!hadch) hadch = m_channels[whichch].flags!=f;
 
-              m_channels[whichch].active=1;
+              m_channels[whichch].active=doactive;
               m_channels[whichch].name.Set(chnp);
               m_channels[whichch].volume=v;
               m_channels[whichch].panning=p;

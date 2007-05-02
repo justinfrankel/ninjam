@@ -212,7 +212,7 @@ class mpb_client_set_channel_info
 
     // pan is -128..127
     // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
-    // flags, &1 = no default subscribe, &2=instamode
+    // flags, &1 = no default subscribe, &2=instamode, &4=session mode, 0x80=filler (inactive)
     void build_add_rec(char *chname, short volume, int pan, int flags);
     int parse_get_rec(int offs, char **chname, short *volume, int *pan, int *flags); // returns offset of next item on success, or <0 if out of items
 

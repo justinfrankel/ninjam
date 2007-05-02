@@ -922,14 +922,7 @@ int NJClient::Run() // nonzero if sleep ok
             {
               if (ar.flag) // send our channel information
               {
-                mpb_client_set_channel_info sci;
-                int x;
-                for (x = 0; x < m_locchannels.GetSize(); x ++)
-                {
-                  Local_Channel *ch=m_locchannels.Get(x);
-                  sci.build_add_rec(ch->name.Get(),0,0,ch->flags);
-                }
-                m_netcon->Send(sci.build());
+                NotifyServerOfChannelChange();
                 m_status=2;
                 m_in_auth=0;
                 m_max_localch=ar.maxchan;
@@ -983,7 +976,9 @@ int NJClient::Run() // nonzero if sleep ok
                   RemoteUser *theuser;
                   for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
 
-                 // printf("user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
+    //              char buf[512];
+  //                sprintf(buf,"user %s, channel %d \"%s\": %s v:%d.%ddB p:%d flag=%d\n",un,cid,chn,a?"active":"inactive",(int)v/10,abs((int)v)%10,p,f);
+//                  OutputDebugString(buf);
 
 
                   m_users_cs.Enter();
@@ -996,7 +991,7 @@ int NJClient::Run() // nonzero if sleep ok
                       m_remoteusers.Add(theuser);
                     }
 
-                    if ((theuser->channels[cid].flags^f)&2) // if flags changed instamode, flush out the samples
+                    if ((theuser->channels[cid].flags^f)&(2|4)) // if flags changed instamode, flush out the samples
                     {
                       delete theuser->channels[cid].ds;
                       delete theuser->channels[cid].next_ds[0];
@@ -2443,12 +2438,27 @@ void NJClient::NotifyServerOfChannelChange()
 {
   if (m_netcon)
   {
-    int x;
+    int x,idx=0;
     mpb_client_set_channel_info sci;
-    for (x = 0; x < m_locchannels.GetSize(); x ++)
+    for (idx = 0; idx < MAX_USER_CHANNELS; idx ++)
     {
-      Local_Channel *ch=m_locchannels.Get(x);
-      sci.build_add_rec(ch->name.Get(),0,0,ch->flags);
+      Local_Channel *ch=NULL;
+      int mv=0;
+      for (x = 0; x < m_locchannels.GetSize(); x ++)
+      {
+        ch=m_locchannels.Get(x);
+        if (ch->channel_idx>mv) mv=ch->channel_idx;
+
+        if (ch->channel_idx==idx) break;
+      }
+
+      // if not found 
+      if (!ch && idx > mv) break;
+
+      if (ch)
+        sci.build_add_rec(ch->name.Get(),0,0,ch->flags);
+      else
+        sci.build_add_rec("",0,0,0x80);
     }
     m_netcon->Send(sci.build());
   }
