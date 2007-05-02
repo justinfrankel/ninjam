@@ -1174,6 +1174,7 @@ int NJClient::Run() // nonzero if sleep ok
                       {
                         double len=atof(p);
 
+
                         // add to this channel's session list
                         theuser->channels[chanidx].AddSessionInfo(guid,st,len);
 
@@ -1405,7 +1406,7 @@ int NJClient::Run() // nonzero if sleep ok
             {
               char guidstr[64],idxstr[64],offslenstr[128];
               guidtostr(lc->m_curwritefile.guid,guidstr);
-              sprintf(idxstr,"%d",u);
+              sprintf(idxstr,"%d",lc->channel_idx);
               sprintf(offslenstr,"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
               // send "SESSION" chat message
 
