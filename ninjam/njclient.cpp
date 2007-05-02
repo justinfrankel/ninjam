@@ -81,7 +81,7 @@
 #endif
 
 
-#define SESSION_CHUNK_SIZE 4.0
+#define SESSION_CHUNK_SIZE 2.0
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
@@ -1183,7 +1183,7 @@ int NJClient::Run() // nonzero if sleep ok
 
                         char guidstr[64];
                         guidtostr(guid,guidstr);
-                        writeLog("sessionlog %s \"%s\" %d \"%s\" %f %f\n",guidstr,theuser->name.Get(),chanidx,theuser->channels[chanidx].name.Get(),st,len);
+                        writeLog("sessionlog %s \"%s\" %d \"%s\" %.10f %.10f\n",guidstr,theuser->name.Get(),chanidx,theuser->channels[chanidx].name.Get(),st,len);
                       }
                     }
                   }
@@ -1410,7 +1410,7 @@ int NJClient::Run() // nonzero if sleep ok
               char guidstr[64],idxstr[64],offslenstr[128];
               guidtostr(lc->m_curwritefile.guid,guidstr);
               sprintf(idxstr,"%d",u);
-              sprintf(offslenstr,"%f %f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+              sprintf(offslenstr,"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
               // send "SESSION" chat message
 
     //          char buf[512];
@@ -1848,10 +1848,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       OutputDebugString(buf);
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate))
       {
-        userchan->curds_lenleft+=32.0/srate;
         char guidstr[256];
         guidtostr(guid,guidstr);
-        sprintf(buf,"at %f got %s %f %f\n",playPos,guidstr,offs,userchan->curds_lenleft);
+        sprintf(buf,"at %f got %s %.10f %.10f\n",playPos,guidstr,offs,userchan->curds_lenleft);
         OutputDebugString(buf);
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
@@ -1864,6 +1863,11 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
           delete userchan->ds;
           userchan->ds=0;
         }
+      }
+      else
+      {
+        sprintf(buf,"failed (%.10f)\n",userchan->curds_lenleft);
+        OutputDebugString(buf);
       }
 
 
@@ -2509,7 +2513,7 @@ bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double
   int x;
   for (x = 0; x < sessioninfo.GetSize(); x ++)
   {
-    if (time < sessioninfo.Get(x)->start_time) 
+    if (time < sessioninfo.Get(x)->start_time-mv) 
     {
       *len = sessioninfo.Get(x)->start_time-time;
       if (*len > 1.0) *len=1.0;
@@ -2554,6 +2558,9 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
   {
     if (st < prev->start_time + prev->length)
     {
+      if (st+len <= prev->start_time + prev->length-0.0001) // if completely contained by previous item, don't insert
+        return;
+
       prev->length = st-prev->start_time;
       if (prev->length < min_length)
       {
