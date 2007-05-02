@@ -2071,7 +2071,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
   }
-  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||sessionmode))
+  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0)))
   {
     // call again 
     userchan->curds_lenleft=-1.0;
