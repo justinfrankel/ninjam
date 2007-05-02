@@ -2558,7 +2558,7 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
   {
     if (st < prev->start_time + prev->length)
     {
-      if (st+len <= prev->start_time + prev->length-0.0001) // if completely contained by previous item, don't insert
+      if (st+len <= prev->start_time + prev->length-0.001) // if completely contained by previous item, don't insert
         return;
 
       prev->length = st-prev->start_time;
