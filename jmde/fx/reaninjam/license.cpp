@@ -62,13 +62,16 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
 
 static char *g_need_license;
 static int g_license_result;
+static WDL_Mutex m_license_mutex;
 
 int licensecallback(int user32, char *licensetext)
 {
   if (!licensetext || !*licensetext) return 1;
 
+  m_license_mutex.Enter();
   g_need_license=licensetext;
   g_license_result=0;
+  m_license_mutex.Leave();
   g_client_mutex.Leave();
   while (g_need_license && !g_done) Sleep(100);
   g_client_mutex.Enter();
@@ -81,7 +84,12 @@ void licenseRun(HWND hwndDlg)
 {
   if (g_need_license)
   {
-    g_license_result=DialogBoxParam(g_hInst,MAKEINTRESOURCE(IDD_LICENSE),hwndDlg,LicenseProc,(LPARAM)g_need_license);
-    g_need_license=0;
+    m_license_mutex.Enter();
+    if (g_need_license)
+    {
+      g_license_result=DialogBoxParam(g_hInst,MAKEINTRESOURCE(IDD_LICENSE),hwndDlg,LicenseProc,(LPARAM)g_need_license);
+      g_need_license=0;
+    }
+    m_license_mutex.Leave();
   }
 }

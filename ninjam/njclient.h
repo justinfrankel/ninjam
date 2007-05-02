@@ -195,6 +195,7 @@ public:
   int (*ChannelMixer)(int user32, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len);
   int ChannelMixer_User32;
 
+  WDL_Mutex m_remotechannel_rd_mutex;
 
 protected:
   double output_peaklevel[2];

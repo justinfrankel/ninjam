@@ -957,6 +957,7 @@ int NJClient::Run() // nonzero if sleep ok
             mpb_server_userinfo_change_notify ucn;
             if (!ucn.parse(msg))
             {
+              WDL_MutexLock lock(&m_remotechannel_rd_mutex);
               int offs=0;
               int a=0, cid=0, p=0,f=0;
               short v=0;

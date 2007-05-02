@@ -960,12 +960,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         static int m_last_status = 0xdeadbeef;
         if (!in_t)
         {
-          in_t=1;
-
-          g_client_mutex.Enter();
+          in_t=1;          
 
           licenseRun(hwndDlg);
-
 
           if (g_client->HasUserInfoChanged())
           {
@@ -1031,7 +1028,6 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               bpm=0;
               intp=0;
             }
-            g_client_mutex.Leave();
 
             int ival=(int) floor(VAL2DB(g_client->GetOutputPeak(0))*10.0);
             int ival2=(int) floor(VAL2DB(g_client->GetOutputPeak(1))*10.0);
@@ -1363,13 +1359,14 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case WM_ENDSESSION:
     case WM_DESTROY:
 
+      g_done=1;
+      WaitForSingleObject(g_hThread,INFINITE);
+      CloseHandle(g_hThread);
+
       do_disconnect();
 
       // save config
 
-      g_done=1;
-      WaitForSingleObject(g_hThread,INFINITE);
-      CloseHandle(g_hThread);
 
       {
         int x;

@@ -57,12 +57,12 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_RCUSER_UPDATE: // update the items
       {
-        g_client_mutex.Enter();
+        g_client->m_remotechannel_rd_mutex.Enter();
         bool mute;
         char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
         if (!un) un="";
         SetDlgItemText(hwndDlg,IDC_USERNAME,un);
-        g_client_mutex.Leave();
+        g_client->m_remotechannel_rd_mutex.Leave();
 
         ShowWindow(GetDlgItem(hwndDlg,IDC_DIV),m_user ? SW_SHOW : SW_HIDE);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
@@ -73,12 +73,12 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       {
         case IDC_MUTE:
           {
-            g_client_mutex.Enter();
+            g_client->m_remotechannel_rd_mutex.Enter();
             bool mute=false;
             g_client->GetUserState(m_user,NULL,NULL,&mute);
             mute=!mute;
             g_client->SetUserState(m_user,false,0.0,false,0.0,true,mute);
-            g_client_mutex.Leave();
+            g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
           }
         break;
@@ -129,7 +129,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
   {
     case WM_RCUSER_UPDATE: // update the items
       {
-        g_client_mutex.Enter();
+        g_client->m_remotechannel_rd_mutex.Enter();
         char *un=g_client->GetUserState(user,NULL,NULL,NULL);
         SetDlgItemText(hwndDlg,IDC_USERNAME,un?un:"");
 
@@ -151,7 +151,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           SetDlgItemText(hwndDlg,IDC_CHANNELNAME,buf);
         }
         else SetDlgItemText(hwndDlg,IDC_CHANNELNAME,cn?cn:"");
-        g_client_mutex.Leave();
+        g_client->m_remotechannel_rd_mutex.Leave();
 
         CheckDlgButton(hwndDlg,IDC_RECV,sub?BST_CHECKED:0);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
@@ -184,7 +184,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       {
         double pos=(double)SendMessage((HWND)lParam,TBM_GETPOS,0,0);
 
-        g_client_mutex.Enter();
+        g_client->m_remotechannel_rd_mutex.Enter();
 		    if ((HWND) lParam == GetDlgItem(hwndDlg,IDC_VOL))
         {
           pos=SLIDER2DB(pos);
@@ -206,49 +206,49 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           mkpanstr(tmp,pos);
           SetDlgItemText(hwndDlg,IDC_PANLBL,tmp);
         }
-        g_client_mutex.Leave();
+        g_client->m_remotechannel_rd_mutex.Leave();
       }
     return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
         case IDC_RECV:
-          g_client_mutex.Enter();
+          g_client->m_remotechannel_rd_mutex.Enter();
           g_client->SetUserChannelState(user,chan,true,!!IsDlgButtonChecked(hwndDlg,LOWORD(wParam)),false,0.0,false,0.0,false,false,false,false);
-          g_client_mutex.Leave();
+          g_client->m_remotechannel_rd_mutex.Leave();
         break;
         case IDC_SOLO:
           {
-            g_client_mutex.Enter();
+            g_client->m_remotechannel_rd_mutex.Enter();
             bool sub=0,m=0,s=0;
             float v=0,p=0;
             int flags=0;
             g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s,NULL,&flags);
             s=!s;
             g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,false,false,true,s);
-            g_client_mutex.Leave();
+            g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(s?"track_solo_on":"track_solo_off"));
           }
         break;
         case IDC_MUTE:
           {
-            g_client_mutex.Enter();
+            g_client->m_remotechannel_rd_mutex.Enter();
             bool sub=0,m=0,s=0;
             float v=0,p=0;
             int flags=0;
             g_client->GetUserChannelState(user,chan,&sub,&v,&p,&m,&s,NULL,&flags);
             m=!m;
             g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,m,false,false);
-            g_client_mutex.Leave();
+            g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
           }
         break;
         case IDC_VOLLBL:
           if (HIWORD(wParam) == STN_DBLCLK) {
             double vol = 1.0;
-            g_client_mutex.Enter();
+            g_client->m_remotechannel_rd_mutex.Enter();
             g_client->SetUserChannelState(user,chan,false,false,true,(float)vol,false,0.0,false,false,false,false);
-            g_client_mutex.Leave();
+            g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
             char tmp[512];
             mkvolstr(tmp,vol);
@@ -260,9 +260,9 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
             double pan = 0.0;
             int t=(int)(pan*50.0) + 50;
             if (t < 0) t=0; else if (t > 100)t=100;
-            g_client_mutex.Enter();
+            g_client->m_remotechannel_rd_mutex.Enter();
             g_client->SetUserChannelState(user,chan,false,false,false,0.0,true,(float)pan,false,false,false,false);
-            g_client_mutex.Leave();
+            g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
 
             char tmp[512];
@@ -304,7 +304,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
         int us;
         int did_sizing=0;
         RECT lastr={0,0,0,0};
-        g_client_mutex.Enter();
+        g_client->m_remotechannel_rd_mutex.Enter();
         for (us = 0; us < g_client->GetNumUsers(); us ++)
         {
 
@@ -376,7 +376,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
           }
         }
 
-        g_client_mutex.Leave();
+        g_client->m_remotechannel_rd_mutex.Leave();
 
         for (; pos < m_children.GetSize(); )
         {

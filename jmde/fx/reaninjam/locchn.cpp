@@ -92,7 +92,6 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         {
           RemoveXPStyle(GetDlgItem(hwndDlg,IDC_TRANSMIT),1);
         }
-        g_client_mutex.Enter();
 
         int f=0;
         char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc,NULL,&f);
@@ -101,8 +100,6 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         g_client->GetLocalChannelMonitoring(m_idx, &vol, &pan, &ismute, &issolo);
         void *jesinst=0;
         g_client->GetLocalChannelProcessor(m_idx,NULL,&jesinst);
-
-        g_client_mutex.Leave();
 
         if (buf) SetDlgItemText(hwndDlg,IDC_NAME,buf);
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
@@ -334,9 +331,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         int sch;
         SendDlgItemMessage(hwndDlg,IDC_AUDIOIN,CB_RESETCONTENT,0,0);
 
-        g_client_mutex.Enter();
         g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
-        g_client_mutex.Leave();
         int chcnt=0;
         {
           int mch=NUM_INPUTS;
@@ -400,16 +395,17 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
       if (LOWORD(wParam) != IDC_ADDCH) return 0;
       {
         int idx;
-        g_client_mutex.Enter();
         int maxc=g_client->GetMaxLocalChannels();
         for (idx = 0; idx < maxc && g_client->GetLocalChannelInfo(idx,NULL,NULL,NULL); idx++);
 
         if (idx < maxc) 
         {
+          g_client_mutex.Enter();
           g_client->SetLocalChannelInfo(idx,"new channel",true,1024,false,0,true,true);
           g_client->NotifyServerOfChannelChange();  
+          g_client_mutex.Leave();
         }
-        g_client_mutex.Leave();
+        
 
         if (idx >= maxc) return 0;
         wParam = (WPARAM)idx;

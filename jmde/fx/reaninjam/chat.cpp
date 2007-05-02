@@ -135,7 +135,7 @@ void chatInit(HWND hwndDlg)
 }
 
 WDL_String m_append_text;
-extern WDL_Mutex g_client_mutex;
+WDL_Mutex m_append_mutex;
 
 void chat_addline(char *src, char *text)
 {
@@ -164,21 +164,21 @@ void chat_addline(char *src, char *text)
    tmp.Append(text);
   }
 
-  g_client_mutex.Enter();
+  m_append_mutex.Enter();
   if (m_append_text.Get()[0])
     m_append_text.Append("\n");
   m_append_text.Append(tmp.Get());
-  g_client_mutex.Leave();
+  m_append_mutex.Leave();
 
 }
 
 void chatRun(HWND hwndDlg)
 {
   WDL_String tmp;
-  g_client_mutex.Enter();
+  m_append_mutex.Enter();
   tmp.Set(m_append_text.Get());
   m_append_text.Set("");
-  g_client_mutex.Leave();
+  m_append_mutex.Leave();
 
   if (!tmp.Get()[0]) return;
   HWND m_hwnd=GetDlgItem(hwndDlg,IDC_CHATDISP);
