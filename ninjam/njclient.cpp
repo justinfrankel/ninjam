@@ -2450,6 +2450,7 @@ void NJClient::NotifyServerOfChannelChange()
         if (ch->channel_idx>mv) mv=ch->channel_idx;
 
         if (ch->channel_idx==idx) break;
+        ch=NULL;
       }
 
       // if not found 
