@@ -1946,16 +1946,30 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
 
+  int sessionclamp=0;
   int codecavail=chan->decode_codec->Available();
   if (sessionmode) 
   {
     double sr=chan->decode_codec->GetSampleRate();
-    int a= (int)(userchan->curds_lenleft);
+    int a= (int)(userchan->curds_lenleft+0.5);
     if (a<1) a=1;
     userchan->curds_lenleft -= needed;
 
+    /*
+    if (userchan->curds_lenleft<=0)
+    {
+      char buf[512];
+      sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
+      OutputDebugString(buf);
+    }
+    */
+
     a*=srcnch;
-    if (codecavail > a) codecavail=a;
+    if (codecavail >= a) 
+    {
+      codecavail=a;
+      sessionclamp=1;
+    }
   }
 
 
@@ -2073,7 +2087,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
   }
-  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0)))
+  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionclamp)))
   {
     // call again 
     userchan->curds_lenleft=-10000.0;
