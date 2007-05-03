@@ -1240,8 +1240,9 @@ int NJClient::Run() // nonzero if sleep ok
       if (p == (WDL_HeapBuf*)-1)
       {
         // context 
-        lc->m_curwritefile_starttime = blockstarttime;
+        lc->m_curwritefile_starttime = (lc->flags&4)?blockstarttime:-1.0;
         lc->m_curwritefile_writelen=0.0;
+
         mpb_client_upload_interval_begin cuib;
         cuib.chidx=lc->channel_idx;
         memset(cuib.guid,0,sizeof(cuib.guid));
@@ -1402,7 +1403,7 @@ int NJClient::Run() // nonzero if sleep ok
 
           if (lc->flags&4)
           {
-            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0)
+            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0 && lc->m_curwritefile_writelen < SESSION_CHUNK_SIZE*2.0)
             {
               char guidstr[64],idxstr[64],offslenstr[128];
               guidtostr(lc->m_curwritefile.guid,guidstr);
@@ -1435,6 +1436,7 @@ int NJClient::Run() // nonzero if sleep ok
           lc->m_enc=0;
         }
         lc->m_need_header=true;
+        lc->m_curwritefile_writelen=0.0;
 
         // end the last encode
       }
@@ -2576,7 +2578,7 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
   {
     if (st < prev->start_time + prev->length)
     {
-      if (st+len <= prev->start_time + prev->length-0.001) // if completely contained by previous item, don't insert
+      if (st+len <= prev->start_time + prev->length-0.001 && len < SESSION_CHUNK_SIZE*0.9) // if completely contained by previous item, don't insert
         return;
 
       prev->length = st-prev->start_time;
