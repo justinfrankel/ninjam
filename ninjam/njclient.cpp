@@ -1000,6 +1000,7 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->channels[cid].ds=0;
                       theuser->channels[cid].next_ds[0]=0;
                       theuser->channels[cid].next_ds[1]=0;
+//                      OutputDebugString("channel flags changed, flushing sources\n");
                     }
                     theuser->channels[cid].flags = f;
                     theuser->channels[cid].name.Set(chn);
@@ -1031,6 +1032,7 @@ int NJClient::Run() // nonzero if sleep ok
                       theuser->channels[cid].ds=0;
                       theuser->channels[cid].next_ds[0]=0;
                       theuser->channels[cid].next_ds[1]=0;
+//                      OutputDebugString("channel flags changed, flushing sources2\n");
 
                       if (!theuser->chanpresentmask) // user no longer exists, it seems
                       {
@@ -1068,7 +1070,7 @@ int NJClient::Run() // nonzero if sleep ok
                 //printf("Getting interval for %s, channel %d\n",dib.username,dib.chidx);
                 if (!memcmp(dib.guid,zero_guid,sizeof(zero_guid)))
                 {
-                  if (!(theuser->channels[dib.chidx].flags&4))
+                  if (!(theuser->channels[dib.chidx].flags&4) && !(theuser->channels[dib.chidx].flags&2))
                   {
                     m_users_cs.Enter();
                     int useidx=!!theuser->channels[dib.chidx].next_ds[0];
@@ -1076,7 +1078,9 @@ int NJClient::Run() // nonzero if sleep ok
                     theuser->channels[dib.chidx].next_ds[useidx]=0;
                     m_users_cs.Leave();
                     delete tmp;
+//                    OutputDebugString("added silence to channel\n");
                   }
+                  //else OutputDebugString("woulda added silence to channel\n");
                 }
                 else if (dib.fourcc) // download coming
                 {                
@@ -1093,6 +1097,7 @@ int NJClient::Run() // nonzero if sleep ok
                 }
                 else if (!(theuser->channels[dib.chidx].flags&4))
                 {
+//                  OutputDebugString("added free-guid to channel\n");
                   DecodeState *tmp=start_decode(dib.guid);
                   m_users_cs.Enter();
                   int useidx=!!theuser->channels[dib.chidx].next_ds[0];
@@ -1898,6 +1903,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   {
     if (llmode && userchan->next_ds[0])
     {
+//      OutputDebugString("advanced to next_ds (666)\n");
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
@@ -1981,19 +1987,26 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
 
   int len_out=len;
-  if ((llmode||sessionmode) && codecavail>0 && codecavail <= needed*srcnch)
+  if ((llmode||sessionmode) && codecavail <= needed*srcnch)
   {
-    int oneeded=needed;
-    needed=codecavail/srcnch;  
-    len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
-    if (len_out<0)len_out=0;
-    else if (len_out>len)len_out=len;    
+    if (codecavail>0)
+    {
+      int oneeded=needed;
+      needed=codecavail/srcnch;  
+      len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
+      if (len_out<0)len_out=0;
+      else if (len_out>len)len_out=len;    
 
-    if (llmode)
-      userchan->dump_samples+=oneeded-needed;
+      if (llmode)
+        userchan->dump_samples+=oneeded-needed;
+    }
+    else
+    {
+      len_out=0;
+    }
   }
 
-  if (codecavail && codecavail >= needed*srcnch)
+  if (codecavail>0 && codecavail >= needed*srcnch)
   {
     float *sptr=chan->decode_codec->Get();
 
@@ -2094,9 +2107,11 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
   }
+
   if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionmode)))
   {
     // call again 
+//    OutputDebugString("advanced to next_ds (200)\n");
     userchan->curds_lenleft=-10000.0;
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
@@ -2106,6 +2121,16 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
         isPlaying,false,playPos + len_out/(double)srate);
   }
+  else if (llmode && len_out < len)
+  {
+/*    OutputDebugString("llmode, didnt output enough\n");
+    char buf[512];
+    sprintf(buf,"userchan->next_ds[0]=%08x (%d)\n",userchan->next_ds[0],
+      chan && chan->decode_codec ? chan->decode_codec->Available() : -1);
+    OutputDebugString(buf);
+    */
+  }
+
 }
 
 void NJClient::on_new_interval()
@@ -2152,6 +2177,11 @@ void NJClient::on_new_interval()
 
       if (!(chan->flags&2) && !(chan->flags&4))
       {
+/*        if (ch<2)
+        {
+          OutputDebugString("advanced to next_ds (intervalpoo)\n");
+        }
+        */
         chan->dump_samples=0;
         delete chan->ds;
         chan->ds=0;
@@ -2244,6 +2274,7 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 
       DecodeState *tmp,*tmp2,*tmp3;
       m_users_cs.Enter();
+//      OutputDebugString("flushds (state)\n");
       tmp=p->ds; p->ds=0;
       tmp2=p->next_ds[0]; p->next_ds[0]=0;
       tmp3=p->next_ds[1]; p->next_ds[1]=0;
@@ -2716,10 +2747,15 @@ void RemoteDownload::startPlaying(int force)
     for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
     if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
+    //  char buf[512];
+  //    sprintf(buf,"download %s:%d flags=%d\n",username.Get(),chidx,theuser->channels[chidx].flags);
+//      OutputDebugString(buf);
 
       if (!(theuser->channels[chidx].flags&4)) // only "play" if not a session channel
       {
         DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
+
+//        OutputDebugString(tmp?"started new decde\n":"tried to start new decode\n");
 
         DecodeState *tmp2;
         m_parent->m_users_cs.Enter();
@@ -2730,6 +2766,8 @@ void RemoteDownload::startPlaying(int force)
         delete tmp2;
       }
     }
+  //  else
+//      OutputDebugString("download had no dest!\n");
     chidx=-1;
   }
 }
