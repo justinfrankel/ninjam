@@ -1317,7 +1317,7 @@ int NJClient::Run() // nonzero if sleep ok
             }
 
             lc->m_enc->Encode((float*)p->Get(),sz,1,block_nch>1 ? sz:0);
-            lc->m_curwritefile_writelen+=sz/(double)m_srate;
+            lc->m_curwritefile_writelen+=sz;
           }
 
           int s;
@@ -1403,16 +1403,16 @@ int NJClient::Run() // nonzero if sleep ok
 
           if (lc->flags&4)
           {
-            if (lc->m_curwritefile_writelen > 0.2 && lc->m_curwritefile_starttime > -1.0 && lc->m_curwritefile_writelen < SESSION_CHUNK_SIZE*2.0)
+            if (lc->m_curwritefile_writelen > 0.2*m_srate && lc->m_curwritefile_starttime > -1.0 && lc->m_curwritefile_writelen < SESSION_CHUNK_SIZE*2.0*m_srate)
             {
               char guidstr[64],idxstr[64],offslenstr[128];
               guidtostr(lc->m_curwritefile.guid,guidstr);
               sprintf(idxstr,"%d",lc->channel_idx);
-              sprintf(offslenstr,"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+              sprintf(offslenstr,"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
               // send "SESSION" chat message
 
     //          char buf[512];
-  //            sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen);
+  //            sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
 //              OutputDebugString(buf);
               ChatMessage_Send("SESSION",guidstr,idxstr,offslenstr);
             }
@@ -1580,7 +1580,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       if (lc->flags&4)
       {
         if (isSeek|| // if seeked, too long, playing and not broadcasting, or not playing and broadcasting
-            lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE || 
+            lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE*(double)srate || 
             (isPlaying && !lc->bcast_active && lc->broadcasting) ||
             (!isPlaying && lc->bcast_active)
           )
@@ -1607,7 +1607,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       if (lc->bcast_active) 
       {
         lc->m_bq.AddBlock(sc_nch,0.0,src,len,src2);
-        lc->m_curwritefile_curbuflen += len/(double)m_srate;
+        lc->m_curwritefile_curbuflen += len;
       }
     }
 #endif
