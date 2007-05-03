@@ -1845,6 +1845,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       char buf[512];
       sprintf(buf,"querying %f\n",playPos);
       OutputDebugString(buf);
+      double mediasr=m_srate;
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate))
       {
         char guidstr[256];
@@ -1854,7 +1855,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
-          userchan->dump_samples = ((int) (offs * userchan->ds->decode_codec->GetSampleRate()))*userchan->ds->decode_codec->GetNumChannels();
+          mediasr=userchan->ds->decode_codec->GetSampleRate();
+          userchan->dump_samples = ((int) (offs * mediasr))*userchan->ds->decode_codec->GetNumChannels();
           if (userchan->dump_samples<0)userchan->dump_samples=0;
         }
         else
@@ -1869,7 +1871,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
         OutputDebugString(buf);
       }
 
-
+      userchan->curds_lenleft *= mediasr;
+        
     }
 
   }
@@ -1894,7 +1897,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
     if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
     {
-      userchan->curds_lenleft -= len/(double)srate;
+      userchan->curds_lenleft -= len;
       return;
     }
   }
@@ -1947,9 +1950,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if (sessionmode) 
   {
     double sr=chan->decode_codec->GetSampleRate();
-    int a= (int)(userchan->curds_lenleft * sr);
+    int a= (int)(userchan->curds_lenleft);
     if (a<1) a=1;
-    userchan->curds_lenleft -= needed/(double)sr;
+    userchan->curds_lenleft -= needed;
 
     a*=srcnch;
     if (codecavail > a) codecavail=a;
@@ -2073,7 +2076,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0)))
   {
     // call again 
-    userchan->curds_lenleft=-1.0;
+    userchan->curds_lenleft=-10000.0;
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
@@ -2529,6 +2532,7 @@ bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double
 {
   WDL_MutexLock lock(&sessionlist_mutex);
 
+  mv *= 2.0; // allow one sample poot
   // todo: binary search
   int x;
   for (x = 0; x < sessioninfo.GetSize(); x ++)
@@ -2540,13 +2544,19 @@ bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double
       return false;
     }
 
-    if (time+mv < sessioninfo.Get(x)->start_time+ sessioninfo.Get(x)->length) 
+    if (time < sessioninfo.Get(x)->start_time+ sessioninfo.Get(x)->length-mv) 
     {
       memcpy(guid,sessioninfo.Get(x)->guid,16);
-      if (time < sessioninfo.Get(x)->start_time) time=sessioninfo.Get(x)->start_time;
-
-      *offs=(time - sessioninfo.Get(x)->start_time) + sessioninfo.Get(x)->offset;
-      *len = (sessioninfo.Get(x)->start_time+sessioninfo.Get(x)->length)-time;
+      if (time < sessioninfo.Get(x)->start_time) 
+      {
+        *offs=sessioninfo.Get(x)->offset;
+        *len = sessioninfo.Get(x)->length + (sessioninfo.Get(x)->start_time-time);
+      }
+      else
+      {
+        *offs=(time - sessioninfo.Get(x)->start_time) + sessioninfo.Get(x)->offset;
+        *len = (sessioninfo.Get(x)->start_time+sessioninfo.Get(x)->length)-time;
+      }
       return true;
     }
   }
