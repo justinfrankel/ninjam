@@ -1174,6 +1174,9 @@ int NJClient::Run() // nonzero if sleep ok
                       {
                         double len=atof(p);
 
+                        //char buf[512];
+                        //sprintf(buf,"AddSessionInfo len=%.10f (@44k=%.10f)\n",len,len*44100.0);
+                        //OutputDebugString(buf);
 
                         // add to this channel's session list
                         theuser->channels[chanidx].AddSessionInfo(guid,st,len);
@@ -1842,22 +1845,25 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       unsigned char guid[16];
       double offs=0.0;
 
-      char buf[512];
-      sprintf(buf,"querying %f\n",playPos);
-      OutputDebugString(buf);
+    //  char buf[512];
+  //    sprintf(buf,"querying %f\n",playPos);
+//      OutputDebugString(buf);
       double mediasr=m_srate;
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate))
       {
-        char guidstr[256];
-        guidtostr(guid,guidstr);
-        sprintf(buf,"at %f got %s %.10f %.10f\n",playPos,guidstr,offs,userchan->curds_lenleft);
-        OutputDebugString(buf);
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
           mediasr=userchan->ds->decode_codec->GetSampleRate();
           userchan->dump_samples = ((int) (offs * mediasr))*userchan->ds->decode_codec->GetNumChannels();
           if (userchan->dump_samples<0)userchan->dump_samples=0;
+
+          char buf[512];
+          char guidstr[256];
+          guidtostr(guid,guidstr);
+          sprintf(buf,"at %f got %s %.10f %.10f\n",playPos,guidstr,offs*mediasr,userchan->curds_lenleft*mediasr);
+          OutputDebugString(buf);
+
         }
         else
         {
@@ -1867,11 +1873,13 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       }
       else
       {
-        sprintf(buf,"failed (%.10f)\n",userchan->curds_lenleft);
+        char buf[512];
+        sprintf(buf,"at %f failed (%.10f)\n",playPos,userchan->curds_lenleft);
         OutputDebugString(buf);
       }
 
       userchan->curds_lenleft *= mediasr;
+      userchan->curds_lenleft += 200;
         
     }
 
@@ -1946,7 +1954,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
 
-  int sessionclamp=0;
   int codecavail=chan->decode_codec->Available();
   if (sessionmode) 
   {
@@ -1955,20 +1962,20 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (a<1) a=1;
     userchan->curds_lenleft -= needed;
 
-    /*
-    if (userchan->curds_lenleft<=0)
+    
+/*    if (userchan->curds_lenleft<=0)
     {
       char buf[512];
       sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
       OutputDebugString(buf);
     }
     */
+    
 
     a*=srcnch;
     if (codecavail >= a) 
     {
       codecavail=a;
-      sessionclamp=1;
     }
   }
 
@@ -2087,7 +2094,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
   }
-  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionclamp)))
+  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionmode)))
   {
     // call again 
     userchan->curds_lenleft=-10000.0;
