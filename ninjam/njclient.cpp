@@ -1722,17 +1722,20 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
       for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
       {
-        float lpan=user->pan+user->channels[ch].pan;
-        if (lpan<-1.0)lpan=-1.0;
-        else if (lpan>1.0)lpan=1.0;
+        if (user->chanpresentmask&(1<<ch))
+        {
+          float lpan=user->pan+user->channels[ch].pan;
+          if (lpan<-1.0)lpan=-1.0;
+          else if (lpan>1.0)lpan=1.0;
 
-        bool muteflag;
-        if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
-        else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
+          bool muteflag;
+          if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
+          else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
-        mixInChannel(&user->channels[ch],muteflag,
-          user->volume*user->channels[ch].volume,lpan,
-            outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
+          mixInChannel(&user->channels[ch],muteflag,
+            user->volume*user->channels[ch].volume,lpan,
+              outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
+        }
       }
     }
     m_users_cs.Leave();
