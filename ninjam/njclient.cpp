@@ -203,6 +203,12 @@ class RemoteUser_Channel
 
     void AddSessionInfo(const unsigned char *guid, double st, double len);
     bool GetSessionInfo(double time, unsigned char *guid, double *offs, double *len, double mv);
+    void ClearSessionInfo()
+    {
+      sessionlist_mutex.Enter();
+      sessioninfo.Empty(true);
+      sessionlist_mutex.Leave();
+    }
 
   private:
     WDL_Mutex sessionlist_mutex;
@@ -974,6 +980,7 @@ int NJClient::Run() // nonzero if sleep ok
                 // todo: have volume/pan settings here go into defaults for the channel. or not, kinda think it's pointless
                 if (cid >= 0 && cid < MAX_USER_CHANNELS)
                 {
+                  m_users_cs.Enter();
                   RemoteUser *theuser;
                   for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),un); x ++);
 
@@ -982,7 +989,6 @@ int NJClient::Run() // nonzero if sleep ok
 //                  OutputDebugString(buf);
 
 
-                  m_users_cs.Enter();
                   if (a)
                   {
                     if (x == m_remoteusers.GetSize())
@@ -1003,6 +1009,12 @@ int NJClient::Run() // nonzero if sleep ok
 //                      OutputDebugString("channel flags changed, flushing sources\n");
                     }
                     theuser->channels[cid].flags = f;
+
+                    if (!(theuser->channels[cid].flags&4))
+                    {
+                      theuser->channels[cid].ClearSessionInfo();
+                    }
+
                     theuser->channels[cid].name.Set(chn);
                     theuser->chanpresentmask |= 1<<cid;
 
@@ -1019,6 +1031,8 @@ int NJClient::Run() // nonzero if sleep ok
                   {
                     if (x < m_remoteusers.GetSize())
                     {
+                      theuser->channels[cid].ClearSessionInfo();
+
                       theuser->channels[cid].name.Set("");
                       theuser->chanpresentmask &= ~(1<<cid);
                       theuser->submask &= ~(1<<cid);
