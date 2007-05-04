@@ -1436,6 +1436,9 @@ int NJClient::Run() // nonzero if sleep ok
     //          char buf[512];
   //            sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
 //              OutputDebugString(buf);
+
+              writeLog("localsessionlog %s \"%s\" %d \"%s\" %.10f %.10f\n",guidstr,"local",lc->channel_idx,lc->name.Get(),lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
+
               ChatMessage_Send("SESSION",guidstr,idxstr,offslenstr);
             }
           }
