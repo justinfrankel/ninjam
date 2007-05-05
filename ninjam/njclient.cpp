@@ -220,7 +220,7 @@ class RemoteUser_Channel
 class RemoteUser
 {
 public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), chanpresentmask(0) { }
+  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), last_session_pos(-1000.0), chanpresentmask(0) { }
   ~RemoteUser() { }
 
   bool muted;
@@ -231,6 +231,7 @@ public:
   int chanpresentmask;
   int mutedmask;
   int solomask;
+  double last_session_pos;
   RemoteUser_Channel channels[MAX_USER_CHANNELS];
 };
 
@@ -1180,7 +1181,9 @@ int NJClient::Run() // nonzero if sleep ok
                   RemoteUser *theuser;
                   for (x = 0; x < m_remoteusers.GetSize() && strcmp((theuser=m_remoteusers.Get(x))->name.Get(),foo.parms[1]); x ++);
                   int chanidx=atoi(foo.parms[3]);
-                  if (x < m_remoteusers.GetSize() && chanidx >= 0 && chanidx < MAX_USER_CHANNELS && (theuser->channels[chanidx].flags&4))
+                  if (x < m_remoteusers.GetSize() && chanidx >= 0 && chanidx < MAX_USER_CHANNELS && 
+                      ((theuser->submask & theuser->chanpresentmask) & (1<<chanidx)) && // only update if subscribed
+                      (theuser->channels[chanidx].flags&4))
                   {
                     unsigned char guid[16];
                     if (strtoguid(foo.parms[2],guid))
@@ -1199,6 +1202,7 @@ int NJClient::Run() // nonzero if sleep ok
 
                         // add to this channel's session list
                         theuser->channels[chanidx].AddSessionInfo(guid,st,len);
+                        theuser->last_session_pos=st;
 
                         char guidstr[64];
                         guidtostr(guid,guidstr);
@@ -2236,6 +2240,7 @@ char *NJClient::GetUserState(int idx, float *vol, float *pan, bool *mute)
 
 void NJClient::SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute)
 {
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
   if (idx<0 || idx>=m_remoteusers.GetSize()) return;
   RemoteUser *p=m_remoteusers.Get(idx);
   if (setvol) p->volume=vol;
@@ -2245,6 +2250,7 @@ void NJClient::SetUserState(int idx, bool setvol, float vol, bool setpan, float 
 
 int NJClient::EnumUserChannels(int useridx, int i)
 {
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||i<0||i>=MAX_USER_CHANNELS) return -1;
   RemoteUser *user=m_remoteusers.Get(useridx);
 
@@ -2258,6 +2264,7 @@ int NJClient::EnumUserChannels(int useridx, int i)
 
 char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, float *vol, float *pan, bool *mute, bool *solo, int *outchannel, int *flags)
 {
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return NULL;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
@@ -2278,6 +2285,8 @@ char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub, floa
 void NJClient::SetUserChannelState(int useridx, int channelidx, 
                                    bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo, bool setoutch, int outchannel)
 {
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
+
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return;
   RemoteUser *user=m_remoteusers.Get(useridx);
   RemoteUser_Channel *p=user->channels + channelidx;
@@ -2344,8 +2353,19 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 }
 
 
+double NJClient::GetUserSessionPos(int useridx)
+{
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
+
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()) return 0.0f;
+
+  return m_remoteusers.Get(useridx)->last_session_pos;
+}
+
 float NJClient::GetUserChannelPeak(int useridx, int channelidx, int whichch)
 {
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
+
   if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return 0.0f;
   RemoteUser_Channel *p=m_remoteusers.Get(useridx)->channels + channelidx;
   RemoteUser *user=m_remoteusers.Get(useridx);
