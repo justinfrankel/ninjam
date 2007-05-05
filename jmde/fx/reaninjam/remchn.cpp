@@ -31,6 +31,7 @@
 
 #include "resource.h"
 
+extern void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride=-1); // actually implemented in tracklist.cpp for now
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 
@@ -56,7 +57,7 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_RCUSER_UPDATE: // update the items
-      {
+      {        
         g_client->m_remotechannel_rd_mutex.Enter();
         bool mute;
         char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
@@ -68,6 +69,34 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
       }
     break;
+    case WM_LCUSER_VUUPDATE:
+      //IDC_SESSIONINFO
+      if (format_timestr_pos && !(lParam&31))
+      {
+        time_t t;
+        double mp=-1.0;
+        double d=g_client->GetUserSessionPos(m_user,&t,&mp);
+        char buf[512];          
+        if ((d>-0.5||mp>-0.5))
+        {
+          if (d>-0.5&&t > time(NULL)-7) format_timestr_pos(d,buf,sizeof(buf));
+          else strcpy(buf,"---");
+
+          if (mp > -0.5)
+          {
+            strcat(buf," / ");
+            format_timestr_pos(mp,buf+strlen(buf),sizeof(buf)-strlen(buf)-32);
+          }
+          SetDlgItemText(hwndDlg,IDC_SESSIONINFO,buf);
+        }
+        else 
+        {
+          SetDlgItemText(hwndDlg,IDC_SESSIONINFO,"");
+        }
+      }
+
+    break;
+
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
@@ -291,11 +320,14 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       {
         HWND hwnd=GetWindow(hwndDlg,GW_CHILD);
 
+        static int a;
+
         while (hwnd)
         {
-          SendMessage(hwnd,uMsg,0,0);
+          SendMessage(hwnd,uMsg,0,a);
           hwnd=GetWindow(hwnd,GW_HWNDNEXT);
         }        
+        a++;
       }
     break;
     case WM_RCUSER_UPDATE:

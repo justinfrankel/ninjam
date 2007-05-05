@@ -104,6 +104,7 @@
 #define IDC_USERNAME                    1053
 #define IDC_CHANNELNAME                 1054
 #define IDC_LOCGRP                      1054
+#define IDC_SESSIONINFO                 1054
 #define IDC_REMGRP                      1055
 #define IDC_CHATGRP                     1056
 #define IDC_VER                         1057

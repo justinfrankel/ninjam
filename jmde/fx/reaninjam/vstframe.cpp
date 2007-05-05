@@ -46,6 +46,9 @@ void InitializeInstance();
 void QuitInstance();
 
 
+void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride=-1); // actually implemented in tracklist.cpp for now
+
+
 static double sliderscale_sq(double in, int dir, double n)
 {
   if (dir < 0) return (pow((double) in,n)/pow(1000.0,n-1.0));
@@ -678,6 +681,7 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
     *(long *)&GetExePath=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetExePath",0.0);
     *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"PluginWantsAlwaysRunFx",0.0);
     *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"RemoveXPStyle",0.0);
+    *(long *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"format_timestr_pos",0.0);
     
   }
   if (!GetExePath||!GetIconThemePointer) return 0;

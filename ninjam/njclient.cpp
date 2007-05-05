@@ -203,6 +203,12 @@ class RemoteUser_Channel
 
     void AddSessionInfo(const unsigned char *guid, double st, double len);
     bool GetSessionInfo(double time, unsigned char *guid, double *offs, double *len, double mv);
+    double GetMaxLength()
+    {
+      ChannelSessionInfo *p=sessioninfo.Get(sessioninfo.GetSize()-1);
+      if (!p) return -1.0;
+      return p->start_time + p->length;
+    }
     void ClearSessionInfo()
     {
       sessionlist_mutex.Enter();
@@ -220,7 +226,7 @@ class RemoteUser_Channel
 class RemoteUser
 {
 public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), last_session_pos(-1000.0), last_session_pos_updtime(0), chanpresentmask(0) { }
+  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), last_session_pos(-1.0), last_session_pos_updtime(0), chanpresentmask(0) { }
   ~RemoteUser() { }
 
   bool muted;
@@ -1203,7 +1209,7 @@ int NJClient::Run() // nonzero if sleep ok
 
                         // add to this channel's session list
                         theuser->channels[chanidx].AddSessionInfo(guid,st,len);
-                        theuser->last_session_pos=st;
+                        theuser->last_session_pos=st+len;
                         theuser->last_session_pos_updtime=time(NULL);
 
                         char guidstr[64];
@@ -1729,9 +1735,10 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       int ch;
       if (!user) continue;
 
-      for (ch = 0; ch < MAX_USER_CHANNELS; ch ++)
+      int a=user->chanpresentmask;
+      for (ch = 0; ch < MAX_USER_CHANNELS&&a; ch ++)
       {
-        if (user->chanpresentmask&(1<<ch))
+        if (a&1)
         {
           float lpan=user->pan+user->channels[ch].pan;
           if (lpan<-1.0)lpan=-1.0;
@@ -1745,6 +1752,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
             user->volume*user->channels[ch].volume,lpan,
               outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
         }
+        a>>=1;
       }
     }
     m_users_cs.Leave();
@@ -2355,14 +2363,39 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 }
 
 
-double NJClient::GetUserSessionPos(int useridx, time_t *lastupdatetime)
+double NJClient::GetUserSessionPos(int useridx, time_t *lastupdatetime, double *maxlen)
 {
   WDL_MutexLock lock(&m_remotechannel_rd_mutex);
 
-  if (useridx<0 || useridx>=m_remoteusers.GetSize()) return 0.0f;
+  RemoteUser *u=m_remoteusers.Get(useridx);
+  if (maxlen) *maxlen=-1.0;
+  if (!u) return -1.0;
 
-  *lastupdatetime=m_remoteusers.Get(useridx)->last_session_pos_updtime;
-  return m_remoteusers.Get(useridx)->last_session_pos;
+  if (lastupdatetime)
+  {
+    *lastupdatetime=u->last_session_pos_updtime;
+  }
+  if (maxlen)
+  {
+    int x;
+    int a=u->chanpresentmask&u->submask;
+    *maxlen=-1.0;
+    for (x=0;x<MAX_USER_CHANNELS&&a; x ++)
+    {
+      if (a&1)
+      {
+        RemoteUser_Channel *chan=&u->channels[x];
+        if (chan->flags&4)
+        {
+          double v=chan->GetMaxLength();
+          if (v > *maxlen) *maxlen=v;
+        }
+      }
+      a>>=1;
+    }
+
+  }
+  return u->last_session_pos;
 }
 
 float NJClient::GetUserChannelPeak(int useridx, int channelidx, int whichch)
