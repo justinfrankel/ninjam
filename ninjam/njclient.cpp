@@ -2639,7 +2639,7 @@ bool RemoteUser_Channel::GetSessionInfo(double time, unsigned char *guid, double
 void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, double len)
 {
   if (st<0.0 || len < 0.2) return;
-  const double min_length=0.1;
+  const double min_length=0.05;
   const int max_entries=65536;
 
   // todo: binary search?
@@ -2660,8 +2660,14 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
   {
     if (st < prev->start_time + prev->length)
     {
-      if (st+len <= prev->start_time + prev->length-0.001 && len < SESSION_CHUNK_SIZE*0.9) // if completely contained by previous item, don't insert
-        return;
+      if (st+len <= prev->start_time + prev->length-min_length)
+      {
+        ChannelSessionInfo *ns=new ChannelSessionInfo(guid,st+len,prev->start_time+prev->length - (st+len));
+        ns->offset = prev->offset + (ns->start_time-prev->start_time);
+        sessioninfo.Insert(x,ns);
+
+        next=NULL; // since our added item is completley contained by this item, we can not check the next item(s)
+      }
 
       prev->length = st-prev->start_time;
       if (prev->length < min_length)
@@ -2672,8 +2678,9 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
       }
     }
   }
-  if (next)
+  if (next) 
   {
+next_again:
     if (st+len > next->start_time)
     {
       double adj=(st+len) - next->start_time;
@@ -2685,7 +2692,8 @@ void RemoteUser_Channel::AddSessionInfo(const unsigned char *guid, double st, do
       {
         sessioninfo.Delete(x);
         delete next;
-        next=0;
+        next=sessioninfo.Get(x);
+        if (next) goto next_again;
       }
 
     }
