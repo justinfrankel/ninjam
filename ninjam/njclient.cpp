@@ -220,7 +220,7 @@ class RemoteUser_Channel
 class RemoteUser
 {
 public:
-  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), last_session_pos(-1000.0), chanpresentmask(0) { }
+  RemoteUser() : muted(0), volume(1.0f), pan(0.0f), submask(0), mutedmask(0), solomask(0), last_session_pos(-1000.0), last_session_pos_updtime(0), chanpresentmask(0) { }
   ~RemoteUser() { }
 
   bool muted;
@@ -232,6 +232,7 @@ public:
   int mutedmask;
   int solomask;
   double last_session_pos;
+  time_t last_session_pos_updtime;
   RemoteUser_Channel channels[MAX_USER_CHANNELS];
 };
 
@@ -1203,6 +1204,7 @@ int NJClient::Run() // nonzero if sleep ok
                         // add to this channel's session list
                         theuser->channels[chanidx].AddSessionInfo(guid,st,len);
                         theuser->last_session_pos=st;
+                        theuser->last_session_pos_updtime=time(NULL);
 
                         char guidstr[64];
                         guidtostr(guid,guidstr);
@@ -2353,12 +2355,13 @@ void NJClient::SetUserChannelState(int useridx, int channelidx,
 }
 
 
-double NJClient::GetUserSessionPos(int useridx)
+double NJClient::GetUserSessionPos(int useridx, time_t *lastupdatetime)
 {
   WDL_MutexLock lock(&m_remotechannel_rd_mutex);
 
   if (useridx<0 || useridx>=m_remoteusers.GetSize()) return 0.0f;
 
+  *lastupdatetime=m_remoteusers.Get(useridx)->last_session_pos_updtime;
   return m_remoteusers.Get(useridx)->last_session_pos;
 }
 
