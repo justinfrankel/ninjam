@@ -1525,7 +1525,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, De
     {
       if (newstate->decode_fp)
       {
-        int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(128),1,128,newstate->decode_fp);          
+        int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(1024),1,1024,newstate->decode_fp);          
         newstate->decode_codec->DecodeWrote(l);
         if (!l) 
         {
@@ -1535,7 +1535,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, De
       }
       else if (newstate->decode_buf)
       {
-        int l=newstate->decode_buf->Read(newstate->decode_codec->DecodeGetSrcBuffer(128),128);
+        int l=newstate->decode_buf->Read(newstate->decode_codec->DecodeGetSrcBuffer(1024),1024);
         newstate->decode_codec->DecodeWrote(l);
         if (!l) break;
       }
@@ -1888,7 +1888,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   //    sprintf(buf,"querying %f\n",playPos);
 //      OutputDebugString(buf);
       double mediasr=m_srate;
-      if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate))
+      if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate) && userchan->curds_lenleft > 16.0/srate)
       {
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
@@ -1902,6 +1902,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
           guidtostr(guid,guidstr);
           sprintf(buf,"at %f got %s %.10f %.10f\n",playPos,guidstr,offs*mediasr,userchan->curds_lenleft*mediasr);
           OutputDebugString(buf);
+          userchan->curds_lenleft += 100/mediasr;
 
         }
         else
@@ -1918,7 +1919,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       }
 
       userchan->curds_lenleft *= mediasr;
-      userchan->curds_lenleft += 200;
         
     }
 
@@ -2000,16 +2000,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     double sr=chan->decode_codec->GetSampleRate();
     int a= (int)(userchan->curds_lenleft+0.5);
     if (a<1) a=1;
-    userchan->curds_lenleft -= needed;
+
 
     
-/*    if (userchan->curds_lenleft<=0)
-    {
-      char buf[512];
-      sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
-      OutputDebugString(buf);
-    }
-    */
     
 
     a*=srcnch;
@@ -2037,6 +2030,16 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     else
     {
       len_out=0;
+    }
+  }
+  if (sessionmode)
+  {
+    userchan->curds_lenleft -= needed;
+    if (userchan->curds_lenleft<=0)
+    {
+      char buf[512];
+      sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
+      OutputDebugString(buf);
     }
   }
 
