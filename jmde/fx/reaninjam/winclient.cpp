@@ -144,7 +144,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 			      bi.hwndOwner = hwndDlg;
 			      bi.pszDisplayName = name;
 			      bi.lpszTitle = "Select a directory:";
-			      bi.ulFlags = BIF_RETURNONLYFSDIRS;
+			      bi.ulFlags = BIF_RETURNONLYFSDIRS|0x40;
 			      idlist = SHBrowseForFolder( &bi );
 			      if (idlist) 
             {
