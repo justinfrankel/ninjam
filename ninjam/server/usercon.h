@@ -34,7 +34,7 @@
 
 
 #include "../netmsg.h"
-#include "../../WDL/string.h"
+#include "../../WDL/wdlstring.h"
 #include "../../WDL/sha.h"
 #include "../../WDL/ptrlist.h"
 #include "../mpb.h"

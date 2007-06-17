@@ -32,7 +32,7 @@
 #define _CHANMIX_H_
 
 
-#include "../WDL/string.h"
+#include "../WDL/wdlstring.h"
 
 #define MAX_CHANMIX_CHANS 64
 

@@ -32,7 +32,7 @@
 #include "../../../ninjam/njclient.h"
 
 #include "../../../WDL/mutex.h"
-#include "../../../WDL/string.h"
+#include "../../../WDL/wdlstring.h"
 
 
 extern double (*DB2SLIDER)(double x);

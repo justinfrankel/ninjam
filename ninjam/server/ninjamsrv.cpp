@@ -49,7 +49,7 @@
 #include "../../WDL/sha.h"
 #include "../../WDL/lineparse.h"
 #include "../../WDL/ptrlist.h"
-#include "../../WDL/string.h"
+#include "../../WDL/wdlstring.h"
 
 #define VERSION "v0.06"
 

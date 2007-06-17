@@ -34,7 +34,7 @@
 #include "../njmisc.h"
 
 #include "../../WDL/mutex.h"
-#include "../../WDL/string.h"
+#include "../../WDL/wdlstring.h"
 
 
 extern WDL_Mutex g_client_mutex;

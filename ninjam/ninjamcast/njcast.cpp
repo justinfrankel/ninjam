@@ -15,7 +15,7 @@
 #include "../../WDL/jnetlib/connection.h"
 #include "../../WDL/jnetlib/httpget.h"
 #include "../../WDL/lameencdec.h"
-#include "../../WDL/string.h"
+#include "../../WDL/wdlstring.h"
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))

@@ -26,6 +26,7 @@
 
 #include <windows.h>
 #include <windowsx.h>
+int a=WM_ENDSESSION;
 #include <richedit.h>
 #include <shlobj.h>
 #include <commctrl.h>
@@ -47,6 +48,7 @@
 #define VERSION "0.11"
 
 #define CONFSEC "ninjam"
+
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);

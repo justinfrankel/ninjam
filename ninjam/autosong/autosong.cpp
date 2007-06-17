@@ -36,7 +36,7 @@
   #endif
 #endif
 
-#include "../../WDL/string.h"
+#include "../../WDL/wdlstring.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/lineparse.h"
 #include "../../WDL/vorbisencdec.h"

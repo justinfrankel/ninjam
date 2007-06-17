@@ -29,7 +29,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <dsound.h>
-#include "../WDL/string.h"
+#include "../WDL/wdlstring.h"
 #include "../WDL/ptrlist.h"
 #include "resource.h"
 

@@ -66,7 +66,7 @@
 #endif
 #include <stdio.h>
 #include <time.h>
-#include "../WDL/string.h"
+#include "../WDL/wdlstring.h"
 #include "../WDL/ptrlist.h"
 #include "../WDL/jnetlib/jnetlib.h"
 #include "../WDL/sha.h"
