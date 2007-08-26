@@ -63,23 +63,7 @@ static parameterInfo param_infos[NUM_PARAMS]=
 audioMasterCallback g_hostcb;
 
 
-double VAL2DB(double x)
-{
-  static double g_ilog2x6;
-  static int a;
-  if (!a)
-  {
-    a++;
-    g_ilog2x6 = 6.0/log10(2.0);
-  }
-  if (x < 0.00000095367431640625) return -120.0;
-
-  double v=(log10(x)*g_ilog2x6);
-  if (v < -120.0) v=-120.0;
-  return v;
-}
-#define DB2VAL(x) (pow(2.0,(x)/6.0))
-
+#include "../../../WDL/db2val.h"
 
 HANDLE * (*GetIconThemePointer)(const char *name);
 HWND (*GetMainHwnd)();
