@@ -25,7 +25,7 @@ CFG=reaninjam - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 MTL=midl.exe
 RSC=rc.exe
 
@@ -51,7 +51,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib /nologo /dll /machine:I386 /out:"../../Release/plugins/fx/reaninjam.dll" /opt:nowin98
 # SUBTRACT LINK32 /pdb:none
@@ -78,7 +78,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib /nologo /dll /debug /machine:I386 /out:"../../Debug/plugins/fx/reaninjam.dll" /pdbtype:sept
 
@@ -108,6 +108,15 @@ SOURCE=..\..\..\ninjam\netmsg.cpp
 # Begin Source File
 
 SOURCE=..\..\..\ninjam\njclient.cpp
+
+!IF  "$(CFG)" == "reaninjam - Win32 Release"
+
+# ADD CPP /D "USE_ICC"
+
+!ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
+
+!ENDIF 
+
 # End Source File
 # End Group
 # Begin Group "jnetlib"
