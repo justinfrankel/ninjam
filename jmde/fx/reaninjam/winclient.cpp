@@ -729,6 +729,67 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
   }
 
 }
+#ifdef _MSC_VER
+#include <multimon.h>
+#endif
+#undef GetSystemMetrics
+
+
+void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
+  if (sr) 
+  {
+	  static HINSTANCE hlib;
+    static bool haschk;
+    
+    if (!haschk && !hlib) { hlib=LoadLibrary("user32.dll");haschk=true; }
+
+	  if (hlib) 
+    {
+
+      static HMONITOR (WINAPI *Mfr)(LPCRECT lpcr, DWORD dwFlags);
+      static BOOL (WINAPI *Gmi)(HMONITOR mon, MONITORINFOEX* lpmi);
+
+      if (!Mfr) Mfr = (HMONITOR (WINAPI *)(LPCRECT, DWORD)) GetProcAddress(hlib, "MonitorFromRect");
+      if (!Gmi) Gmi = (BOOL (WINAPI *)(HMONITOR,MONITORINFOEX*)) GetProcAddress(hlib,"GetMonitorInfoA");    
+
+			if (Mfr && Gmi) {
+			  HMONITOR hm;
+			  hm=Mfr(sr,MONITOR_DEFAULTTONULL);
+        if (hm) {
+          MONITORINFOEX mi;
+          memset(&mi,0,sizeof(mi));
+          mi.cbSize=sizeof(mi);
+
+          if (Gmi(hm,&mi)) {
+            if (wantWork)
+              *r=mi.rcWork;
+            else *r=mi.rcMonitor;
+            return;
+          }          
+        }
+			}
+		}
+	}
+  if (wantWork)
+    SystemParametersInfo(SPI_GETWORKAREA,0,r,0);
+  else
+    GetWindowRect(GetDesktopWindow(), r);
+}
+
+static void EnsureNotCompletelyOffscreen(RECT *r)
+{
+  RECT tmp;
+  RECT scr;
+  my_getViewport(&scr, r,false);
+  if (!IntersectRect(&tmp,&scr,r)) 
+  {
+    r->right -= r->left;
+    r->bottom -= r->top;
+    r->left = 0;
+    r->top = 0;
+  }
+}
+
 
 static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -937,6 +998,11 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         
         if (g_last_wndpos.top || g_last_wndpos.left || g_last_wndpos.right || g_last_wndpos.bottom)
         {
+
+
+
+          EnsureNotCompletelyOffscreen(&g_last_wndpos);
+
           SetWindowPos(hwndDlg,NULL,g_last_wndpos.left,g_last_wndpos.top,g_last_wndpos.right-g_last_wndpos.left,g_last_wndpos.bottom-g_last_wndpos.top,SWP_NOZORDER);
         }
         else GetWindowRect(hwndDlg,&g_last_wndpos);
