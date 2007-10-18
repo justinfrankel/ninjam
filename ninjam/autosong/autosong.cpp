@@ -29,6 +29,7 @@
 
 
 #ifndef _WIN32
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
   #ifndef stricmp
@@ -816,7 +817,11 @@ int main(int argc, char **argv)
           }
           newfn.Append(g_mp3out?".mp3":".wav");
 
+#ifdef _WIN32
           MoveFile(m_wavewrite_fn.Get(),newfn.Get());
+#else
+          rename(m_wavewrite_fn.Get(),newfn.Get());
+#endif
           //song_users
         }
         song_users.Empty();
