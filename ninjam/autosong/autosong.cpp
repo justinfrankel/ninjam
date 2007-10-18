@@ -118,7 +118,7 @@ int resolveFile(char *name, WDL_String *outpath, char *path)
   while (*p && *p == '0') p++;
   if (!*p) return 0; // empty name
 
-  char *exts[]={".wav",".ogg"};
+  char *exts[]={".wav",".OGG"};
   WDL_String fnfind;
   int x;
 
