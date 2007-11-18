@@ -141,8 +141,8 @@ public:
 
     m_effect.object=this;
     m_effect.ioRatio=1.0;
-    m_lasttransportpos=-1000.0;
-    m_lastplaytrackpos=-1000.0;
+    m_lasttransportpos=-100000000.0;
+    m_lastplaytrackpos=-100000000.0;
 
     onParmChange();
 
@@ -597,10 +597,10 @@ public:
           _this->m_lasttransportpos=p->ppqPos;
 
         }
-        else _this->m_lasttransportpos=-1000.0;
+        else _this->m_lasttransportpos=-100000000.0;
 
       }
-      else _this->m_lasttransportpos=-1000.0;
+      else _this->m_lasttransportpos=-100000000.0;
 
 
       if (_this->m_lasttransportpos <= _this->m_lastplaytrackpos || _this->m_lasttransportpos > _this->m_lastplaytrackpos + 0.5)
