@@ -136,7 +136,7 @@ public:
 
     m_effect.flags=effFlagsCanReplacing|effFlagsHasEditor;
     m_effect.processReplacing=staticProcessReplacing;//do nothing
-    m_effect.uniqueID='renj';
+    m_effect.uniqueID=CCONST('r','e','n','j');
     m_effect.version=1100;
 
     m_effect.object=this;
