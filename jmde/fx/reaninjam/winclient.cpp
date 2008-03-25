@@ -1228,10 +1228,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       {
         WINDOWPLACEMENT wp={sizeof(wp)};
         GetWindowPlacement(hwndDlg,&wp);
-        g_last_wndpos=wp.rcNormalPosition;
         if (wp.showCmd == SW_SHOWMAXIMIZED) g_last_wndpos_state=1;
         else if (wp.showCmd == SW_MINIMIZE || wp.showCmd == SW_SHOWMINIMIZED) g_last_wndpos_state=-1;
-        else g_last_wndpos_state = 0;
+        else 
+        {
+    #ifdef _WIN32
+          if (IsWindowVisible(hwndDlg) && !IsIconic(hwndDlg) && !IsZoomed(hwndDlg))
+    #endif
+            GetWindowRect(hwndDlg,&g_last_wndpos);
+          g_last_wndpos_state = 0;
+        }
       }
     break;
 
