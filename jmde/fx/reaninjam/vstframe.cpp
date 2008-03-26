@@ -653,38 +653,37 @@ extern "C" {
 
 __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
 {
+  if (g_object_allocated) return 0;
+
   g_hostcb=hostcb;
 
-  char *(*GetExePath)()=0;
   if (hostcb)
   {
     *(long *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"DB2SLIDER",0.0);
     *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"SLIDER2DB",0.0);
     *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetMainHwnd",0.0);
     *(long *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetIconThemePointer",0.0);
-    *(long *)&GetExePath=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetExePath",0.0);
     *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"PluginWantsAlwaysRunFx",0.0);
     *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"RemoveXPStyle",0.0);
     *(long *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"format_timestr_pos",0.0);
     
   }
-  if (!GetExePath||!GetIconThemePointer) return 0;
+  if (!GetMainHwnd || !GetIconThemePointer||!DB2SLIDER||!SLIDER2DB) return 0;
 
   if (!CreateVorbisDecoder || !CreateVorbisEncoder)
   {
-    char buf[4096];
-    strcpy(buf,GetExePath());
-    strcat(buf,"\\plugins\\reaper_ogg.dll");
-    HINSTANCE lib=LoadLibrary(buf);
-    if (lib)
+#define GETAPI(x) *(long *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,#x,0.0);
+    GETAPI(CreateVorbisDecoder)
+    GETAPI(CreateVorbisEncoder)
+
+    if (!CreateVorbisEncoder||!CreateVorbisDecoder)
     {
-      *(void **)&CreateVorbisEncoder=(void*)GetProcAddress(lib,"CreateVorbisEncoder");
-      *(void **)&CreateVorbisDecoder=(void*)GetProcAddress(lib,"CreateVorbisDecoder");
+      // if main window not created, then plugins arent loaded, 
+      // and this means its just a quick scan, so safe to create anyway
+      if (GetMainHwnd()) return 0; 
     }
   }
-  if (!DB2SLIDER||!SLIDER2DB||!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
 
-  if (g_object_allocated) return 0;
 
   g_object_allocated=GetCurrentThreadId();
 
