@@ -1897,11 +1897,13 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
           userchan->dump_samples = ((int) (offs * mediasr))*userchan->ds->decode_codec->GetNumChannels();
           if (userchan->dump_samples<0)userchan->dump_samples=0;
 
+/*
           char buf[512];
           char guidstr[256];
           guidtostr(guid,guidstr);
           sprintf(buf,"at %f got %s %.10f %.10f\n",playPos,guidstr,offs*mediasr,userchan->curds_lenleft*mediasr);
           OutputDebugString(buf);
+          */
           userchan->curds_lenleft += 100/mediasr;
 
         }
@@ -1913,9 +1915,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       }
       else
       {
-        char buf[512];
-        sprintf(buf,"at %f failed (%.10f)\n",playPos,userchan->curds_lenleft);
-        OutputDebugString(buf);
+    //    char buf[512];
+  //      sprintf(buf,"at %f failed (%.10f)\n",playPos,userchan->curds_lenleft);
+//        OutputDebugString(buf);
       }
 
       userchan->curds_lenleft *= mediasr;
@@ -2037,9 +2039,9 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     userchan->curds_lenleft -= needed;
     if (userchan->curds_lenleft<=0)
     {
-      char buf[512];
-      sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
-      OutputDebugString(buf);
+    //  char buf[512];
+  //    sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
+//      OutputDebugString(buf);
     }
   }
 
@@ -2126,8 +2128,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       char s[512];
       guidtostr(chan->guid,s);
 
-      char buf[512];
-      sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
+      //char buf[512];
+      //sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
   #ifdef _WIN32
       OutputDebugString(buf);
   #endif
