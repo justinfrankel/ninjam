@@ -37,6 +37,7 @@
 #define PREF_DIRSTR "/"
 #include "../../../WDL/swell/swell.h"
 #define RemoveDirectory(x) (!rmdir(x))
+#define GetDesktopWindow() ((HWND)0)
 #endif
 
 #include <stdio.h>
@@ -1663,13 +1664,7 @@ void InitializeInstance()
   }
   if (g_client)
   {
-    if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : 
-#ifdef _WIN32
-    GetDesktopWindow()
-    #else
-    0
-  #endif
-    ,MainProc);
+    if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(), MainProc);
   }
 
 }
