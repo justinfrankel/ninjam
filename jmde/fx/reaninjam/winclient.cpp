@@ -24,13 +24,20 @@
   
   */
 
+#ifdef _WIN32
 #include <windows.h>
 #include <windowsx.h>
-int a=WM_ENDSESSION;
+//int a=WM_ENDSESSION;
 #include <richedit.h>
 #include <shlobj.h>
 #include <commctrl.h>
+#define PREF_DIRSTR "\\"
 #define strncasecmp strnicmp
+#else
+#define PREF_DIRSTR "/"
+#include "../../../WDL/swell/swell.h"
+#define RemoveDirectory(x) (!rmdir(x))
+#endif
 
 #include <stdio.h>
 #include <math.h>
@@ -72,6 +79,7 @@ static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 
 
+#define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) 
 { 
@@ -123,7 +131,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
         if (!str[0])
         {
           strcpy(str,g_exepath);
-          strcat(str,"\\NINJAMsessions");
+          strcat(str,PREF_DIRSTR "NINJAMsessions");
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
         }
         else 
@@ -138,6 +146,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
       switch (LOWORD(wParam))
       {
         case IDC_BROWSE:
+        #ifdef _WIN32
           {
             BROWSEINFO bi={0,};
 			      ITEMIDLIST *idlist;
@@ -157,6 +166,9 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 				      SetDlgItemText(hwndDlg,IDC_SESSIONDIR,name);
 			      }
           }
+        #else
+        // todo: macport
+        #endif
         break;
         case IDOK:
           {
@@ -167,7 +179,7 @@ static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
             GetDlgItemText(hwndDlg,IDC_SESSIONDIR,buf,sizeof(buf));
             char str[4096];
             strcpy(str,g_exepath);
-            strcat(str,"\\NINJAMsessions");
+            strcat(str,PREF_DIRSTR "NINJAMsessions");
 
             if (!strcmp(str,buf))
               buf[0]=0;
@@ -364,7 +376,7 @@ static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
     case WM_NOTIFY:
       if (((LPNMHDR)lParam)->idFrom == IDC_LIST1 && (((LPNMHDR)lParam)->code == NM_DBLCLK || ((LPNMHDR)lParam)->code == LVN_ITEMCHANGED))
       {
-        int i = SendDlgItemMessage(hwndDlg,IDC_LIST1,LVM_GETNEXTITEM,-1,LVNI_FOCUSED);
+        int i = ListView_GetNextItem(GetDlgItem(hwndDlg,IDC_LIST1),-1,LVNI_FOCUSED);
         if (i != -1 && !m_httpget)
         {
             char buf1[512];
@@ -551,7 +563,7 @@ static void do_connect()
   if (!sroot[0])
   {
     strcpy(sroot,g_exepath);
-    strcat(sroot,"\\NINJAMsessions");
+    strcat(sroot,PREF_DIRSTR "NINJAMsessions");
   }
 
   {
@@ -572,7 +584,7 @@ static void do_connect()
     buf[0]=0;
 
     strcpy(buf,sroot);
-    sprintf(buf+strlen(buf),"\\%04d%02d%02d_%02d%02d",
+    sprintf(buf+strlen(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
     if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
@@ -728,12 +740,22 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
     if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
   }
 
+      #ifndef _WIN32
+      InvalidateRect(hwndDlg,NULL,FALSE);
+      #endif
 }
 #ifdef _MSC_VER
 #include <multimon.h>
 #endif
 #undef GetSystemMetrics
 
+
+#ifndef _WIN32
+
+void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
+  return SWELL_GetViewPort(r,sr,wantWork);
+}
+#else
 
 void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
   if (sr) 
@@ -775,6 +797,7 @@ void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
   else
     GetWindowRect(GetDesktopWindow(), r);
 }
+#endif
 
 static void EnsureNotCompletelyOffscreen(RECT *r)
 {
@@ -799,21 +822,40 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   static WDL_WndSizer resize;
   switch (uMsg)
   {
+  #ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+  #endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       {
+      #ifdef _WIN32
         {
           HWND h;
           if (GetMainHwnd && (h=GetMainHwnd()))
             SetClassLong(hwndDlg,GCL_HICON,GetClassLong(h,GCL_HICON));
         }
+      #else
+        {
+          HMENU menu=LoadMenu(g_hInst,IDR_MENU1);
+          SetMenu(hwndDlg,menu);
+          HMENU normalFirst=GetMenu(GetMainHwnd());
+          if (normalFirst) normalFirst=GetSubMenu(normalFirst,0);
+          HMENU nm=SWELL_DuplicateMenu(normalFirst);
+          if (nm)
+          {
+            MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,"REAPER"};
+            InsertMenuItem(menu,0,TRUE,&mi);           
+          }
+        } 
+      #endif
         GetWindowRect(hwndDlg,&init_r);
+        if (init_r.bottom < init_r.top) SWAP(init_r.top,init_r.bottom,int);
+        
 
         SetWindowText(hwndDlg,"ReaNINJAM v" VERSION);
         g_hwnd=hwndDlg;
@@ -1005,10 +1047,16 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
           SetWindowPos(hwndDlg,NULL,g_last_wndpos.left,g_last_wndpos.top,g_last_wndpos.right-g_last_wndpos.left,g_last_wndpos.bottom-g_last_wndpos.top,SWP_NOZORDER);
         }
-        else GetWindowRect(hwndDlg,&g_last_wndpos);
+        else 
+        {
+          GetWindowRect(hwndDlg,&g_last_wndpos);
+          if (g_last_wndpos.bottom < g_last_wndpos.top) SWAP(g_last_wndpos.bottom,g_last_wndpos.top,int);
+        }
 
         if (ws > 0) ShowWindow(hwndDlg,SW_SHOWMAXIMIZED);
+        #ifdef _WIN32
         else if (ws < 0) ShowWindow(hwndDlg,SW_SHOWMINIMIZED);
+        #endif
         else ShowWindow(hwndDlg,SW_SHOW);
      
         SetTimer(hwndDlg,1,50,NULL);
@@ -1164,6 +1212,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         GetCursorPos(&p);
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
+         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         if (p.x >= r.left && p.x <= r.right && 
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
@@ -1178,6 +1227,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         ClientToScreen(hwndDlg,&p);
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
+         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         if (p.x >= r.left && p.x <= r.right && 
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
@@ -1226,18 +1276,22 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       }
     case WM_MOVE:
       {
+      
+    #ifdef _WIN32
         WINDOWPLACEMENT wp={sizeof(wp)};
         GetWindowPlacement(hwndDlg,&wp);
         if (wp.showCmd == SW_SHOWMAXIMIZED) g_last_wndpos_state=1;
         else if (wp.showCmd == SW_MINIMIZE || wp.showCmd == SW_SHOWMINIMIZED) g_last_wndpos_state=-1;
         else 
         {
-    #ifdef _WIN32
           if (IsWindowVisible(hwndDlg) && !IsIconic(hwndDlg) && !IsZoomed(hwndDlg))
     #endif
             GetWindowRect(hwndDlg,&g_last_wndpos);
+          if (g_last_wndpos.bottom < g_last_wndpos.top) SWAP(g_last_wndpos.bottom,g_last_wndpos.top,int);
           g_last_wndpos_state = 0;
+    #ifdef _WIN32
         }
+    #endif
       }
     break;
 
@@ -1335,6 +1389,10 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
         break;
+        #ifndef _WIN32
+        case IDC_CHATENT:
+          if (HIWORD(wParam) == EN_CHANGE) return 0;
+        #endif
         case IDC_CHATOK:
           {
             char str[256];
@@ -1430,7 +1488,9 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           DestroyWindow(hwndDlg);
       }
     break;  
+    #ifdef _WIN32
     case WM_ENDSESSION:
+    #endif
     case WM_DESTROY:
 
       g_done=1;
@@ -1548,16 +1608,18 @@ void InitializeInstance()
   if (!first)
   {
     first=1;
+    #ifdef _WIN32
     InitCommonControls();
     CoInitialize(0);
+    #endif
 
     {
       GetModuleFileName(NULL,g_exepath,sizeof(g_exepath));
       char *p=g_exepath;
       while (*p) p++;
-      while (p > g_exepath && *p != '\\') p--; *p=0;
+      while (p > g_exepath && *p != '\\' && *p != '/') p--; *p=0;
       g_ini_file.Set(g_exepath);
-      g_ini_file.Append("\\reaninjam.ini");
+      g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
     }
 
     // read config file
@@ -1574,6 +1636,7 @@ void InitializeInstance()
     }
 
 
+#ifdef _WIN32
     { // load richedit DLL
       WNDCLASS wc={0,};
       if (!LoadLibrary("RichEd20.dll")) LoadLibrary("RichEd32.dll");
@@ -1587,7 +1650,7 @@ void InitializeInstance()
       wc.lpszClassName = "RichEditChild";
       RegisterClass(&wc);
     }
-
+#endif
 
     JNL::open_socketlib();
   }
@@ -1600,7 +1663,13 @@ void InitializeInstance()
   }
   if (g_client)
   {
-    if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : GetDesktopWindow(),MainProc);
+    if (!g_hwnd) g_hwnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_MAIN),GetMainHwnd?GetMainHwnd() : 
+#ifdef _WIN32
+    GetDesktopWindow()
+    #else
+    0
+  #endif
+    ,MainProc);
   }
 
 }

@@ -1,6 +1,10 @@
+#ifdef _WIN32
 #include <windows.h>
-#include <math.h>
 #include <commctrl.h>
+#else
+#include "../../../WDL/swell/swell.h"
+#endif
+#include <math.h>
 #include <stdio.h>
 #include "../../aeffectx.h"
 #include "../../../WDL/mutex.h"
@@ -46,7 +50,7 @@ void InitializeInstance();
 void QuitInstance();
 
 
-void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride=-1); // actually implemented in tracklist.cpp for now
+void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride); // actually implemented in tracklist.cpp for now
 
 
 static double sliderscale_sq(double in, int dir, double n)
@@ -62,6 +66,9 @@ static parameterInfo param_infos[NUM_PARAMS]=
 
 audioMasterCallback g_hostcb;
 
+#ifndef _WIN32
+static HWND customControlCreator(HWND parent, const char *cname, int idx, const char *classname, int style, int x, int y, int w, int h);
+#endif
 
 #include "../../../WDL/db2val.h"
 
@@ -73,6 +80,15 @@ void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, i
 void *(*CreateVorbisDecoder)();
 void (*PluginWantsAlwaysRunFx)(int amt);
 void (*RemoveXPStyle)(HWND hwnd, int rem);
+
+BOOL	(WINAPI *InitializeCoolSB)(HWND hwnd);
+HRESULT (WINAPI *UninitializeCoolSB)(HWND hwnd);
+BOOL (WINAPI *CoolSB_SetVegasStyle)(HWND hwnd, BOOL active);
+int	 (WINAPI *CoolSB_SetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi, BOOL fRedraw);
+BOOL (WINAPI *CoolSB_GetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi);
+int (WINAPI *CoolSB_SetScrollPos)(HWND hwnd, int nBar, int nPos, BOOL fRedraw);
+int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOOL fRedraw);
+BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 
 double NormalizeParm(int parm, double val)
 {
@@ -107,6 +123,8 @@ static void format_parm(int parm, double val, char *ptr)
   sprintf(tmp,"%s%%.%df",(param_infos[parm].minval == USE_DB && val >= 1.0)?"+":"",param_infos[parm].precisiondigits);
   sprintf(ptr,tmp,DenormalizeParm(parm,val));
 }
+
+int g_refcnt;
 
 HINSTANCE g_hInst;
 class VSTEffectClass
@@ -144,6 +162,14 @@ public:
     m_lasttransportpos=-100000000.0;
     m_lastplaytrackpos=-100000000.0;
 
+    if (!g_refcnt++)
+    {
+    #ifndef _WIN32
+      SWELL_RegisterCustomControlCreator(customControlCreator);
+      if (g_hostcb)SWELL_RegisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));      
+    #endif
+    }
+
     onParmChange();
 
     Reset();
@@ -156,6 +182,13 @@ public:
   ~VSTEffectClass()
   {
     if (m_hwndcfg) DestroyWindow(m_hwndcfg);
+    if (!--g_refcnt)
+    {
+    #ifndef _WIN32
+      SWELL_UnregisterCustomControlCreator(customControlCreator);
+      if (g_hostcb)SWELL_UnregisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));
+    #endif
+    }
   }  
 
   int delayAdjust()
@@ -394,6 +427,7 @@ public:
     switch (opCode)
     {
       case effCanDo:
+        if (ptr && !strcmp((char *)ptr,"hasCockosViewAsConfig")) return 0xbeef0000;
         if (ptr && !strcmp((char *)ptr,"hasCockosExtensions")) return 0xbeef0000;
         if (ptr)
         {
@@ -651,7 +685,11 @@ public:
 extern "C" {
 
 
-__declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
+#ifdef _WIN32
+  __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
+#else
+  __attribute__ ((visibility ("default"))) AEffect *VSTPluginMain(audioMasterCallback hostcb)
+#endif
 {
   if (g_object_allocated) return 0;
 
@@ -659,20 +697,31 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
 
   if (hostcb)
   {
-    *(long *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"DB2SLIDER",0.0);
-    *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"SLIDER2DB",0.0);
-    *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetMainHwnd",0.0);
-    *(long *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"GetIconThemePointer",0.0);
-    *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"PluginWantsAlwaysRunFx",0.0);
-    *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"RemoveXPStyle",0.0);
-    *(long *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,"format_timestr_pos",0.0);
+    *((long *)&InitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"InitializeCoolSB",0.0);
+    *((long *)&UninitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"UninitializeCoolSB",0.0);
+    *((long *)&CoolSB_SetVegasStyle) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetVegasStyle",0.0);
+    *((long *)&CoolSB_SetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollInfo",0.0);
+    *((long *)&CoolSB_GetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_GetScrollInfo",0.0);
+    *((long *)&CoolSB_SetScrollPos) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollPos",0.0);
+    *((long *)&CoolSB_SetScrollRange) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollRange",0.0);
+    *((long *)&CoolSB_SetMinThumbSize) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetMinThumbSize",0.0);
+    
+    *(long *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"format_timestr_pos",0.0);
+    *(long *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"DB2SLIDER",0.0);
+    *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SLIDER2DB",0.0);
+    *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetMainHwnd",0.0);
+    *(long *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
+    *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
+#ifdef _WIN32
+    *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"RemoveXPStyle",0.0);
+#endif
     
   }
   if (!GetMainHwnd || !GetIconThemePointer||!DB2SLIDER||!SLIDER2DB) return 0;
 
   if (!CreateVorbisDecoder || !CreateVorbisEncoder)
   {
-#define GETAPI(x) *(long *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,#x,0.0);
+#define GETAPI(x) *(long *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void *)#x,0.0);
     GETAPI(CreateVorbisDecoder)
     GETAPI(CreateVorbisEncoder)
 
@@ -684,7 +733,6 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
     }
   }
 
-
   g_object_allocated=GetCurrentThreadId();
 
   if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
@@ -694,6 +742,7 @@ __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
   return 0;
 }
 
+#ifdef _WIN32
 BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
 {
   if (fdwReason==DLL_PROCESS_ATTACH) 
@@ -702,5 +751,41 @@ BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
   }
   return TRUE;
 }
+#endif
 
 };
+
+
+#define SS_ETCHEDHORZ 0
+#define SS_ETCHEDVERT 0
+#define ES_PASSWORD 0
+
+
+#define SET_IDD_EMPTY_SCROLL_STYLE SWELL_DLG_FLAGS_AUTOGEN|SWELL_DLG_WS_CHILD
+#define SET_IDD_EMPTY_STYLE SWELL_DLG_FLAGS_AUTOGEN|SWELL_DLG_WS_CHILD
+
+
+#ifndef _WIN32 // MAC resources
+#include "../../../WDL/swell/swell-dlggen.h"
+#include "res.rc_mac_dlg"
+#undef BEGIN
+#undef END
+#include "../../../WDL/swell/swell-menugen.h"
+#include "res.rc_mac_menu"
+
+
+static HWND customControlCreator(HWND parent, const char *cname, int idx, const char *classname, int style, int x, int y, int w, int h)
+{
+  if (!stricmp(classname,"RichEditChild"))
+  {
+    if ((style & 0x2800))
+    {
+      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,ES_READONLY|WS_VSCROLL);          
+    }
+    else
+      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,0);          
+  }
+  return 0;
+}
+
+#endif

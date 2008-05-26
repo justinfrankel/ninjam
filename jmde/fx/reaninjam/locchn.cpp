@@ -24,8 +24,23 @@
   */
 
 
+#ifdef _WIN32
 #include <windows.h>
 #include <commctrl.h>
+#else
+#include "../../../WDL/swell/swell.h"
+#endif
+
+#define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
+
+extern BOOL	(WINAPI *InitializeCoolSB)(HWND hwnd);
+extern HRESULT (WINAPI *UninitializeCoolSB)(HWND hwnd);
+extern BOOL (WINAPI *CoolSB_SetVegasStyle)(HWND hwnd, BOOL active);
+extern int	 (WINAPI *CoolSB_SetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi, BOOL fRedraw);
+extern BOOL (WINAPI *CoolSB_GetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi);
+extern int (WINAPI *CoolSB_SetScrollPos)(HWND hwnd, int nBar, int nPos, BOOL fRedraw);
+extern int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOOL fRedraw);
+extern BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 #include <math.h>
 
 #include "winclient.h"
@@ -62,13 +77,15 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_DESTROY:
       delete _this;
     return 0;
+    #ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+  #endif
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);
     case WM_INITDIALOG:
       {
         if (_this)
@@ -431,6 +448,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           SetWindowPos(GetDlgItem(hwndDlg,IDC_ADDCH),NULL,0,h,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
 
           GetWindowRect(GetDlgItem(hwndDlg,IDC_ADDCH),&sz);
+          if (sz.bottom < sz.top) SWAP(sz.bottom,sz.top,int);
           h += sz.bottom - sz.top + 3;
 
           SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
@@ -499,11 +517,13 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
         }        
       }
     break;
+    #ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+    #endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
@@ -526,10 +546,11 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
+        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
+        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r + 1);
         m_wh=r.bottom-r.top;
         m_ww=r.right-r.left;
 
-        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
 
         SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
 
@@ -537,6 +558,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 
         if (uMsg == WM_INITDIALOG)
         {
+          InitializeCoolSB(hwndDlg);
           m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
           ShowWindow(m_child,SW_SHOWNA);
           ShowWindow(hwndDlg,SW_SHOWNA);
@@ -547,6 +569,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
         RECT r;
         GetWindowRect(m_child,&r);
+        if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         m_h=r.bottom-r.top;
         m_w=r.right-r.left;
         m_maxpos_h=m_h-m_wh;
@@ -569,7 +592,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
             ScrollWindow(hwndDlg,0,m_nScrollPos-np,NULL,NULL);
             m_nScrollPos=np;
           }
-          SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
+          CoolSB_SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
         }
 #if 0
         {
@@ -586,7 +609,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
             m_nScrollPos_w=np;
           }
 
-          SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
+          CoolSB_SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
         }
 #endif
       }
@@ -603,12 +626,15 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
           int npos=m_h-m_wh;
           if (npos >= 0 && npos != m_nScrollPos)
           {
-            SetScrollPos(hwndDlg,SB_VERT,npos,TRUE);
+            CoolSB_SetScrollPos(hwndDlg,SB_VERT,npos,TRUE);
             ScrollWindow(hwndDlg,0,m_nScrollPos-npos,NULL,NULL);
             m_nScrollPos=npos;
           }
         }
       }
+      #ifndef _WIN32
+      InvalidateRect(hwndDlg,NULL,FALSE);
+      #endif
 
       // update scrollbars and shit
     return 0;
@@ -652,7 +678,7 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         if (nDelta) 
         {
           m_nScrollPos += nDelta;
-	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
+	        CoolSB_SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
 	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
         }
       }
@@ -693,19 +719,24 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         if (nDelta) 
         {
           m_nScrollPos_w += nDelta;
-	        SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
+	        CoolSB_SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
 	        ScrollWindow(hwndDlg,-nDelta,0,NULL,NULL);
         }
       }
     break; 
 #endif
+#ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+#endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+    case WM_DESTROY:
+      UninitializeCoolSB(hwndDlg);
+    return 0;
   }
   return 0;
 }

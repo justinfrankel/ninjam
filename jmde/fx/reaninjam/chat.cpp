@@ -23,9 +23,13 @@
 
   */
 
+#ifdef _WIN32
 #include <windows.h>
 #include <richedit.h>
 #include <commctrl.h>
+#else
+#include "../../../WDL/swell/swell.h"
+#endif
 #include "winclient.h"
 
 #include "resource.h"
@@ -99,6 +103,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 }
 
 
+#ifdef _WIN32
 WNDPROC chatw_oldWndProc,chate_oldWndProc;
 BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
@@ -116,6 +121,7 @@ BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lPa
   }
   return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
 }
+
 BOOL CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
   if (uMsg == WM_CHAR)
@@ -128,10 +134,13 @@ BOOL CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lPa
   }
   return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
 }
+#endif
 void chatInit(HWND hwndDlg)
 {
+#ifdef _WIN32
   chatw_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATDISP),GWL_WNDPROC,(LONG)chatw_newWndProc);
   chate_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATENT),GWL_WNDPROC,(LONG)chate_newWndProc);
+  #endif
 }
 
 WDL_String m_append_text;
@@ -181,7 +190,9 @@ void chatRun(HWND hwndDlg)
   m_append_mutex.Leave();
 
   if (!tmp.Get()[0]) return;
+  
   HWND m_hwnd=GetDlgItem(hwndDlg,IDC_CHATDISP);
+#ifdef _WIN32
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
   GetScrollInfo(m_hwnd,SB_VERT,&si);
 
@@ -260,4 +271,22 @@ void chatRun(HWND hwndDlg)
     GetScrollInfo(m_hwnd,SB_VERT,&si);
     SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nMax),0);
   }
+#else
+  static WDL_TypedQueue<char> bla;
+  int sz=bla.Available();
+  char *p=bla.Add(tmp.Get(),strlen(tmp.Get())+1);
+  if (sz) p[-1]='\n';
+  
+  sz=bla.Available();
+  if (sz> 4096) 
+  {
+    bla.Advance(sz-4096);  
+    while (bla.Available() > 0 && bla.Get()[0] != '\n') bla.Advance(1);
+    bla.Advance(1);
+    bla.Compact();
+  }
+  if (bla.Available() > 0)
+    SetWindowText(m_hwnd,bla.Get());
+  else SetWindowText(m_hwnd,"");
+#endif
 }

@@ -23,8 +23,12 @@
 
   */
 
+#ifdef _WIN32
 #include <windows.h>
 #include <commctrl.h>
+#else
+#include "../../../WDL/swell/swell.h"
+#endif
 #include <math.h>
 
 #include "winclient.h"

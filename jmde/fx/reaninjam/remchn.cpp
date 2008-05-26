@@ -23,15 +23,33 @@
 
   */
 
+#ifdef _WIN32
 #include <windows.h>
 #include <commctrl.h>
+#else
+#include "../../../WDL/swell/swell.h"
+#endif
+
+#define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
+
+
+extern BOOL	(WINAPI *InitializeCoolSB)(HWND hwnd);
+extern HRESULT (WINAPI *UninitializeCoolSB)(HWND hwnd);
+extern BOOL (WINAPI *CoolSB_SetVegasStyle)(HWND hwnd, BOOL active);
+extern int	 (WINAPI *CoolSB_SetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi, BOOL fRedraw);
+extern BOOL (WINAPI *CoolSB_GetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi);
+extern int (WINAPI *CoolSB_SetScrollPos)(HWND hwnd, int nBar, int nPos, BOOL fRedraw);
+extern int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOOL fRedraw);
+extern BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
+
+
 #include <math.h>
 
 #include "winclient.h"
 
 #include "resource.h"
 
-extern void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride=-1); // actually implemented in tracklist.cpp for now
+extern void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride); // actually implemented in tracklist.cpp for now
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 
@@ -49,11 +67,13 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
   int m_user=-1-GetWindowLong(hwndDlg,GWL_USERDATA);
   switch (uMsg)
   {
+#ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+#endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_RCUSER_UPDATE: // update the items
@@ -79,13 +99,13 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         char buf[512];          
         if ((d>-0.5||mp>-0.5))
         {
-          if (d>-0.5&&t > time(NULL)-7) format_timestr_pos(d,buf,sizeof(buf));
+          if (d>-0.5&&t > time(NULL)-7) format_timestr_pos(d,buf,sizeof(buf),-1);
           else strcpy(buf,"---");
 
           if (mp > -0.5)
           {
             strcat(buf," / ");
-            format_timestr_pos(mp,buf+strlen(buf),sizeof(buf)-strlen(buf)-32);
+            format_timestr_pos(mp,buf+strlen(buf),sizeof(buf)-strlen(buf)-32,-1);
           }
           SetDlgItemText(hwndDlg,IDC_SESSIONINFO,buf);
         }
@@ -122,11 +142,13 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
   int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
+  #ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+  #endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
@@ -362,14 +384,15 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
             RECT r;
             GetWindowRect(h,&r);
             ScreenToClient(hwndDlg,(LPPOINT)&r);
+            ScreenToClient(hwndDlg,((LPPOINT)&r) + 1);
             if (r.top != lastr.bottom) 
             {
               SetWindowPos(h,0, 0,lastr.bottom, 0,0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
               GetWindowRect(h,&lastr);
+              ScreenToClient(hwndDlg,(LPPOINT)&lastr);
+              ScreenToClient(hwndDlg,((LPPOINT)&lastr) + 1);
             }
             else lastr=r;
-
-            ScreenToClient(hwndDlg,(LPPOINT)&lastr + 1);
 
             pos++;
           }
@@ -395,14 +418,17 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
             RECT r;
             GetWindowRect(h,&r);
             ScreenToClient(hwndDlg,(LPPOINT)&r);
+            ScreenToClient(hwndDlg,((LPPOINT)&r)+1);
             if (r.top != lastr.bottom) 
             {
               SetWindowPos(h,0,0,lastr.bottom,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
               GetWindowRect(h,&lastr);
+              ScreenToClient(hwndDlg,(LPPOINT)&lastr);
+              ScreenToClient(hwndDlg,((LPPOINT)&lastr)+1);
             }
             else lastr=r;
+            
             SendMessage(h,WM_RCUSER_UPDATE,(WPARAM)us,(LPARAM)i);
-            ScreenToClient(hwndDlg,(LPPOINT)&lastr + 1);
       
             pos++;
           }
@@ -425,11 +451,13 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
       }
       // update channel list, creating and destroying window as necessary
     break;
+ #ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+  #endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
   }
@@ -452,10 +480,11 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_REMOTERECT),&r);
+        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
+        ScreenToClient(GetParent(hwndDlg),((LPPOINT)&r)+1);
         m_wh=r.bottom-r.top;
         m_ww=r.right-r.left;
 
-        ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r);
 
         SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
 
@@ -463,6 +492,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 
         if (uMsg == WM_INITDIALOG)
         {
+          InitializeCoolSB(hwndDlg);
           m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,RemoteChannelListProc);
           ShowWindow(m_child,SW_SHOWNA);
           ShowWindow(hwndDlg,SW_SHOWNA);
@@ -473,6 +503,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
         RECT r;
         GetWindowRect(m_child,&r);
+        if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         m_h=r.bottom-r.top;
         m_w=r.right-r.left;
         m_maxpos_h=m_h-m_wh;
@@ -495,7 +526,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
             ScrollWindow(hwndDlg,0,m_nScrollPos-np,NULL,NULL);
             m_nScrollPos=np;
           }
-          SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
+          CoolSB_SetScrollInfo(hwndDlg,SB_VERT,&si,TRUE);
         }
 #if 0
         {
@@ -512,10 +543,13 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
             m_nScrollPos_w=np;
           }
 
-          SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
+          CoolSB_SetScrollInfo(hwndDlg,SB_HORZ,&si,TRUE);
         }
 #endif
       }
+      #ifndef _WIN32
+      InvalidateRect(hwndDlg,NULL,FALSE);
+      #endif
 
       // update scrollbars and shit
     return 0;
@@ -557,7 +591,7 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (nDelta) 
         {
           m_nScrollPos += nDelta;
-	        SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
+	        CoolSB_SetScrollPos(hwndDlg,SB_VERT,m_nScrollPos,TRUE);
 	        ScrollWindow(hwndDlg,0,-nDelta,NULL,NULL);
         }
       }
@@ -598,19 +632,25 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (nDelta) 
         {
           m_nScrollPos_w += nDelta;
-	        SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
+	        CoolSB_SetScrollPos(hwndDlg,SB_HORZ,m_nScrollPos_w,TRUE);
 	        ScrollWindow(hwndDlg,-nDelta,0,NULL,NULL);
         }
       }
     break; 
 #endif
+#ifdef _WIN32
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+#endif
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+    case WM_DESTROY:
+      UninitializeCoolSB(hwndDlg);
+    break;
+
   }
   return 0;
 }
