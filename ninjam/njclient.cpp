@@ -2130,9 +2130,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
       //char buf[512];
       //sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
-  #ifdef _WIN32
-      OutputDebugString(buf);
-  #endif
+//      OutputDebugString(buf);
     }
 
     if (!llmode&&!sessionmode)
