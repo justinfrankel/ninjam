@@ -756,6 +756,9 @@ BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
 };
 
 
+
+#ifndef _WIN32 // MAC resources
+
 #define SS_ETCHEDHORZ 0
 #define SS_ETCHEDVERT 0
 #define ES_PASSWORD 0
@@ -765,7 +768,6 @@ BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
 #define SET_IDD_EMPTY_STYLE SWELL_DLG_FLAGS_AUTOGEN|SWELL_DLG_WS_CHILD
 
 
-#ifndef _WIN32 // MAC resources
 #include "../../../WDL/swell/swell-dlggen.h"
 #include "res.rc_mac_dlg"
 #undef BEGIN
