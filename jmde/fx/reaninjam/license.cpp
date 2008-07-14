@@ -35,7 +35,7 @@
 
 #include "resource.h"
 
-static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {

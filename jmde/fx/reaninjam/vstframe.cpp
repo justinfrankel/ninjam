@@ -231,7 +231,7 @@ public:
   }
 
 
-  BOOL WINAPI CfgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  WDL_DLGRET CfgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
     static int m_ignore_editmsg;
     switch (uMsg)
@@ -414,7 +414,7 @@ public:
     return 0;
   }
 
-  static BOOL WINAPI dlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  static WDL_DLGRET dlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
     if (uMsg == WM_INITDIALOG) SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
     VSTEffectClass *_this = (VSTEffectClass *)GetWindowLong(hwndDlg,GWL_USERDATA);

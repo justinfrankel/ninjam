@@ -53,7 +53,7 @@ extern void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeov
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 
-static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
@@ -137,7 +137,7 @@ static BOOL WINAPI RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
   return 0;
 }
 
-static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
@@ -328,7 +328,7 @@ static BOOL WINAPI RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 }
 
 
-static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_PtrList<struct HWND__> m_children;
   switch (uMsg)
@@ -466,7 +466,7 @@ static BOOL WINAPI RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
 
 
 
-BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
   static int m_h, m_maxpos_h, m_w,m_maxpos_w; 

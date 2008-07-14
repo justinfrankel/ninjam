@@ -116,7 +116,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 
 
 
-static BOOL WINAPI PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
@@ -313,7 +313,7 @@ static void getServerList_step(HWND hwnd)
   }
 }
 
-static BOOL WINAPI ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
@@ -815,7 +815,7 @@ static void EnsureNotCompletelyOffscreen(RECT *r)
 }
 
 
-static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static RECT init_r;
   static int cap_mode;

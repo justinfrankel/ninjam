@@ -105,7 +105,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 
 #ifdef _WIN32
 WNDPROC chatw_oldWndProc,chate_oldWndProc;
-BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
+LRESULT CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
   if (uMsg == WM_CHAR)
   {
@@ -122,7 +122,7 @@ BOOL CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lPa
   return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
 }
 
-BOOL CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
+LRESULT CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
 {
   if (uMsg == WM_CHAR)
   {

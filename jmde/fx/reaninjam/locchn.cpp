@@ -64,7 +64,7 @@ public:
   WDL_WndSizer wndsizer;
 };
 
-static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   if (uMsg == WM_INITDIALOG) 
   {
@@ -386,7 +386,7 @@ static BOOL WINAPI LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
 
 
-static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static int m_num_children;
   switch (uMsg)
@@ -532,7 +532,7 @@ static BOOL WINAPI LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
 
 
-BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
   static int m_h, m_maxpos_h, m_w,m_maxpos_w; 
