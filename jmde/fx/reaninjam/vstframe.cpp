@@ -416,12 +416,12 @@ public:
 
   static WDL_DLGRET dlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
-    if (uMsg == WM_INITDIALOG) SetWindowLong(hwndDlg,GWL_USERDATA,lParam);
-    VSTEffectClass *_this = (VSTEffectClass *)GetWindowLong(hwndDlg,GWL_USERDATA);
+    if (uMsg == WM_INITDIALOG) SetWindowLongPtr(hwndDlg,GWLP_USERDATA,lParam);
+    VSTEffectClass *_this = (VSTEffectClass *)GetWindowLongPtr(hwndDlg,GWLP_USERDATA);
     return _this->CfgProc(hwndDlg,uMsg,wParam,lParam);
   } 
 
-  static long VSTCALLBACK staticDispatcher(AEffect *effect, long opCode, long index, long value, void *ptr, float opt)
+  static VstIntPtr VSTCALLBACK staticDispatcher(AEffect *effect, VstInt32 opCode, VstInt32 index, VstIntPtr value, void *ptr, float opt)
   {
     VSTEffectClass *_this = (VSTEffectClass *)effect->object;
     switch (opCode)
@@ -511,7 +511,7 @@ public:
         {
           if (_this->m_hwndcfg) DestroyWindow(_this->m_hwndcfg);
 
-          return !!CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_VSTCFG),(HWND)ptr,dlgProc,(long)_this);
+          return !!CreateDialogParam(g_hInst,MAKEINTRESOURCE(IDD_VSTCFG),(HWND)ptr,dlgProc,(LPARAM)_this);
         }
       return 0;
       case effEditClose:
@@ -601,7 +601,7 @@ public:
   }
   short cfgRect[4];
   
-	static void VSTCALLBACK staticProcessReplacing(AEffect *effect, SAMPLETYPE **inputs, SAMPLETYPE **outputs, long sampleframes)
+	static void VSTCALLBACK staticProcessReplacing(AEffect *effect, SAMPLETYPE **inputs, SAMPLETYPE **outputs, VstInt32 sampleframes)
   {
     VSTEffectClass *_this=(VSTEffectClass *)effect->object;
     if (_this)
@@ -647,13 +647,13 @@ public:
     }
   }
 
-	static void VSTCALLBACK staticProcess(AEffect *effect, float **inputs, float **outputs, long sampleframes)
+	static void VSTCALLBACK staticProcess(AEffect *effect, float **inputs, float **outputs, VstInt32 sampleframes)
   {
 
   }
 
 
-	static void VSTCALLBACK staticSetParameter(AEffect *effect, long index, float parameter)
+	static void VSTCALLBACK staticSetParameter(AEffect *effect, VstInt32 index, float parameter)
   {
     VSTEffectClass *_this = (VSTEffectClass *)effect->object;
     if (!_this || index < 0 || index >= NUM_PARAMS) return;
@@ -663,7 +663,7 @@ public:
     _this->configChanged|=1<<index;
   }
 
-	static float VSTCALLBACK staticGetParameter(AEffect *effect, long index)
+	static float VSTCALLBACK staticGetParameter(AEffect *effect, VstInt32 index)
   {
     VSTEffectClass *_this = (VSTEffectClass *)effect->object;
     if (!_this || index < 0 || index >= NUM_PARAMS) return 0.0;
@@ -697,23 +697,23 @@ extern "C" {
 
   if (hostcb)
   {
-    *((long *)&InitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"InitializeCoolSB",0.0);
-    *((long *)&UninitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"UninitializeCoolSB",0.0);
-    *((long *)&CoolSB_SetVegasStyle) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetVegasStyle",0.0);
-    *((long *)&CoolSB_SetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollInfo",0.0);
-    *((long *)&CoolSB_GetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_GetScrollInfo",0.0);
-    *((long *)&CoolSB_SetScrollPos) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollPos",0.0);
-    *((long *)&CoolSB_SetScrollRange) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollRange",0.0);
-    *((long *)&CoolSB_SetMinThumbSize) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetMinThumbSize",0.0);
+    *((VstIntPtr *)&InitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"InitializeCoolSB",0.0);
+    *((VstIntPtr *)&UninitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"UninitializeCoolSB",0.0);
+    *((VstIntPtr *)&CoolSB_SetVegasStyle) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetVegasStyle",0.0);
+    *((VstIntPtr *)&CoolSB_SetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollInfo",0.0);
+    *((VstIntPtr *)&CoolSB_GetScrollInfo) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_GetScrollInfo",0.0);
+    *((VstIntPtr *)&CoolSB_SetScrollPos) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollPos",0.0);
+    *((VstIntPtr *)&CoolSB_SetScrollRange) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetScrollRange",0.0);
+    *((VstIntPtr *)&CoolSB_SetMinThumbSize) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetMinThumbSize",0.0);
     
-    *(long *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"format_timestr_pos",0.0);
-    *(long *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"DB2SLIDER",0.0);
-    *(long *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SLIDER2DB",0.0);
-    *(long *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetMainHwnd",0.0);
-    *(long *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
-    *(long *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
+    *(VstIntPtr *)&format_timestr_pos = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"format_timestr_pos",0.0);
+    *(VstIntPtr *)&DB2SLIDER=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"DB2SLIDER",0.0);
+    *(VstIntPtr *)&SLIDER2DB=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SLIDER2DB",0.0);
+    *(VstIntPtr *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetMainHwnd",0.0);
+    *(VstIntPtr *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
+    *(VstIntPtr *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
 #ifdef _WIN32
-    *(long *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"RemoveXPStyle",0.0);
+    *(VstIntPtr *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"RemoveXPStyle",0.0);
 #endif
     
   }
@@ -721,7 +721,7 @@ extern "C" {
 
   if (!CreateVorbisDecoder || !CreateVorbisEncoder)
   {
-#define GETAPI(x) *(long *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void *)#x,0.0);
+#define GETAPI(x) *(VstIntPtr *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void *)#x,0.0);
     GETAPI(CreateVorbisDecoder)
     GETAPI(CreateVorbisEncoder)
 

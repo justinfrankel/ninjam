@@ -58,13 +58,13 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   switch (uMsg)
   {
     case WM_RCUSER_UPDATE:
-      SetWindowLong(hwndDlg,GWL_USERDATA,-1 - wParam);
+      SetWindowLongPtr(hwndDlg,GWLP_USERDATA,-1 - wParam);
     break;
     case WM_INITDIALOG:
-      SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
+      SetWindowLongPtr(hwndDlg,GWLP_USERDATA,0x0fffffff);
     break;
   }
-  int m_user=-1-GetWindowLong(hwndDlg,GWL_USERDATA);
+  int m_user=-1-GetWindowLongPtr(hwndDlg,GWLP_USERDATA);
   switch (uMsg)
   {
 #ifdef _WIN32
@@ -139,7 +139,7 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
 static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  int m_userch=GetWindowLong(hwndDlg,GWL_USERDATA); // high 16 bits, user, low 16 bits, channel
+  int m_userch=GetWindowLongPtr(hwndDlg,GWLP_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
   #ifdef _WIN32
@@ -152,7 +152,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
-      SetWindowLong(hwndDlg,GWL_USERDATA,0x0fffffff);
+      SetWindowLongPtr(hwndDlg,GWLP_USERDATA,0x0fffffff);
 
 //      SendDlgItemMessage(hwndDlg,IDC_VU,PBM_SETRANGE,0,MAKELPARAM(0,100));
 
@@ -171,7 +171,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     return 0;
     case WM_RCUSER_UPDATE:
       m_userch=((int)LOWORD(wParam) << 16) | LOWORD(lParam);
-      SetWindowLong(hwndDlg,GWL_USERDATA,m_userch);
+      SetWindowLongPtr(hwndDlg,GWLP_USERDATA,m_userch);
     break;
   }
   int user=m_userch>>16;
@@ -366,7 +366,7 @@ static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
           {
             HWND h=NULL;
 
-            if (pos < m_children.GetSize() && GetWindowLong(h=m_children.Get(pos),GWL_USERDATA) < 0)
+            if (pos < m_children.GetSize() && GetWindowLongPtr(h=m_children.Get(pos),GWLP_USERDATA) < 0)
             {
               // this is our wnd
             }
@@ -403,7 +403,7 @@ static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             int i=g_client->EnumUserChannels(us,ch++);
             if (i < 0) break;
             HWND h=NULL;
-            if (pos < m_children.GetSize() && GetWindowLong(h=m_children.Get(pos),GWL_USERDATA) >= 0)
+            if (pos < m_children.GetSize() && GetWindowLongPtr(h=m_children.Get(pos),GWLP_USERDATA) >= 0)
             {
             }
             else

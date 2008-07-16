@@ -138,8 +138,8 @@ LRESULT CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM 
 void chatInit(HWND hwndDlg)
 {
 #ifdef _WIN32
-  chatw_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATDISP),GWL_WNDPROC,(LONG)chatw_newWndProc);
-  chate_oldWndProc=(WNDPROC) SetWindowLong(GetDlgItem(hwndDlg,IDC_CHATENT),GWL_WNDPROC,(LONG)chate_newWndProc);
+  chatw_oldWndProc=(WNDPROC) SetWindowLongPtr(GetDlgItem(hwndDlg,IDC_CHATDISP),GWLP_WNDPROC,(INT_PTR)chatw_newWndProc);
+  chate_oldWndProc=(WNDPROC) SetWindowLongPtr(GetDlgItem(hwndDlg,IDC_CHATENT),GWLP_WNDPROC,(INT_PTR)chate_newWndProc);
   #endif
 }
 

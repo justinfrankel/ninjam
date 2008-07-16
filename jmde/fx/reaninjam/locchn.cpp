@@ -68,9 +68,9 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 {
   if (uMsg == WM_INITDIALOG) 
   {
-    SetWindowLong(hwndDlg,GWL_USERDATA,(long)new LocalChannelRec(lParam));
+    SetWindowLongPtr(hwndDlg,GWLP_USERDATA,(INT_PTR)new LocalChannelRec(lParam));
   }
-  LocalChannelRec *_this = (LocalChannelRec*)GetWindowLong(hwndDlg,GWL_USERDATA);
+  LocalChannelRec *_this = (LocalChannelRec*)GetWindowLongPtr(hwndDlg,GWLP_USERDATA);
   int m_idx=_this?_this->m_idx:0;
   switch (uMsg)
   {
@@ -508,7 +508,7 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         GetClientRect(hwndDlg,&r2);
         while (hwnd && n--)
         {
-          if (GetWindowLong(hwnd,GWL_USERDATA))
+          if (GetWindowLongPtr(hwnd,GWLP_USERDATA))
           {
             GetClientRect(hwnd,&r);
             SetWindowPos(hwnd,0,0,0,r2.right,r.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
