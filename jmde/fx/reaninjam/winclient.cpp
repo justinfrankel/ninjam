@@ -150,7 +150,7 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         #ifdef _WIN32
           {
             BROWSEINFO bi={0,};
-			      ITEMIDLIST *idlist;
+			      LPITEMIDLIST idlist;
 			      char name[2048];
 			      GetDlgItemText(hwndDlg,IDC_SESSIONDIR,name,sizeof(name));
 			      bi.hwndOwner = hwndDlg;
