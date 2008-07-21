@@ -44,7 +44,7 @@
 				MkTypLibCompatible="true"
 				SuppressStartupBanner="true"
 				TargetEnvironment="1"
-				TypeLibraryName=".\Release/reaninjam-x64.tlb"
+				TypeLibraryName=".\Release64/reaninjam-x64.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -57,10 +57,10 @@
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\Release/reaninjam-x64.pch"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
+				PrecompiledHeaderFile=".\Release64/reaninjam-x64.pch"
+				AssemblerListingLocation=".\Release64/"
+				ObjectFile=".\Release64/"
+				ProgramDataBaseFileName=".\Release64/"
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="true"
 			/>
@@ -81,9 +81,9 @@
 				OutputFile="../../Release64/plugins/fx/reaninjam.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				ProgramDatabaseFile=".\Release/reaninjam.pdb"
+				ProgramDatabaseFile=".\Release64/reaninjam.pdb"
 				OptimizeForWindows98="1"
-				ImportLibrary=".\Release/reaninjam.lib"
+				ImportLibrary=".\Release64/reaninjam.lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -98,7 +98,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\Release/reaninjam-x64.bsc"
+				OutputFile=".\Release64/reaninjam-x64.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -141,7 +141,7 @@
 				MkTypLibCompatible="true"
 				SuppressStartupBanner="true"
 				TargetEnvironment="1"
-				TypeLibraryName=".\Debug/reaninjam-x64.tlb"
+				TypeLibraryName=".\Debug64/reaninjam-x64.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -153,10 +153,10 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\Debug/reaninjam-x64.pch"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
+				PrecompiledHeaderFile=".\Debug64/reaninjam-x64.pch"
+				AssemblerListingLocation=".\Debug64/"
+				ObjectFile=".\Debug64/"
+				ProgramDataBaseFileName=".\Debug64/"
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
@@ -179,8 +179,8 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\Debug/reaninjam.pdb"
-				ImportLibrary=".\Debug/reaninjam.lib"
+				ProgramDatabaseFile=".\Debug64/reaninjam.pdb"
+				ImportLibrary=".\Debug64/reaninjam.lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -195,7 +195,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\Debug/reaninjam-x64.bsc"
+				OutputFile=".\Debug64/reaninjam-x64.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -238,7 +238,7 @@
 				MkTypLibCompatible="true"
 				SuppressStartupBanner="true"
 				TargetEnvironment="3"
-				TypeLibraryName=".\Release/reaninjam-x64.tlb"
+				TypeLibraryName=".\Release64/reaninjam-x64.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -251,10 +251,10 @@
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\Release/reaninjam-x64.pch"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
+				PrecompiledHeaderFile=".\Release64/reaninjam-x64.pch"
+				AssemblerListingLocation=".\Release64/"
+				ObjectFile=".\Release64/"
+				ProgramDataBaseFileName=".\Release64/"
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="true"
 			/>
@@ -275,9 +275,9 @@
 				OutputFile="../../Release64/plugins/fx/reaninjam.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				ProgramDatabaseFile=".\Release/reaninjam.pdb"
+				ProgramDatabaseFile=".\Release64/reaninjam.pdb"
 				OptimizeForWindows98="1"
-				ImportLibrary=".\Release/reaninjam.lib"
+				ImportLibrary=".\Release64/reaninjam.lib"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -292,7 +292,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\Release/reaninjam-x64.bsc"
+				OutputFile=".\Release64/reaninjam-x64.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -335,7 +335,7 @@
 				MkTypLibCompatible="true"
 				SuppressStartupBanner="true"
 				TargetEnvironment="3"
-				TypeLibraryName=".\Debug/reaninjam-x64.tlb"
+				TypeLibraryName=".\Debug64/reaninjam-x64.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -347,10 +347,10 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\Debug/reaninjam-x64.pch"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
+				PrecompiledHeaderFile=".\Debug64/reaninjam-x64.pch"
+				AssemblerListingLocation=".\Debug64/"
+				ObjectFile=".\Debug64/"
+				ProgramDataBaseFileName=".\Debug64/"
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
@@ -373,8 +373,8 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\Debug/reaninjam.pdb"
-				ImportLibrary=".\Debug/reaninjam.lib"
+				ProgramDatabaseFile=".\Debug64/reaninjam.pdb"
+				ImportLibrary=".\Debug64/reaninjam.lib"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -389,7 +389,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\Debug/reaninjam-x64.bsc"
+				OutputFile=".\Debug64/reaninjam-x64.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
