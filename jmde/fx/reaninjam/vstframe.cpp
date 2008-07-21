@@ -686,7 +686,11 @@ extern "C" {
 
 
 #ifdef _WIN32
-  __declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
+#ifndef _WIN64
+__declspec(dllexport) AEffect *main(audioMasterCallback hostcb)
+#else
+__declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
+#endif
 #else
   __attribute__ ((visibility ("default"))) AEffect *VSTPluginMain(audioMasterCallback hostcb)
 #endif

@@ -838,7 +838,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         {
           HWND h;
           if (GetMainHwnd && (h=GetMainHwnd()))
-            SetClassLong(hwndDlg,GCL_HICON,GetClassLong(h,GCL_HICON));
+            SetClassLongPtr(hwndDlg,GCLP_HICON,GetClassLongPtr(h,GCLP_HICON));
         }
       #else
         {
