@@ -58,7 +58,7 @@ STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU |
 EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "ReaNINJAM v0.666"
 MENU IDR_MENU1
-FONT 8, "MS Shell Dlg", 0, 0, 0x1
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Master: ",IDC_STATIC,2,4,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,44,2,
@@ -80,7 +80,7 @@ BEGIN
     CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,4,110,213,66
     CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
-                    0xc4,4,178,213,14
+                    0xc4,4,178,186,14
     CONTROL         "",IDC_LOCRECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,4,
                     46,213,49
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
@@ -99,6 +99,7 @@ BEGIN
                     12,11
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
                     12,11
+    PUSHBUTTON      "Send",IDC_CHATOK,192,178,25,14
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236

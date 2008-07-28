@@ -892,6 +892,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
         resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  1.0f,  1.0f);
         resize.init_item(IDC_CHATENT,      0.0f, 1.0f,  1.0f,  1.0f);
+        resize.init_item(IDC_CHATOK, 1,1,1,1);
         
 
         resize.init_item(IDC_LOCRECT,     0.0f, 0.0f,  1.0f,  loc_ratio);
