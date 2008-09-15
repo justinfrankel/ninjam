@@ -26,8 +26,7 @@
 #define NUM_INPUTS 8
 #define NUM_OUTPUTS 2
 
-#define NUM_PARAMS 0
-#define PARM_COMP 0
+#define NUM_PARAMS 1
 
 #define USE_BOOL -1000.0
 #define USE_DB -10000.0
@@ -59,9 +58,9 @@ static double sliderscale_sq(double in, int dir, double n)
   return (pow(in * pow(1000.0,n-1),1/n));
 }
 
-static parameterInfo param_infos[1 /*NUM_PARAMS*/]=
+static parameterInfo param_infos[NUM_PARAMS]=
 {
- 0,
+  {1.0, "Dummy","",0.0,0.0,1024+60.0,0,0,0},
 };
 
 audioMasterCallback g_hostcb;
@@ -191,16 +190,7 @@ public:
     }
   }  
 
-  int delayAdjust()
-  {
-    int ret=(int) DenormalizeParm(PARM_COMP,m_parms[PARM_COMP]);
-    if (ret<0)ret=0;
-    if (ret>200000) ret=200000;
-    return ret;
-
-    
-  }
-
+  
   void Reset()
   {
     m_effect.initialDelay = 0;
@@ -674,7 +664,7 @@ public:
   HWND m_hwndcfg;
   double m_samplerate;
   AEffect m_effect;
-  double m_parms[1 /*NUM_PARAMS*/];
+  double m_parms[NUM_PARAMS];
   WDL_Mutex m_mutex;
 
   double m_lasttransportpos,m_lastplaytrackpos;
