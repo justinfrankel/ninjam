@@ -90,7 +90,7 @@ class Net_Connection
     }
     ~Net_Connection();
 
-    void attach(JNL_Connection *con) 
+    void attach(JNL_IConnection *con) 
     {
       m_con=con; 
     }
@@ -98,7 +98,7 @@ class Net_Connection
     Net_Message *Run(int *wantsleep=0);
     int Send(Net_Message *msg); // -1 on error, i.e. queue full
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
-    JNL_Connection *GetConnection() { return m_con; }
+    JNL_IConnection *GetConnection() { return m_con; }
 
     void SetKeepAlive(int interval)
     {
@@ -119,7 +119,7 @@ class Net_Connection
     int m_recvstate;
     Net_Message *m_recvmsg;
 
-    JNL_Connection *m_con;
+    JNL_IConnection *m_con;
     WDL_Queue m_sendq;
 
 

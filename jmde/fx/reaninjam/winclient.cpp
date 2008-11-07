@@ -1599,6 +1599,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       m_locwnd=m_remwnd=0;
       g_audio_enable=0;
 
+      JNL::close_socketlib();
     return 0;
   }
   return 0;
@@ -1653,11 +1654,10 @@ void InitializeInstance()
       RegisterClass(&wc);
     }
 #endif
-
-    JNL::open_socketlib();
   }
   if (!g_client)
   {
+    JNL::open_socketlib();
     g_client = new NJClient;
 
     g_client->LicenseAgreementCallback = licensecallback;
@@ -1681,6 +1681,7 @@ void QuitInstance()
       g_hwnd=0;
       delete g_client;
       g_client=0;
+      JNL::close_socketlib();
     }
     g_done=0;
     m_locwnd=m_remwnd=0;
