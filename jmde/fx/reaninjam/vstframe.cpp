@@ -563,10 +563,10 @@ public:
           RECT r;
           if (_this->m_hwndcfg) GetClientRect(_this->m_hwndcfg,&r);
           else {r.left=r.top=0; r.right=400; r.bottom=300; }
-          _this->cfgRect[0]=r.top;
-          _this->cfgRect[1]=r.left;
-          _this->cfgRect[2]=r.bottom;
-          _this->cfgRect[3]=r.right;
+          _this->cfgRect[0]=(short)r.top;
+          _this->cfgRect[1]=(short)r.left;
+          _this->cfgRect[2]=(short)r.bottom;
+          _this->cfgRect[3]=(short)r.right;
 
           *(void **)ptr = _this->cfgRect;
 
