@@ -4,6 +4,7 @@
 	Version="8.00"
 	Name="reaninjam"
 	ProjectGUID="{49F2387D-990E-4B1B-B845-F56E4D77CEE1}"
+	RootNamespace="reaninjam"
 	>
 	<Platforms>
 		<Platform
@@ -178,6 +179,8 @@
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				ProgramDatabaseFile=".\Release64/reaninjam.pdb"
+				GenerateMapFile="true"
+				MapFileName=".\Release64/reasomething.map"
 				OptimizeForWindows98="1"
 				ImportLibrary=".\Release64/reaninjam.lib"
 				TargetMachine="17"
