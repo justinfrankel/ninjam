@@ -840,7 +840,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         }
       #else
         {
-          HMENU menu=LoadMenu(g_hInst,IDR_MENU1);
+          HMENU menu=LoadMenu(g_hInst,MAKEINTRESOURCE(IDR_MENU1));
           SetMenu(hwndDlg,menu);
           HMENU normalFirst=GetMenu(GetMainHwnd());
           if (normalFirst) normalFirst=GetSubMenu(normalFirst,0);
