@@ -80,6 +80,8 @@ void *(*CreateVorbisDecoder)();
 void (*PluginWantsAlwaysRunFx)(int amt);
 void (*RemoveXPStyle)(HWND hwnd, int rem);
 
+void (*GetProjectPath)(char *buf, int bufsz);
+const char *(*get_ini_file)();
 BOOL	(WINAPI *InitializeCoolSB)(HWND hwnd);
 HRESULT (WINAPI *UninitializeCoolSB)(HWND hwnd);
 BOOL (WINAPI *CoolSB_SetVegasStyle)(HWND hwnd, BOOL active);
@@ -690,6 +692,9 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
 
   if (hostcb)
   {
+    *((VstIntPtr *)&get_ini_file) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"get_ini_file",0.0);
+    *((VstIntPtr *)&GetProjectPath) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetProjectPath",0.0);
+    
     *((VstIntPtr *)&InitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"InitializeCoolSB",0.0);
     *((VstIntPtr *)&UninitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"UninitializeCoolSB",0.0);
     *((VstIntPtr *)&CoolSB_SetVegasStyle) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"CoolSB_SetVegasStyle",0.0);

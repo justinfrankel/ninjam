@@ -53,7 +53,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.11"
+#define VERSION "0.12"
 
 #define CONFSEC "ninjam"
 
@@ -62,6 +62,8 @@ extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 
 WDL_String g_ini_file;
+static char g_inipath[1024]; 
+
 WDL_Mutex g_client_mutex;
 NJClient *g_client;
 int g_done;
@@ -71,7 +73,6 @@ WDL_String g_topic;
 static HINSTANCE jesus_hDllInst;
 HWND g_hwnd;
 static HANDLE g_hThread;
-static char g_exepath[1024];
 static HWND m_locwnd,m_remwnd;
 static int g_audio_enable=0;
 static WDL_String g_connect_user,g_connect_pass,g_connect_host;
@@ -81,6 +82,16 @@ static int g_last_wndpos_state;
 
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
+
+static void GetDefaultSessionDir(char *str, int strsize)
+{
+  extern void (*GetProjectPath)(char *buf, int bufsz);
+
+  lstrcpyn(str,g_inipath,strsize-30); // default to wherever the ini file is (appdata\reaper etc)
+
+  if (GetProjectPath)  GetProjectPath(str,strsize-30);
+  strcat(str,PREF_DIRSTR "NINJAMsessions");
+}
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) 
 { 
@@ -131,8 +142,7 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
         if (!str[0])
         {
-          strcpy(str,g_exepath);
-          strcat(str,PREF_DIRSTR "NINJAMsessions");
+          GetDefaultSessionDir(str,sizeof(str));
           SetDlgItemText(hwndDlg,IDC_SESSIONDIR,str);
         }
         else 
@@ -179,8 +189,7 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_SESSIONDIR,buf,sizeof(buf));
             char str[4096];
-            strcpy(str,g_exepath);
-            strcat(str,PREF_DIRSTR "NINJAMsessions");
+            GetDefaultSessionDir(str,sizeof(str));
 
             if (!strcmp(str,buf))
               buf[0]=0;
@@ -563,8 +572,7 @@ static void do_connect()
 
   if (!sroot[0])
   {
-    strcpy(sroot,g_exepath);
-    strcat(sroot,PREF_DIRSTR "NINJAMsessions");
+    GetDefaultSessionDir(sroot,sizeof(sroot));
   }
 
   {
@@ -1615,12 +1623,31 @@ void InitializeInstance()
     #endif
 
     {
-      GetModuleFileName(NULL,g_exepath,sizeof(g_exepath));
-      char *p=g_exepath;
+      GetModuleFileName(NULL,g_inipath,sizeof(g_inipath));
+      char *p=g_inipath;
       while (*p) p++;
-      while (p > g_exepath && *p != '\\' && *p != '/') p--; *p=0;
-      g_ini_file.Set(g_exepath);
+      while (p > g_inipath && *p != '\\' && *p != '/') p--; *p=0;
+      g_ini_file.Set(g_inipath);
       g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
+      FILE *fp = fopen(g_ini_file.Get(),"r+");
+      if (fp) fclose(fp);
+      else
+      {
+        extern const char *(*get_ini_file)();
+        const char *ini_file = get_ini_file ? get_ini_file() : NULL;
+        if (ini_file)
+        {
+          g_ini_file.Set(ini_file);
+          char *p=g_ini_file.Get();
+          while (*p) p++;
+          while (p > g_ini_file.Get() && *p != '\\' && *p != '/') p--; 
+          *p=0;
+          lstrcpyn(g_inipath,g_ini_file.Get(),sizeof(g_inipath));
+          g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
+        }
+        // use reaper.ini path
+      }
+
     }
 
     // read config file
