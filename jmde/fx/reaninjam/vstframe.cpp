@@ -125,7 +125,6 @@ static void format_parm(int parm, double val, char *ptr)
   sprintf(ptr,tmp,DenormalizeParm(parm,val));
 }
 
-int g_refcnt;
 
 HINSTANCE g_hInst;
 class VSTEffectClass
@@ -163,14 +162,6 @@ public:
     m_lasttransportpos=-100000000.0;
     m_lastplaytrackpos=-100000000.0;
 
-    if (!g_refcnt++)
-    {
-    #ifndef _WIN32
-      SWELL_RegisterCustomControlCreator(customControlCreator);
-      if (g_hostcb)SWELL_RegisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));      
-    #endif
-    }
-
     onParmChange();
 
     Reset();
@@ -183,13 +174,6 @@ public:
   ~VSTEffectClass()
   {
     if (m_hwndcfg) DestroyWindow(m_hwndcfg);
-    if (!--g_refcnt)
-    {
-    #ifndef _WIN32
-      SWELL_UnregisterCustomControlCreator(customControlCreator);
-      if (g_hostcb)SWELL_UnregisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));
-    #endif
-    }
   }  
 
   void Reset()
@@ -448,6 +432,11 @@ public:
             char buf[4096];
             GetModuleFileName(g_hInst,buf,sizeof(buf));
             LoadLibrary(buf);// keep us resident
+#ifndef _WIN32
+            SWELL_RegisterCustomControlCreator(customControlCreator);
+            if (g_hostcb)SWELL_RegisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));      
+#endif
+            
           }
           InitializeInstance();
         }
@@ -740,7 +729,6 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
   return 0;
 }
 
-#ifdef _WIN32
 BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
 {
   if (fdwReason==DLL_PROCESS_ATTACH) 
@@ -749,7 +737,6 @@ BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
   }
   return TRUE;
 }
-#endif
 
 };
 
