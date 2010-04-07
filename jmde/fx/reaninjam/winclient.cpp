@@ -67,7 +67,6 @@ static char g_inipath[1024];
 WDL_Mutex g_client_mutex;
 NJClient *g_client;
 int g_done;
-WDL_String jesusdir;
 WDL_String g_topic;
 
 static HINSTANCE jesus_hDllInst;
