@@ -160,6 +160,7 @@
 				ProgramDataBaseFileName=".\Release64/"
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="true"
+				DebugInformationFormat="3"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -178,9 +179,12 @@
 				OutputFile="../../Release64/plugins/fx/reaninjam.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
+				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release64/reaninjam.pdb"
 				GenerateMapFile="true"
 				MapFileName=".\Release64/reasomething.map"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
 				OptimizeForWindows98="1"
 				ImportLibrary=".\Release64/reaninjam.lib"
 				TargetMachine="17"
