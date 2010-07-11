@@ -12,11 +12,27 @@
 /********
 todo: 
 messages for:
-  does server have chunk named 'track:items:length:hash'?
-  put content 'track:items:length:hash'
-  get list of chunk names, hashes?
 
-  (switch project, eventually?)
+  client->server:
+    put data
+    request data (optional revision#)
+    request list of data
+    request revision history of data
+    request project switch?
+
+  server->client
+    put data reply (ok?)
+    request data reply (data...)
+    request list of data reply (list of items, hashes, timestamps, lengths)
+    revision history request reply
+    notify client of new revision (includes revision data)
+
+
+  client on connect, would go and request everything, detect what was different, request it
+    -- detect conflicts, rename old tracks to XXXconflict - (private), auto-ignore tracks with (private), also auto-ignore unnamed tracks
+
+  subsequently server would notify if other users modded things
+
 
 
   // dir format:
@@ -27,8 +43,24 @@ messages for:
 
   media_whatever_filename.ext(.ogg)
 
-  <data><8 byte magic identifier?><4 byte data length><20 byte SHA1>
 
+  each file(database) consists of:
+
+  <10 bytes magic>
+  <4 bytes data length> 
+  <2 bytes trailing header length>
+
+  <data> 
+
+  trailing header, last 128 bytes are:
+     16 byte magic
+     4 byte start of data offset from magic
+     4 byte data length ( can be less if we want more data stuffed before this block)
+     20 byte SHA1
+     4 byte timestamp
+     32 byte user
+     8 byte revision count
+     (40) byte pad/future
   
 
 
