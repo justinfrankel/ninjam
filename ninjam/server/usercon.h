@@ -52,6 +52,7 @@
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 #define PRIV_HIDDEN 64   // hidden user, doesn't count for a slot, too
 #define PRIV_VOTE 128
+#define PRIV_PROJECTMODE 256 // allow converting to project-mode session
 
 #define MAX_BPM 400
 #define MAX_BPI 64
@@ -200,7 +201,7 @@ class User_Connection
 
     void SendUserList(User_Group *group);
 
-    Net_Connection m_netcon;
+    Net_Connection *m_netcon;
     WDL_String m_username;
     
     // auth info

@@ -99,7 +99,8 @@ extern void logText(char *s, ...);
 User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0), m_max_channels(0),
       m_vote_bpm(0), m_vote_bpm_lasttime(0), m_vote_bpi(0), m_vote_bpi_lasttime(0)
 {
-  m_netcon.attach(con);
+  m_netcon = new Net_Connection;
+  m_netcon->attach(con);
 
   WDL_RNG_bytes(m_challenge,sizeof(m_challenge));
 
@@ -116,10 +117,10 @@ User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth
 
   if (grp->m_licensetext.Get()[0])
   {
-    m_netcon.SetKeepAlive(45); // wait a max of 45s * 3
+    m_netcon->SetKeepAlive(45); // wait a max of 45s * 3
     ch.license_agreement=grp->m_licensetext.Get();
   }
-  else m_netcon.SetKeepAlive(grp->m_keepalive);
+  else m_netcon->SetKeepAlive(grp->m_keepalive);
   Send(ch.build());
 
   time(&m_connect_time);
@@ -130,7 +131,7 @@ User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth
 
 void User_Connection::Send(Net_Message *msg)
 {
-  if (m_netcon.Send(msg))
+  if (m_netcon && m_netcon->Send(msg))
   {
     logText("Error sending message to user '%s', type %d, queue full!\n",m_username.Get(),msg->get_type());
   }
@@ -152,6 +153,9 @@ User_Connection::~User_Connection()
 
   delete m_lookup;
   m_lookup=0;
+
+  delete m_netcon;
+  m_netcon=0;
 }
 
 
@@ -169,7 +173,9 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
 int User_Connection::OnRunAuth(User_Group *group)
 {
   char addrbuf[256];
-  JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+  if (m_netcon)
+    JNL::addr_to_ipstr(m_netcon->GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+  else strcpy(addrbuf,"no connection");
  
   {
     WDL_SHA1 shatmp;
@@ -381,11 +387,11 @@ void User_Connection::SendUserList(User_Group *group)
 
 int User_Connection::Run(User_Group *group, int *wantsleep)
 {
-  Net_Message *msg=m_netcon.Run(wantsleep);
-  if (m_netcon.GetStatus()) 
+  Net_Message *msg=m_netcon ? m_netcon->Run(wantsleep) : NULL;
+  if (!m_netcon || m_netcon->GetStatus()) 
   {
     delete msg;
-    return m_netcon.GetStatus();
+    return m_netcon ? m_netcon->GetStatus() : 1;
   }
 
   if (!msg)
@@ -396,8 +402,11 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       {
         if (!m_lookup || !OnRunAuth(group))
         {
-          m_netcon.Run();
-          m_netcon.Kill();
+          if (m_netcon)
+          {
+            m_netcon->Run();
+            m_netcon->Kill();
+          }
         }
         delete m_lookup;
         m_lookup=0;
@@ -409,15 +418,21 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
                                         // the user time to potentially read the license agreement.
       {
         char buf[256];
-        JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),buf,sizeof(buf));
+        if (m_netcon)
+          JNL::addr_to_ipstr(m_netcon->GetConnection()->get_remote(),buf,sizeof(buf));
+        else strcpy(buf,"no connection");
         logText("%s: Got an authorization timeout\n",buf);
         m_connect_time=time(NULL)+120;
         mpb_server_auth_reply bh;
         bh.errmsg="authorization timeout";
         Send(bh.build());
-        m_netcon.Run();
 
-        m_netcon.Kill();
+        if (m_netcon)
+        {
+          m_netcon->Run();
+
+          m_netcon->Kill();
+        }
       }
     }
     return 0;
@@ -441,20 +456,26 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
       bh.errmsg=tab[err_st-1];
 
       char addrbuf[256];
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+      if (m_netcon)
+        JNL::addr_to_ipstr(m_netcon->GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+      else
+        strcpy(addrbuf,"no connection");
 
       logText("%s: Refusing user, %s\n",addrbuf,bh.errmsg);
 
       Send(bh.build());
-      m_netcon.Run();
+      if (m_netcon)
+      {
+        m_netcon->Run();
 
-      m_netcon.Kill();
+        m_netcon->Kill();
+      }
       msg->releaseRef();
 
       return 0;
     }
 
-    m_netcon.SetKeepAlive(group->m_keepalive); // restore default keepalive behavior since we got a response
+    if (m_netcon) m_netcon->SetKeepAlive(group->m_keepalive); // restore default keepalive behavior since we got a response
 
     m_clientcaps=authrep.client_caps;
 
@@ -464,7 +485,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
     if (m_lookup)
     {
       char addrbuf[256];
-      JNL::addr_to_ipstr(m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+      if (m_netcon)
+        JNL::addr_to_ipstr(m_netcon->GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+      else strcpy(addrbuf,"no connection");
       m_lookup->hostmask.Set(addrbuf);
       memcpy(m_lookup->sha1buf_request,authrep.passhash,sizeof(m_lookup->sha1buf_request));
     }
@@ -947,7 +970,10 @@ int User_Group::Run()
           }
 
           char addrbuf[256];
-          JNL::addr_to_ipstr(p->m_netcon.GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+          if (p->m_netcon)
+            JNL::addr_to_ipstr(p->m_netcon->GetConnection()->get_remote(),addrbuf,sizeof(addrbuf));
+          else strcpy(addrbuf,"no connection");
+
           logText("%s: disconnected (username:'%s', code=%d)\n",addrbuf,p->m_auth_state>0?p->m_username.Get():"",ret);
 
           delete p;
@@ -1258,7 +1284,8 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
                   newmsg.parms[2]=buf.Get();
                   Broadcast(newmsg.build());
 
-                  c->m_netcon.Kill();
+                  if (c->m_netcon)
+                    c->m_netcon->Kill();
                 }
                 killcnt++;
               }

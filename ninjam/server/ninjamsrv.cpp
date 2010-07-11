@@ -412,6 +412,7 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
         else if (*ptr == 'H' || *ptr == 'h') p->priv_flag |= PRIV_HIDDEN;       
         else if (*ptr == 'V' || *ptr == 'v') p->priv_flag |= PRIV_VOTE;               
+        else if (*ptr == 'P' || *ptr == 'p') p->priv_flag |= PRIV_PROJECTMODE;                       
         else 
         {
           if (g_logfp)
@@ -619,9 +620,9 @@ void enforceACL()
   for (x = 0; x < m_group->m_users.GetSize(); x ++)
   {
     User_Connection *c=m_group->m_users.Get(x);
-    if (aclGet(c->m_netcon.GetConnection()->get_remote()) == ACL_FLAG_DENY)
+    if (c->m_netcon && aclGet(c->m_netcon->GetConnection()->get_remote()) == ACL_FLAG_DENY)
     {
-      c->m_netcon.Kill();
+      c->m_netcon->Kill();
       killcnt++;
     }
   }
@@ -849,12 +850,12 @@ int main(int argc, char **argv)
               for (x = 0; x < m_group->m_users.GetSize(); x ++)
               {
                 User_Connection *c=m_group->m_users.Get(x);
-                if (!strcmp(c->m_username.Get(),buf))
+                if (!strcmp(c->m_username.Get(),buf) && c->m_netcon)
                 {
                   char str[512];
-                  JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
+                  JNL::addr_to_ipstr(c->m_netcon->GetConnection()->get_remote(),str,sizeof(str));
                   printf("Killing user %s on %s\n",c->m_username.Get(),str);
-                  c->m_netcon.Kill();
+                  c->m_netcon->Kill();
                   killcnt++;
                 }
               }
@@ -874,7 +875,8 @@ int main(int argc, char **argv)
             {
               User_Connection *c=m_group->m_users.Get(x);
               char str[512];
-              JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
+              if (c->m_netcon) JNL::addr_to_ipstr(c->m_netcon->GetConnection()->get_remote(),str,sizeof(str));
+              else strcpy(str,"no connection");
               printf("%s:%s\n",c->m_auth_state>0?c->m_username.Get():"<unauthorized>",str);
             }
           }
