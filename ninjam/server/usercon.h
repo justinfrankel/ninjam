@@ -89,7 +89,7 @@ class User_Group
     User_Group();
     ~User_Group();
 
-    void AddConnection(JNL_Connection *con, int isres=0);
+    void AddConnection(JNL_IConnection *con, int isres=0);
 
     int Run(); // return 1 if safe to sleep
     void SetConfig(int bpi, int bpm);
@@ -188,7 +188,7 @@ public:
 class User_Connection
 {
   public:
-    User_Connection(JNL_Connection *con, User_Group *grp);
+    User_Connection(JNL_IConnection *con, User_Group *grp);
     ~User_Connection();
 
     int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.

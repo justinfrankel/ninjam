@@ -784,7 +784,7 @@ int main(int argc, char **argv)
 #endif
     while (!g_done)
     {
-      JNL_Connection *con=m_listener->get_connect(2*65536,65536);
+      JNL_IConnection *con=m_listener->get_connect(2*65536,65536);
       if (con) 
       {
         char str[512];
