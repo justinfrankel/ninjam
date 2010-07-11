@@ -205,7 +205,7 @@ class User_Connection
 
     void SendUserList(User_Group *group);
 
-    Net_Connection *m_netcon;
+    Net_Connection m_netcon;
     WDL_String m_username;
     
     // auth info

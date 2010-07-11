@@ -629,9 +629,9 @@ void enforceACL()
   for (x = 0; x < m_group->m_users.GetSize(); x ++)
   {
     User_Connection *c=m_group->m_users.Get(x);
-    if (c->m_netcon && aclGet(c->m_netcon->GetConnection()->get_remote()) == ACL_FLAG_DENY)
+    if (aclGet(c->m_netcon.GetConnection()->get_remote()) == ACL_FLAG_DENY)
     {
-      c->m_netcon->Kill();
+      c->m_netcon.Kill();
       killcnt++;
     }
   }
@@ -861,12 +861,12 @@ int main(int argc, char **argv)
               for (x = 0; x < m_group->m_users.GetSize(); x ++)
               {
                 User_Connection *c=m_group->m_users.Get(x);
-                if (!strcmp(c->m_username.Get(),buf) && c->m_netcon)
+                if (!strcmp(c->m_username.Get(),buf))
                 {
                   char str[512];
-                  JNL::addr_to_ipstr(c->m_netcon->GetConnection()->get_remote(),str,sizeof(str));
+                  JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
                   printf("Killing user %s on %s\n",c->m_username.Get(),str);
-                  c->m_netcon->Kill();
+                  c->m_netcon.Kill();
                   killcnt++;
                 }
               }
@@ -886,8 +886,7 @@ int main(int argc, char **argv)
             {
               User_Connection *c=m_group->m_users.Get(x);
               char str[512];
-              if (c->m_netcon) JNL::addr_to_ipstr(c->m_netcon->GetConnection()->get_remote(),str,sizeof(str));
-              else strcpy(str,"no connection");
+              JNL::addr_to_ipstr(c->m_netcon.GetConnection()->get_remote(),str,sizeof(str));
               printf("%s:%s\n",c->m_auth_state>0?c->m_username.Get():"<unauthorized>",str);
             }
           }
