@@ -815,7 +815,7 @@ int main(int argc, char **argv)
         }
       }
 
-      if (!!m_group->Run()) 
+      if (m_group->Run()) 
       {
 #ifdef _WIN32
         if (needprompt)
