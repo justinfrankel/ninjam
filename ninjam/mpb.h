@@ -262,6 +262,20 @@ class mpb_client_upload_interval_write
     int audio_data_len; // not encoded in, just used internally
 };
 
+#define MESSAGE_CLIENT_OPENPROJECT 0x90
+class mpb_client_openproject
+{
+  public:
+    mpb_client_openproject() : m_projname(0) { }
+    ~mpb_client_openproject() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+    char *m_projname;
+
+};
+
 
 #define MESSAGE_CHAT_MESSAGE 0xC0
 class mpb_chat_message

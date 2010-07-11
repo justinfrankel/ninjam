@@ -44,12 +44,14 @@
 #include "../netmsg.h"
 #include "../mpb.h"
 #include "usercon.h"
+#include "projectmode.h"
 
 #include "../../WDL/rng.h"
 #include "../../WDL/sha.h"
 #include "../../WDL/lineparse.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/wdlstring.h"
+#include "../../WDL/assocarray.h"
 
 #define VERSION "v0.06"
 
@@ -123,6 +125,10 @@ int g_config_maxch_anon;
 int g_config_maxch_user;
 WDL_String g_config_logpath;
 int g_config_log_sessionlen;
+
+WDL_String g_config_projectmodepath;
+static void DisposeProjectInstance(ProjectInstance *p) { delete p; }
+WDL_StringKeyedArray<ProjectInstance *> g_projects(false,DisposeProjectInstance);
 
 time_t next_session_update_time;
 
@@ -284,6 +290,11 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 3) return -1;
     g_config_logpath.Set(lp->gettoken_str(1));    
     g_config_log_sessionlen = lp->gettoken_int(2);
+  }
+  else if (!stricmp(t,"ProjectModePath"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_config_projectmodepath.Set(lp->gettoken_str(1));    
   }
   else if (!stricmp(t,"SetUID"))
   {
@@ -668,6 +679,23 @@ void logText(char *s, ...)
     va_end(ap);
 }
 
+static bool RunProjects()
+{
+  int didcnt=0;
+  int x;
+  for (x=0;x<g_projects.GetSize();x++)
+  {
+    const char *name;
+    ProjectInstance *p = g_projects.Enumerate(x,&name);
+    if (p) 
+    {
+      didcnt+=p->Run(name);
+      if (!p->m_cons.GetSize()) g_projects.DeleteByIndex(x--);
+    }
+  }
+  return !!didcnt;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -804,7 +832,7 @@ int main(int argc, char **argv)
         }
       }
 
-      if (m_group->Run()) 
+      if (!!m_group->Run()+!!RunProjects()) 
       {
 #ifdef _WIN32
         if (needprompt)
@@ -974,6 +1002,8 @@ int main(int argc, char **argv)
     }
   }
 
+  g_projects.DeleteAll();
+
   logText("Shutting down server\n");
 
   delete m_group;
@@ -1033,3 +1063,18 @@ void onConfigChange(int argc, char **argv)
 
 }
 
+
+void NetConnectionToProjectMode(Net_Connection *con, const char *name,const char *username)
+{
+  if (g_config_projectmodepath.Get()[0])
+  {
+    ProjectInstance * inst = g_projects.Get(name);
+    if (!inst) 
+    {
+      inst = new ProjectInstance;
+      g_projects.Insert(name,inst);
+    }
+    inst->m_cons.Add(new ProjectConnection(con,username));
+  }
+  else delete con; // not enabled!
+}

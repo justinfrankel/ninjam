@@ -826,6 +826,39 @@ Net_Message *mpb_client_upload_interval_write::build()
 }
 
 
+// MESSAGE_CLIENT_OPENPROJECT
+int mpb_client_openproject::parse(Net_Message *msg) // return 0 on success
+{
+  if (msg->get_type() != MESSAGE_CLIENT_OPENPROJECT) return -1;
+  if (msg->get_size() < 1) return 1;
+  unsigned char *p=(unsigned char *)msg->get_data();
+  if (!p) return 2;
+  unsigned char *pp = p;
+  while (*pp && pp < p+msg->get_size()) pp++;
+  if (pp >= p+msg->get_size()) return -1;
+
+  m_projname = (char*)p;
+
+  return 0;
+}
+
+Net_Message *mpb_client_openproject::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_CLIENT_OPENPROJECT);
+  nm->set_size(m_projname ? strlen(m_projname)+1 : 0);
+  unsigned char *p=(unsigned char *)nm->get_data();
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+  if (m_projname) strcpy((char*)p,m_projname);
+
+  return nm;
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 //////////// bidirectional generic  messages
 /////////////////////////////////////////////////////////////////////////

@@ -798,6 +798,24 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
       break;
 
+      case MESSAGE_CLIENT_OPENPROJECT:
+        {
+          mpb_client_openproject poo;
+          if (!poo.parse(msg))
+          {
+            if ((m_auth_privs&PRIV_PROJECTMODE) && poo.m_projname && !strstr(poo.m_projname,"/") && !strstr(poo.m_projname,"\\"))
+            {
+              void NetConnectionToProjectMode(Net_Connection *con, const char *name, const char *username);
+              NetConnectionToProjectMode(m_netcon, poo.m_projname,m_username.Get());
+              m_netcon=0;
+              // move m_netcon to a new thing (and clear it)
+            }
+          }
+          delete m_netcon;
+          m_netcon=0;
+        }
+      break;
+
       default:
       break;
     }
