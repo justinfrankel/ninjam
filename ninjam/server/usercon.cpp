@@ -99,6 +99,8 @@ extern void logText(char *s, ...);
 User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0), m_max_channels(0),
       m_vote_bpm(0), m_vote_bpm_lasttime(0), m_vote_bpi(0), m_vote_bpi_lasttime(0)
 {
+  m_project=0;
+
   m_netcon = new Net_Connection;
   m_netcon->attach(con);
 
@@ -139,6 +141,11 @@ void User_Connection::Send(Net_Message *msg)
 
 User_Connection::~User_Connection()
 {
+  if (m_project)
+  {
+    m_project->Release();
+    m_project=0;
+  }
 
   int x;
   for (x = 0; x < m_sublist.GetSize(); x ++)
@@ -805,14 +812,29 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           {
             if ((m_auth_privs&PRIV_PROJECTMODE) && poo.m_projname && !strstr(poo.m_projname,"/") && !strstr(poo.m_projname,"\\"))
             {
-              void NetConnectionToProjectMode(Net_Connection *con, const char *name, const char *username);
-              NetConnectionToProjectMode(m_netcon, poo.m_projname,m_username.Get());
-              m_netcon=0;
-              // move m_netcon to a new thing (and clear it)
+              ProjectInstance *newproj = group->m_projects.Get(poo.m_projname);
+              if (!m_project || m_project != newproj)
+              {
+                if (m_project)
+                {
+                  m_project->Release();
+                  m_project=0;
+                }
+
+                extern WDL_String g_config_projectmodepath;
+                if (g_config_projectmodepath.Get()[0])
+                {
+                  if (!newproj) 
+                  {
+                    newproj = new ProjectInstance;
+                    group->m_projects.Insert(poo.m_projname,newproj);
+                  }
+                  newproj->Retain();
+                  m_project=newproj;
+                }
+              }
             }
           }
-          delete m_netcon;
-          m_netcon=0;
         }
       break;
 
@@ -826,9 +848,13 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
+static void ReleaseProjectInstance(ProjectInstance *p) { if (p) p->Release(); }
+
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), 
   m_voting_threshold(110), m_voting_timeout(120),
-  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0)
+  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0),
+    m_projects(false,ReleaseProjectInstance)
+
 {
   CreateUserLookup=0;
   memset(&m_next_loop_time,0,sizeof(m_next_loop_time));

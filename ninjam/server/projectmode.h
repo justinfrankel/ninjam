@@ -7,40 +7,18 @@
 #include "../netmsg.h"
 #include "../mpb.h"
 
-class ProjectInstance;
-
-class ProjectConnection
-{
-public:
-  ProjectConnection(Net_Connection *con, const char *username) : m_con(con) { m_username.Set(username); }
-  ~ProjectConnection() { delete m_con; }
-
-  int Run(ProjectInstance *proj, const char *name);
-
-  void Send(Net_Message *msg);
-
-
-  Net_Connection *m_con;
-  WDL_String m_username;
-
-};
 
 class ProjectInstance
 {
 public:
-  ProjectInstance();
-  ~ProjectInstance();
+  ProjectInstance() { m_refCnt=1; }
+  ~ProjectInstance() { }
 
-  int Run(const char *name);
+  void Retain() { m_refCnt++; }
+  void Release() { if (--m_refCnt==0) delete this; }
 
-  void onChatMessage(ProjectConnection *con, mpb_chat_message *msg);
-
-
-  void Broadcast(Net_Message *msg, ProjectConnection *nosend=NULL);
-  
-
-
-  WDL_PtrList<ProjectConnection> m_cons;
+private:
+  int m_refCnt;
 };
 
 

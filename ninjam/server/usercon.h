@@ -36,8 +36,10 @@
 #include "../netmsg.h"
 #include "../../WDL/wdlstring.h"
 #include "../../WDL/sha.h"
+#include "../../WDL/assocarray.h"
 #include "../../WDL/ptrlist.h"
 #include "../mpb.h"
+#include "projectmode.h"
 
 #define MAX_USER_CHANNELS 32
 #define MAX_USERS 64
@@ -106,8 +108,10 @@ class User_Group
     IUserInfoLookup *(*CreateUserLookup)(char *username);
 
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
-    
 
+
+    WDL_StringKeyedArray<ProjectInstance *> m_projects;
+      
     WDL_PtrList<User_Connection> m_users;
 
     int m_max_users;
@@ -229,6 +233,8 @@ class User_Connection
     WDL_PtrList<User_TransferState> m_sendfiles;
 
     IUserInfoLookup *m_lookup;
+
+    ProjectInstance *m_project;
 };
 
 
