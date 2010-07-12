@@ -171,6 +171,10 @@ SOURCE=..\netmsg.cpp
 # End Group
 # Begin Source File
 
+SOURCE=.\historyfile.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\ninjamsrv.cpp
 # End Source File
 # Begin Source File
