@@ -2485,7 +2485,7 @@ void NJClient::GetLocalChannelProcessor(int ch, void **func, void **inst)
   if (inst) *inst=c->cbf_inst; 
 }
 
-void NJClient::SetLocalChannelInfo(int ch, char *name, bool setsrcch, int srcch,
+void NJClient::SetLocalChannelInfo(int ch, const char *name, bool setsrcch, int srcch,
                                    bool setbitrate, int bitrate, bool setbcast, bool broadcast, bool setoutch, int outch, bool setflags, int flags)
 {  
   m_locchan_cs.Enter();

@@ -256,10 +256,10 @@ static int RepopulateServerList(HWND hwnd) // return 1 if END encountered
         LVITEM item={0,};
         item.mask = LVIF_TEXT;
         item.iItem = i++;
-        item.pszText = lp.gettoken_str(1);
+        item.pszText = (char *)lp.gettoken_str(1);
         int a = ListView_InsertItem(list, &item);
-        ListView_SetItemText(list, a, 1, lp.gettoken_str(2));
-        ListView_SetItemText(list, a, 2, lp.gettoken_str(3));
+        ListView_SetItemText(list, a, 1, (char*)lp.gettoken_str(2));
+        ListView_SetItemText(list, a, 2, (char*)lp.gettoken_str(3));
       }
     }
   
@@ -985,7 +985,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               int ch=lp.gettoken_int(0);
               int n;
               int wj=0, ok=0;
-              char *name=NULL;
+              const char *name=NULL;
               if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
               {
                 switch (lp.gettoken_enum(n,"source\0bc\0mute\0solo\0volume\0pan\0jesus\0name\0flag\0"))
