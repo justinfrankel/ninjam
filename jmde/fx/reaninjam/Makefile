@@ -1,5 +1,5 @@
-OGGDIR = ../../../sdks/libogg-1.1.4
-VORBISDIR = ../../../sdks/libvorbis-1.2.3
+OGGDIR = ../../../sdks/libogg-1.2.0
+VORBISDIR = ../../../sdks/libvorbis-1.3.1
 
 PLUGIN_CFLAGS = -DSWELL_PROVIDED_BY_APP -fPIC -I$(OGGDIR)/include -I$(VORBISDIR)/include
 
