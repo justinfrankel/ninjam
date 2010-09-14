@@ -380,8 +380,8 @@ int main(int argc, char **argv)
                 return -2;
               }
 
-              char *guidtmp=lp.gettoken_str(1);
-              char *username=lp.gettoken_str(2);
+              const char *guidtmp=lp.gettoken_str(1);
+              const char *username=lp.gettoken_str(2);
               int chidx=lp.gettoken_int(3);
 //              char *channelname=lp.gettoken_str(4);
 
@@ -531,7 +531,7 @@ int main(int argc, char **argv)
       fclose(fp);
 
       if (!rec->vdec->GetNumChannels() || !rec->vdec->GetSampleRate() || // invalid fmt
-          rec->vdec->m_samples_used < (rec->length * rec->vdec->GetNumChannels() * rec->vdec->GetSampleRate() / 1000.0)*0.5 // insufficient samples
+          rec->vdec->Available() < (rec->length * rec->vdec->GetNumChannels() * rec->vdec->GetSampleRate() / 1000.0)*0.5 // insufficient samples
         ) // not 
       {
         delete rec->vdec;
@@ -540,8 +540,8 @@ int main(int argc, char **argv)
         continue;
       }
 
-      int l=rec->vdec->m_samples_used;
-      float *p=(float *)rec->vdec->m_samples.Get();
+      int l=rec->vdec->Available();
+      float *p=rec->vdec->Get();
 
       double mvol=pow(2.0,MIN_VOL/6.0);
 
@@ -683,10 +683,10 @@ int main(int argc, char **argv)
       for (x = 0; x < m_useitems.GetSize(); x ++)
       {
         UserChannelValueRec *rec=m_useitems.Get(x);
-        if (!rec->vdec || !rec->vdec->m_samples_used) continue;
+        if (!rec->vdec || !rec->vdec->Available()) continue;
 
         double s=0.0;
-        int dest_len = (int) ((double)rec->vdec->m_samples_used * (double)g_srate / (double)(rec->vdec->GetSampleRate() * rec->vdec->GetNumChannels()));
+        int dest_len = (int) ((double)rec->vdec->Available() * (double)g_srate / (double)(rec->vdec->GetSampleRate() * rec->vdec->GetNumChannels()));
         if (dest_len > 0)
         {
           if (dest_len > max_l)
@@ -711,8 +711,8 @@ int main(int argc, char **argv)
             vol *= 1.5/(double)(m_useitems.GetSize());
 
           // adjust volume as gradient
-          int l=rec->vdec->m_samples_used;
-          float *p=(float *)rec->vdec->m_samples.Get();
+          int l=rec->vdec->Available();
+          float *p=rec->vdec->Get();
           double vp=rec->channel->chan_last_vol;
           double dvp = (vol-vp) / (double) l;
 
@@ -729,7 +729,7 @@ int main(int argc, char **argv)
           }
           
 
-          mixFloats((float *)rec->vdec->m_samples.Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
+          mixFloats(rec->vdec->Get(),rec->vdec->GetSampleRate(),rec->vdec->GetNumChannels(),
                     (float*)sample_workbuf.Get(),g_srate,g_nch,dest_len,
                  
                     (float) global_vol,(float)rec->channel->chan_pan,&s);

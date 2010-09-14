@@ -6,4 +6,4 @@ default: autosong
 OBJS=autosong.o ../../WDL/lameencdec.o
 
 autosong: $(OBJS)
-	$(CXX) -static -o autosong $(OBJS) -lvorbis -lmp3lame -logg
+	$(CXX) -o autosong $(OBJS) -lvorbis -ldl -logg
