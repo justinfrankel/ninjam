@@ -82,14 +82,14 @@ public:
 #define ACL_FLAG_RESERVE 2
 typedef struct
 {
-  unsigned long addr;
-  unsigned long mask;
+  unsigned int addr;
+  unsigned int mask;
   int flags;
 } ACLEntry;
 
 
 WDL_HeapBuf g_acllist;
-void aclAdd(unsigned long addr, unsigned long mask, int flags)
+void aclAdd(unsigned int addr, unsigned int mask, int flags)
 {
   addr=ntohl(addr);
 //  printf("adding acl entry for %08x + %08x\n",addr,mask);
@@ -99,7 +99,7 @@ void aclAdd(unsigned long addr, unsigned long mask, int flags)
   memcpy((char *)g_acllist.Get()+os,&f,sizeof(f));
 }
 
-int aclGet(unsigned long addr)
+int aclGet(unsigned int addr)
 {
   addr=ntohl(addr);
 
@@ -371,12 +371,16 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 3) return -1;
     int suc=0;
-    char *v=lp->gettoken_str(1);
-    char *t=strstr(v,"/");
+    const char *v=lp->gettoken_str(1);
+    char buf[256];
+    int vlen = strlen(v)+1;
+    memcpy(buf,v,vlen < sizeof(buf) ? vlen : sizeof(buf));
+    buf[sizeof(buf)-1]=0;
+    char *t=strstr(buf,"/");
     if (t)
     {
       *t++=0;
-      unsigned long addr=JNL::ipstr_to_addr(v);
+      unsigned int addr=JNL::ipstr_to_addr(buf);
       if (addr != INADDR_NONE)
       {
         int maskbits=atoi(t);
@@ -386,7 +390,7 @@ static int ConfigOnToken(LineParser *lp)
           if (flag >= 0)
           {
             suc=1;
-            unsigned long mask=~(0xffffffff>>maskbits);
+            unsigned int mask=~(0xffffffff>>maskbits);
             aclAdd(addr,mask,flag);
           }
         }
@@ -409,7 +413,7 @@ static int ConfigOnToken(LineParser *lp)
     p->pass.Set(lp->gettoken_str(2));
     if (lp->getnumtokens()>3)
     {
-      char *ptr=lp->gettoken_str(3);
+      const char *ptr=lp->gettoken_str(3);
       while (*ptr)
       {
         if (*ptr == '*') p->priv_flag|=~PRIV_HIDDEN; // everything but hidden if * used
