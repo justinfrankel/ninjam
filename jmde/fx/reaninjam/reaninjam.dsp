@@ -18,6 +18,7 @@ CFG=reaninjam - Win32 Debug
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
 !MESSAGE "reaninjam - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "reaninjam - Win32 Nitpicker" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "reaninjam - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE 
 
@@ -56,8 +57,34 @@ LINK32=xilink6.exe
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib /nologo /dll /map /machine:I386 /out:"../../Release/plugins/fx/reaninjam.dll" /mapinfo:lines /opt:nowin98
 # SUBTRACT LINK32 /pdb:none
 
-!ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
+!ELSEIF  "$(CFG)" == "reaninjam - Win32 Nitpicker"
 
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "Nitpicker"
+# PROP BASE Intermediate_Dir "Nitpicker"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "Nitpicker"
+# PROP Intermediate_Dir "Nitpicker"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /c /FR /FD /Zi
+# ADD CPP /nologo /W3 /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /c /FR /FD /Zi /MT /Ot /Og /D "DEBUG_TIGHT_ALLOC"
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /fixed:no
+# ADD LINK32 ../../../nitpicker/libcmt_nitpick.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib wsock32.lib comctl32.lib /nologo /dll /map /machine:I386 /nodefaultlib:"LIBCMT" /out:"../../Nitpicker/plugins/fx/reaninjam.dll" /mapinfo:lines /opt:nowin98 /debug
+# SUBTRACT LINK32 /pdb:none
+
+!ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
 # PROP BASE Output_Dir "Debug"
@@ -87,6 +114,7 @@ LINK32=xilink6.exe
 # Begin Target
 
 # Name "reaninjam - Win32 Release"
+# Name "reaninjam - Win32 Nitpicker"
 # Name "reaninjam - Win32 Debug"
 # Begin Group "Source Files"
 
@@ -113,8 +141,11 @@ SOURCE=..\..\..\ninjam\njclient.cpp
 
 # ADD CPP /D "USE_ICC"
 
-!ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
+!ELSEIF  "$(CFG)" == "reaninjam - Win32 Nitpicker"
 
+# ADD CPP /D "USE_ICC" /FR /FD /Zi /MT /Ot /Og /D "DEBUG_TIGHT_ALLOC"
+
+!ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
 !ENDIF 
 
 # End Source File
