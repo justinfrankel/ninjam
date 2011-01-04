@@ -1500,6 +1500,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     #endif
     case WM_DESTROY:
 
+      resize.init(NULL);
+
       g_done=1;
       WaitForSingleObject(g_hThread,INFINITE);
       CloseHandle(g_hThread);
