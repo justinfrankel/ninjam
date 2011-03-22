@@ -103,46 +103,6 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 }
 
 
-#ifdef _WIN32
-WNDPROC chatw_oldWndProc,chate_oldWndProc;
-LRESULT CALLBACK chatw_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
-{
-  if (uMsg == WM_CHAR)
-  {
-    HWND h=GetDlgItem(GetParent(hwndDlg),IDC_CHATENT);
-    SetFocus(h);
-    if (wParam == VK_RETURN)
-    {
-      SendMessage(GetParent(hwndDlg),WM_COMMAND,IDC_CHATOK,0);
-      return 0;
-    }
-    SendMessage(h,uMsg,wParam,lParam);
-    return 0;
-  }
-  return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
-}
-
-LRESULT CALLBACK chate_newWndProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,LPARAM lParam)
-{
-  if (uMsg == WM_CHAR)
-  {
-    if (wParam == VK_RETURN)
-    {
-      SendMessage(GetParent(hwndDlg),WM_COMMAND,IDC_CHATOK,0);
-      return 0;
-    }
-  }
-  return CallWindowProc(chatw_oldWndProc,hwndDlg,uMsg,wParam,lParam);
-}
-#endif
-void chatInit(HWND hwndDlg)
-{
-#ifdef _WIN32
-  chatw_oldWndProc=(WNDPROC) SetWindowLongPtr(GetDlgItem(hwndDlg,IDC_CHATDISP),GWLP_WNDPROC,(INT_PTR)chatw_newWndProc);
-  chate_oldWndProc=(WNDPROC) SetWindowLongPtr(GetDlgItem(hwndDlg,IDC_CHATENT),GWLP_WNDPROC,(INT_PTR)chate_newWndProc);
-  #endif
-}
-
 WDL_String m_append_text;
 WDL_Mutex m_append_mutex;
 

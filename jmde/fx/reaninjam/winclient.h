@@ -60,7 +60,6 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 
 // chat.cpp
 void chat_addline(char *src, char *text);
-void chatInit(HWND hwndDlg);
 void chatRun(HWND hwndDlg);
 void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms);
 

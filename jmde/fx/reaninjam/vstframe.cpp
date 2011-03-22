@@ -90,6 +90,7 @@ BOOL (WINAPI *CoolSB_GetScrollInfo)(HWND hwnd, int fnBar, LPSCROLLINFO lpsi);
 int (WINAPI *CoolSB_SetScrollPos)(HWND hwnd, int nBar, int nPos, BOOL fRedraw);
 int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOOL fRedraw);
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
+int (*plugin_register)(const char *name, void *infostruct);
 
 double NormalizeParm(int parm, double val)
 {
@@ -123,6 +124,46 @@ static void format_parm(int parm, double val, char *ptr)
   char tmp[32];
   sprintf(tmp,"%s%%.%df",(param_infos[parm].minval == USE_DB && val >= 1.0)?"+":"",param_infos[parm].precisiondigits);
   sprintf(ptr,tmp,DenormalizeParm(parm,val));
+}
+
+
+int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
+{
+  extern HWND g_hwnd;
+  if (g_hwnd && (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_CHAR) && msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
+  {
+    HWND list = GetDlgItem(g_hwnd,IDC_CHATDISP);
+    HWND e = GetDlgItem(g_hwnd,IDC_CHATENT);
+    if (e)
+    {
+      bool didHit=false;
+      if (msg->hwnd == e || IsChild(e,msg->hwnd))  
+      {
+        didHit=true;
+      }
+      else if (list && (msg->hwnd == list || IsChild(list,msg->hwnd)))
+      {
+        msg->hwnd = e;
+        didHit=true;
+      }
+      if (didHit)
+      {
+#ifdef _WIN32
+        if (msg->message == WM_CHAR && msg->wParam == VK_RETURN) 
+#else
+        if (msg->message == WM_KEYDOWN && msg->wParam == VK_RETURN) 
+#endif
+        {
+          SendMessage(g_hwnd,WM_COMMAND,IDC_CHATOK,0);
+          return 1;
+        }
+
+        return -1;
+      }
+    }
+    return -1;
+  }
+  return 0;
 }
 
 
@@ -436,7 +477,12 @@ public:
             SWELL_RegisterCustomControlCreator(customControlCreator);
             if (g_hostcb)SWELL_RegisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));      
 #endif
-            
+
+            if (plugin_register)
+            {
+              static accelerator_register_t accel = { reaninjamAccelProc, TRUE};
+              plugin_register("accelerator",&accel);
+            }            
           }
           InitializeInstance();
         }
@@ -682,6 +728,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
   if (hostcb)
   {
     *((VstIntPtr *)&get_ini_file) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"get_ini_file",0.0);
+    *((VstIntPtr *)&plugin_register) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"plugin_register",0.0);   
     *((VstIntPtr *)&GetProjectPath) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetProjectPath",0.0);
     
     *((VstIntPtr *)&InitializeCoolSB) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"InitializeCoolSB",0.0);

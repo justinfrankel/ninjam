@@ -53,7 +53,7 @@
 
 #include "winclient.h"
 
-#define VERSION "0.12"
+#define VERSION "0.13"
 
 #define CONFSEC "ninjam"
 
@@ -906,8 +906,6 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_REMOTERECT,  1.0f, 0.0f,  1.0f,  1.0f);      
         resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  1.0f,  loc_ratio);
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
-
-        chatInit(hwndDlg);
 
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
