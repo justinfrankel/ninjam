@@ -58,13 +58,13 @@ BOOL WINAPI LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // chat.cpp
-void chat_addline(char *src, char *text);
+void chat_addline(const char *src, const char *text);
 void chatInit(HWND hwndDlg);
 void chatRun(HWND hwndDlg);
-void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms);
+void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms);
 
 // license.cpp
-int licensecallback(int user32, char *licensetext);
+int licensecallback(int user32, const char *licensetext);
 void licenseRun(HWND hwndDlg);
 
 #endif//_WINCLIENT_H_

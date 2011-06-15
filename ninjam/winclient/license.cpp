@@ -60,10 +60,10 @@ static BOOL WINAPI LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lP
   return 0;
 }
 
-static char *g_need_license;
+static const char *g_need_license;
 static int g_license_result;
 
-int licensecallback(int user32, char *licensetext)
+int licensecallback(int user32, const char *licensetext)
 {
   if (!licensetext || !*licensetext) return 1;
 

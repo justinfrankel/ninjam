@@ -749,7 +749,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               int ch=lp.gettoken_int(0);
               int n;
               int wj=0, ok=0;
-              char *name=NULL;
+              const char *name=NULL;
               ChanMixer *newa=NULL;
               if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
               {

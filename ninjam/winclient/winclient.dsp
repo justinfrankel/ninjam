@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\..\SDKS\DXSDK\include" /I "../../sdks/libvorbis-1.1.2/include" /I "../../sdks/libogg-1.1.3/include" /I "." /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "..\..\SDKS\DXSDK\include" /I "../../sdks/libvorbis-1.3.1/include" /I "../../sdks/libogg-1.2.0/include" /I "." /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -226,176 +226,176 @@ SOURCE=..\njasiodrv\njasiodrv_if.h
 # PROP Default_Filter ""
 # Begin Source File
 
-SOURCE="..\..\sdks\libogg-1.1.3\src\bitwise.c"
+SOURCE="..\..\sdks\libogg-1.2.0\src\bitwise.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libogg-1.1.3\src\framing.c"
+SOURCE="..\..\sdks\libogg-1.2.0\src\framing.c"
 # End Source File
 # End Group
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\analysis.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\analysis.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\backends.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\backends.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\bitrate.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\bitrate.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\bitrate.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\bitrate.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\block.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\block.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\codebook.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\codebook.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\codebook.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\codebook.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\codec_internal.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\codec_internal.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\envelope.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\envelope.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\envelope.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\envelope.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\floor0.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\floor0.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\floor1.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\floor1.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\highlevel.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\highlevel.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\info.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\info.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lookup.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lookup.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lookup.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lookup.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lookup_data.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lookup_data.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lpc.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lpc.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lpc.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lpc.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lsp.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lsp.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\lsp.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\lsp.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\mapping0.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\mapping0.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\masking.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\masking.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\mdct.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\mdct.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\mdct.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\mdct.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\misc.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\misc.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\os.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\os.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\psy.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\psy.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\psy.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\psy.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\registry.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\registry.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\registry.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\registry.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\res0.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\res0.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\scales.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\scales.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\sharedbook.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\sharedbook.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\smallft.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\smallft.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\smallft.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\smallft.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\synthesis.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\synthesis.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\vorbisenc.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\vorbisenc.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\vorbisfile.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\vorbisfile.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\window.c"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\window.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\sdks\libvorbis-1.1.2\lib\window.h"
+SOURCE="..\..\sdks\libvorbis-1.3.1\lib\window.h"
 # End Source File
 # End Group
 # Begin Source File

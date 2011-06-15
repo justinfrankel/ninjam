@@ -43,8 +43,8 @@ void mkpanstr(char *str, double pan);
 extern WDL_String jesusdir;
 extern jesusonicAPI *JesusonicAPI;  
 
-void *CreateJesusInstance(int a, char *chdesc, int srate);
-void JesusUpdateInfo(void *myInst, char *chdesc, int srate);
+void *CreateJesusInstance(int a, const char *chdesc, int srate);
+void JesusUpdateInfo(void *myInst, const char *chdesc, int srate);
 void deleteJesusonicProc(void *i, int chi);
 void jesusonic_processor(float *buf, int len, void *inst);
 

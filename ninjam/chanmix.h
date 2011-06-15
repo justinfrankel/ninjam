@@ -45,7 +45,7 @@ class ChanMixer
     void CreateWnd(HINSTANCE hInst, HWND parent);
     HWND GetWnd() { return m_hwnd; }
 
-    void SetDesc(char *desc)
+    void SetDesc(const char *desc)
     {
       m_desc.Set(desc?desc:"");
       UpdateTitle();

@@ -116,7 +116,7 @@ void jesusonic_processor(float *buf, int len, void *inst)
 }
 
 
-void JesusUpdateInfo(void *myInst, char *chdesc, int srate)
+void JesusUpdateInfo(void *myInst, const char *chdesc, int srate)
 {
   if (myInst)
   {
@@ -127,7 +127,7 @@ void JesusUpdateInfo(void *myInst, char *chdesc, int srate)
   }
 }
 
-void *CreateJesusInstance(int a, char *chdesc, int srate)
+void *CreateJesusInstance(int a, const char *chdesc, int srate)
 {
   if (JesusonicAPI)
   {
