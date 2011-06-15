@@ -574,7 +574,7 @@ void NJClient::_reinit()
 }
 
 
-void NJClient::writeLog(char *fmt, ...)
+void NJClient::writeLog(const char *fmt, ...)
 {
   if (m_logFile)
   {
@@ -975,7 +975,7 @@ int NJClient::Run() // nonzero if sleep ok
               int offs=0;
               int a=0, cid=0, p=0,f=0;
               short v=0;
-              char *un=0,*chn=0;
+              const char *un=0,*chn=0;
               while ((offs=ucn.parse_get_rec(offs,&a,&cid,&v,&p,&f,&un,&chn))>0)
               {
                 if (!un) un="";
@@ -1553,7 +1553,7 @@ float NJClient::GetOutputPeak(int ch)
   return (float)(output_peaklevel[0]+output_peaklevel[1])*0.5f;
 }
 
-void NJClient::ChatMessage_Send(char *parm1, char *parm2, char *parm3, char *parm4, char *parm5)
+void NJClient::ChatMessage_Send(const char *parm1, const char *parm2, const char *parm3, const char *parm4, const char *parm5)
 {
   if (m_netcon)
   {

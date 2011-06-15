@@ -244,7 +244,7 @@ Net_Message *mpb_server_userinfo_change_notify::build()
 
 
 void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channelid, 
-                                                      short volume, int pan, int flags, char *username, char *chname)
+                                                      short volume, int pan, int flags, const char *username, const char *chname)
 {
   int size=1+ // is remove
            1+ // channel index
@@ -289,7 +289,7 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channeli
 
 // returns offset of next item on success, or <= 0 if out of items
 int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, int *channelid, short *volume, 
-                                                     int *pan, int *flags, char **username, char **chname)
+                                                     int *pan, int *flags, const char **username, const char **chname)
 {
   int hdrsize=1+ // is remove
            1+ // channel index
@@ -569,7 +569,7 @@ Net_Message *mpb_client_set_usermask::build()
 }
 
 
-void mpb_client_set_usermask::build_add_rec(char *username, unsigned int chflags)
+void mpb_client_set_usermask::build_add_rec(const char *username, unsigned int chflags)
 {
   int size=4+strlen(username?username:"")+1;
 
@@ -597,7 +597,7 @@ void mpb_client_set_usermask::build_add_rec(char *username, unsigned int chflags
 
 
 // returns offset of next item on success, or <= 0 if out of items
-int mpb_client_set_usermask::parse_get_rec(int offs, char **username, unsigned int *chflags)
+int mpb_client_set_usermask::parse_get_rec(int offs, const char **username, unsigned int *chflags)
 {
   if (!m_intmsg) return 0;
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
@@ -652,7 +652,7 @@ Net_Message *mpb_client_set_channel_info::build()
 }
 
 
-void mpb_client_set_channel_info::build_add_rec(char *chname, short volume, int pan, int flags)
+void mpb_client_set_channel_info::build_add_rec(const char *chname, short volume, int pan, int flags)
 {
   int size=mpisize+strlen(chname?chname:"")+1;
 
@@ -689,7 +689,7 @@ void mpb_client_set_channel_info::build_add_rec(char *chname, short volume, int 
 
 
 // returns offset of next item on success, or <= 0 if out of items
-int mpb_client_set_channel_info::parse_get_rec(int offs, char **chname, short *volume, int *pan, int *flags)
+int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, short *volume, int *pan, int *flags)
 {
   if (!m_intmsg) return 0;
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
@@ -912,7 +912,7 @@ Net_Message *mpb_chat_message::build()
 
   for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
   {
-    char *sp=parms[x];
+    const char *sp=parms[x];
     if (!sp) sp="";
     strcpy(p,sp);
     p+=strlen(sp)+1;

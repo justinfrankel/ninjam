@@ -90,7 +90,7 @@ static void type_to_string(unsigned int t, char *out)
 
 
 
-extern void logText(char *s, ...);
+extern void logText(const char *s, ...);
 
 #define MAX_NICK_LEN 128 // not including null term
 
@@ -443,7 +443,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 
     if (err_st)
     {
-      static char *tab[] = { "invalid authorization reply", "incorrect client version", "license not agreed to" };
+      static const char *tab[] = { "invalid authorization reply", "incorrect client version", "license not agreed to" };
       mpb_server_auth_reply bh;
       bh.errmsg=tab[err_st-1];
 
@@ -500,7 +500,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             short v;
             int p,f;
             int whichch=0;
-            char *chnp=0;
+            const char *chnp=0;
             while ((offs=chi.parse_get_rec(offs,&chnp,&v,&p,&f))>0 && whichch < MAX_USER_CHANNELS && whichch < m_max_channels)
             {
               if (!chnp) chnp=""; 
@@ -574,7 +574,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
           if (!umi.parse(msg))
           {
             int offs=0;
-            char *unp=0;
+            const char *unp=0;
             unsigned int fla=0;
             while ((offs=umi.parse_get_rec(offs,&unp,&fla))>0)
             {
@@ -654,7 +654,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
                 if (group->m_logfp)
                 {
                   // decide when to write new interval
-                  char *chn="?";
+                  const char *chn="?";
                   if (mp.chidx >= 0 && mp.chidx < MAX_USER_CHANNELS) chn=m_channels[mp.chidx].name.Get();
                   fprintf(group->m_logfp,"user %s \"%s\" %d \"%s\"\n",guidstr,myusername,mp.chidx,chn);
                 }
@@ -829,10 +829,11 @@ static void ReleaseProjectInstance(ProjectInstance *p) { if (p) p->Release(); }
 
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), 
   m_voting_threshold(110), m_voting_timeout(120),
-  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_logfp(0),
+  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0),
     m_projects(false,ReleaseProjectInstance)
 
 {
+  m_logfp = NULL;
   CreateUserLookup=0;
   memset(&m_next_loop_time,0,sizeof(m_next_loop_time));
 }
@@ -1039,10 +1040,10 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         con->Send(newmsg.build());
         return;
       }
-      char *p=msg->parms[1];
+      const char *p=msg->parms[1];
       while (*p && *p != ' ') p++;
       while (*p == ' ') p++;
-      char *pn=p;
+      const char *pn=p;
       while (*p && *p != ' ') p++;
       while (*p == ' ') p++;
 
@@ -1234,7 +1235,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
   }
   else if (!strcmp(msg->parms[0],"ADMIN")) // admin message
   {
-    char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
+    const char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
     if (msg->parms[1] && *msg->parms[1])
     {
       if (!strncasecmp(msg->parms[1],"topic ",6))
@@ -1250,7 +1251,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         else
         {
           // set topic, notify everybody of topic change
-          char *p=msg->parms[1]+6;
+          const char *p=msg->parms[1]+6;
           while (*p == ' ') p++;
           if (*p)
           {
@@ -1277,7 +1278,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         else
         {
           // set topic, notify everybody of topic change
-          char *p=msg->parms[1]+5;
+          const char *p=msg->parms[1]+5;
           while (*p == ' ') p++;
           if (*p)
           {
@@ -1340,7 +1341,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         {
           int isbpm=tolower(msg->parms[1][2])=='m';
 
-          char *p=msg->parms[1]+4;
+          const char *p=msg->parms[1]+4;
           while (*p == ' ') p++;
           int v=atoi(p);
           if (isbpm && (v < 20 || v > 400))

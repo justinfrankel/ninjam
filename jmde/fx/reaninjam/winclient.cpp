@@ -214,14 +214,14 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 static JNL_HTTPGet *m_httpget=NULL;
 static int m_getServerList_status;
 static WDL_String m_listbuf;
-static void getServerList_setStatusTxt(HWND hwndDlg, char *txt)
+static void getServerList_setStatusTxt(HWND hwndDlg, const char *txt)
 {
   HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
   ListView_DeleteAllItems(list);
   LVITEM item={0,};
   item.mask = LVIF_TEXT;
   item.iItem = 0;
-  item.pszText = txt;
+  item.pszText = (char*)txt;
   ListView_InsertItem(list, &item);
 }
 
@@ -360,15 +360,15 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
         HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,140,"Server"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,140,(char*)"Server"};
           ListView_InsertColumn(list,0,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,"Info"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,(char*)"Info"};
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,"Users"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,(char*)"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
         ListView_SetExtendedListViewStyleEx(GetDlgItem(hwndDlg,IDC_LIST1),LVS_EX_FULLROWSELECT,LVS_EX_FULLROWSELECT);
@@ -854,7 +854,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           HMENU nm=SWELL_DuplicateMenu(normalFirst);
           if (nm)
           {
-            MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,"REAPER"};
+            MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,(char*)"REAPER"};
             InsertMenuItem(menu,0,TRUE,&mi);           
           }
         } 

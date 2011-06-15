@@ -66,7 +66,7 @@ WDL_String g_status_pass,g_status_user;
 User_Group *m_group;
 JNL_Listen *m_listener;
 void onConfigChange(int argc, char **argv);
-void logText(char *s, ...);
+void logText(const char *s, ...);
 
 class UserPassEntry
 {
@@ -660,7 +660,7 @@ void usage()
     exit(1);
 }
 
-void logText(char *s, ...)
+void logText(const char *s, ...)
 {
     if (g_logfp) 
     {      

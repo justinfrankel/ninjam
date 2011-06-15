@@ -33,8 +33,8 @@
 typedef struct
 {
    double parm_maxval;
-   char *name;
-   char *label;
+   const char *name;
+   const char *label;
    double defparm;
    double minval; // can be USE_DB,USE_BOOL
    double maxval;

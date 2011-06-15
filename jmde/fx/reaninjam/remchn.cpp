@@ -78,7 +78,7 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
       {        
         g_client->m_remotechannel_rd_mutex.Enter();
         bool mute;
-        char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
+        const char *un=g_client->GetUserState(m_user,NULL,NULL,&mute);
         if (!un) un="";
         SetDlgItemText(hwndDlg,IDC_USERNAME,un);
         g_client->m_remotechannel_rd_mutex.Leave();
@@ -177,7 +177,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_RCUSER_UPDATE: // update the items
       {
         g_client->m_remotechannel_rd_mutex.Enter();
-        char *un=g_client->GetUserState(user,NULL,NULL,NULL);
+        const char *un=g_client->GetUserState(user,NULL,NULL,NULL);
         SetDlgItemText(hwndDlg,IDC_USERNAME,un?un:"");
 
         bool sub=0,m=0,s=0;

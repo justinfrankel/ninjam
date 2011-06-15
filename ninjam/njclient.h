@@ -172,13 +172,13 @@ public:
 
 
   int LicenseAgreement_User32;
-  int (*LicenseAgreementCallback)(int user32, char *licensetext); // return TRUE if user accepts
+  int (*LicenseAgreementCallback)(int user32, const char *licensetext); // return TRUE if user accepts
 
 
   // messages you can send:
   // "MSG" "text"  - broadcast "text" to everybody
   // "PRIVMSG" "username" "text"  - send text to "username"
-  void ChatMessage_Send(char *parm1, char *parm2, char *parm3=NULL, char *parm4=NULL, char *parm5=NULL);
+  void ChatMessage_Send(const char *parm1, const char *parm2, const char *parm3=NULL, const char *parm4=NULL, const char *parm5=NULL);
 
   // messages you can receive from this:
   // "MSG" "user" "text"   - message from user to everybody (including you!), or if user is empty, from the server
@@ -187,7 +187,7 @@ public:
   // usernames are not case sensitive, but message names ARE.
 
   // note that nparms is the MAX number of parms, you still can get NULL parms entries in there (though rarely)
-  void (*ChatMessage_Callback)(int user32, NJClient *inst, char **parms, int nparms); 
+  void (*ChatMessage_Callback)(int user32, NJClient *inst, const char **parms, int nparms); 
   int ChatMessage_User32;
 
 
@@ -209,7 +209,7 @@ protected:
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isPlaying, bool isSeek, double cursessionpos);
   void on_new_interval();
 
-  void writeLog(char *fmt, ...);
+  void writeLog(const char *fmt, ...);
 
   WDL_String m_errstr;
 

@@ -80,7 +80,7 @@ char m_chatinput_str[120];
 
 WDL_PtrList<char> g_chat_buffers;
 
-void addChatLine(char *src, char *text)
+void addChatLine(const char *src, const char *text)
 {
   while (g_chat_buffers.GetSize() > 256)
   {
@@ -93,7 +93,7 @@ void addChatLine(char *src, char *text)
     tmp.Set("* ");
     tmp.Append(src);
     tmp.Append(" ");
-    char *p=text+3;
+    const char *p=text+3;
     while (*p == ' ') p++;
     tmp.Append(p);
   }
@@ -117,7 +117,7 @@ void addChatLine(char *src, char *text)
 
 WDL_String g_topic;
 
-void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms)
 {
   if (!parms[0]) return;
 
@@ -837,7 +837,7 @@ void usage(int noexit=0)
   if (!noexit) exit(1);
 }
 
-int licensecallback(int user32, char *licensetext)
+int licensecallback(int user32, const char *licensetext)
 {
   /* todo, curses shit */
 
@@ -853,7 +853,7 @@ int licensecallback(int user32, char *licensetext)
 	    attrset(COLORMAP(0));
 
       erase();
-      char *tp=licensetext;
+      const char *tp=licensetext;
       needref=0;
 	    bkgdset(COLORMAP(6));
 	    attrset(COLORMAP(6));

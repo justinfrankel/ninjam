@@ -35,7 +35,7 @@
 #include "resource.h"
 
 
-void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms)
 {
   if (!parms[0]) return;
 
@@ -106,7 +106,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
 WDL_String m_append_text;
 WDL_Mutex m_append_mutex;
 
-void chat_addline(char *src, char *text)
+void chat_addline(const char *src, const char *text)
 {
   WDL_String tmp;
   if (src && *src && !strncmp(text,"/me ",4))
@@ -114,7 +114,7 @@ void chat_addline(char *src, char *text)
     tmp.Set("* ");
     tmp.Append(src);
     tmp.Append(" ");
-    char *p=text+3;
+    const char *p=text+3;
     while (*p == ' ') p++;
     tmp.Append(p);
   }

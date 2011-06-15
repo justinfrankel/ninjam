@@ -49,6 +49,7 @@
 #include <pthread.h>
 
 #include <jack/jack.h>
+#include <string.h>
 
 #include "../WDL/pcmfmtcvt.h"
 

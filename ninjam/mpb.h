@@ -70,7 +70,7 @@ class mpb_server_auth_reply
 
     // public data
     char flag;  // low bit is success bit
-    char *errmsg; // if success bit is set, and this is also set, then it is the effective username of the client
+    const char *errmsg; // if success bit is set, and this is also set, then it is the effective username of the client
     char maxchan;
 };
 
@@ -110,8 +110,8 @@ class mpb_server_userinfo_change_notify
     // pan is -128..127
     // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
     // flags, &1 = no default subscribe, &2=instamode
-    void build_add_rec(int isActive, int channelid, short volume, int pan, int flags, char *username, char *chname);
-    int parse_get_rec(int offs, int *isActive, int *channelid, short *volume, int *pan, int *flags, char **username, char **chname); // returns offset of next item on success, or <0 if out of items
+    void build_add_rec(int isActive, int channelid, short volume, int pan, int flags, const char *username, const char *chname);
+    int parse_get_rec(int offs, int *isActive, int *channelid, short *volume, int *pan, int *flags, const char **username, const char **chname); // returns offset of next item on success, or <0 if out of items
 
    private:
 
@@ -191,8 +191,8 @@ class mpb_client_set_usermask
     Net_Message *build();
 
 
-    void build_add_rec(char *username, unsigned int chflags);
-    int parse_get_rec(int offs, char **username, unsigned int *chflags); // returns offset of next item on success, or <0 if out of items
+    void build_add_rec(const char *username, unsigned int chflags);
+    int parse_get_rec(int offs, const char **username, unsigned int *chflags); // returns offset of next item on success, or <0 if out of items
 
    private:
 
@@ -213,8 +213,8 @@ class mpb_client_set_channel_info
     // pan is -128..127
     // volume is dB gain, so 0=0dB, 10=1dB, -30=-3 dB, etc
     // flags, &1 = no default subscribe, &2=instamode, &4=session mode, 0x80=filler (inactive)
-    void build_add_rec(char *chname, short volume, int pan, int flags);
-    int parse_get_rec(int offs, char **chname, short *volume, int *pan, int *flags); // returns offset of next item on success, or <0 if out of items
+    void build_add_rec(const char *chname, short volume, int pan, int flags);
+    int parse_get_rec(int offs, const char **chname, short *volume, int *pan, int *flags); // returns offset of next item on success, or <0 if out of items
 
     int mpisize;
 
@@ -287,7 +287,7 @@ class mpb_chat_message
     int parse(Net_Message *msg); // return 0 on success
     Net_Message *build();
 
-    char *parms[5];
+    const char *parms[5];
 
     // currently defined client->server commands:
     // MSG <text>   - sends a message to everybody
