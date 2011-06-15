@@ -108,7 +108,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 }
 
 
-int CustomChannelMixer(int user32, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len)
+int CustomChannelMixer(void *userData, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len)
 {
   if (!IS_CMIX(chidx)) return 0;
 
