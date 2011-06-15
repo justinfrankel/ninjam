@@ -231,7 +231,7 @@ void highlightoutline(int line, const char *str, int attrnorm, int bknorm, int a
     {
       if (whl > 0)
       {
-        char *tmp=strstr(str,"]");
+        const char *tmp=strstr(str,"]");
         if (tmp && !strstr(tmp,"[")) 
         {
           whl=0;

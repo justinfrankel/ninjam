@@ -81,7 +81,7 @@ class audioStreamer_ALSA : public audioStreamer_int
 	public:
 		audioStreamer_ALSA();
 		~audioStreamer_ALSA();
-		int Open(char *devname, int is_write, int srate, int nch, int bps, int fragsize, int nfrags, int dosleep);
+		int Open(const char *devname, int is_write, int srate, int nch, int bps, int fragsize, int nfrags, int dosleep);
 
 		int Read(char *buf, int len); // returns 0 if blocked, < 0 if error, > 0 if data
 		int Write(char *buf, int len); // returns 0 on success
@@ -112,7 +112,7 @@ audioStreamer_ALSA::~audioStreamer_ALSA()
 	}
 }
 
-int audioStreamer_ALSA::Open(char *devname, int is_write, int srate, int nch, int bps, int fragsize, int nfrags, int dosleep)
+int audioStreamer_ALSA::Open(const char *devname, int is_write, int srate, int nch, int bps, int fragsize, int nfrags, int dosleep)
 {
 	m_sleep=dosleep;
 
@@ -368,16 +368,20 @@ void audioStreamer_asiosim::tp()
   }
 }
 
-audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc)
+audioStreamer *create_audioStreamer_ALSA(const char *_cfg, SPLPROC proc)
 {
   // todo: parse from cfg
-  char *indev="hw:0,0";
-  char *outdev="hw:0,0";
+  const char *indev="hw:0,0";
+  const char *outdev="hw:0,0";
   int srate=48000;
   int nch=2;
   int bps=16;
   int fs=1024;
   int nf=16;
+  char tmp[4096];
+  strncpy(tmp,_cfg?_cfg:"",sizeof(tmp));
+  tmp[sizeof(tmp)-1]=0;
+  char *cfg=tmp;
 
   while (cfg && *cfg)
   {

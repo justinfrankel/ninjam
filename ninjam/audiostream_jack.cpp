@@ -66,7 +66,7 @@ static void audiostream_onover() { }
 class audioStreamer_JACK : public audioStreamer
 {
     public:
-	audioStreamer_JACK( char *cfg, SPLPROC proc );
+	audioStreamer_JACK( const char *cfg, SPLPROC proc );
 	~audioStreamer_JACK();
 
 	int process( jack_nframes_t nframes );
@@ -92,7 +92,7 @@ process_cb( jack_nframes_t nframes, audioStreamer_JACK *as ) {
 
 
 //////////////// ALSA driver
-audioStreamer_JACK::audioStreamer_JACK( char *cfg, SPLPROC proc) 
+audioStreamer_JACK::audioStreamer_JACK( const char *cfg, SPLPROC proc) 
 { 
 
     splproc = proc;
@@ -137,7 +137,7 @@ audioStreamer_JACK::process( jack_nframes_t nframes ) {
     return 0;
 }
 
-audioStreamer *create_audioStreamer_JACK(char *cfg, SPLPROC proc)
+audioStreamer *create_audioStreamer_JACK(const char *cfg, SPLPROC proc)
 {
   return new audioStreamer_JACK( cfg, proc);
 }
