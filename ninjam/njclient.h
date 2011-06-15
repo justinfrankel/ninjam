@@ -171,8 +171,8 @@ public:
   WaveWriter *waveWrite;
 
 
-  int LicenseAgreement_User32;
-  int (*LicenseAgreementCallback)(int user32, const char *licensetext); // return TRUE if user accepts
+  void *LicenseAgreement_User;
+  int (*LicenseAgreementCallback)(void *userData, const char *licensetext); // return TRUE if user accepts
 
 
   // messages you can send:
@@ -187,14 +187,14 @@ public:
   // usernames are not case sensitive, but message names ARE.
 
   // note that nparms is the MAX number of parms, you still can get NULL parms entries in there (though rarely)
-  void (*ChatMessage_Callback)(int user32, NJClient *inst, const char **parms, int nparms); 
-  int ChatMessage_User32;
+  void (*ChatMessage_Callback)(void *userData, NJClient *inst, const char **parms, int nparms); 
+  void *ChatMessage_User;
 
 
   // set these if you want to mix multiple channels into the output channel
   // return 0 if you want the default behavior
-  int (*ChannelMixer)(int user32, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len);
-  int ChannelMixer_User32;
+  int (*ChannelMixer)(void *userData, float **inbuf, int in_offset, int innch, int chidx, float *outbuf, int len);
+  void *ChannelMixer_User;
 
   WDL_Mutex m_remotechannel_rd_mutex;
 

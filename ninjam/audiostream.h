@@ -63,11 +63,11 @@ audioStreamer *create_audioStreamer_DS(int srate, int bps, GUID devs[2], int *nb
 
 #else
 
-#ifdef _MAC
-audioStreamer *create_audioStreamer_CoreAudio(char **dev, int srate, int nch, int bps, SPLPROC proc);
+#ifdef __APPLE__
+audioStreamer *create_audioStreamer_CoreAudio(const char **dev, int srate, int nch, int bps, SPLPROC proc);
 #else
-audioStreamer *create_audioStreamer_ALSA(char *cfg, SPLPROC proc);
-audioStreamer *create_audioStreamer_JACK(char *cfg, SPLPROC proc);
+audioStreamer *create_audioStreamer_ALSA(const char *cfg, SPLPROC proc);
+audioStreamer *create_audioStreamer_JACK(const char *cfg, SPLPROC proc);
 #endif
 
 #endif

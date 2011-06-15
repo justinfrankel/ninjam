@@ -458,7 +458,7 @@ int audioStreamer_CoreAudio::Write(char *buf, int len) // returns 0 on success
 }
 
 
-audioStreamer *create_audioStreamer_CoreAudio(char **dev, int srate, int nch, int bps, SPLPROC proc)
+audioStreamer *create_audioStreamer_CoreAudio(const char **dev, int srate, int nch, int bps, SPLPROC proc)
 {
     _splproc = proc;
     audioStreamer_CoreAudio *audio;

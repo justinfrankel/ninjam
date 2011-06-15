@@ -35,7 +35,7 @@ NJClient *g_client;
 
 int g_audio_enable=0;
 int g_thread_quit=0;
-char *g_need_license;
+const char *g_need_license;
 int g_license_result;
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate) 
@@ -52,7 +52,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
 
 WDL_String g_chat_needadd;
 
-void addChatLine(char *src, char *text)
+void addChatLine(const char *src, const char *text)
 {
   WDL_String tmp;
   if (src && *src && !strncmp(text,"/me ",4))
@@ -60,7 +60,7 @@ void addChatLine(char *src, char *text)
     tmp.Set("* ");
     tmp.Append(src);
     tmp.Append(" ");
-    char *p=text+3;
+    const char *p=text+3;
     while (*p == ' ') p++;
     tmp.Append(p);
   }
@@ -85,7 +85,7 @@ void addChatLine(char *src, char *text)
 
 WDL_String g_topic;
 
-void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
+void chatmsg_cb(void *userData, NJClient *inst, const char **parms, int nparms)
 {
   if (!parms[0]) return;
 
@@ -152,7 +152,7 @@ void chatmsg_cb(int user32, NJClient *inst, char **parms, int nparms)
   } 
 }
 
-int licensecallback(int user32, char *licensetext)
+int licensecallback(void *userData, const char *licensetext)
 {
 g_need_license=licensetext;
 g_license_result=0;
@@ -270,7 +270,7 @@ return g_license_result;
   
    
     g_client->ChatMessage_Callback=chatmsg_cb;
-    g_client->ChatMessage_User32 = (int)self;
+    g_client->ChatMessage_User = self;
   
   [mastermute setIntValue:g_client->config_mastermute];
   [metromute setIntValue:g_client->config_metronome_mute];

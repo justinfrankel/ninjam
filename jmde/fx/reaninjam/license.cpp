@@ -68,7 +68,7 @@ static const char *g_need_license;
 static int g_license_result;
 static WDL_Mutex m_license_mutex;
 
-int licensecallback(int user32, const char *licensetext)
+int licensecallback(void *userData, const char *licensetext)
 {
   if (!licensetext || !*licensetext) return 1;
 

@@ -5,11 +5,12 @@
 OPTFLAGS =  -O2
 
 ifdef MAC
-OPTFLAGS += -D_MAC -mcpu=7450
+OPTFLAGS += -D_MAC 
 LFLAGS = -framework coreaudio -lncurses.5 -lm
 else
 LFLAGS = -lncurses -lm -lasound -ljack
 endif
+OPTFLAGS += -I../../sdks/libvorbis-1.3.1/include
 
 #############################################################
 # Basic Configuration

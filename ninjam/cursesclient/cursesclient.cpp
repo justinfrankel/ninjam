@@ -117,7 +117,7 @@ void addChatLine(const char *src, const char *text)
 
 WDL_String g_topic;
 
-void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms)
+void chatmsg_cb(void *userData, NJClient *inst, const char **parms, int nparms)
 {
   if (!parms[0]) return;
 
@@ -206,7 +206,7 @@ int g_sel_x, g_sel_ypos,g_sel_ycat;
 
 
 // highlights shit in []
-void highlightoutline(int line, char *str, int attrnorm, int bknorm, int attrhi, int bkhi, int attrsel, int bksel, int whl)
+void highlightoutline(int line, const char *str, int attrnorm, int bknorm, int attrhi, int bkhi, int attrsel, int bksel, int whl)
 {
   int state=0;
   int l=COLS-1;
@@ -774,7 +774,7 @@ void showmainview(bool action=false, int ymove=0)
   {
 	  bkgdset(COLORMAP(2));
 	  attrset(COLORMAP(2));
-    char *p1="RENAME CHANNEL:";
+    const char *p1="RENAME CHANNEL:";
 	  mvaddnstr(LINES-2,0,p1,COLS-1);
 	  bkgdset(COLORMAP(0));
 	  attrset(COLORMAP(0));
@@ -811,7 +811,7 @@ void usage(int noexit=0)
     "  -noaudiocfg\n"
     "  -jesusonic <path to jesusonic root dir>\n"
 #else
-#ifdef _MAC
+#ifdef __APPLE__
     "  -audiostr device_name[,output_device_name]\n"
 #else
     "  -jack (to use JACK)\n"
@@ -837,7 +837,7 @@ void usage(int noexit=0)
   if (!noexit) exit(1);
 }
 
-int licensecallback(int user32, const char *licensetext)
+int licensecallback(void *userData, const char *licensetext)
 {
   /* todo, curses shit */
 
@@ -965,7 +965,7 @@ int main(int argc, char **argv)
   int nolog=0,nowav=1,writeogg=0,g_nssf=0;
 
   printf("NINJAM v0.01a ALPHA curses client, compiled " __DATE__ " at " __TIME__ "\nCopyright (C) 2004-2005 Cockos, Inc.\n\n");
-  char *audioconfigstr=NULL;
+  const char *audioconfigstr=NULL;
   g_client=new NJClient;
   g_client->config_savelocalaudio=1;
   g_client->LicenseAgreementCallback=licensecallback;
@@ -973,7 +973,7 @@ int main(int argc, char **argv)
 
   char *hostname;
 
-#if 1//def _MAC
+#if 1//def __APPLE__
   char hostbuf[512];
   if (argc < 2)
   {
@@ -1095,8 +1095,8 @@ int main(int argc, char **argv)
 
 #else
   {
-    char *dev_name_in=audioconfigstr;
-#ifdef _MAC
+    const char *dev_name_in=audioconfigstr;
+#ifdef __APPLE__
     g_audio=create_audioStreamer_CoreAudio(&dev_name_in,48000,2,16,audiostream_onsamples);
 #else
     if (dev_name_in && !strcmp(dev_name_in,"JACK"))
@@ -1448,7 +1448,7 @@ int main(int argc, char **argv)
 #endif
 
       int a=getch();
-#ifdef _MAC
+#ifdef __APPLE__
 		{
 			static timeval last_t;
 			static int stage;

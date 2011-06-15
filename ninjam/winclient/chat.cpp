@@ -31,7 +31,7 @@
 #include "resource.h"
 
 
-void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms)
+void chatmsg_cb(void *userData, NJClient *inst, const char **parms, int nparms)
 {
   if (!parms[0]) return;
 

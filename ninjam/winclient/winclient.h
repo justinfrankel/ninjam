@@ -61,10 +61,10 @@ BOOL WINAPI RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 void chat_addline(const char *src, const char *text);
 void chatInit(HWND hwndDlg);
 void chatRun(HWND hwndDlg);
-void chatmsg_cb(int user32, NJClient *inst, const char **parms, int nparms);
+void chatmsg_cb(void *userData, NJClient *inst, const char **parms, int nparms);
 
 // license.cpp
-int licensecallback(int user32, const char *licensetext);
+int licensecallback(void *userData, const char *licensetext);
 void licenseRun(HWND hwndDlg);
 
 #endif//_WINCLIENT_H_

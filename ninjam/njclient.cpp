@@ -514,12 +514,12 @@ NJClient::NJClient()
   config_play_prebuffer=DEFAULT_CONFIG_PREBUFFER;
 
 
-  LicenseAgreement_User32=0;
+  LicenseAgreement_User=0;
   LicenseAgreementCallback=0;
   ChatMessage_Callback=0;
-  ChatMessage_User32=0;
+  ChatMessage_User=0;
   ChannelMixer=0;
-  ChannelMixer_User32=0;
+  ChannelMixer_User=0;
 
   waveWrite=0;
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
@@ -905,7 +905,7 @@ int NJClient::Run() // nonzero if sleep ok
               if (cha.license_agreement)
               {
                 m_netcon->SetKeepAlive(45);
-                if (LicenseAgreementCallback && LicenseAgreementCallback(LicenseAgreement_User32,cha.license_agreement))
+                if (LicenseAgreementCallback && LicenseAgreementCallback(LicenseAgreement_User,cha.license_agreement))
                 {
                   repl.client_caps|=1;
                 }
@@ -1220,7 +1220,7 @@ int NJClient::Run() // nonzero if sleep ok
                   }
                 }               
               }
-              else ChatMessage_Callback(ChatMessage_User32,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              else ChatMessage_Callback(ChatMessage_User,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
             }
           }
         break;
@@ -1594,7 +1594,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
       int bytelen=len*(int)sizeof(float);
       if (tmpblock.GetSize() < bytelen) tmpblock.Resize(bytelen);
 
-      if (ChannelMixer && ChannelMixer(ChannelMixer_User32,inbuf,offset,innch,sc,(float*)tmpblock.Get(),len))
+      if (ChannelMixer && ChannelMixer(ChannelMixer_User,inbuf,offset,innch,sc,(float*)tmpblock.Get(),len))
       {
         // channelmixer succeeded
       }
