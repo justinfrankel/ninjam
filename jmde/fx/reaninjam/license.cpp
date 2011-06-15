@@ -40,7 +40,7 @@ static WDL_DLGRET LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      SetDlgItemText(hwndDlg,IDC_LICENSETEXT,(char *)lParam);
+      SetDlgItemText(hwndDlg,IDC_LICENSETEXT,(const char *)lParam);
     return 0;
     case WM_CLOSE:
       EndDialog(hwndDlg,0);
@@ -64,11 +64,11 @@ static WDL_DLGRET LicenseProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
   return 0;
 }
 
-static char *g_need_license;
+static const char *g_need_license;
 static int g_license_result;
 static WDL_Mutex m_license_mutex;
 
-int licensecallback(int user32, char *licensetext)
+int licensecallback(int user32, const char *licensetext)
 {
   if (!licensetext || !*licensetext) return 1;
 
