@@ -1,5 +1,6 @@
 CXX=g++
 CFLAGS=-O2
+CXXFLAGS = $(CFLAGS)
 default: autosong
 
 
