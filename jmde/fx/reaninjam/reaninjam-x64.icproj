@@ -3,7 +3,7 @@
 	ProjectType="Intel C++ Project"
 	Version="10.1"
 	Name="reaninjam"
-	ProjectGUID="{9A032F20-DD02-4F8B-A2B6-353B947B6EEA}"
+	ProjectGUID="{4CB3EE43-DFED-4754-9686-80F0BCF94F19}"
 	RootNamespace="reaninjam"
 	VCNestedProjectGUID="{49F2387D-990E-4B1B-B845-F56E4D77CEE1}"
 	VCNestedProjectCRC32="918034995"
