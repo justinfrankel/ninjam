@@ -50,6 +50,7 @@
 #include "../../../WDL/lineparse.h"
 
 #include "../../../WDL/jnetlib/httpget.h"
+#include "../../../WDL/wdlcstring.h"
 
 #include "winclient.h"
 

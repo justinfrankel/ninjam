@@ -31,6 +31,7 @@
 #include "../../../WDL/swell/swell.h"
 #endif
 #include "winclient.h"
+#include "../../../WDL/wdlcstring.h"
 
 #include "resource.h"
 
@@ -178,8 +179,8 @@ void chatRun(HWND hwndDlg)
     if (oldsels < 0) oldsels=0;
     if (oldsele < 0) oldsele=0;
 
-	  if(txt[0]) lstrcpyn(txt+strlen(txt),"\n",sizeof(txt)-strlen(txt));
-	  lstrcpyn(txt+strlen(txt),tmp.Get(),sizeof(txt)-strlen(txt));
+	  if(txt[0]) lstrcatn(txt,"\n",sizeof(txt));
+	  lstrcatn(txt,tmp.Get(),sizeof(txt));
 
     CHARFORMAT2 cf2;
     cf2.cbSize=sizeof(cf2);

@@ -15,6 +15,8 @@
 
 #include "../../midi_io.h"
 
+#include "../../../WDL/wdlcstring.h"
+
 #include "resource.h"
 
 #define VENDOR "Cockos"
