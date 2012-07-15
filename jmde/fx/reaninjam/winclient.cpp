@@ -31,6 +31,7 @@
 #include <richedit.h>
 #include <shlobj.h>
 #include <commctrl.h>
+#include <process.h>
 #define PREF_DIRSTR "\\"
 #define strncasecmp strnicmp
 #else
@@ -662,7 +663,7 @@ static void updateMasterControlLabels(HWND hwndDlg)
 }
 
 
-static DWORD WINAPI ThreadFunc(LPVOID p)
+static unsigned WINAPI ThreadFunc(LPVOID p)
 {
   while (!g_done)
   {
@@ -1070,8 +1071,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
         if (rsp) resizePanes(hwndDlg,rsp,resize,1);
 
-        DWORD id;
-        g_hThread=CreateThread(NULL,0,ThreadFunc,0,0,&id);
+        unsigned id;
+        g_hThread=(HANDLE)_beginthreadex(NULL,0,ThreadFunc,0,0,&id);
 
       }
     return 0;
