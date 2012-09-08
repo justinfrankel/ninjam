@@ -735,7 +735,7 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
 
     if (x > len) x=len;
 
-    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs,false,isPlaying,isSeek,cursessionpos);
+    process_samples(inbuf,innch,outbuf,outnch,x,srate,offs,0,isPlaying,isSeek,cursessionpos);
 
     m_interval_pos+=x;
     offs += x;

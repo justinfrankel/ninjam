@@ -996,7 +996,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                     }
                   break;
                   case 1: //broadcast
-                    g_client->SetLocalChannelInfo(ch,NULL,false,false,false,0,true,!!lp.gettoken_int(n+1));
+                    g_client->SetLocalChannelInfo(ch,NULL,false,0,false,0,true,!!lp.gettoken_int(n+1));
                   break;
                   case 2: //mute
                     g_client->SetLocalChannelMonitoring(ch,false,false,false,false,true,!!lp.gettoken_int(n+1),false,false);
@@ -1017,11 +1017,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                     }
                   break;
                   case 7: //name
-                    g_client->SetLocalChannelInfo(ch,name=lp.gettoken_str(n+1),false,false,false,0,false,false);
+                    g_client->SetLocalChannelInfo(ch,name=lp.gettoken_str(n+1),false,0,false,0,false,false);
                     ok|=1;
                   break;
                   case 8: //flag
-                    g_client->SetLocalChannelInfo(ch,NULL,false,false,false,0,false,false,false,0,true,lp.gettoken_int(n+1));
+                    g_client->SetLocalChannelInfo(ch,NULL,false,0,false,0,false,false,false,0,true,lp.gettoken_int(n+1));
                   break;
                   default:
                   break;
