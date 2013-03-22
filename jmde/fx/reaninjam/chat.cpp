@@ -249,5 +249,6 @@ void chatRun(HWND hwndDlg)
   if (bla.Available() > 0)
     SetWindowText(m_hwnd,bla.Get());
   else SetWindowText(m_hwnd,"");
+  SendMessage(m_hwnd,EM_SCROLL,SB_BOTTOM,0);
 #endif
 }
