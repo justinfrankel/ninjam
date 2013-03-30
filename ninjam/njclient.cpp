@@ -1449,7 +1449,12 @@ int NJClient::Run() // nonzero if sleep ok
   //            sprintf(buf,"SESSION %s %d %f %f\n",guidstr,u,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
 //              OutputDebugString(buf);
 
-              writeLog("localsessionlog %s \"%s\" %d \"%s\" %.10f %.10f\n",guidstr,"local",lc->channel_idx,lc->name.Get(),lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
+              char tmp[1024];
+              lstrcpyn(tmp,lc->name.Get(),sizeof(tmp));
+              char *p=tmp;
+              while (*p) { if (*p == '\"') *p = '\''; p++; }
+
+              writeLog("localsessionlog %s \"%s\" %d \"%s\" %.10f %.10f\n",guidstr,"local",lc->channel_idx,tmp,lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
 
               ChatMessage_Send("SESSION",guidstr,idxstr,offslenstr);
             }
@@ -2231,7 +2236,13 @@ void NJClient::on_new_interval()
         {
           char guidstr[64];
           guidtostr(chan->ds->guid,guidstr);
-          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,user->name.Get(),ch,chan->name.Get());
+          char tmp[1024],tmp2[1024],*p;
+          lstrcpyn(p=tmp,user->name.Get(),sizeof(tmp));
+          while (*p) { if (*p == '\"') *p = '\''; p++; }
+
+          lstrcpyn(p=tmp2,chan->name.Get(),sizeof(tmp2));
+          while (*p) { if (*p == '\"') *p = '\''; p++; }
+          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,tmp,ch,tmp2);
         }
       }
     }
