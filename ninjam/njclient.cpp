@@ -30,6 +30,7 @@
 #include "mpb.h"
 #include "../WDL/pcmfmtcvt.h"
 #include "../WDL/wavwrite.h"
+#include "../WDL/wdlcstring.h"
 
 
 #define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
@@ -1450,7 +1451,7 @@ int NJClient::Run() // nonzero if sleep ok
 //              OutputDebugString(buf);
 
               char tmp[1024];
-              lstrcpyn(tmp,lc->name.Get(),sizeof(tmp));
+              lstrcpyn_safe(tmp,lc->name.Get(),sizeof(tmp));
               char *p=tmp;
               while (*p) { if (*p == '\"') *p = '\''; p++; }
 
@@ -2237,10 +2238,10 @@ void NJClient::on_new_interval()
           char guidstr[64];
           guidtostr(chan->ds->guid,guidstr);
           char tmp[1024],tmp2[1024],*p;
-          lstrcpyn(p=tmp,user->name.Get(),sizeof(tmp));
+          lstrcpyn_safe(p=tmp,user->name.Get(),sizeof(tmp));
           while (*p) { if (*p == '\"') *p = '\''; p++; }
 
-          lstrcpyn(p=tmp2,chan->name.Get(),sizeof(tmp2));
+          lstrcpyn_safe(p=tmp2,chan->name.Get(),sizeof(tmp2));
           while (*p) { if (*p == '\"') *p = '\''; p++; }
           writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,tmp,ch,tmp2);
         }
