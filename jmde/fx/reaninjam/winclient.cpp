@@ -1607,6 +1607,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       g_audio_enable=0;
 
       JNL::close_socketlib();
+      g_hwnd=NULL;
     return 0;
   }
   return 0;
