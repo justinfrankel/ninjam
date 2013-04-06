@@ -390,6 +390,7 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      m_num_children=NULL;
     case WM_LCUSER_RESIZE:
       {
       }
@@ -536,9 +537,12 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   switch (uMsg)
   {
 
+    case WM_INITDIALOG:
+      m_nScrollPos=m_nScrollPos_w=0;
+      m_maxpos_h=m_h=m_maxpos_w=m_w=0;
+      m_child=NULL;
     case WM_RCUSER_UPDATE:
     case WM_LCUSER_RESIZE:
-    case WM_INITDIALOG:
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_LOCRECT),&r);
@@ -546,7 +550,6 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
         ScreenToClient(GetParent(hwndDlg),(LPPOINT)&r + 1);
         m_wh=r.bottom-r.top;
         m_ww=r.right-r.left;
-
 
         SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
 
@@ -729,6 +732,7 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_DESTROY:
+      m_child=NULL;
       UninitializeCoolSB(hwndDlg);
     return 0;
   }

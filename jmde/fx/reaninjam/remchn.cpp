@@ -454,6 +454,9 @@ static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+    case WM_DESTROY:
+      m_children.Empty();
+     break;
   }
   return 0;
 }
@@ -468,9 +471,11 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
   switch (uMsg)
   {
 
+    case WM_INITDIALOG:
+      m_h=m_maxpos_h=m_w=m_maxpos_w=0;
+      m_nScrollPos=m_nScrollPos_w=0;
     case WM_RCUSER_UPDATE:
     case WM_LCUSER_RESIZE:
-    case WM_INITDIALOG:
       {
         RECT r;
         GetWindowRect(GetDlgItem(GetParent(hwndDlg),IDC_REMOTERECT),&r);
@@ -641,6 +646,7 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_DESTROY:
       UninitializeCoolSB(hwndDlg);
+      m_child=NULL;
     break;
 
   }
