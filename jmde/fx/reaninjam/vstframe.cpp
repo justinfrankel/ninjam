@@ -474,7 +474,7 @@ public:
             first=1;
             char buf[4096];
             GetModuleFileName(g_hInst,buf,sizeof(buf));
-            LoadLibrary(buf);// keep us resident
+            LoadLibrary(buf);// keep us resident //-V530
 #ifndef _WIN32
             SWELL_RegisterCustomControlCreator(customControlCreator);
             if (g_hostcb)SWELL_RegisterCustomControlCreator((SWELL_ControlCreatorProc)g_hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Mac_CustomControlCreator",0.0));      
