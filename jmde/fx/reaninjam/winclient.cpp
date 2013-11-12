@@ -1563,13 +1563,13 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get());
         
 
-        sprintf(buf,"%d",g_last_wndpos.left);
+        sprintf(buf,"%d",(int)g_last_wndpos.left);
         WritePrivateProfileString(CONFSEC,"wnd_x",buf,g_ini_file.Get());
-        sprintf(buf,"%d",g_last_wndpos.top);
+        sprintf(buf,"%d",(int)g_last_wndpos.top);
         WritePrivateProfileString(CONFSEC,"wnd_y",buf,g_ini_file.Get());
-        sprintf(buf,"%d",g_last_wndpos.right - g_last_wndpos.left);
+        sprintf(buf,"%d",(int)(g_last_wndpos.right - g_last_wndpos.left));
         WritePrivateProfileString(CONFSEC,"wnd_w",buf,g_ini_file.Get());
-        sprintf(buf,"%d",g_last_wndpos.bottom - g_last_wndpos.top);
+        sprintf(buf,"%d",(int)(g_last_wndpos.bottom - g_last_wndpos.top));
         WritePrivateProfileString(CONFSEC,"wnd_h",buf,g_ini_file.Get());
 
 
