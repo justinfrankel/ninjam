@@ -380,7 +380,7 @@ static unsigned char zero_guid[16];
 static void guidtostr(const unsigned char *guid, char *str)
 {
   int x;
-  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+  for (x = 0; x < 16; x ++) sprintf(str+x*2,"%02x",guid[x]);
 }
 static bool strtoguid(const char *str, unsigned char *guid)
 {
