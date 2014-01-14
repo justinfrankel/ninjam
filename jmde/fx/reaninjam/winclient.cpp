@@ -1406,7 +1406,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             GetDlgItemText(hwndDlg,IDC_CHATENT,str,255);
             if (str[0])
             {
-              if (!strcasecmp(str,"/clear"))
+              if (!stricmp(str,"/clear"))
               {
                     SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
               }
