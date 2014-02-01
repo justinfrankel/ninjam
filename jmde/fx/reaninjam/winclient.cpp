@@ -762,12 +762,12 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
 #ifndef _WIN32
 
-void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
+void my_getViewport(RECT *r, const RECT *sr, bool wantWork) {
   return SWELL_GetViewPort(r,sr,wantWork);
 }
 #else
 
-void my_getViewport(RECT *r, RECT *sr, bool wantWork) {
+void my_getViewport(RECT *r, const RECT *sr, bool wantWork) {
   if (sr) 
   {
 	  static HINSTANCE hlib;
