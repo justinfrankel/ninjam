@@ -58,8 +58,7 @@
 				AssemblerListingLocation=".\Release64/"
 				ObjectFile=".\Release64/"
 				ProgramDataBaseFileName=".\Release64/"
-				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"/>
+				SuppressStartupBanner="true"/>
 			<Tool 
 				Name="VCManagedResourceCompilerTool"/>
 			<Tool 
@@ -138,7 +137,6 @@
 				ObjectFile=".\Release64/"
 				ProgramDataBaseFileName=".\Release64/"
 				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"/>
 			<Tool 
 				Name="VCManagedResourceCompilerTool"/>
@@ -223,7 +221,6 @@
 				ObjectFile=".\Debug64/"
 				ProgramDataBaseFileName=".\Debug64/"
 				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"/>
 			<Tool 
 				Name="VCManagedResourceCompilerTool"/>
@@ -303,7 +300,6 @@
 				ObjectFile=".\Debug64/"
 				ProgramDataBaseFileName=".\Debug64/"
 				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"/>
 			<Tool 
 				Name="VCManagedResourceCompilerTool"/>
