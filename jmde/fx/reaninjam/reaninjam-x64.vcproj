@@ -159,7 +159,6 @@
 				ObjectFile=".\Release64/"
 				ProgramDataBaseFileName=".\Release64/"
 				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
