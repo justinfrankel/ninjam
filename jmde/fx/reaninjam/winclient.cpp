@@ -457,7 +457,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
             WritePrivateProfileString(CONFSEC,"pass",g_connect_passremember?buf:"",g_ini_file.Get());
             WritePrivateProfileString(CONFSEC,"passrem",g_connect_passremember?"1":"0",g_ini_file.Get());
 
-            int x,len=SendDlgItemMessage(hwndDlg,IDC_HOST,CB_GETCOUNT,0,0);;
+            int x,len=(int)SendDlgItemMessage(hwndDlg,IDC_HOST,CB_GETCOUNT,0,0);;
             int o=1;
             WritePrivateProfileString(CONFSEC,"recent00",g_connect_host.Get(),g_ini_file.Get());
 
@@ -593,12 +593,12 @@ static void do_connect()
   
     buf[0]=0;
 
-    strcpy(buf,sroot);
-    sprintf(buf+strlen(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
+    lstrcpyn_safe(buf,sroot,(int) sizeof(buf));
+    snprintf_append(buf,(int)sizeof(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
-    if (cnt) sprintf(buf+strlen(buf),"_%d",cnt);
-    strcat(buf,".ninjam");
+    if (cnt) snprintf_append(buf,(int) sizeof(buf),"_%d",cnt);
+    lstrcatn(buf,".ninjam",(int) sizeof(buf));
 
     if (CreateDirectory(buf,NULL)) break;
 
