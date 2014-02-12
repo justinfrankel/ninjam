@@ -63,7 +63,7 @@
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 
-WDL_String g_ini_file;
+WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
 
 WDL_Mutex g_client_mutex;

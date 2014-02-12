@@ -44,7 +44,7 @@ void mkvolstr(char *str, double vol);
 void mkpanstr(char *str, double pan);
 
 extern WDL_Mutex g_client_mutex;
-extern WDL_String g_ini_file;
+extern WDL_FastString g_ini_file;
 extern NJClient *g_client;
 extern HINSTANCE g_hInst;
 extern int g_done;
