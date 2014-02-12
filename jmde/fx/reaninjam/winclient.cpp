@@ -576,13 +576,7 @@ static void do_connect()
     GetDefaultSessionDir(sroot,sizeof(sroot));
   }
 
-  {
-    char *p=sroot;
-    while (*p) p++;
-    p--;
-    while (p >= sroot && (*p == '/' || *p == '\\')) p--;
-    p[1]=0;
-  }
+  WDL_remove_trailing_dirchars(sroot);
 
   CreateDirectory(sroot,NULL);
   while (cnt < 16)
@@ -594,10 +588,10 @@ static void do_connect()
     buf[0]=0;
 
     lstrcpyn_safe(buf,sroot,(int) sizeof(buf));
-    snprintf_append(buf,(int)sizeof(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
+    snprintf_append(buf,sizeof(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
 
-    if (cnt) snprintf_append(buf,(int) sizeof(buf),"_%d",cnt);
+    if (cnt) snprintf_append(buf,sizeof(buf),"_%d",cnt);
     lstrcatn(buf,".ninjam",(int) sizeof(buf));
 
     if (CreateDirectory(buf,NULL)) break;
@@ -1626,9 +1620,7 @@ void InitializeInstance()
 
     {
       GetModuleFileName(NULL,g_inipath,sizeof(g_inipath));
-      char *p=g_inipath;
-      while (*p) p++;
-      while (p > g_inipath && *p != '\\' && *p != '/') p--; *p=0;
+      WDL_remove_filepart(g_inipath);
       g_ini_file.Set(g_inipath);
       g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
       FILE *fp = fopen(g_ini_file.Get(),"r+");
@@ -1640,10 +1632,7 @@ void InitializeInstance()
         if (ini_file)
         {
           g_ini_file.Set(ini_file);
-          char *p=g_ini_file.Get();
-          while (*p) p++;
-          while (p > g_ini_file.Get() && *p != '\\' && *p != '/') p--; 
-          *p=0;
+          g_ini_file.remove_filepart();
           lstrcpyn(g_inipath,g_ini_file.Get(),sizeof(g_inipath));
           g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
         }
