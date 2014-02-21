@@ -252,7 +252,7 @@ public:
 
   void Close();
   void Open(NJClient *parent, unsigned int fourcc, bool forceToDisk);
-  void Write(void *buf, int len);
+  void Write(const void *buf, int len);
   void startPlaying(int force=0); // call this with 1 to make sure it gets played ASAP, or let RemoteDownload call it automatically
 
   time_t last_time;
@@ -2871,7 +2871,7 @@ void RemoteDownload::startPlaying(int force)
   }
 }
 
-void RemoteDownload::Write(void *buf, int len)
+void RemoteDownload::Write(const void *buf, int len)
 {
   if (m_fp)
   {

@@ -45,39 +45,42 @@
 
 class Net_Message
 {
-	public:
-		Net_Message() : m_parsepos(0), m_refcnt(0), m_type(MESSAGE_INVALID)
-		{
-		}
-		~Net_Message()
-		{
-		}
+  public:
+    Net_Message() : m_parsepos(0), m_refcnt(0), m_type(MESSAGE_INVALID)
+    {
+    }
+    ~Net_Message()
+    {
+    }
 
 
-		void set_type(int type)	{ m_type=type; }
-		int  get_type() { return m_type; }
+    void set_type(int type)  { m_type=type; }
+    int  get_type() const { return m_type; }
 
-		void set_size(int newsize) { m_hb.Resize(newsize); }
-		int get_size() { return m_hb.GetSize(); }
+    void set_size(int newsize) 
+    { 
+      m_hb.Resize(newsize); 
+      if (m_hb.GetSize() != newsize) m_hb.Resize(0);
+    }
+    int get_size() const { return m_hb.GetSize(); }
 
-		void *get_data() { return m_hb.Get(); }
+    void *get_data() { return m_hb.Get(); }
 
-
-		int parseMessageHeader(void *data, int len); // returns bytes used, if any (or 0 if more data needed), or -1 if invalid
+    int parseMessageHeader(void *data, int len); // returns bytes used, if any (or 0 if more data needed), or -1 if invalid
     int parseBytesNeeded();
     int parseAddBytes(void *data, int len); // returns bytes actually added
 
-		int makeMessageHeader(void *data); // makes message header, returns length. data should be at least 16 bytes to be safe
+    int makeMessageHeader(void *data); // makes message header, returns length. data should be at least 16 bytes to be safe
 
 
-		void addRef() { ++m_refcnt; }
-		void releaseRef() { if (--m_refcnt < 1) delete this; }
+    void addRef() { ++m_refcnt; }
+    void releaseRef() { if (--m_refcnt < 1) delete this; }
 
-	private:
-    		int m_parsepos;
-		int m_refcnt;
-		int m_type;
-		WDL_HeapBuf m_hb;
+  private:
+    int m_parsepos;
+    int m_refcnt;
+    int m_type;
+    WDL_HeapBuf m_hb;
 };
 
 

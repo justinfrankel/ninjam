@@ -41,7 +41,7 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_AUTH_CHALLENGE) return -1;
   if (msg->get_size() < 4+4+(int)sizeof(challenge)) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(challenge,p,sizeof(challenge));
@@ -59,8 +59,9 @@ int mpb_server_auth_challenge::parse(Net_Message *msg) // return 0 on success
 
   if (server_caps&1)
   {
-    char *s=(char*)p;
-    while (p-(unsigned char *)msg->get_data() < msg->get_size()) 
+    const char *s=(const char *)p;
+    const unsigned char *endp = (const unsigned char *)msg->get_data() + msg->get_size();
+    while (p < endp) 
     {
       if (!*p)
       {
@@ -79,7 +80,9 @@ Net_Message *mpb_server_auth_challenge::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_CHALLENGE);
   
-  nm->set_size(sizeof(challenge) + 8 + (license_agreement?strlen(license_agreement)+1:0));
+  const int la_sz = (license_agreement ? (int)strlen(license_agreement) + 1 : 0);
+  const int sz = (int)sizeof(challenge)+8 + la_sz;
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -109,9 +112,8 @@ Net_Message *mpb_server_auth_challenge::build()
 
   if (license_agreement)
   {
-    strcpy((char*)p,license_agreement);
-    p+=strlen(license_agreement);
-    *p++=0;
+    memcpy(p,license_agreement,la_sz);
+    p += la_sz;
   }
 
 
@@ -125,21 +127,22 @@ int mpb_server_auth_reply::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_SERVER_AUTH_REPLY) return -1;
   if (msg->get_size() < 1) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *endp = p + msg->get_size();
   if (!p) return 2;
 
   flag=*p++;
   if (msg->get_size()>1)
   {
-    char *t=(char*)p;
-    while (p-(unsigned char *)msg->get_data() < msg->get_size() && *p) p++;
+    const char *t=(const char*)p;
+    while (p < endp && *p) p++;
 
-    if (p-(unsigned char *)msg->get_data() < msg->get_size())
+    if (p < endp)
     {
       errmsg=t;
 
       p++;
-      if (p-(unsigned char *)msg->get_data() < msg->get_size())
+      if (p < endp)
       {
         maxchan=*p++;
       }
@@ -154,7 +157,9 @@ Net_Message *mpb_server_auth_reply::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_AUTH_REPLY);
   
-  nm->set_size(errmsg?strlen(errmsg)+1+1+1:1);
+  const int errmsg_sz = errmsg ? (int)strlen(errmsg)+1 : 0;
+  const int sz = 1 + (errmsg ? errmsg_sz + 1 : 0);
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -167,8 +172,8 @@ Net_Message *mpb_server_auth_reply::build()
   *p++=flag;
   if (errmsg)
   {
-    strcpy((char*)p,errmsg);
-    p+=strlen(errmsg)+1;
+    memcpy(p, errmsg, errmsg_sz);
+    p += errmsg_sz;
     *p++ = maxchan;
   }
 
@@ -246,19 +251,22 @@ Net_Message *mpb_server_userinfo_change_notify::build()
 void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channelid, 
                                                       short volume, int pan, int flags, const char *username, const char *chname)
 {
-  int size=1+ // is remove
+  const int username_len = username ? (int)strlen(username) : 0;
+  const int chname_len = chname ? (int)strlen(chname) : 0;
+
+  const int size=1+ // is remove
            1+ // channel index
            2+ // volume
            1+ // pan
            1+ // flags
-           strlen(username?username:"")+1+strlen(chname?chname:"")+1;
+           username_len+1+chname_len+1;
 
   if (!m_intmsg) 
   {
     m_intmsg = new Net_Message;
     m_intmsg->set_type(MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY); 
   }
-  int oldsize=m_intmsg->get_size();
+  const int oldsize=m_intmsg->get_size();
   m_intmsg->set_size(size+oldsize);
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
   if (p)
@@ -279,10 +287,14 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channeli
 
     *p++=(unsigned char)flags;
 
-    strcpy((char*)p,username);
-    p+=strlen(username)+1;
-    strcpy((char*)p,chname);
-    p+=strlen(chname)+1;
+    if (username_len) memcpy(p,username,username_len+1);
+    else *p = 0;
+    p+=username_len+1;
+
+    if (chname_len) memcpy(p,chname,chname_len+1);
+    else *p = 0;
+
+    p+=chname_len+1;
   }
 }
 
@@ -291,21 +303,21 @@ void mpb_server_userinfo_change_notify::build_add_rec(int isActive, int channeli
 int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, int *channelid, short *volume, 
                                                      int *pan, int *flags, const char **username, const char **chname)
 {
-  int hdrsize=1+ // is remove
+  const int hdrsize=1+ // is remove
            1+ // channel index
            2+ // volume
            1+ // pan
            1; // flags
 
   if (!m_intmsg) return 0;
-  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  const unsigned char *p=(unsigned char *)m_intmsg->get_data();
   int len=m_intmsg->get_size()-offs;
   if (!p || len < hdrsize+2) return 0;
   p+=offs;
 
-  unsigned char *hdrbuf=p;
-  char *unp;
-  char *cnp;
+  const unsigned char *hdrbuf=p;
+  const char *unp;
+  const char *cnp;
 
   if (len < hdrsize+2) return 0;
   hdrbuf=p;
@@ -340,7 +352,7 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, in
   *chname = cnp;
 
 
-  return p - (unsigned char *)m_intmsg->get_data();
+  return (int) (p - (unsigned char *)m_intmsg->get_data());
 }
 
 
@@ -349,7 +361,7 @@ int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on s
 {
   if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN) return -1;
   if (msg->get_size() < 25+1) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(guid,p,sizeof(guid));
@@ -365,7 +377,7 @@ int mpb_server_download_interval_begin::parse(Net_Message *msg) // return 0 on s
   chidx = (int)*p++;
   int len=msg->get_size()-25;
 
-  username=(char *)p;
+  username=(const char *)p;
 
 
   // validate null termination for now
@@ -386,11 +398,14 @@ Net_Message *mpb_server_download_interval_begin::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_BEGIN);
   
-  nm->set_size(25+strlen(username?username:"")+1);
+  const int username_len = username ? (int)strlen(username) : 0;
+
+  const int sz = 25 + username_len + 1;
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
-  if (!p)
+  if (!p||nm->get_size()!=sz)
   {
     delete nm;
     return 0;
@@ -408,8 +423,8 @@ Net_Message *mpb_server_download_interval_begin::build()
   *p++=(unsigned char)((fourcc>>24)&0xff);
   *p++=(unsigned char)((chidx)&0xff);
 
-  strcpy((char *)p,username?username:"");
-
+  if (username_len) memcpy(p, username, username_len + 1);
+  else *p = 0;
 
   return nm;
 }
@@ -420,7 +435,7 @@ int mpb_server_download_interval_write::parse(Net_Message *msg) // return 0 on s
 {
   if (msg->get_type() != MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE) return -1;
   if (msg->get_size() < 17) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(guid,p,sizeof(guid));
@@ -439,7 +454,8 @@ Net_Message *mpb_server_download_interval_write::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_SERVER_DOWNLOAD_INTERVAL_WRITE);
   
-  nm->set_size(17+(audio_data?audio_data_len:0));
+  const int sz = 17 + (audio_data ? audio_data_len : 0);
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -472,7 +488,7 @@ int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_AUTH_USER) return -1;
   if (msg->get_size() < (int)sizeof(passhash)+1) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
   int len=msg->get_size();
 
@@ -512,7 +528,9 @@ Net_Message *mpb_client_auth_user::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_AUTH_USER);
   
-  nm->set_size(sizeof(passhash) + (username?strlen(username):0) + 1 + 4 + 4);
+  const int username_len = username ? (int)strlen(username) : 0;
+  const int sz = (int)sizeof(passhash)+username_len + 1 + 4 + 4;
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -525,8 +543,9 @@ Net_Message *mpb_client_auth_user::build()
   memcpy(p,passhash,sizeof(passhash));
   p+=sizeof(passhash);
 
-  strcpy((char*)p,username?username:"");
-  p+=strlen(username?username:"")+1;
+  if (username_len) memcpy(p, username, username_len+1);
+  else *p = 0;
+  p+=username_len+1;
 
   *p++=(client_caps&0xff);
   *p++=(client_caps&0xff00)>>8;
@@ -571,22 +590,24 @@ Net_Message *mpb_client_set_usermask::build()
 
 void mpb_client_set_usermask::build_add_rec(const char *username, unsigned int chflags)
 {
-  int size=4+strlen(username?username:"")+1;
+  const int username_len = username ? (int)strlen(username) : 0;
+  const int size=4+username_len+1;
 
   if (!m_intmsg) 
   {
     m_intmsg = new Net_Message;
     m_intmsg->set_type(MESSAGE_CLIENT_SET_USERMASK); 
   }
-  int oldsize=m_intmsg->get_size();
+  const int oldsize=m_intmsg->get_size();
   m_intmsg->set_size(size+oldsize);
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
   if (p)
   {
     p+=oldsize;
 
-    strcpy((char*)p,username);
-    p+=strlen(username)+1;
+    if (username_len) memcpy(p,username,username_len+1);
+    else *p = 0;
+    p+=username_len+1;
 
     *p++=chflags&0xff;
     *p++=(chflags>>8)&0xff;
@@ -600,12 +621,12 @@ void mpb_client_set_usermask::build_add_rec(const char *username, unsigned int c
 int mpb_client_set_usermask::parse_get_rec(int offs, const char **username, unsigned int *chflags)
 {
   if (!m_intmsg) return 0;
-  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  const unsigned char *p=(const unsigned char *)m_intmsg->get_data();
   int len=m_intmsg->get_size()-offs;
   if (!p || len < 5) return 0;
   p+=offs;
 
-  *username=(char*)p;
+  *username=(const char*)p;
   while (*p && len > 0)
   {
     len--;
@@ -621,7 +642,7 @@ int mpb_client_set_usermask::parse_get_rec(int offs, const char **username, unsi
   *chflags |= ((int)*p++)<<16;
   *chflags |= ((int)*p++)<<24;
 
-  return p - (unsigned char *)m_intmsg->get_data();
+  return (int) (p - (unsigned char *)m_intmsg->get_data());
 }
 
 
@@ -654,7 +675,8 @@ Net_Message *mpb_client_set_channel_info::build()
 
 void mpb_client_set_channel_info::build_add_rec(const char *chname, short volume, int pan, int flags)
 {
-  int size=mpisize+strlen(chname?chname:"")+1;
+  const int chname_len = chname ? (int)strlen(chname) : 0;
+  const int size=mpisize+chname_len+1;
 
   if (!m_intmsg) 
   {
@@ -666,15 +688,17 @@ void mpb_client_set_channel_info::build_add_rec(const char *chname, short volume
     *p++ = mpisize&0xff;
     *p++ = (mpisize>>8)&0xff;
   }
-  int oldsize=m_intmsg->get_size();
+  const int oldsize=m_intmsg->get_size();
   m_intmsg->set_size(size+oldsize);
   unsigned char *p=(unsigned char *)m_intmsg->get_data();
   if (p)
   {
     p+=oldsize;
 
-    strcpy((char*)p,chname);
-    p+=strlen(chname)+1;
+    if (chname_len) memcpy(p,chname,chname_len+1);
+    else *p = 0;
+    p+=chname_len+1;
+
     if (pan < -128) pan=-128;
     else if (pan > 127) pan=127;
     if (mpisize>0) *p++=(volume)&0xff;
@@ -692,7 +716,7 @@ void mpb_client_set_channel_info::build_add_rec(const char *chname, short volume
 int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, short *volume, int *pan, int *flags)
 {
   if (!m_intmsg) return 0;
-  unsigned char *p=(unsigned char *)m_intmsg->get_data();
+  const unsigned char *p=(const unsigned char *)m_intmsg->get_data();
   if (!p || m_intmsg->get_size() <= 2) return 0;
   int len=m_intmsg->get_size()-offs;
 
@@ -701,7 +725,7 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, sh
 
   p+=offs+2;
 
-  *chname=(char*)p;
+  *chname=(const char*)p;
   while (*p && len > 0)
   {
     len--;
@@ -723,7 +747,7 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, sh
   if (mpisize>3) *flags=(int)p[3];
   else *flags=0;
 
-  return (p+mpisize) - ((unsigned char *)m_intmsg->get_data()+2);
+  return (int) ((p+mpisize) - ((unsigned char *)m_intmsg->get_data()+2));
 }
 
 // MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN
@@ -732,7 +756,7 @@ int mpb_client_upload_interval_begin::parse(Net_Message *msg) // return 0 on suc
 {
   if (msg->get_type() != MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN) return -1;
   if (msg->get_size() < 25) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(guid,p,sizeof(guid));
@@ -756,7 +780,8 @@ Net_Message *mpb_client_upload_interval_begin::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN);
   
-  nm->set_size(25);
+  const int sz = 25;
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -788,7 +813,7 @@ int mpb_client_upload_interval_write::parse(Net_Message *msg) // return 0 on suc
 {
   if (msg->get_type() != MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE) return -1;
   if (msg->get_size() < 17) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
 
   memcpy(guid,p,sizeof(guid));
@@ -807,7 +832,8 @@ Net_Message *mpb_client_upload_interval_write::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE);
   
-  nm->set_size(17+(audio_data?audio_data_len:0));
+  const int sz = 17 + (audio_data ? audio_data_len : 0);
+  nm->set_size(sz);
 
   unsigned char *p=(unsigned char *)nm->get_data();
 
@@ -831,13 +857,14 @@ int mpb_client_openproject::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CLIENT_OPENPROJECT) return -1;
   if (msg->get_size() < 1) return 1;
-  unsigned char *p=(unsigned char *)msg->get_data();
+  const unsigned char *p=(const unsigned char *)msg->get_data();
   if (!p) return 2;
-  unsigned char *pp = p;
-  while (*pp && pp < p+msg->get_size()) pp++;
-  if (pp >= p+msg->get_size()) return -1;
+  const unsigned char *endp = p + msg->get_size();
+  const unsigned char *pp = p;
+  while (pp < endp && *pp) pp++;
+  if (pp >= endp) return -1;
 
-  m_projname = (char*)p;
+  m_projname = (const char*)p;
 
   return 0;
 }
@@ -846,14 +873,15 @@ Net_Message *mpb_client_openproject::build()
 {
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CLIENT_OPENPROJECT);
-  nm->set_size(m_projname ? strlen(m_projname)+1 : 0);
+  const int projname_sz = m_projname ? (int)strlen(m_projname) + 1 : 0;
+  nm->set_size(projname_sz);
   unsigned char *p=(unsigned char *)nm->get_data();
   if (!p)
   {
     delete nm;
     return 0;
   }
-  if (m_projname) strcpy((char*)p,m_projname);
+  if (projname_sz) memcpy(p,m_projname,projname_sz);
 
   return nm;
 }
@@ -870,14 +898,14 @@ int mpb_chat_message::parse(Net_Message *msg) // return 0 on success
 {
   if (msg->get_type() != MESSAGE_CHAT_MESSAGE) return -1;
   if (msg->get_size() < 1) return 1;
-  char *p=(char *)msg->get_data();
+  const char *p=(char *)msg->get_data();
   if (!p) return 2;
 
-  char *endp=(char*)msg->get_data()+msg->get_size();
+  const char *endp=(char*)msg->get_data()+msg->get_size();
 
-  unsigned int x;
+  int x;
   memset(parms,0,sizeof(parms));
-  for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
+  for (x = 0; x < (int) (sizeof(parms)/sizeof(parms[0])); x ++)
   {
     parms[x]=p;
     while (p < endp && *p) p++;
@@ -893,11 +921,12 @@ Net_Message *mpb_chat_message::build()
   Net_Message *nm=new Net_Message;
   nm->set_type(MESSAGE_CHAT_MESSAGE);
 
-  unsigned int x;
+  int x;
   int sz=0;
-  for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
+  for (x = 0; x < (int)(sizeof(parms)/sizeof(parms[0])); x ++)
   {
-    sz+=(parms[x]?strlen(parms[x]):0)+1;
+    if (parms[x]) sz += (int)strlen(parms[x]);
+    sz += 1;
   }
   
   nm->set_size(sz);
@@ -913,9 +942,13 @@ Net_Message *mpb_chat_message::build()
   for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
   {
     const char *sp=parms[x];
-    if (!sp) sp="";
-    strcpy(p,sp);
-    p+=strlen(sp)+1;
+    if (sp) 
+    {
+      const int l = (int)strlen(sp);
+      memcpy(p, sp, l);
+      p += l;
+    }
+    *p++ = 0;
   }
 
   return nm;
