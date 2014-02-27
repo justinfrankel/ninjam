@@ -1442,8 +1442,8 @@ int NJClient::Run() // nonzero if sleep ok
             {
               char guidstr[64],idxstr[64],offslenstr[128];
               guidtostr(lc->m_curwritefile.guid,guidstr);
-              sprintf(idxstr,"%d",lc->channel_idx);
-              sprintf(offslenstr,"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
+              snprintf(idxstr,sizeof(idxstr), "%d",lc->channel_idx);
+              snprintf(offslenstr,sizeof(offslenstr),"%.10f %.10f",lc->m_curwritefile_starttime,lc->m_curwritefile_writelen/(double)m_srate);
               // send "SESSION" chat message
 
     //          char buf[512];

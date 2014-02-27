@@ -1538,7 +1538,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           sprintf(buf,"%d",sch);
           sstr.Set(buf);           
           
-          sprintf(buf,"%d source '%s' bc %d mute %d solo %d volume %f pan %f jesus %d flag %d name `%s`",a,sstr.Get(),bc,m,s,v,p,!!has_jesus,flag,lcn);
+          snprintf(buf,sizeof(buf),"%d source '%s' bc %d mute %d solo %d volume %f pan %f jesus %d flag %d name `%s`",a,sstr.Get(),bc,m,s,v,p,!!has_jesus,flag,lcn);
           char specbuf[64];
           sprintf(specbuf,"lc_%d",cnt++);
           WritePrivateProfileString(CONFSEC,specbuf,buf,g_ini_file.Get());
@@ -1567,13 +1567,13 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         WritePrivateProfileString(CONFSEC,"wnd_h",buf,g_ini_file.Get());
 
 
-        sprintf(buf,"%f",g_client->config_mastervolume);
+        snprintf(buf,sizeof(buf),"%f",g_client->config_mastervolume);
         WritePrivateProfileString(CONFSEC,"mastervol",buf,g_ini_file.Get());
-        sprintf(buf,"%f",g_client->config_masterpan);
+        snprintf(buf,sizeof(buf),"%f",g_client->config_masterpan);
         WritePrivateProfileString(CONFSEC,"masterpan",buf,g_ini_file.Get());
-        sprintf(buf,"%f",g_client->config_metronome);
+        snprintf(buf,sizeof(buf),"%f",g_client->config_metronome);
         WritePrivateProfileString(CONFSEC,"metrovol",buf,g_ini_file.Get());
-        sprintf(buf,"%f",g_client->config_metronome_pan);
+        snprintf(buf,sizeof(buf),"%f",g_client->config_metronome_pan);
         WritePrivateProfileString(CONFSEC,"metropan",buf,g_ini_file.Get());
 
         WritePrivateProfileString(CONFSEC,"mastermute",g_client->config_mastermute?"1":"0",g_ini_file.Get());
@@ -1725,7 +1725,7 @@ void mkvolstr(char *str, double vol)
 {
   double v=VAL2DB(vol);
   if (vol < 0.0000001 || v < -120.0) v=-120.0;
-  sprintf(str,"%s%2.1fdB",v>0.0?"+":"",v);   
+  snprintf(str,16,"%+2.1fdB",v);   
 }
 
 
