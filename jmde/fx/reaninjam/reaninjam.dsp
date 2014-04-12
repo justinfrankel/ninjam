@@ -44,7 +44,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /Zd /O2 /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /Zd /O2 /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -70,8 +70,8 @@ LINK32=xilink6.exe
 # PROP Intermediate_Dir "Nitpicker"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /c /FR /FD /Zi
-# ADD CPP /nologo /W3 /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /c /FR /FD /Zi /MT /Ot /Og /D "DEBUG_TIGHT_ALLOC"
+# ADD BASE CPP /nologo /MT /W3 /GX /Zi /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /FR /FD /c
+# ADD CPP /nologo /MT /W3 /Zi /Ot /Og /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /D "DEBUG_TIGHT_ALLOC" /FR /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -143,9 +143,10 @@ SOURCE=..\..\..\ninjam\njclient.cpp
 
 !ELSEIF  "$(CFG)" == "reaninjam - Win32 Nitpicker"
 
-# ADD CPP /D "USE_ICC" /FR /FD /Zi /MT /Ot /Og /D "DEBUG_TIGHT_ALLOC"
+# ADD CPP /MT /Zi /Ot /Og /D "USE_ICC" /FR /FD
 
 !ELSEIF  "$(CFG)" == "reaninjam - Win32 Debug"
+
 !ENDIF 
 
 # End Source File
