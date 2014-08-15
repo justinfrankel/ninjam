@@ -1390,10 +1390,6 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
         break;
-        #ifndef _WIN32
-        case IDC_CHATENT:
-          if (HIWORD(wParam)==EN_CHANGE || HIWORD(wParam)==EN_SETFOCUS || HIWORD(wParam)==EN_KILLFOCUS) return 0;
-        #endif
         case IDC_CHATOK:
           {
             char str[256];
