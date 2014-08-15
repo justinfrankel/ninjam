@@ -1392,7 +1392,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         #ifndef _WIN32
         case IDC_CHATENT:
-          if (HIWORD(wParam) == EN_CHANGE) return 0;
+          if (HIWORD(wParam)==EN_CHANGE || HIWORD(wParam)==EN_SETFOCUS || HIWORD(wParam)==EN_KILLFOCUS) return 0;
         #endif
         case IDC_CHATOK:
           {
