@@ -581,15 +581,17 @@ static void do_connect()
   CreateDirectory(sroot,NULL);
   while (cnt < 16)
   {
-    time_t tv;
-    time(&tv);
-    struct tm *t=localtime(&tv);
+    time_t tv = time(NULL);
+    struct tm *t=tv > 0 ? localtime(&tv) : NULL;
   
     buf[0]=0;
 
     lstrcpyn_safe(buf,sroot,(int) sizeof(buf));
-    snprintf_append(buf,sizeof(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
+    if (t)
+    {
+      snprintf_append(buf,sizeof(buf),PREF_DIRSTR "%04d%02d%02d_%02d%02d",
         t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
+    }
 
     if (cnt) snprintf_append(buf,sizeof(buf),"_%d",cnt);
     lstrcatn(buf,".ninjam",(int) sizeof(buf));
