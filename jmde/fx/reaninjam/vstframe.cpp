@@ -235,9 +235,9 @@ public:
   //    m_pelist=eventlist;
   }
 
-  WDL_Queue m_cfgchunk;
   int GetChunk(void **ptr)
   {
+    static WDL_Queue m_cfgchunk;
     m_cfgchunk.Clear();    
     *ptr = m_cfgchunk.Get();
     return m_cfgchunk.Available();
