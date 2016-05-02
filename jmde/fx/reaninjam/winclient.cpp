@@ -847,6 +847,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         {
           HMENU menu=LoadMenu(g_hInst,MAKEINTRESOURCE(IDR_MENU1));
           SetMenu(hwndDlg,menu);
+#ifdef __APPLE__
           HMENU normalFirst=GetMenu(GetMainHwnd());
           if (normalFirst) normalFirst=GetSubMenu(normalFirst,0);
           HMENU nm=SWELL_DuplicateMenu(normalFirst);
@@ -855,6 +856,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,(char*)"REAPER"};
             InsertMenuItem(menu,0,TRUE,&mi);           
           }
+#endif
         } 
       #endif
         GetWindowRect(hwndDlg,&init_r);
