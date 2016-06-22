@@ -35,6 +35,7 @@
 #include "../../../WDL/wdlstring.h"
 #include "../../../WDL/db2val.h"
 
+#include "../../../WDL/win32_utf8.h"
 
 extern double (*DB2SLIDER)(double x);
 extern double (*SLIDER2DB)(double y);

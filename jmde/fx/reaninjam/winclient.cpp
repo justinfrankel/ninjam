@@ -55,6 +55,10 @@
 
 #include "winclient.h"
 
+#ifdef _WIN32
+#include "../../../WDL/win32_utf8.c"
+#endif
+
 #define VERSION "0.13"
 
 #define CONFSEC "ninjam"
