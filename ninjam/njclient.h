@@ -131,7 +131,7 @@ public:
   void SetWorkDir(char *path);
   char *GetWorkDir() { return m_workdir.Get(); }
 
-  char *GetUserName() { return m_user.Get(); }
+  char *GetUser() { return m_user.Get(); }
   char *GetHostName() { return m_host.Get(); }
 
   float GetActualBPM() { return (float) m_active_bpm; }

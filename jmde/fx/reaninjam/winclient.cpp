@@ -1103,7 +1103,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               tmp.Set("Status: Connected to ");
               tmp.Append(g_client->GetHostName());
               tmp.Append(" as ");
-              tmp.Append(g_client->GetUserName());
+              tmp.Append(g_client->GetUser());
 
               SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
             }
