@@ -750,18 +750,13 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
   }
   if (!GetMainHwnd || !GetIconThemePointer||!DB2SLIDER||!SLIDER2DB) return 0;
 
-  if (!CreateVorbisDecoder || !CreateVorbisEncoder)
+  if ((!CreateVorbisDecoder || !CreateVorbisEncoder) && GetMainHwnd())
   {
 #define GETAPI(x) *(VstIntPtr *)&(x) = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void *)#x,0.0);
     GETAPI(CreateVorbisDecoder)
     GETAPI(CreateVorbisEncoder)
 
-    if (!CreateVorbisEncoder||!CreateVorbisDecoder)
-    {
-      // if main window not created, then plugins arent loaded, 
-      // and this means its just a quick scan, so safe to create anyway
-      if (GetMainHwnd()) return 0; 
-    }
+    if (!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
   }
 
   g_object_allocated=GetCurrentThreadId();
