@@ -1,7 +1,7 @@
 OGGDIR = ../../../sdks/libogg-1.2.0
 VORBISDIR = ../../../sdks/libvorbis-1.3.1
 
-PLUGIN_CFLAGS = -DREANINJAM -DSWELL_PROVIDED_BY_APP -fPIC -I$(OGGDIR)/include -I$(VORBISDIR)/include
+PLUGIN_CFLAGS = -DREANINJAM -DSWELL_PROVIDED_BY_APP -fPIC -I$(OGGDIR)/include -I$(VORBISDIR)/include -Wno-reorder
 
 ifndef OUTDIR
 $(error OUTDIR not specified)

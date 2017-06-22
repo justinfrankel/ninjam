@@ -75,7 +75,6 @@ NJClient *g_client;
 int g_done;
 WDL_String g_topic;
 
-static HINSTANCE jesus_hDllInst;
 HWND g_hwnd;
 static HANDLE g_hThread;
 static HWND m_locwnd,m_remwnd;
@@ -986,7 +985,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             {
               int ch=lp.gettoken_int(0);
               int n;
-              int wj=0, ok=0;
+              int ok=0;
               const char *name=NULL;
               if (ch >= 0 && ch <= MAX_LOCAL_CHANNELS) for (n = 1; n < lp.getnumtokens()-1; n += 2)
               {
@@ -1015,7 +1014,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                   case 6: //jesus
                     if (lp.gettoken_int(n+1))
                     {
-                      wj=1;
+                      //wj=1;
                     }
                   break;
                   case 7: //name

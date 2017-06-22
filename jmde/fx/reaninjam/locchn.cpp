@@ -165,10 +165,10 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         g_client_mutex.Enter();
         g_client->SetLocalChannelInfo(m_idx,buf,false,0,false,0,false,0);
         g_client->NotifyServerOfChannelChange();
-        void *i=0;
-        int sch=0;
-        g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
-        char *n=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
+        //void *i=0;
+        //int sch=0;
+        //g_client->GetLocalChannelProcessor(m_idx,NULL,&i);
+        //char *n=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,NULL);
         g_client_mutex.Leave();
       }
     return 0;
@@ -390,7 +390,7 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      m_num_children=NULL;
+      m_num_children=0;
     case WM_LCUSER_RESIZE:
       {
       }

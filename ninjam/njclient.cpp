@@ -2005,7 +2005,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int codecavail=chan->decode_codec->Available();
   if (sessionmode) 
   {
-    double sr=chan->decode_codec->GetSampleRate();
+    //double sr=chan->decode_codec->GetSampleRate();
     int a= (int)(userchan->curds_lenleft+0.5);
     if (a<1) a=1;
 
@@ -2127,6 +2127,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   else if (needed>0)
   {
 
+/*
     if (config_debug_level>0)
     {
       static int cnt=0;
@@ -2138,6 +2139,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       //sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
 //      OutputDebugString(buf);
     }
+*/
 
     if (!llmode&&!sessionmode)
     {
