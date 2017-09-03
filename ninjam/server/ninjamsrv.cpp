@@ -50,6 +50,7 @@
 #include "../../WDL/lineparse.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/wdlstring.h"
+#include "../../WDL/wdlcstring.h"
 
 #define VERSION "v0.071"
 
@@ -244,16 +245,6 @@ static IUserInfoLookup *myCreateUserLookup(char *username)
   return new localUserInfoLookup(username);
 }
 
-
-static void remove_line_endings(char *buf)
-{
-  char *p = buf;
-  while (*p) p++;
-  while (p > buf && (p[-1] == '\r' || p[-1] == '\n')) p--;
-  *p=0;
-}
-
-
 static int ConfigOnToken(LineParser *lp)
 {
   const char *t=lp->gettoken_str(0);
@@ -359,7 +350,7 @@ static int ConfigOnToken(LineParser *lp)
       buf[0]=0;
       fgets(buf,sizeof(buf),fp);
       if (!buf[0]) break;
-      remove_line_endings(buf);
+      WDL_remove_trailing_crlf(buf);
       g_config_license.Append(buf);
       g_config_license.Append("\n");
     }
@@ -542,7 +533,7 @@ static int ReadConfig(char *configfile)
     fgets(buf,sizeof(buf),fp);
     linecnt++;
     if (!buf[0]) break;
-    remove_line_endings(buf);
+    WDL_remove_trailing_crlf(buf);
 
     LineParser lp;
 
@@ -853,7 +844,7 @@ int main(int argc, char **argv)
             printf("(be quick, server is paused while you type!!!)\nKill username: ");
             char buf[512];
             fgets(buf,sizeof(buf),stdin);
-            remove_line_endings(buf);
+            WDL_remove_trailing_crlf(buf);
             if (buf[0])
             {
               int x;
