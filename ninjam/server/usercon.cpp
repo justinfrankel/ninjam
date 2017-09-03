@@ -48,7 +48,7 @@
 static void guidtostr(unsigned char *guid, char *str)
 {
   int x;
-  for (x = 0; x < 16; x ++) wsprintf(str+x*2,"%02x",guid[x]);
+  for (x = 0; x < 16; x ++) sprintf(str+x*2,"%02x",guid[x]);
 }
 
 
@@ -99,8 +99,6 @@ extern void logText(const char *s, ...);
 User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0), m_max_channels(0),
       m_vote_bpm(0), m_vote_bpm_lasttime(0), m_vote_bpi(0), m_vote_bpi_lasttime(0)
 {
-  m_project=0;
-
   m_netcon.attach(con);
 
   WDL_RNG_bytes(m_challenge,sizeof(m_challenge));
@@ -140,12 +138,6 @@ void User_Connection::Send(Net_Message *msg)
 
 User_Connection::~User_Connection()
 {
-  if (m_project)
-  {
-    m_project->Release();
-    m_project=0;
-  }
-
   int x;
   for (x = 0; x < m_sublist.GetSize(); x ++)
     delete m_sublist.Get(x);
@@ -782,39 +774,6 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
       break;
 
-      case MESSAGE_CLIENT_OPENPROJECT:
-        {
-          mpb_client_openproject poo;
-          if (!poo.parse(msg))
-          {
-            if ((m_auth_privs&PRIV_PROJECTMODE) && poo.m_projname && !strstr(poo.m_projname,"/") && !strstr(poo.m_projname,"\\"))
-            {
-              ProjectInstance *newproj = group->m_projects.Get(poo.m_projname);
-              if (!m_project || m_project != newproj)
-              {
-                if (m_project)
-                {
-                  m_project->Release();
-                  m_project=0;
-                }
-
-                extern WDL_String g_config_projectmodepath;
-                if (g_config_projectmodepath.Get()[0])
-                {
-                  if (!newproj) 
-                  {
-                    newproj = new ProjectInstance;
-                    group->m_projects.Insert(poo.m_projname,newproj);
-                  }
-                  newproj->Retain();
-                  m_project=newproj;
-                }
-              }
-            }
-          }
-        }
-      break;
-
       default:
       break;
     }
@@ -825,12 +784,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
 }
 
 
-static void ReleaseProjectInstance(ProjectInstance *p) { if (p) p->Release(); }
-
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), 
   m_voting_threshold(110), m_voting_timeout(120),
-  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0),
-    m_projects(false,ReleaseProjectInstance)
+  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0)
 
 {
   m_logfp = NULL;

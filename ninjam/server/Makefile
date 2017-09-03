@@ -1,4 +1,4 @@
-CFLAGS =  -O2 -s -Wall 
+CFLAGS =  -O2 -s -Wall -Wno-reorder
 
 ifdef MAC
 CFLAGS += -D_MAC

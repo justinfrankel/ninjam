@@ -852,41 +852,6 @@ Net_Message *mpb_client_upload_interval_write::build()
 }
 
 
-// MESSAGE_CLIENT_OPENPROJECT
-int mpb_client_openproject::parse(Net_Message *msg) // return 0 on success
-{
-  if (msg->get_type() != MESSAGE_CLIENT_OPENPROJECT) return -1;
-  if (msg->get_size() < 1) return 1;
-  const unsigned char *p=(const unsigned char *)msg->get_data();
-  if (!p) return 2;
-  const unsigned char *endp = p + msg->get_size();
-  const unsigned char *pp = p;
-  while (pp < endp && *pp) pp++;
-  if (pp >= endp) return -1;
-
-  m_projname = (const char*)p;
-
-  return 0;
-}
-
-Net_Message *mpb_client_openproject::build()
-{
-  Net_Message *nm=new Net_Message;
-  nm->set_type(MESSAGE_CLIENT_OPENPROJECT);
-  const int projname_sz = m_projname ? (int)strlen(m_projname) + 1 : 0;
-  nm->set_size(projname_sz);
-  unsigned char *p=(unsigned char *)nm->get_data();
-  if (!p)
-  {
-    delete nm;
-    return 0;
-  }
-  if (projname_sz) memcpy(p,m_projname,projname_sz);
-
-  return nm;
-}
-
-
 /////////////////////////////////////////////////////////////////////////
 //////////// bidirectional generic  messages
 /////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,6 @@
 /*
     NINJAM Server - ninjamsrv.cpp
-    Copyright (C) 2005-2007 Cockos Incorporated
+    Copyright (C) 2005-2017 Cockos Incorporated
 
     NINJAM is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,18 +44,16 @@
 #include "../netmsg.h"
 #include "../mpb.h"
 #include "usercon.h"
-#include "projectmode.h"
 
 #include "../../WDL/rng.h"
 #include "../../WDL/sha.h"
 #include "../../WDL/lineparse.h"
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/wdlstring.h"
-#include "../../WDL/assocarray.h"
 
-#define VERSION "v0.06"
+#define VERSION "v0.07"
 
-const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005-2007, Cockos, Inc.\n";
+const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005-2017, Cockos, Inc.\n";
 
 int g_set_uid=-1;
 int g_default_bpm,g_default_bpi;
@@ -125,8 +123,6 @@ int g_config_maxch_anon;
 int g_config_maxch_user;
 WDL_String g_config_logpath;
 int g_config_log_sessionlen;
-
-WDL_String g_config_projectmodepath;
 
 time_t next_session_update_time;
 
@@ -289,11 +285,6 @@ static int ConfigOnToken(LineParser *lp)
     g_config_logpath.Set(lp->gettoken_str(1));    
     g_config_log_sessionlen = lp->gettoken_int(2);
   }
-  else if (!stricmp(t,"ProjectModePath"))
-  {
-    if (lp->getnumtokens() != 2) return -1;
-    g_config_projectmodepath.Set(lp->gettoken_str(1));    
-  }
   else if (!stricmp(t,"SetUID"))
   {
     if (lp->getnumtokens() != 2) return -1;
@@ -425,7 +416,6 @@ static int ConfigOnToken(LineParser *lp)
         else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
         else if (*ptr == 'H' || *ptr == 'h') p->priv_flag |= PRIV_HIDDEN;       
         else if (*ptr == 'V' || *ptr == 'v') p->priv_flag |= PRIV_VOTE;               
-        else if (*ptr == 'P' || *ptr == 'p') p->priv_flag |= PRIV_PROJECTMODE;                       
         else 
         {
           if (g_logfp)
@@ -502,7 +492,6 @@ static int ConfigOnToken(LineParser *lp)
 
 static int ReadConfig(char *configfile)
 {
-  bool comment_state=0;
   int linecnt=0;
   WDL_String linebuild;
   if (g_logfp) logText("[config] reloading configuration file\n");
@@ -546,7 +535,7 @@ static int ReadConfig(char *configfile)
     if (!buf[0]) break;
     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
-    LineParser lp(comment_state);
+    LineParser lp;
 
     if (buf[0] && buf[strlen(buf)-1]=='\\')
     {
@@ -575,8 +564,6 @@ static int ReadConfig(char *configfile)
     }
     else
     {
-      comment_state = lp.InCommentBlock();
-
       if (lp.getnumtokens()>0)
       {
         int err=ConfigOnToken(&lp);
@@ -951,7 +938,7 @@ int main(int argc, char **argv)
                 struct tm *t=localtime(&now);
                 sprintf(buf,"/%04d%02d%02d_%02d%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min);
                 if (cnt)
-                  wsprintf(buf+strlen(buf),"_%d",cnt);
+                  sprintf(buf+strlen(buf),"_%d",cnt);
                 strcat(buf,".ninjam");
 
                 tmp.Set(g_config_logpath.Get());

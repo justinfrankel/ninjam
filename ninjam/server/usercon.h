@@ -36,10 +36,8 @@
 #include "../netmsg.h"
 #include "../../WDL/wdlstring.h"
 #include "../../WDL/sha.h"
-#include "../../WDL/assocarray.h"
 #include "../../WDL/ptrlist.h"
 #include "../mpb.h"
-#include "projectmode.h"
 
 #define MAX_USER_CHANNELS 32
 #define MAX_USERS 64
@@ -54,7 +52,6 @@
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 #define PRIV_HIDDEN 64   // hidden user, doesn't count for a slot, too
 #define PRIV_VOTE 128
-#define PRIV_PROJECTMODE 256 // allow converting to project-mode session
 
 #define MAX_BPM 400
 #define MAX_BPI 64
@@ -110,8 +107,6 @@ class User_Group
     void onChatMessage(User_Connection *con, mpb_chat_message *msg);
 
 
-    WDL_StringKeyedArray<ProjectInstance *> m_projects;
-      
     WDL_PtrList<User_Connection> m_users;
 
     int m_max_users;
@@ -233,8 +228,6 @@ class User_Connection
     WDL_PtrList<User_TransferState> m_sendfiles;
 
     IUserInfoLookup *m_lookup;
-
-    ProjectInstance *m_project;
 };
 
 
