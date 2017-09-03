@@ -1,4 +1,4 @@
-CFLAGS =  -O2 -s -Wall -Wno-reorder
+CFLAGS = -O2 -Wall -Wno-reorder
 
 ifdef MAC
 CFLAGS += -D_MAC
@@ -26,7 +26,7 @@ OBJS += ninjamsrv.o
 default: ninjamsrv
 
 ninjamsrv: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o ninjamsrv $(OBJS)
+	$(CXX) $(CXXFLAGS) -s -o ninjamsrv $(OBJS)
 
 clean:
 	-rm $(OBJS) ninjamsrv

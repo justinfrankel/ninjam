@@ -51,7 +51,7 @@
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/wdlstring.h"
 
-#define VERSION "v0.07"
+#define VERSION "v0.071"
 
 const char *startupmessage="NINJAM Server " VERSION " built on " __DATE__ " at " __TIME__ " starting up...\n" "Copyright (C) 2005-2017, Cockos, Inc.\n";
 
@@ -245,6 +245,13 @@ static IUserInfoLookup *myCreateUserLookup(char *username)
 }
 
 
+static void remove_line_endings(char *buf)
+{
+  char *p = buf;
+  while (*p) p++;
+  while (p > buf && (p[-1] == '\r' || p[-1] == '\n')) p--;
+  *p=0;
+}
 
 
 static int ConfigOnToken(LineParser *lp)
@@ -352,7 +359,9 @@ static int ConfigOnToken(LineParser *lp)
       buf[0]=0;
       fgets(buf,sizeof(buf),fp);
       if (!buf[0]) break;
+      remove_line_endings(buf);
       g_config_license.Append(buf);
+      g_config_license.Append("\n");
     }
 
     fclose(fp);
@@ -533,7 +542,7 @@ static int ReadConfig(char *configfile)
     fgets(buf,sizeof(buf),fp);
     linecnt++;
     if (!buf[0]) break;
-    if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
+    remove_line_endings(buf);
 
     LineParser lp;
 
@@ -844,7 +853,7 @@ int main(int argc, char **argv)
             printf("(be quick, server is paused while you type!!!)\nKill username: ");
             char buf[512];
             fgets(buf,sizeof(buf),stdin);
-            if (buf[0] && buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
+            remove_line_endings(buf);
             if (buf[0])
             {
               int x;
