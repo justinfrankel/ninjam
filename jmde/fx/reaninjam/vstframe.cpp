@@ -10,12 +10,10 @@
 #include "../../../WDL/mutex.h"
 #include "../../../WDL/fastqueue.h"
 #include "../../../WDL/queue.h"
+#include "../../../WDL/wdlcstring.h"
 
 #include "../../reaper_plugin.h"
 
-#include "../../midi_io.h"
-
-#include "../../../WDL/wdlcstring.h"
 
 #include "resource.h"
 
