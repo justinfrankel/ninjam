@@ -454,6 +454,7 @@ public:
             return 1;
         }
       return 0;
+      case effStopProcess:
       case effMainsChanged:
         if (_this && !value) 
         {
