@@ -121,17 +121,7 @@ class VorbisDecoder : public VorbisDecoderInterface
 		  {
 			  int serial=ogg_page_serialno(&og);
 			  if (!packets) ogg_stream_init(&os,serial);
-			  else if (serial!=os.serialno)
-			  {
-				  vorbis_block_clear(&vb);
-				  vorbis_dsp_clear(&vd);
-				  vorbis_comment_clear(&vc);
-				  vorbis_info_clear(&vi);
 
-				  ogg_stream_clear(&os);
-				  ogg_stream_init(&os,serial);
-				  packets=0;
-			  }
 			  if (!packets)
 			  {
 				  vorbis_info_init(&vi);
