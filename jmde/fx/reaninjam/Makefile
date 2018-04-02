@@ -25,7 +25,7 @@ OBJS = $(SWELL_MODSTUB) vstframe.o sha.o wndsize.o rng.o chat.o license.o locchn
 TARGET = $(OUTDIR)/reaninjam.vst$(DLL_EXT)
 
 $(TARGET): $(OBJS)
-	$(CXX) -o $@ $(CFLAGS) $(LFLAGS) $^
+	$(CXX) -o $@ $(CXXFLAGS) $(LFLAGS) $^
 
 
 .PHONY: clean
