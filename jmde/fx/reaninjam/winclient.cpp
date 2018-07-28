@@ -63,6 +63,7 @@
 
 #define CONFSEC "ninjam"
 
+#include "../../../WDL/setthreadname.h"
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
@@ -664,6 +665,7 @@ static void updateMasterControlLabels(HWND hwndDlg)
 
 static unsigned WINAPI ThreadFunc(LPVOID p)
 {
+  WDL_SetThreadName("ReaNINJAM processing");
   while (!g_done)
   {
     g_client_mutex.Enter();

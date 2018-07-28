@@ -14,7 +14,6 @@
 
 #include "../../reaper_plugin.h"
 
-
 #include "resource.h"
 
 #define VENDOR "Cockos"
