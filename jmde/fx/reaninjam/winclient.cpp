@@ -665,7 +665,7 @@ static void updateMasterControlLabels(HWND hwndDlg)
 
 static unsigned WINAPI ThreadFunc(LPVOID p)
 {
-  WDL_SetThreadName("ReaNINJAM processing");
+  WDL_SetThreadName("reaper/ninjam");
   while (!g_done)
   {
     g_client_mutex.Enter();
