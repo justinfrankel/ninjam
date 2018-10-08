@@ -400,6 +400,7 @@ static LRESULT WINAPI submenuWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
   {
     case WM_CREATE:
       hwnd->m_classname = "__SWELL_MENU";
+      hwnd->m_style = WS_CHILD;
       m_trackingMenus.Add(hwnd);
       SetWindowLongPtr(hwnd,GWLP_USERDATA,lParam);
 
@@ -457,9 +458,9 @@ static LRESULT WINAPI submenuWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
         wid+=lcol+rcol + (wid2?wid2+mcol:0);
         ReleaseDC(hwnd,hdc);
 
-        RECT tr={m_trackingPt.x,m_trackingPt.y,
-                 m_trackingPt.x+wid+SWELL_UI_SCALE(4),m_trackingPt.y+ht+top_margin * 2}, vp;
-        SWELL_GetViewPort(&vp,&tr,true);
+        const RECT ref={m_trackingPt.x, m_trackingPt.y, m_trackingPt.x, m_trackingPt.y };
+        RECT vp, tr={m_trackingPt.x,m_trackingPt.y, m_trackingPt.x+wid+SWELL_UI_SCALE(4),m_trackingPt.y+ht+top_margin * 2};
+        SWELL_GetViewPort(&vp,&ref,true);
         vp.bottom -= 8;
  
         if (g_trackpopup_yroot.bottom > g_trackpopup_yroot.top &&
@@ -497,7 +498,6 @@ static LRESULT WINAPI submenuWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
         hwnd->m_extra[1] = 0; // &1=allow scroll flag (set from paint), &2=force scroll down (if sel_vis is offscreen positive)
       }
 
-      SetWindowLong(hwnd,GWL_STYLE,GetWindowLong(hwnd,GWL_STYLE)&~WS_CAPTION);
       ShowWindow(hwnd,SW_SHOW);
       SetFocus(hwnd);
       SetTimer(hwnd,1,100,NULL);
@@ -1128,14 +1128,16 @@ int TrackPopupMenu(HMENU hMenu, int flags, int xpos, int ypos, int resvd, HWND h
 
 //  if (oldFoc_child) SetFocus(oldFoc);
 
-  if (!(flags&TPM_NONOTIFY) && m_trackingRet>0) 
+  if (!(flags&TPM_RETURNCMD) && m_trackingRet>0) 
     SendMessage(hwnd,WM_COMMAND,m_trackingRet,0);
   
   if (hwnd) hwnd->Release();
 
   hMenu->Release();
 
-  return m_trackingRet>0?m_trackingRet:0;
+  if (flags & TPM_RETURNCMD) return m_trackingRet>0?m_trackingRet:0;
+
+  return resvd!=0xbeef || m_trackingRet>0;
 }
 
 

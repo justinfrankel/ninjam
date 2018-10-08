@@ -299,6 +299,7 @@ typedef struct WindowPropRec
   char m_allow_nomiddleman;
   id m_lastTopLevelOwner; // save a copy of the owner, if any
   id m_access_cacheptrs[6];
+  const char *m_classname;
 }
 - (id)initChild:(SWELL_DialogResourceIndex *)resstate Parent:(NSView *)parent dlgProc:(DLGPROC)dlgproc Param:(LPARAM)par;
 - (LRESULT)onSwellMessage:(UINT)msg p1:(WPARAM)wParam p2:(LPARAM)lParam;
@@ -331,6 +332,8 @@ typedef struct WindowPropRec
 -(void *)swellGetProp:(const char *)name wantRemove:(BOOL)rem;
 -(int)swellSetProp:(const char *)name value:(void *)val ;
 -(NSOpenGLContext *)swellGetGLContext;
+- (void) setEnabledSwellNoFocus;
+-(const char *)getSwellClass;
 
 // NSAccessibility
 
@@ -471,14 +474,12 @@ typedef struct WindowPropRec
   // 10.4 SDK
   #define SWELL_NO_CORETEXT
   #define SWELL_ATSUI_TEXT_SUPPORT
-#else
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-#ifndef __LP64__
-#define SWELL_ATSUI_TEXT_SUPPORT
-#endif
-#endif
-
+#elif !defined(__LP64__)
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+    #ifndef MAC_OS_X_VERSION_10_9 // not sure when ATSUI was dropped completely, definitely gone in 10.13!
+      #define SWELL_ATSUI_TEXT_SUPPORT
+    #endif
+  #endif
 #endif
 
 struct HGDIOBJ__
@@ -580,6 +581,11 @@ struct HDC__ {
 
 
 #elif defined(SWELL_TARGET_GDK)
+
+
+#ifdef SWELL_SUPPORT_GTK
+#include <gtk/gtk.h>
+#endif
 
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
@@ -1072,7 +1078,7 @@ static void __listview_mergesort_internal(void *base, size_t nmemb, size_t size,
   f(group_text,RGB(0,0,0)) \
   fd(group_shadow, RGB(96,96,96), _3dshadow) \
   fd(group_hilight, RGB(224,224,224), _3dhilight) \
-  f(focus_hilight, RGB(192,192,255)) \
+  f(focus_hilight, RGB(140,190,233)) \
 
   
 
@@ -1085,6 +1091,7 @@ SWELL_GENERIC_THEMEDEFS(__def_theme_ent,__def_theme_ent_fb)
 };
 
 #define SWELL_UI_SCALE(x) (((x)*g_swell_ui_scale)/256)
+void swell_scaling_init(bool no_auto_hidpi);
 extern int g_swell_ui_scale;
 extern swell_colortheme g_swell_ctheme;
 extern const char *g_swell_deffont_face;

@@ -164,6 +164,8 @@ typedef struct {
 typedef struct _compileContext
 {
   eel_function_table *registered_func_tab;
+  const char *(*func_check)(const char *fn_name, void *user); // return error message if not permitted
+  void *func_check_user;
 
   EEL_F **varTable_Values;
   char   ***varTable_Names;
@@ -206,6 +208,9 @@ typedef struct _compileContext
 
   EEL_F (*onString)(void *caller_this, struct eelStringSegmentRec *list);
   EEL_F (*onNamedString)(void *caller_this, const char *name);
+
+  EEL_F *(*getVariable)(void *userctx, const char *name);
+  void *getVariable_userctx;
 
   codeHandleType *tmpCodeHandle;
   

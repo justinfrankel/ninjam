@@ -662,7 +662,14 @@ void SetWindowPos(HWND hwnd, HWND zorder, int x, int y, int cx, int cy, int flag
 
 BOOL EnumWindows(BOOL (*proc)(HWND, LPARAM), LPARAM lp)
 {
-    return FALSE;
+  HWND h = SWELL_topwindows;
+  if (!proc) return FALSE;
+  while (h)
+  {
+    if (!proc(h,lp)) return FALSE;
+    h = h->m_next;
+  }
+  return TRUE;
 }
 
 HWND GetWindow(HWND hwnd, int what)
@@ -935,6 +942,7 @@ void ShowWindow(HWND hwnd, int cmd)
  
   if (cmd==SW_SHOW||cmd==SW_SHOWNA) 
   {
+    if (hwnd->m_visible) cmd = SW_SHOWNA; // do not take focus if already visible
     hwnd->m_visible=true;
   }
   else if (cmd==SW_HIDE) 
@@ -1232,7 +1240,7 @@ static bool draw_focus_indicator(HWND hwnd, HDC hdc, const RECT *drawr)
   if (drawr) r=*drawr;
   else GetClientRect(hwnd,&r);
 
-  HBRUSH br = CreateSolidBrushAlpha(g_swell_ctheme.focus_hilight,0.75f);
+  HBRUSH br = CreateSolidBrushAlpha(g_swell_ctheme.focus_hilight,.75f);
   tr=r; tr.right = tr.left+sz; FillRect(hdc,&tr,br);
   tr=r; tr.left = tr.right-sz; FillRect(hdc,&tr,br);
   tr=r; tr.left+=sz; tr.right-=sz; 
@@ -1352,7 +1360,6 @@ fakeButtonClick:
           buttonWindowState *s = (buttonWindowState*)hwnd->m_private_data;
           RECT r; 
           GetClientRect(hwnd,&r); 
-          paintDialogBackground(hwnd,&r,ps.hdc);
 
           bool pressed = GetCapture()==hwnd;
 
@@ -1360,6 +1367,8 @@ fakeButtonClick:
             hwnd->m_enabled ? g_swell_ctheme.button_text :
               g_swell_ctheme.button_text_disabled);
           SetBkMode(ps.hdc,TRANSPARENT);
+
+          paintDialogBackground(hwnd,&r,ps.hdc);
 
           int f=DT_VCENTER;
           int sf = (hwnd->m_style & 0xf);
@@ -1373,10 +1382,37 @@ fakeButtonClick:
             EndPaint(hwnd,&ps);
             return 0;
           }
-          if (sf == BS_AUTO3STATE || sf == BS_AUTOCHECKBOX || sf == BS_AUTORADIOBUTTON)
+
+          const bool ischk = sf == BS_AUTO3STATE || sf == BS_AUTOCHECKBOX || sf == BS_AUTORADIOBUTTON;
+          if (!ischk)
           {
-            const int chksz = SWELL_UI_SCALE(12);
-            RECT tr={r.left,(r.top+r.bottom)/2-chksz/2,r.left+chksz};
+            Draw3DBox(ps.hdc,&r,g_swell_ctheme.button_bg,
+              g_swell_ctheme.button_hilight,
+              g_swell_ctheme.button_shadow,pressed);
+
+            if (hwnd->m_style & BS_LEFT)
+              r.left+=2;
+            else
+              f|=DT_CENTER;
+            if (pressed) 
+            {
+              const int pad = SWELL_UI_SCALE(2);
+              r.left+=pad;
+              r.top+=pad;
+              if (s->bitmap) { r.right+=pad; r.bottom+=pad; }
+            }
+          }
+
+          if (draw_focus_indicator(hwnd,ps.hdc,NULL))
+          {
+            KillTimer(hwnd,1);
+            SetTimer(hwnd,1,100,NULL);
+          }
+
+          if (ischk)
+          {
+            const int chksz = SWELL_UI_SCALE(12), chki = SWELL_UI_SCALE(2);
+            RECT tr={r.left+chki,(r.top+r.bottom)/2-chksz/2,r.left+chki+chksz};
             tr.bottom = tr.top+chksz;
 
             HPEN pen=CreatePen(PS_SOLID,0,g_swell_ctheme.checkbox_fg);
@@ -1432,28 +1468,10 @@ fakeButtonClick:
             }
             SelectObject(ps.hdc,oldPen);
             DeleteObject(pen);
-            r.left += chksz + SWELL_UI_SCALE(4);
+            r.left += chksz + SWELL_UI_SCALE(5);
             SetTextColor(ps.hdc,
               hwnd->m_enabled ? g_swell_ctheme.checkbox_text :
                 g_swell_ctheme.checkbox_text_disabled);
-          }
-          else
-          {
-            Draw3DBox(ps.hdc,&r,g_swell_ctheme.button_bg,
-              g_swell_ctheme.button_hilight,
-              g_swell_ctheme.button_shadow,pressed);
-
-            if (hwnd->m_style & BS_LEFT)
-              r.left+=2;
-            else
-              f|=DT_CENTER;
-            if (pressed) 
-            {
-              const int pad = SWELL_UI_SCALE(2);
-              r.left+=pad;
-              r.top+=pad;
-              if (s->bitmap) { r.right+=pad; r.bottom+=pad; }
-            }
           }
 
           if (s->bitmap)
@@ -1475,12 +1493,6 @@ fakeButtonClick:
             if (buf[0]) DrawText(ps.hdc,buf,-1,&r,f);
           }
 
-          if (draw_focus_indicator(hwnd,ps.hdc,NULL))
-          {
-            KillTimer(hwnd,1);
-            SetTimer(hwnd,1,100,NULL);
-          }
-
           EndPaint(hwnd,&ps);
         }
       }
@@ -1499,7 +1511,7 @@ fakeButtonClick:
       if (hwnd)
       {
         buttonWindowState *s = (buttonWindowState*)hwnd->m_private_data;
-        return (s->state&3)==2 ? 1 : (s->state&3); 
+        return (s->state&3); 
       }
     return 0;
     case BM_GETIMAGE:
@@ -1626,6 +1638,28 @@ static LRESULT WINAPI groupWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     return 0;
     case WM_SETTEXT:
       InvalidateRect(hwnd,NULL,TRUE);
+    break;
+    case WM_LBUTTONDBLCLK:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_MBUTTONDBLCLK:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONDBLCLK:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MOUSEMOVE:
+      if (GET_Y_LPARAM(lParam) >= SWELL_UI_SCALE(20))
+      {
+        HWND par = GetParent(hwnd);
+        if (par)
+        {
+          POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+          ClientToScreen(hwnd,&pt);
+          ScreenToClient(par,&pt);
+          return SendMessage(par,msg,wParam,MAKELPARAM(pt.x,pt.y));
+        }
+      }
     break;
   }
   return DefWindowProc(hwnd,msg,wParam,lParam);
@@ -1765,7 +1799,7 @@ static bool editGetCharPos(HDC hdc, const char *str, int singleline_len, int cha
     }
     str += lb+pskip;
     bytepos -= lb+pskip;
-    ypos += line_h;
+    if (*str || (pskip>0 && str[-1] == '\n')) ypos += line_h;
   }
   pt->x=0;
   pt->y=ypos;
@@ -2264,7 +2298,11 @@ static LRESULT OnEditKeyDown(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
           es->cursor_pos--;
           const char *buf = hwnd->m_title.Get();
           int bytepos = WDL_utf8_charpos_to_bytepos(buf,es->cursor_pos);
-          if (bytepos > 0 && buf[bytepos] == '\n' && buf[bytepos-1] == '\r') hwnd->m_title.DeleteSub(bytepos-1, 2);
+          if (bytepos > 0 && buf[bytepos] == '\n' && buf[bytepos-1] == '\r') 
+          {
+            hwnd->m_title.DeleteSub(bytepos-1, 2);
+            es->cursor_pos--;
+          }
           else hwnd->m_title.DeleteSub(bytepos, wdl_utf8_parsechar(hwnd->m_title.Get()+bytepos,NULL));
           return 7; 
         }
@@ -2592,6 +2630,8 @@ forceMouseMove:
     return 0;
     case WM_KEYDOWN:
       {
+        const int osel1 = es && es->sel1 >= 0 && es->sel2 > es->sel1 ? es->sel1 : -1;
+
         int f = OnEditKeyDown(hwnd,msg,wParam,lParam, 
             !!(hwnd->m_style&ES_WANTRETURN),
             !!(hwnd->m_style&ES_MULTILINE),
@@ -2605,6 +2645,10 @@ forceMouseMove:
           }
           if (f&2) 
           {
+            if ((hwnd->m_style & (ES_MULTILINE|ES_AUTOHSCROLL)) == ES_AUTOHSCROLL &&
+                osel1 >= 0 && es->cursor_pos > osel1 && es->sel1 < 0)
+              es->autoScrollToOffset(hwnd,osel1,false,false);
+
             es->autoScrollToOffset(hwnd,es->cursor_pos,
                (hwnd->m_style & ES_MULTILINE) != 0,
                (hwnd->m_style & (ES_MULTILINE|ES_AUTOHSCROLL)) == ES_MULTILINE
@@ -2657,7 +2701,8 @@ forceMouseMove:
           SetBkMode(ps.hdc,TRANSPARENT);
           r.left+=2 - es->scroll_x; r.right-=2;
 
-          const int cursor_pos = (focused && es->cursor_state) ?  WDL_utf8_charpos_to_bytepos(hwnd->m_title.Get(),es->cursor_pos) : -1;
+          const bool do_cursor = es->cursor_state!=0;
+          const int cursor_pos = focused ?  WDL_utf8_charpos_to_bytepos(hwnd->m_title.Get(),es->cursor_pos) : -1;
           const int sel1 = es->sel1>=0 && focused ? WDL_utf8_charpos_to_bytepos(hwnd->m_title.Get(),es->sel1) : -1;
           const int sel2 = es->sel2>=0 && focused ? WDL_utf8_charpos_to_bytepos(hwnd->m_title.Get(),es->sel2) : -1;
 
@@ -2721,7 +2766,7 @@ forceMouseMove:
               if (vis)
               {
                 int wid = editControlPaintLine(ps.hdc,buf,lb,
-                   (cursor_pos >= bytepos && cursor_pos <= bytepos + lb) ? cursor_pos - bytepos : -1, 
+                   (do_cursor && cursor_pos >= bytepos && cursor_pos <= bytepos + lb) ? cursor_pos - bytepos : -1, 
                    sel1 >= 0 ? (sel1 - bytepos) : -1,
                    sel2 >= 0 ? (sel2 - bytepos) : -1, 
                    &r, DT_TOP);
@@ -2765,6 +2810,9 @@ forceMouseMove:
         es->cursor_pos = WDL_utf8_get_charlen(hwnd->m_title.Get());
         es->sel1=es->sel2=-1;
         es->cache_linelen_w=es->cache_linelen_strlen=0;
+        if ((hwnd->m_style & (ES_MULTILINE|ES_AUTOHSCROLL))==ES_AUTOHSCROLL &&
+            GetFocus() != hwnd)
+          es->autoScrollToOffset(hwnd,0,false,false);
       }
       InvalidateRect(hwnd,NULL,FALSE);
       if (hwnd->m_id && hwnd->m_parent)
@@ -3051,12 +3099,12 @@ static LRESULT WINAPI labelWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
           RECT r; 
           GetClientRect(hwnd,&r); 
 
-          paintDialogBackground(hwnd,&r,ps.hdc);
-
           SetTextColor(ps.hdc,
              hwnd->m_enabled ? g_swell_ctheme.label_text : 
                g_swell_ctheme.label_text_disabled);
           SetBkMode(ps.hdc,TRANSPARENT);
+
+          paintDialogBackground(hwnd,&r,ps.hdc);
 
           const char *buf = hwnd->m_title.Get();
           if (buf && buf[0]) 
@@ -3072,16 +3120,17 @@ static LRESULT WINAPI labelWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 {
                   int post=0, lb=swell_getLineLength(buf+loffs, &post, r.right, ps.hdc);
                   if (lb>0)
-                  {
                     DrawText(ps.hdc,buf+loffs,lb,&r,DT_TOP|DT_SINGLELINE|DT_LEFT);
-                    r.top += line_h;
-                  }
+                  r.top += line_h;
                   loffs+=lb+post;
                 } 
                 buf = NULL;
               }
             }
-            if (buf) DrawText(ps.hdc,buf,-1,&r,((hwnd->m_style & SS_CENTER) ? DT_CENTER:0)|DT_VCENTER);
+            if (buf) DrawText(ps.hdc,buf,-1,&r,
+                ((hwnd->m_style & SS_CENTER) ? DT_CENTER : 
+                 (hwnd->m_style & SS_RIGHT) ? DT_RIGHT : 0)|
+                DT_VCENTER);
           }
           EndPaint(hwnd,&ps);
         }
@@ -3144,6 +3193,7 @@ static LRESULT WINAPI comboWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // find position of insert for wParam
             bool m;
             int idx = s->items.LowerBound(r,&m,__SWELL_ComboBoxInternalState_rec::cmp);
+            if (s->selidx >= idx) s->selidx++;
             s->items.Insert(idx,r);
             return idx;
           }
@@ -3518,6 +3568,8 @@ HWND SWELL_MakeLabel( int align, const char *label, int idx, int x, int y, int w
   RECT tr=MakeCoords(x,y,w,h,true);
   HWND hwnd = new HWND__(m_make_owner,idx,&tr,label, !(flags&SWELL_NOT_WS_VISIBLE),labelWindowProc);
   hwnd->m_classname = "static";
+  if (align > 0) flags |= SS_RIGHT;
+  else if (align == 0) flags |= SS_CENTER;
   hwnd->m_style = (flags & ~SWELL_NOT_WS_VISIBLE)|WS_CHILD;
   hwnd->m_wantfocus = false;
   hwnd->m_wndproc(hwnd,WM_CREATE,0,0);
@@ -3814,6 +3866,17 @@ static LRESULT listViewWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
     case WM_RBUTTONDOWN:
       if (lvs && lvs->m_last_row_height>0 && !lvs->m_is_listbox)
       {
+        LVHITTESTINFO inf = { { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, };
+        const int row = ListView_HitTest(hwnd, &inf);
+        const int n = ListView_GetItemCount(hwnd);
+        if (row>=0 && row<n && !ListView_GetItemState(hwnd,row,LVIS_SELECTED))
+        {
+          for (int x=0;x<n;x++)
+          {
+            ListView_SetItemState(hwnd,x,(x==row)?(LVIS_SELECTED|LVIS_FOCUSED):0,LVIS_SELECTED|LVIS_FOCUSED);
+          }
+        }
+
         NMLISTVIEW nm={{hwnd,hwnd->m_id,NM_RCLICK},0,0,0,};
         SendMessage(GetParent(hwnd),WM_NOTIFY,hwnd->m_id,(LPARAM)&nm);
       }
@@ -4486,13 +4549,18 @@ forceMouseMove:
                 {
                   if (ncols > 0)
                   {
-                    ar.right = ar.left + cols[col].xwid - 3;
+                    ar.right = xpos + cols[col].xwid - SWELL_UI_SCALE(3);
                     xpos += cols[col].xwid;
                   }
                   else ar.right = cr.right;
 
                   if (ar.right > ar.left)
+                  {
+                    const int adj = (ar.right-ar.left)/16;
+                    const int maxadj = SWELL_UI_SCALE(4);
+                    ar.left += wdl_min(adj,maxadj);
                     DrawText(ps.hdc,str,-1,&ar,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);
+                  }
                 }
               }
               ypos += row_height;
@@ -4553,7 +4621,7 @@ forceMouseMove:
                       const int x1 = tr.left + 2;
                       int y2 = (tr.bottom+tr.top)/2 - tsz/2 - tsz/4;
                       int y1 = y2 + tsz;
-                      if (cols[col].sortindicator < 0)
+                      if (cols[col].sortindicator >= 0)
                       {
                         int tmp=y1; 
                         y1=y2;
@@ -5852,11 +5920,15 @@ bool ListView_GetItem(HWND h, LVITEM *item)
 
   if (item->mask & LVIF_STATE) 
   {
-    item->state = lvs->get_sel(item->iItem) ? LVIS_SELECTED : 0;
-    if (lvs->m_selitem == item->iItem) item->state |= LVIS_FOCUSED;
-    SWELL_ListView_Row *row = lvs->m_data.Get(item->iItem);
-    if (row)
-      item->state |= INDEXTOSTATEIMAGEMASK(row->m_imageidx);
+    item->state = 0;
+    if ((item->stateMask & LVIS_SELECTED) && lvs->get_sel(item->iItem)) item->state |= LVIS_SELECTED;
+    if ((item->stateMask & LVIS_FOCUSED) && lvs->m_selitem == item->iItem) item->state |= LVIS_FOCUSED;
+    if (item->stateMask & 0xff0000)
+    {
+      SWELL_ListView_Row *row = lvs->m_data.Get(item->iItem);
+      if (row)
+        item->state |= INDEXTOSTATEIMAGEMASK(row->m_imageidx);
+    }
   }
 
   return true;
@@ -6024,7 +6096,7 @@ int ListView_HitTest(HWND h, LVHITTESTINFO *pinf)
     const int ypos = y - lvs->GetColumnHeaderHeight(h);
     const int hit = ypos >= 0 ? ((ypos + lvs->m_scroll_y) / lvs->m_last_row_height) : -1;
     if (hit < 0) pinf->flags |= LVHT_ABOVE;
-    pinf->iItem=hit;
+    pinf->iItem=hit < 0 || hit >= lvs->GetNumItems() ? -1 : hit;
     if (pinf->iItem >= 0)
     {
       if (lvs->m_status_imagelist && x < lvs->m_last_row_height)
@@ -6126,6 +6198,8 @@ bool ListView_GetSubItemRect(HWND h, int item, int subitem, int code, RECT *r)
     }
   }
 
+  if (r->top < -64-lvs->m_last_row_height) r->top = -64 - lvs->m_last_row_height;
+  if (r->top > cr.bottom+64) r->top = cr.bottom+64;
 
   r->bottom = r->top + lvs->m_last_row_height;
 
@@ -6230,6 +6304,31 @@ HWND ChildWindowFromPoint(HWND h, POINT p)
   return h;
 }
 
+static HWND recurseOwnedWindowHitTest(HWND h, POINT p, int maxdepth)
+{
+  RECT r;
+  GetWindowContentViewRect(h,&r);
+  if (!PtInRect(&r,p)) return NULL;
+
+  // check any owned windows first, as they are always above our window
+  if (h->m_owned_list && maxdepth > 0)
+  {
+    HWND owned = h->m_owned_list;
+    while (owned)
+    {
+      if (owned->m_visible)
+      {
+        HWND hit = recurseOwnedWindowHitTest(owned,p,maxdepth-1);
+        if (hit) return hit;
+      }
+      owned = owned->m_owned_next;
+    }
+  }
+  p.x -= r.left;
+  p.y -= r.top;
+  return ChildWindowFromPoint(h,p);
+}
+
 HWND WindowFromPoint(POINT p)
 {
   HWND h = SWELL_topwindows;
@@ -6237,14 +6336,8 @@ HWND WindowFromPoint(POINT p)
   {
     if (h->m_visible)
     {
-      RECT r;
-      GetWindowContentViewRect(h,&r);
-      if (PtInRect(&r,p))
-      {
-        p.x -= r.left;
-        p.y -= r.top;
-        return ChildWindowFromPoint(h,p);
-      }
+      HWND hit = recurseOwnedWindowHitTest(h,p,20);
+      if (hit) return hit;
     }
     h = h->m_next;
   }
@@ -6581,7 +6674,7 @@ static void runMenuBar(HWND hwnd, HMENU__ *menu, int x, const RECT *use_r)
   for (;;)
   {
     InvalidateRect(hwnd,&mbr,FALSE);
-    if (TrackPopupMenu(inf->hSubMenu,0,r.left,r.bottom,0,hwnd,NULL) || menu->sel_vis == x) break;
+    if (TrackPopupMenu(inf->hSubMenu,0,r.left,r.bottom,0xbeef,hwnd,NULL) || menu->sel_vis == x) break;
 
     x = menu->sel_vis;
     inf = menu->items.Get(x);
@@ -6691,7 +6784,7 @@ LRESULT DefWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                  dis ? g_swell_ctheme.menubar_text_disabled :
                    g_swell_ctheme.menubar_text);
 
-              DrawText(dc,inf->dwTypeData,-1,&cr,DT_BOTTOM|DT_LEFT);
+              DrawText(dc,inf->dwTypeData,-1,&cr,DT_VCENTER|DT_LEFT);
               xpos=cr.right+g_swell_ctheme.menubar_spacing_width;
             }
           }
@@ -6831,7 +6924,7 @@ LRESULT DefWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (hwnd->m_font) return (LRESULT) hwnd->m_font;
 #ifdef SWELL_FREETYPE
         {
-          HFONT SWELL_GetDefaultFont();
+          HFONT SWELL_GetDefaultFont(void);
           return (LRESULT)SWELL_GetDefaultFont();
         }
 #endif
@@ -7146,27 +7239,20 @@ BOOL ScrollWindow(HWND hwnd, int xamt, int yamt, const RECT *lpRect, const RECT 
 
 HWND FindWindowEx(HWND par, HWND lastw, const char *classname, const char *title)
 {
-  if (!par&&!lastw) return NULL; // need to implement this modes
-  HWND h=lastw?GetWindow(lastw,GW_HWNDNEXT):GetWindow(par,GW_CHILD);
+  HWND h=lastw?GetWindow(lastw,GW_HWNDNEXT):par?GetWindow(par,GW_CHILD):SWELL_topwindows;
   while (h)
   {
     bool isOk=true;
-    if (title)
+    if (title && strcmp(title,h->m_title.Get())) isOk=false;
+    else if (classname)
     {
-      char buf[512];
-      buf[0]=0;
-      GetWindowText(h,buf,sizeof(buf));
-      if (strcmp(title,buf)) isOk=false;
-    }
-    if (classname)
-    {
-      // todo: other classname translations
+      if (!h->m_classname || strcmp(classname,h->m_classname)) isOk=false;
     }
     
     if (isOk) return h;
     h=GetWindow(h,GW_HWNDNEXT);
   }
-  return h;
+  return NULL;
 }
 
 
@@ -7512,7 +7598,7 @@ BOOL ShellExecute(HWND hwndDlg, const char *action,  const char *content1, const
 
   if (!content1 || !*content1) return FALSE;
 
-  if (!strnicmp(content1,"http://",7))
+  if (!strnicmp(content1,"http://",7) || !strnicmp(content1,"https://",8))
   {
     argv[0] = xdg;
     argv[1] = content1;
@@ -7540,8 +7626,16 @@ BOOL ShellExecute(HWND hwndDlg, const char *action,  const char *content1, const
   }
   else
   {
-    argv[0] = xdg;
-    argv[1] = content1; // default to xdg-open for whatever else
+    if (content2 && *content2)
+    {
+      argv[0] = content1;
+      argv[1] = content2;
+    }
+    else
+    {
+      argv[0] = xdg;
+      argv[1] = content1; // default to xdg-open for whatever else
+    }
   }
 
   if (fork() == 0) 
@@ -7551,7 +7645,7 @@ BOOL ShellExecute(HWND hwndDlg, const char *action,  const char *content1, const
     exit(0); // if execv fails for some reason
   }
   free(tmp);
-  return FALSE;
+  return TRUE;
 }
 
 
@@ -7608,7 +7702,7 @@ void SWELL_DrawFocusRect(HWND hwndPar, RECT *rct, void **handle)
       h->m_style = WS_CHILD; // using this for top-level will also keep it out of the window list
       h->Retain();
       *handle = h;
-      ShowWindow(h,SW_SHOW);
+      ShowWindow(h,SW_SHOWNA);
     }
     SetWindowPos(h,HWND_TOP,rct->left,rct->top,rct->right-rct->left,rct->bottom-rct->top,SWP_NOACTIVATE);
     InvalidateRect(h,NULL,FALSE);
@@ -7713,6 +7807,18 @@ int swell_fullscreenWindow(HWND hwnd, BOOL fs)
   return 0;
 }
 
+void SWELL_SetClassName(HWND hwnd, const char *p)
+{
+  if (hwnd)
+    hwnd->m_classname=p;
+}
+
+int GetClassName(HWND hwnd, char *buf, int bufsz)
+{
+  if (!hwnd || !hwnd->m_classname || !buf || bufsz<1) return 0;
+  lstrcpyn_safe(buf,hwnd->m_classname,bufsz);
+  return (int)strlen(buf);
+}
 
 #ifdef _DEBUG
 void VALIDATE_HWND_LIST(HWND listHead, HWND par)

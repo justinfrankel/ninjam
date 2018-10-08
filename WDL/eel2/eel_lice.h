@@ -257,7 +257,8 @@ public:
   NSEEL_VMCTX m_vmref;
   void *m_user_ctx;
 
-  int setup_frame(HWND hwnd, RECT r);
+  int setup_frame(HWND hwnd, RECT r, int _mouse_x=0, int _mouse_y=0); // mouse_x/y used only if hwnd is NULL
+  void finish_draw();
 
   void gfx_lineto(EEL_F xpos, EEL_F ypos, EEL_F aaflag);
   void gfx_rectto(EEL_F xpos, EEL_F ypos);
@@ -284,6 +285,7 @@ public:
   EEL_F gfx_loadimg(void *opaque, int img, EEL_F loadFrom);
   EEL_F gfx_setfont(void *opaque, int np, EEL_F **parms);
   EEL_F gfx_getfont(void *opaque, int np, EEL_F **parms);
+  EEL_F gfx_getdropfile(void *opaque, int np, EEL_F **parms);
 
   LICE_pixel getCurColor();
   int getCurMode();
@@ -313,6 +315,8 @@ public:
 #endif
   int m_has_cap; // high 16 bits are current capture state, low 16 bits are temporary flags from mousedown
   bool m_has_had_getch; // set on first gfx_getchar(), makes mouse_cap updated with modifiers even when no mouse click is down
+
+  WDL_PtrList<char> m_ddrop_files;
 };
 
 
@@ -393,6 +397,7 @@ eel_lice_state::~eel_lice_state()
       if (m_gfx_fonts.Get()[x].font) LICE__DestroyFont(m_gfx_fonts.Get()[x].font);
     }
   }
+  m_ddrop_files.Empty(true,free);
 }
 
 int eel_lice_state::getCurMode()
@@ -743,6 +748,12 @@ static EEL_F NSEEL_CGEN_CALL _gfx_loadimg(void *opaque, EEL_F *img, EEL_F *fr)
   return 0.0;
 }
 
+static EEL_F NSEEL_CGEN_CALL _gfx_getdropfile(void *opaque, INT_PTR np, EEL_F **parms)
+{
+  eel_lice_state *ctx=EEL_LICE_GET_CONTEXT(opaque);
+  if (ctx) return ctx->gfx_getdropfile(opaque,(int) np, parms);
+  return 0.0;
+}
 static EEL_F NSEEL_CGEN_CALL _gfx_setimgdim(void *opaque, EEL_F *img, EEL_F *w, EEL_F *h)
 {
   eel_lice_state *ctx=EEL_LICE_GET_CONTEXT(opaque);
@@ -960,6 +971,25 @@ void eel_lice_state::gfx_getimgdim(EEL_F img, EEL_F *w, EEL_F *h)
   }
 }
 
+EEL_F eel_lice_state::gfx_getdropfile(void *opaque, int np, EEL_F **parms)
+{
+  const int idx = (int) parms[0][0];
+  if (idx<0) m_ddrop_files.Empty(true,free);
+  if (idx < 0 || idx >= m_ddrop_files.GetSize()) return 0.0;
+
+#ifdef NOT_EEL_STRING_UPDATE_STRING
+  NOT_EEL_STRING_UPDATE_STRING(parms[1][0],m_ddrop_files.Get(idx));
+#else
+  if (np > 1) 
+  {
+    EEL_STRING_MUTEXLOCK_SCOPE
+    WDL_FastString *fs=NULL;
+    EEL_STRING_GET_FOR_WRITE(parms[1][0], &fs);
+    if (fs) fs->Set(m_ddrop_files.Get(idx));
+  }
+#endif
+  return 1.0;
+}
 
 EEL_F eel_lice_state::gfx_loadimg(void *opaque, int img, EEL_F loadFrom)
 {
@@ -1258,7 +1288,7 @@ void eel_lice_state::gfx_blitext2(int np, EEL_F **parms, int blitmode)
                 np > 12 ? (float)parms[12][0]:1.0f, // dtdy
                 np > 13 ? (float)parms[13][0]:0.0f, // dsdxdy
                 np > 14 ? (float)parms[14][0]:0.0f, // dtdxdy
-                true, (float)*m_gfx_a,getCurModeForBlit(isFromFB));
+                np <= 15 || parms[15][0] > 0.5, (float)*m_gfx_a,getCurModeForBlit(isFromFB));
   }
   else if (fabs(angle)>0.000000001)
   {
@@ -1693,20 +1723,23 @@ void eel_lice_state::gfx_drawnumber(EEL_F n, EEL_F ndigits)
                            getCurColor(),getCurMode(),(float)*m_gfx_a,DT_NOCLIP,NULL,NULL);
 }
 
-int eel_lice_state::setup_frame(HWND hwnd, RECT r)
+int eel_lice_state::setup_frame(HWND hwnd, RECT r, int _mouse_x, int _mouse_y)
 {
   int use_w = r.right - r.left;
   int use_h = r.bottom - r.top;
 
-  POINT pt;
-  GetCursorPos(&pt);
-  ScreenToClient(hwnd,&pt);
+  POINT pt = { _mouse_x, _mouse_y };
+  if (hwnd)
+  {
+    GetCursorPos(&pt);
+    ScreenToClient(hwnd,&pt);
+  }
   *m_mouse_x=pt.x-r.left;
   *m_mouse_y=pt.y-r.top;
   if (*m_gfx_ext_retina > 0.0)
   {
 #ifdef __APPLE__
-    *m_gfx_ext_retina = SWELL_IsRetinaHWND(hwnd) ? 2.0 : 1.0;
+    *m_gfx_ext_retina = (hwnd && SWELL_IsRetinaHWND(hwnd)) ? 2.0 : 1.0;
     if (*m_gfx_ext_retina > 1.0)
     {
       *m_mouse_x *= 2.0;
@@ -1731,6 +1764,9 @@ int eel_lice_state::setup_frame(HWND hwnd, RECT r)
          if (dpi != 96)
            *m_gfx_ext_retina = dpi / 96.0;
        }
+    #else
+       int r = SWELL_GetScaling256();
+       if (r > 256) *m_gfx_ext_retina = r/256.0;
     #endif
 #endif
   }
@@ -1771,7 +1807,7 @@ int eel_lice_state::setup_frame(HWND hwnd, RECT r)
     if (GetAsyncKeyState(VK_RBUTTON)&0x8000) vflags|=swap?1:2;
     if (GetAsyncKeyState(VK_MBUTTON)&0x8000) vflags|=64;
   }
-  if (m_has_cap || (m_has_had_getch && GetFocus()==hwnd))
+  if (m_has_cap || (m_has_had_getch && hwnd && GetFocus()==hwnd))
   {
     if (GetAsyncKeyState(VK_CONTROL)&0x8000) vflags|=4;
     if (GetAsyncKeyState(VK_SHIFT)&0x8000) vflags|=8;
@@ -1791,6 +1827,24 @@ int eel_lice_state::setup_frame(HWND hwnd, RECT r)
     *m_gfx_texth = 8;
   
   return dr;
+}
+
+void eel_lice_state::finish_draw()
+{
+  if (hwnd_standalone && m_framebuffer_dirty) 
+  {
+#ifdef __APPLE__
+    void *p = SWELL_InitAutoRelease();
+#endif
+
+    InvalidateRect(hwnd_standalone,NULL,FALSE);
+    UpdateWindow(hwnd_standalone);
+
+#ifdef __APPLE__
+    SWELL_QuitAutoRelease(p);
+#endif
+    m_framebuffer_dirty = 0;
+  }
 }
 
 #ifndef EEL_LICE_NO_REGISTER
@@ -1829,6 +1883,7 @@ void eel_lice_register()
   NSEEL_addfunc_varparm("gfx_setfont",1,NSEEL_PProc_THIS,&_gfx_setfont);
   NSEEL_addfunc_varparm("gfx_getfont",1,NSEEL_PProc_THIS,&_gfx_getfont);
   NSEEL_addfunc_varparm("gfx_set",1,NSEEL_PProc_THIS,&_gfx_set);
+  NSEEL_addfunc_varparm("gfx_getdropfile",1,NSEEL_PProc_THIS,&_gfx_getdropfile);
 }
 #endif
 
@@ -1847,21 +1902,13 @@ static EEL_F * NSEEL_CGEN_CALL _gfx_update(void *opaque, EEL_F *n)
   eel_lice_state *ctx=EEL_LICE_GET_CONTEXT(opaque);
   if (ctx)
   {
+    ctx->m_ddrop_files.Empty(true,free);
     if (ctx->hwnd_standalone) 
     {
-      if (ctx->m_framebuffer_dirty) 
-      {
-#ifdef __APPLE__
-        void *p = SWELL_InitAutoRelease();
+#ifndef EEL_LICE_WANT_STANDALONE_UPDATE_NO_SETUPFRAME
+      ctx->finish_draw();
 #endif
 
-        InvalidateRect(ctx->hwnd_standalone,NULL,FALSE);
-        UpdateWindow(ctx->hwnd_standalone);
-
-#ifdef __APPLE__
-        SWELL_QuitAutoRelease(p);
-#endif
-      }
       // run message pump
 #ifndef EEL_LICE_WANT_STANDALONE_UPDATE_NO_MSGPUMP
 
@@ -1877,9 +1924,11 @@ static EEL_F * NSEEL_CGEN_CALL _gfx_update(void *opaque, EEL_F *n)
       SWELL_RunEvents();
 #endif
 #endif
+#ifndef EEL_LICE_WANT_STANDALONE_UPDATE_NO_SETUPFRAME
       RECT r;
       GetClientRect(ctx->hwnd_standalone,&r);
       ctx->setup_frame(ctx->hwnd_standalone,r);
+#endif
     }
   }
   return n;
@@ -1896,6 +1945,16 @@ static EEL_F NSEEL_CGEN_CALL _gfx_getchar(void *opaque, EEL_F *p)
     ctx->m_has_had_getch=true;
     if (*p >= 2.0)
     {
+      if (*p == 65536.0)
+      {
+        int rv = 1;
+        if (ctx->hwnd_standalone)
+        {
+          if (ctx->hwnd_standalone==GetFocus()) rv|=2;
+          if (IsWindowVisible(ctx->hwnd_standalone)) rv|=4;
+        }
+        return rv;
+      }
       int x;
       const int n = sizeof(ctx->hwnd_standalone_kb_state) / sizeof(ctx->hwnd_standalone_kb_state[0]);
       int *st = ctx->hwnd_standalone_kb_state;
@@ -2052,7 +2111,7 @@ HWND eel_lice_state::create_wnd(HWND par, int isChild)
 {
   if (hwnd_standalone) return hwnd_standalone;
 #ifdef _WIN32
-  return CreateWindowEx(0,eel_lice_standalone_classname,"",
+  return CreateWindowEx(WS_EX_ACCEPTFILES,eel_lice_standalone_classname,"",
                         isChild ? (WS_CHILD|WS_TABSTOP) : (WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_SYSMENU),CW_USEDEFAULT,CW_USEDEFAULT,100,100,par,NULL,eel_lice_hinstance,this);
 #else
   return SWELL_CreateDialog(NULL,isChild ? NULL : ((const char *)(INT_PTR)0x400001),par,(DLGPROC)eel_lice_wndproc,(LPARAM)this);
@@ -2268,6 +2327,7 @@ LRESULT WINAPI eel_lice_wndproc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 #else
         eel_lice_state *ctx=(eel_lice_state*)lParam;
         SetWindowLongPtr(hwnd,GWLP_USERDATA,lParam);
+        SetWindowLong(hwnd,GWL_EXSTYLE, GetWindowLong(hwnd,GWL_EXSTYLE) | WS_EX_ACCEPTFILES);
 #endif
         ctx->m_kb_queue_valid=0;
         ctx->hwnd_standalone=hwnd;
@@ -2362,6 +2422,26 @@ LRESULT WINAPI eel_lice_wndproc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         return 0;
       }
     break;
+    case WM_DROPFILES:
+      {
+        eel_lice_state *ctx=(eel_lice_state*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+        if (ctx && wParam)
+        {
+          ctx->m_ddrop_files.Empty(true,free);
+
+          HDROP hDrop = (HDROP) wParam;
+          const int n=DragQueryFile(hDrop,-1,NULL,0);
+          for (int x=0;x<n;x++)
+          {
+            char buf[4096];
+            buf[0]=0;
+            DragQueryFile(hDrop,x,buf,sizeof(buf));
+            if (buf[0]) ctx->m_ddrop_files.Add(strdup(buf));
+          }
+          DragFinish(hDrop);
+        }
+      }
+    return 0;
     case WM_MOUSEHWHEEL:   
     case WM_MOUSEWHEEL:
       {
@@ -2543,6 +2623,13 @@ LRESULT WINAPI eel_lice_wndproc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         }
       }
     return 0;
+    case WM_GETMINMAXINFO:
+    {
+      LPMINMAXINFO p=(LPMINMAXINFO)lParam;
+      if (p->ptMinTrackSize.x > 10) p->ptMinTrackSize.x = 10;
+      if (p->ptMinTrackSize.y > 10) p->ptMinTrackSize.y = 10;
+    }
+    return 0;
   }
 
   return DefWindowProc(hwnd,uMsg,wParam,lParam);
@@ -2711,6 +2798,7 @@ static const char *eel_lice_function_reference =
      "\4" "27 for ESC\n"
      "\4" "13 for Enter\n"
      "\4' ' for space\n"
+     "\4" "65536 for query of special flags, returns: &1 (supported), &2=window has focus, &4=window is visible\n"
      "\2\0"
     
   "gfx_showmenu\t\"str\"\tShows a popup menu at gfx_x,gfx_y. str is a list of fields separated by | characters. "
@@ -2758,9 +2846,9 @@ static const char *eel_lice_function_reference =
   "gfx_loadimg\timage,\"filename\"\tLoad image from filename into slot 0.." EEL_LICE_DOC_MAXHANDLE " specified by image. Returns the image index if success, otherwise -1 if failure. The image will be resized to the dimensions of the image file. \0"
   "gfx_gradrect\tx,y,w,h, r,g,b,a[, drdx, dgdx, dbdx, dadx, drdy, dgdy, dbdy, dady]\tFills a gradient rectangle with the color and alpha specified. drdx-dadx reflect the adjustment (per-pixel) applied for each pixel moved to the right, drdy-dady are the adjustment applied for each pixel moved toward the bottom. Normally drdx=adjustamount/w, drdy=adjustamount/h, etc.\0"
   "gfx_muladdrect\tx,y,w,h,mul_r,mul_g,mul_b[,mul_a,add_r,add_g,add_b,add_a]\tMultiplies each pixel by mul_* and adds add_*, and updates in-place. Useful for changing brightness/contrast, or other effects.\0"
-  "gfx_deltablit\tsrcimg,srcx,srcy,srcw,srch,destx,desty,destw,desth,dsdx,dtdx,dsdy,dtdy,dsdxdy,dtdxdy\tBlits from srcimg(srcx,srcy,srcw,srch) "
+  "gfx_deltablit\tsrcimg,srcs,srct,srcw,srch,destx,desty,destw,desth,dsdx,dtdx,dsdy,dtdy,dsdxdy,dtdxdy[,usecliprect=1]\tBlits from srcimg(srcx,srcy,srcw,srch) "
       "to destination (destx,desty,destw,desth). Source texture coordinates are s/t, dsdx represents the change in s coordinate for each x pixel"
-      ", dtdy represents the change in t coordinate for each y pixel, etc. dsdxdy represents the change in dsdx for each line. \0"
+      ", dtdy represents the change in t coordinate for each y pixel, etc. dsdxdy represents the change in dsdx for each line. If usecliprect is specified and 0, then srcw/srch are ignored.\0"
   "gfx_transformblit\tsrcimg,destx,desty,destw,desth,div_w,div_h,table\tBlits to destination at (destx,desty), size (destw,desth). "
       "div_w and div_h should be 2..64, and table should point to a table of 2*div_w*div_h values (this table must not cross a "
       "65536 item boundary). Each pair in the table represents a S,T coordinate in the source image, and the table is treated as "
@@ -2770,6 +2858,7 @@ static const char *eel_lice_function_reference =
   "gfx_roundrect\tx,y,w,h,radius[,antialias]\tDraws a rectangle with rounded corners. \0"
   "gfx_arc\tx,y,r,ang1,ang2[,antialias]\tDraws an arc of the circle centered at x,y, with ang1/ang2 being specified in radians.\0"
   "gfx_set\tr[,g,b,a,mode,dest]\tSets gfx_r/gfx_g/gfx_b/gfx_a/gfx_mode, sets gfx_dest if final parameter specified\0"
+  "gfx_getdropfile\tidx[,#str]\tEnumerates any drag/dropped files. call gfx_dropfile(-1) to clear the list when finished. Returns 1 if idx is valid, 0 if idx is out of range.\0"
 
 #ifdef EEL_LICE_WANT_STANDALONE
 #ifndef EEL_LICE_STANDALONE_NOINITQUIT
