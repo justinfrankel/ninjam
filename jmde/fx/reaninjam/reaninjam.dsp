@@ -44,7 +44,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /Zd /O2 /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /Zd /O2 /I "../../../sdks/libvorbis-1.3.6/include" /I "../../../sdks/libogg-1.3.3/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -71,7 +71,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /Zi /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /FR /FD /c
-# ADD CPP /nologo /MT /W3 /Zi /Ot /Og /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /D "DEBUG_TIGHT_ALLOC" /FR /YX /FD /c
+# ADD CPP /nologo /MT /W3 /Zi /Ot /Og /I "../../../sdks/libvorbis-1.3.6/include" /I "../../../sdks/libogg-1.3.3/include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /D "DEBUG_TIGHT_ALLOC" /FR /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -97,7 +97,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "../../../sdks/libvorbis-1.3.1/include" /I "../../../sdks/libogg-1.2.0/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "../../../sdks/libvorbis-1.3.6/include" /I "../../../sdks/libogg-1.3.3/include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "REAGATE_EXPORTS" /D "REANINJAM" /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"

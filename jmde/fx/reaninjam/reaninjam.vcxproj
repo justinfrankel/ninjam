@@ -94,7 +94,7 @@
       <PreprocessorDefinitions>WIN32;REANINJAM;_DEBUG;_WINDOWS;_USRDLL;BUILD_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
-      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.1/include;../../../sdks/libogg-1.2.0/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.6/include;../../../sdks/libogg-1.3.3/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -111,7 +111,7 @@
       <PreprocessorDefinitions>WIN32;REANINJAM;_DEBUG;_WINDOWS;_USRDLL;BUILD_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
-      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.1/include;../../../sdks/libogg-1.2.0/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.6/include;../../../sdks/libogg-1.3.3/include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -131,7 +131,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.1/include;../../../sdks/libogg-1.2.0/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.6/include;../../../sdks/libogg-1.3.3/include</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
@@ -155,7 +155,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.1/include;../../../sdks/libogg-1.2.0/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../sdks/libvorbis-1.3.6/include;../../../sdks/libogg-1.3.3/include</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
