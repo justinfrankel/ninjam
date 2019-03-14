@@ -32,6 +32,7 @@
 #include "../WDL/wavwrite.h"
 #include "../WDL/wdlcstring.h"
 
+#include "../WDL/win32_utf8.h"
 
 #define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
 
@@ -604,10 +605,10 @@ void NJClient::SetLogFile(char *name)
     {
       WDL_String s(m_workdir.Get());
       s.Append(name);
-      m_logFile=fopen(s.Get(),"a+t");
+      m_logFile=fopenUTF8(s.Get(),"a+t");
     }
     else
-      m_logFile=fopen(name,"a+t");
+      m_logFile=fopenUTF8(name,"a+t");
   }
   m_log_cs.Leave();
 }
@@ -1518,7 +1519,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, De
     for (x = 0; !newstate->decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
     {
       type_to_string(types[x],s.Get()+oldl);
-      newstate->decode_fp=fopen(s.Get(),"rb");
+      newstate->decode_fp=fopenUTF8(s.Get(),"rb");
     }
   }
 
@@ -2823,7 +2824,7 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc, bool forceToDis
     s.Append(buf);
 
     m_fourcc=fourcc;
-    m_fp=fopen(s.Get(),"wb");
+    m_fp=fopenUTF8(s.Get(),"wb");
   }
 }
 
