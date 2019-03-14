@@ -1625,7 +1625,7 @@ void InitializeInstance()
       WDL_remove_filepart(g_inipath);
       g_ini_file.Set(g_inipath);
       g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
-      FILE *fp = fopen(g_ini_file.Get(),"r+");
+      FILE *fp = fopenUTF8(g_ini_file.Get(),"r+");
       if (fp) fclose(fp);
       else
       {
