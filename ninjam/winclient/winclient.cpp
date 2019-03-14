@@ -488,7 +488,7 @@ static void do_connect()
     wf.Set(g_client->GetWorkDir());
     wf.Append("output.ogg");
     int br=GetPrivateProfileInt(CONFSEC,"saveoggbr",128,g_ini_file.Get());
-    g_client->SetOggOutFile(fopen(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,br);
+    g_client->SetOggOutFile(fopenUTF8(wf.Get(),"ab"),g_audio->m_srate,g_audio->m_outnch>1?2:1,br);
   }
   
   if (g_client->config_savelocalaudio)
@@ -889,7 +889,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               tmp.Set("Status: Connected to ");
               tmp.Append(g_client->GetHostName());
               tmp.Append(" as ");
-              tmp.Append(g_client->GetUserName());
+              tmp.Append(g_client->GetUser());
 
               SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
             }
@@ -1173,7 +1173,7 @@ static BOOL WINAPI MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             GetDlgItemText(hwndDlg,IDC_CHATENT,str,255);
             if (str[0])
             {
-              if (!strcasecmp(str,"/clear"))
+              if (!stricmp(str,"/clear"))
               {
                     SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
               }

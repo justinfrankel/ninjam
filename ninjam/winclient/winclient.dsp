@@ -127,6 +127,10 @@ SOURCE=..\..\WDL\sha.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\WDL\win32_utf8.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\WDL\wingui\wndsize.cpp
 # End Source File
 # Begin Source File

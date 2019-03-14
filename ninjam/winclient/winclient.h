@@ -35,6 +35,7 @@
 
 #include "../../WDL/mutex.h"
 #include "../../WDL/wdlstring.h"
+#include "../../WDL/win32_utf8.h"
 
 
 extern WDL_Mutex g_client_mutex;
