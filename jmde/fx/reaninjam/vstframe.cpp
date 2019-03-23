@@ -803,10 +803,10 @@ static HWND customControlCreator(HWND parent, const char *cname, int idx, const 
   {
     if ((style & 0x2800))
     {
-      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,ES_READONLY|WS_VSCROLL|ES_MULTILINE);
+      return SWELL_MakeEditField(idx,-x,-y,-w,-h,ES_READONLY|WS_VSCROLL|ES_MULTILINE);
     }
     else
-      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,0);          
+      return SWELL_MakeEditField(idx,-x,-y,-w,-h,0);
   }
   return 0;
 }
