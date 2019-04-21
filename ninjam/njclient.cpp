@@ -200,11 +200,10 @@ class DecodeState
         const int fade_sz = s->fade_sz;
         const float *fade_buf = s->fade_buf;
         float *p = decode_codec->Get();
-        const double ifsz = 3.1415926535897932384626433832795 / (double) fade_sz;
+        const double ifsz = 1.0 / (double) fade_sz;
         for (int x = 0; x < fade_sz; x ++)
         {
-          const double windowpos = (x+1) * ifsz;
-          const double s = 0.53836 - cos(windowpos)*0.46164;
+          const double s = (x+1) * ifsz;
           for (int y = 0; y < nch; y ++)
           {
             *p = *p * s + *fade_buf * (1.0-s);
