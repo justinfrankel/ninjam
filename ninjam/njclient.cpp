@@ -1323,7 +1323,7 @@ int NJClient::Run() // nonzero if sleep ok
                 fn.Append(guidstr);
                 fn.Append(".wav");
 
-                lc->m_wavewritefile=new WaveWriter(fn.Get(),24,1,m_srate);
+                lc->m_wavewritefile=new WaveWriter(fn.Get(),24,block_nch,m_srate);
               }
             }
 
