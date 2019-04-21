@@ -131,6 +131,15 @@ private:
   WDL_Queue m_buf;
 };
 
+struct overlapFadeState {
+  overlapFadeState() { fade_nch=fade_sz=0; }
+
+  int fade_nch, fade_sz;
+
+  enum { MAX_FADE=128 };
+  float fade_buf[MAX_FADE*2];
+};
+
 class DecodeState
 {
   public:
@@ -158,6 +167,80 @@ class DecodeState
     int decode_samplesout;
     double resample_state;
 
+    void applyOverlap(overlapFadeState *s)
+    {
+      if (!s || !s->fade_sz || !decode_codec) return;
+      int nch;
+      for (;;)
+      {
+        nch = decode_codec->GetNumChannels();
+        if (nch && decode_codec->Available() >= s->fade_sz * nch) break;
+
+        if (decode_fp)
+        {
+          int l=fread(decode_codec->DecodeGetSrcBuffer(1024),1,1024,decode_fp);
+          decode_codec->DecodeWrote(l);
+          if (!l) 
+          {
+            clearerr(decode_fp);
+            break;
+          }
+        }
+        else if (decode_buf)
+        {
+          int l=decode_buf->Read(decode_codec->DecodeGetSrcBuffer(1024),1024);
+          decode_codec->DecodeWrote(l);
+          if (!l) break;
+        }
+      }
+      if (!nch) return;
+      const int avail = decode_codec->Available()/nch;
+      if (s->fade_nch == nch && s->fade_sz <= avail)
+      {
+        const int fade_sz = s->fade_sz;
+        const float *fade_buf = s->fade_buf;
+        float *p = decode_codec->Get();
+        const double ifsz = 3.1415926535897932384626433832795 / (double) fade_sz;
+        for (int x = 0; x < fade_sz; x ++)
+        {
+          const double windowpos = (x+1) * ifsz;
+          const double s = 0.53836 - cos(windowpos)*0.46164;
+          for (int y = 0; y < nch; y ++)
+          {
+            *p = *p * s + *fade_buf * (1.0-s);
+            p++;
+            fade_buf++;
+          }
+        }
+      }
+    }
+    void calcOverlap(overlapFadeState *s)
+    {
+      if (!decode_codec) return;
+
+      decode_codec->GenerateLappingSamples();
+      const int nch = decode_codec->GetNumChannels();
+      const int avail = decode_codec->Available();
+      if (avail > 0 && nch > 0)
+      {
+        const float *rd = decode_codec->Get();
+        if (rd)
+        {
+          int sz = avail / nch;
+          if (sz > overlapFadeState::MAX_FADE) sz = overlapFadeState::MAX_FADE;
+          float *wr = s->fade_buf;
+          s->fade_sz = sz;
+          const int fade_nch = wdl_min(nch,2);
+          s->fade_nch = fade_nch;
+          for (int x = 0; x < sz; x ++)
+          {
+            for (int y = 0; y < fade_nch; y ++)
+              *wr++ = rd[y];
+            rd += nch;
+          }
+        }
+      }
+    }
 };
 
 class ChannelSessionInfo
@@ -1874,6 +1957,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int llmode=(userchan->flags&2);
   int sessionmode = !llmode && (userchan->flags&4);
 
+  overlapFadeState fade_state;
   if (sessionmode)
   {
     if (!isPlaying)
@@ -1885,8 +1969,12 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
     if (isSeek || userchan->curds_lenleft <= 0.0)
     {
-      delete userchan->ds;
-      userchan->ds=0;
+      if (userchan->ds)
+      {
+        userchan->ds->calcOverlap(&fade_state);
+        delete userchan->ds;
+        userchan->ds=0;
+      }
       
       unsigned char guid[16];
       double offs=0.0;
@@ -1900,6 +1988,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
         userchan->ds=start_decode(guid);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
+          userchan->ds->applyOverlap(&fade_state);
           mediasr=userchan->ds->decode_codec->GetSampleRate();
           userchan->dump_samples = ((int) (offs * mediasr))*userchan->ds->decode_codec->GetNumChannels();
           if (userchan->dump_samples<0)userchan->dump_samples=0;
@@ -1947,10 +2036,13 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (llmode && userchan->next_ds[0])
     {
 //      OutputDebugString("advanced to next_ds (666)\n");
+      if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
       userchan->next_ds[1]=0;
+
+      if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
     }
     if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
     {
@@ -2159,10 +2251,12 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     // call again 
 //    OutputDebugString("advanced to next_ds (200)\n");
     userchan->curds_lenleft=-10000.0;
+    if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
     userchan->next_ds[1]=0;
+    if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
     if (sessionmode || (chan && chan->decode_codec && (chan->decode_fp||chan->decode_buf))) 
       mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
         isPlaying,false,playPos + len_out/(double)srate);
@@ -2229,6 +2323,8 @@ void NJClient::on_new_interval()
         }
         */
         chan->dump_samples=0;
+        overlapFadeState fade_state;
+        if (chan->ds) chan->ds->calcOverlap(&fade_state);
         delete chan->ds;
         chan->ds=0;
         if ((user->submask & user->chanpresentmask) & (1<<ch)) chan->ds = chan->next_ds[0];
@@ -2238,6 +2334,7 @@ void NJClient::on_new_interval()
         
         if (chan->ds)
         {
+          chan->ds->applyOverlap(&fade_state);
           char guidstr[64];
           guidtostr(chan->ds->guid,guidstr);
           char tmp[1024],tmp2[1024],*p;
