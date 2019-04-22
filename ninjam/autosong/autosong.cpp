@@ -184,6 +184,89 @@ void usage()
   exit(1);
 }
 
+static void mixFloats(float *src, int src_srate, int src_nch,  // lengths are sample pairs
+                            float *dest, int dest_srate, int dest_nch, 
+                            int dest_len, float vol, float pan, double *state)
+{
+  // fucko: better resampling, this is shite
+  int x;
+  if (pan < -1.0f) pan=-1.0f;
+  else if (pan > 1.0f) pan=1.0f;
+  if (vol > 4.0f) vol=4.0f;
+  if (vol < 0.0f) vol=0.0f;
+
+  if (!src_srate) src_srate=48000;
+  if (!dest_srate) dest_srate=48000;
+
+  double vol1=vol,vol2=vol;
+  if (dest_nch == 2)
+  {
+    if (pan < 0.0f)  vol2 *= 1.0f+pan;
+    else if (pan > 0.0f) vol1 *= 1.0f-pan;
+  }
+
+  double rspos=*state;
+  double drspos = (double)src_srate/(double)dest_srate;
+
+  for (x = 0; x < dest_len; x ++)
+  {
+
+    double ls;
+    double rs;
+    if (src_srate != dest_srate)
+    {
+      int ipos = (int)rspos;
+      double fracpos=rspos-ipos; 
+      if (src_nch == 2)
+      {
+        ipos+=ipos;
+        ls=src[ipos]*(1.0-fracpos) + src[ipos+2]*fracpos;
+        rs=src[ipos+1]*(1.0-fracpos) + src[ipos+3]*fracpos;
+      }
+      else 
+      {
+        rs=ls=src[ipos]*(1.0-fracpos) + src[ipos+1]*fracpos;
+      }
+    }
+    else
+    {
+      if (src_nch == 2)
+      {
+        int t=x+x;
+        ls=src[t];
+        rs=src[t+1];
+      }
+      else
+      {
+        rs=ls=src[x];
+      }
+    }
+
+    rspos+=drspos;
+
+    ls *= vol1;
+    if (ls > 1.0) ls=1.0;
+    else if (ls<-1.0) ls=-1.0;
+
+    if (dest_nch == 2)
+    {
+      rs *= vol2;
+      if (rs > 1.0) rs=1.0;
+      else if (rs<-1.0) rs=-1.0;
+
+      dest[0]+=(float) ls;
+      dest[1]+=(float) rs;
+      dest+=2;
+    }
+    else
+    {
+      dest[0]+=(float) ls;
+      dest++;
+    }
+  }
+  *state = rspos - (int)rspos;
+}
+
 
 
 int main(int argc, char **argv)

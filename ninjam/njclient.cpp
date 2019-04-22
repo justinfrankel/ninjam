@@ -1945,6 +1945,98 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
 }
 
+static int resampleLengthNeeded(int src_srate, int dest_srate, int dest_len, double *state)
+{
+  // safety
+  if (!src_srate) src_srate=48000;
+  if (!dest_srate) dest_srate=48000;
+  if (src_srate == dest_srate) return dest_len;
+  return (int) (((double)src_srate*(double)dest_len/(double)dest_srate)+*state);
+
+}
+
+static void mixFloatsNIOutput(float *src, int src_srate, int src_nch,  // lengths are sample pairs. input is interleaved samples, output not
+                            float **dest, int dest_srate, int dest_nch, 
+                            int dest_len, float vol, float pan, double *state)
+{
+  int x;
+  if (pan < -1.0f) pan=-1.0f;
+  else if (pan > 1.0f) pan=1.0f;
+  if (vol > 4.0f) vol=4.0f;
+  if (vol < 0.0f) vol=0.0f;
+
+  if (!src_srate) src_srate=48000;
+  if (!dest_srate) dest_srate=48000;
+
+  double vol1=vol,vol2=vol;
+  float *dest1=dest[0];
+  float *dest2=NULL;
+  if (dest_nch > 1)
+  {
+    dest2=dest[1];
+    if (pan < 0.0f)  vol2 *= 1.0f+pan;
+    else if (pan > 0.0f) vol1 *= 1.0f-pan;
+  }
+  
+
+  double rspos=*state;
+  double drspos = 1.0;
+  if (src_srate != dest_srate) drspos=(double)src_srate/(double)dest_srate;
+
+  for (x = 0; x < dest_len; x ++)
+  {
+    double ls,rs;
+    if (src_srate != dest_srate)
+    {
+      int ipos = (int)rspos;
+      double fracpos=rspos-ipos; 
+      if (src_nch == 2)
+      {
+        ipos+=ipos;
+        ls=src[ipos]*(1.0-fracpos) + src[ipos+2]*fracpos;
+        rs=src[ipos+1]*(1.0-fracpos) + src[ipos+3]*fracpos;
+      }
+      else 
+      {
+        rs=ls=src[ipos]*(1.0-fracpos) + src[ipos+1]*fracpos;
+      }
+      rspos+=drspos;
+
+    }
+    else
+    {
+      if (src_nch == 2)
+      {
+        int t=x+x;
+        ls=src[t];
+        rs=src[t+1];
+      }
+      else
+      {
+        rs=ls=src[x];
+      }
+    }
+
+    ls *= vol1;
+    if (ls > 1.0) ls=1.0;
+    else if (ls<-1.0) ls=-1.0;
+
+    *dest1++ +=(float) ls;
+
+    if (dest_nch > 1)
+    {
+      rs *= vol2;
+      if (rs > 1.0) rs=1.0;
+      else if (rs<-1.0) rs=-1.0;
+
+      *dest2++ += (float) rs;
+    }
+  }
+  *state = rspos - (int)rspos;
+}
+
+
+
 void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
                             int len, int srate, int outnch, int offs, double vudecay,
                             bool isPlaying, bool isSeek, double playPos)
