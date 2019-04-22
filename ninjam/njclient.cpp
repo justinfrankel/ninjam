@@ -1957,8 +1957,9 @@ static int resampleLengthNeeded(int src_srate, int dest_srate, int dest_len, dou
 
 static void mixFloatsNIOutput(float *src, int src_srate, int src_nch,  // lengths are sample pairs. input is interleaved samples, output not
                             float **dest, int dest_srate, int dest_nch, 
-                            int dest_len, float vol, float pan, double *state)
+                            int dest_len, float vol, float pan, double *state, int src_len)
 {
+  // this resampling code is terrible, sorry, universe
   int x;
   if (pan < -1.0f) pan=-1.0f;
   else if (pan > 1.0f) pan=1.0f;
@@ -1989,16 +1990,20 @@ static void mixFloatsNIOutput(float *src, int src_srate, int src_nch,  // length
     if (src_srate != dest_srate)
     {
       int ipos = (int)rspos;
+      int ipos2 = ipos+1;
+      if (ipos >= src_len) ipos=src_len-1;
+      if (ipos2 >= src_len) ipos2=src_len-1;
       double fracpos=rspos-ipos; 
       if (src_nch == 2)
       {
-        ipos+=ipos;
-        ls=src[ipos]*(1.0-fracpos) + src[ipos+2]*fracpos;
-        rs=src[ipos+1]*(1.0-fracpos) + src[ipos+3]*fracpos;
+        ipos*=2;
+        ipos2*=2;
+        ls=src[ipos]*(1.0-fracpos) + src[ipos2]*fracpos;
+        rs=src[ipos+1]*(1.0-fracpos) + src[ipos2+1]*fracpos;
       }
       else 
       {
-        rs=ls=src[ipos]*(1.0-fracpos) + src[ipos+1]*fracpos;
+        rs=ls=src[ipos]*(1.0-fracpos) + src[ipos2]*fracpos;
       }
       rspos+=drspos;
 
@@ -2301,7 +2306,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
               srcnch,
               tmpbuf,
               srate,use_nch,len_out,
-              lvol,pan,&chan->resample_state);
+              lvol,pan,&chan->resample_state,
+              chan->decode_codec->Available() / srcnch);
     }
 
     // advance the queue
