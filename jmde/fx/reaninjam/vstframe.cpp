@@ -13,6 +13,8 @@
 #include "../../../WDL/wdlcstring.h"
 
 #include "../../reaper_plugin.h"
+#define WDL_WIN32_HIDPI_IMPL
+#include "../../../WDL/win32_hidpi.h" // for mmon SetWindowPos() tweaks
 
 #include "resource.h"
 

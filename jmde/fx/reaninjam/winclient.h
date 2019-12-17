@@ -36,6 +36,7 @@
 #include "../../../WDL/db2val.h"
 
 #include "../../../WDL/win32_utf8.h"
+#include "../../../WDL/win32_hidpi.h" // for mmon SetWindowPos() tweaks
 
 extern double (*DB2SLIDER)(double x);
 extern double (*SLIDER2DB)(double y);
