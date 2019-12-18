@@ -695,7 +695,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
   RECT new_rect;
   GetClientRect(hwndDlg,&new_rect);
-  RECT m_orig_rect=resize.get_orig_rect();
+  RECT m_orig_rect=resize.get_orig_rect_dpi();
 
   {
     WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
@@ -827,7 +827,7 @@ static void EnsureNotCompletelyOffscreen(RECT *r)
 
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static RECT init_r;
+  static RECT s_init_r;
   static int cap_mode;
   static int cap_spos;
   static WDL_WndSizer resize;
@@ -864,8 +864,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
         } 
       #endif
-        GetWindowRect(hwndDlg,&init_r);
-        if (init_r.bottom < init_r.top) SWAP(init_r.top,init_r.bottom,int);
+        GetWindowRect(hwndDlg,&s_init_r);
+        if (s_init_r.bottom < s_init_r.top) SWAP(s_init_r.top,s_init_r.bottom,int);
         
 
         SetWindowText(hwndDlg,"ReaNINJAM v" VERSION);
@@ -1192,6 +1192,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     break;
     case WM_GETMINMAXINFO:
       {
+        RECT init_r = s_init_r;
+        resize.sizer_to_dpi_rect(&init_r);
         LPMINMAXINFO p=(LPMINMAXINFO)lParam;
         p->ptMinTrackSize.x = init_r.right-init_r.left;
         p->ptMinTrackSize.y = init_r.bottom-init_r.top;
@@ -1255,7 +1257,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           RECT new_rect;
           GetClientRect(hwndDlg,&new_rect);
 
-          RECT m_orig_rect=resize.get_orig_rect();
+          RECT m_orig_rect=resize.get_orig_rect_dpi();
           WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
           if (rec)
           {
