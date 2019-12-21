@@ -77,6 +77,17 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     case WM_DESTROY:
       delete _this;
     return 0;
+    case WM_NOTIFY:
+#ifdef _WIN32
+      {
+        extern LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
+        const unsigned short list[] = { IDC_TRANSMIT };
+        if (handleCheckboxCustomDraw) 
+          return handleCheckboxCustomDraw(hwndDlg,lParam,list,1,true);
+      }
+#endif
+    break;
+
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
@@ -101,12 +112,6 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         }
         int sch;
         bool bc;
-
-        extern void (*RemoveXPStyle)(HWND hwnd, int rem);
-        if (RemoveXPStyle)
-        {
-          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_TRANSMIT),1);
-        }
 
         int f=0;
         char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc,NULL,&f);

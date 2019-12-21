@@ -79,7 +79,9 @@ double (*SLIDER2DB)(double);
 void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
 void *(*CreateVorbisDecoder)();
 void (*PluginWantsAlwaysRunFx)(int amt);
-void (*RemoveXPStyle)(HWND hwnd, int rem);
+#ifdef _WIN32
+LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
+#endif
 
 void (*GetProjectPath)(char *buf, int bufsz);
 const char *(*get_ini_file)();
@@ -744,7 +746,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     *(VstIntPtr *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
     *(VstIntPtr *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
 #ifdef _WIN32
-    *(VstIntPtr *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"RemoveXPStyle",0.0);
+    *(VstIntPtr *)&handleCheckboxCustomDraw=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"handleCheckboxCustomDraw",0.0);
 #endif
     
   }

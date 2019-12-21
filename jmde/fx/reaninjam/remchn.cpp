@@ -140,6 +140,16 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
   int m_userch=GetWindowLongPtr(hwndDlg,GWLP_USERDATA); // high 16 bits, user, low 16 bits, channel
   switch (uMsg)
   {
+    case WM_NOTIFY:
+#ifdef _WIN32
+      {
+        extern LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
+        const unsigned short list[] = { IDC_RECV };
+        if (handleCheckboxCustomDraw) 
+          return handleCheckboxCustomDraw(hwndDlg,lParam,list,1,true);
+      }
+#endif
+    break;
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
@@ -156,14 +166,6 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
       SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
       SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
       SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
-      {
-        extern void (*RemoveXPStyle)(HWND hwnd, int rem);
-        if (RemoveXPStyle)
-        {
-          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_RECV),1);
-        }
-      }
-
     return 0;
     case WM_RCUSER_UPDATE:
       m_userch=((int)LOWORD(wParam) << 16) | LOWORD(lParam);
