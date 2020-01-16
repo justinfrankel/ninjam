@@ -1066,7 +1066,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         #endif
         else ShowWindow(hwndDlg,SW_SHOW);
      
-        SetTimer(hwndDlg,1,50,NULL);
+        SetTimer(hwndDlg,1,10,NULL);
 
         int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
         if (rsp) resizePanes(hwndDlg,rsp,resize,1);
@@ -1081,8 +1081,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       {
         static int in_t;
         static int m_last_status = 0xdeadbeef;
+        static int cycle_cnt;
         if (!in_t)
         {
+          const bool do_slow_things = (cycle_cnt++%5)==0;
           in_t=1;          
 
           licenseRun(hwndDlg);
@@ -1181,10 +1183,16 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
             }
 
-            SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
-            SendMessage(m_remwnd,WM_LCUSER_VUUPDATE,0,0);
+            if (do_slow_things)
+            {
+              SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
+              SendMessage(m_remwnd,WM_LCUSER_VUUPDATE,0,0);
+            }
           }
-          chatRun(hwndDlg);
+          if (do_slow_things)
+          {
+            chatRun(hwndDlg);
+          }
 
           in_t=0;
         }
