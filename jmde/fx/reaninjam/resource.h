@@ -49,7 +49,6 @@
 #define IDC_EDIT2                       1008
 #define IDC_DIV1                        1008
 #define IDC_EDIT3                       1009
-#define IDC_STATUS                      1009
 #define IDC_LATENCYINFO                 1010
 #define IDC_INTERVALPOS                 1010
 #define IDC_EDIT4                       1011
@@ -76,7 +75,6 @@
 #define IDC_USER                        1024
 #define IDC_HOST                        1025
 #define IDC_CHATOK                      1026
-#define IDC_STATUS2                     1028
 #define IDC_LICENSETEXT                 1029
 #define IDC_SAVEOGG                     1030
 #define IDC_SAVELOCAL                   1031

@@ -555,6 +555,7 @@ static void do_disconnect()
   }
 }
 
+WDL_FastString g_last_status("Status: not connected.");
 
 static void do_connect()
 {
@@ -606,7 +607,8 @@ static void do_connect()
   }
   if (cnt >= 16)
   {      
-    SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR CREATING SESSION DIRECTORY");
+    g_last_status.Set("Status: ERROR CREATING SESSION DIRECTORY");
+    InvalidateRect(GetDlgItem(g_hwnd,IDC_INTERVALPOS),NULL,FALSE);
     MessageBox(g_hwnd,"Error creating session directory!", "NINJAM error", MB_OK);
     return;
   }
@@ -640,7 +642,8 @@ static void do_connect()
 
   g_client_mutex.Leave();
 
-  SetDlgItemText(g_hwnd,IDC_STATUS,"Status: Connecting...");
+  g_last_status.Set("Status: Connecting...");
+  InvalidateRect(GetDlgItem(g_hwnd,IDC_INTERVALPOS),NULL,FALSE);
 
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_GRAYED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
@@ -824,6 +827,81 @@ static void EnsureNotCompletelyOffscreen(RECT *r)
   }
 }
 
+static int last_interval_len=-1;
+static int last_interval_pos=-1;
+static int last_bpm_i=-1;
+LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  switch (msg)
+  {
+    case WM_SIZE:
+      InvalidateRect(hwnd,NULL,FALSE);
+    return 0;
+    case WM_ERASEBKGND: return 0;
+    case WM_PAINT:
+      {
+        PAINTSTRUCT ps;
+        if (BeginPaint(hwnd,&ps))
+        {
+          RECT r;
+          GetClientRect(hwnd,&r);
+          bool flip = last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
+          int fg = RGB(255,255,0), bg=RGB(0,0,0);
+          if (flip) { int tmp=fg; fg=bg; bg=tmp; }
+
+          {
+            HBRUSH bgbr = CreateSolidBrush(bg);
+            FillRect(ps.hdc,&r,bgbr);
+            DeleteObject(bgbr);
+          }
+
+          static HFONT font1, font2;
+          static int lasth;
+          if (!font1 || lasth != r.bottom)
+          {
+            lasth = r.bottom;
+            if (font1) DeleteObject(font1);
+            if (font2) DeleteObject(font2);
+            LOGFONT lf={ lasth/8, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Arial"};
+            font1 = CreateFontIndirect(&lf);
+            lf.lfHeight = lasth;
+            font2 = CreateFontIndirect(&lf);
+          }
+          SetBkMode(ps.hdc,TRANSPARENT);
+          SetTextColor(ps.hdc,RGB(0,128,255));
+          HGDIOBJ oldfont = SelectObject(ps.hdc,font1);
+          RECT tr = { r.left+3,r.top+3,r.right,r.bottom-3};
+          if (last_bpm_i>0)
+          {
+            char buf[128];
+            snprintf(buf,sizeof(buf),"%d BPM %d BPI",last_bpm_i,last_interval_len);
+            DrawText(ps.hdc,buf,-1,&tr,DT_LEFT|DT_TOP|DT_NOPREFIX|DT_SINGLELINE);
+          }
+          if (g_last_status.GetLength())
+          {
+            DrawText(ps.hdc,g_last_status.Get(),-1,&tr,DT_LEFT|DT_BOTTOM|DT_NOPREFIX|DT_SINGLELINE);
+          }
+          SetTextColor(ps.hdc,fg);
+          if (last_bpm_i > 0 && last_interval_len > 1)
+          {
+            SelectObject(ps.hdc,font2);
+            char buf[128];
+            snprintf(buf,sizeof(buf),"%d",last_interval_pos+1);
+            RECT sz={0,};
+            DrawText(ps.hdc,buf,-1,&sz,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT);
+            RECT ur = { last_interval_pos * (r.right-sz.right) / (last_interval_len-1), 0, r.right, r.bottom };
+            DrawText(ps.hdc,buf,-1,&ur,DT_NOPREFIX|DT_SINGLELINE|DT_LEFT|DT_VCENTER);
+          }
+          SelectObject(ps.hdc,oldfont);
+
+          EndPaint(hwnd,&ps);
+        }
+      }
+    return 0;
+  }
+  return DefWindowProc(hwnd,msg,wParam,lParam);
+}
+
 
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -892,9 +970,6 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_DIV3,        0.0,  0.0,  1.0f,  0.0);
         
         resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
-    
         
         float loc_ratio = 0.5f;
         resize.init_item(IDC_CHATGRP,     1.0f, 0.0f,  1.0f,  1.0f);
@@ -1106,35 +1181,37 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
             if (ns == NJClient::NJC_STATUS_OK)
             {
-              WDL_String tmp;
-              tmp.Set("Status: Connected to ");
-              tmp.Append(g_client->GetHostName());
-              tmp.Append(" as ");
-              tmp.Append(g_client->GetUser());
+              g_last_status.Set("Status: Connected to ");
+              g_last_status.Append(g_client->GetHostName());
+              g_last_status.Append(" as ");
+              g_last_status.Append(g_client->GetUser());
 
-              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
             else if (errstr.Get()[0])
             {
-              WDL_String tmp("Status: ");
-              tmp.Append(errstr.Get());
-              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+              g_last_status.Set("Status: ");
+              g_last_status.Append(errstr.Get());
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
             else
             {
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
+                g_last_status.Set("Status: disconnected from host.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Disconnected from host!", "NINJAM Notice", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
+                g_last_status.Set("Status: invalid authentication info.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Error connecting: invalid authentication information!", "NINJAM error", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_CANTCONNECT)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
+                g_last_status.Set("Status: can't connect to host.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Error connecting: can't connect to host!", "NINJAM error", MB_OK);
               }
             }
@@ -1145,42 +1222,25 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             g_client->GetPosition(&pos,&len);
             if (!len) len=1;
             intl=g_client->GetBPI();
-            intp = (pos * intl)/len + 1;
+            intp = (pos * intl)/len;
 
             int bpm=(int)g_client->GetActualBPM();
             if (ns != NJClient::NJC_STATUS_OK)
             {
               bpm=0;
-              intp=0;
+              intp=-1;
             }
 
             int ival=(int) floor(VAL2DB(g_client->GetOutputPeak(0))*10.0);
             int ival2=(int) floor(VAL2DB(g_client->GetOutputPeak(1))*10.0);
             SendDlgItemMessage(hwndDlg,IDC_MASTERVU,WM_USER+1010,ival,ival2);
 
-
-            static int last_interval_len=-1;
-            static int last_interval_pos=-1;
-            static int last_bpm_i=-1;
-            if (intl != last_interval_len)
-            {
-              last_interval_len=intl;
-              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));             
-            }
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
-              last_bpm_i = bpm;
-              char buf[128];
-              if (bpm)
-                sprintf(buf,"%d/%d @ %d BPM",intp,intl,bpm);
-              else buf[0]=0;
-              SetDlgItemText(hwndDlg,IDC_STATUS2,buf);
-            }
-
-            if (intp != last_interval_pos)
-            {
               last_interval_pos = intp;
-              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
+              last_interval_len=intl;
+              last_bpm_i = bpm;
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
 
             if (do_slow_things)
@@ -1393,7 +1453,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         case ID_FILE_DISCONNECT:
           do_disconnect();
-          SetDlgItemText(g_hwnd,IDC_STATUS,"Status: disconnected manually");
+          g_last_status.Set("Status: disconnected manually");
+          InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
         break;
         case ID_FILE_CONNECT:
           if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
@@ -1619,6 +1680,30 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
   return 0;
 }
 
+#ifndef _WIN32
+
+HWND customControlCreator(HWND parent, const char *cname, int idx, const char *classname, int style, int x, int y, int w, int h)
+{
+  HWND hw=0;
+  if (!strcmp(classname,"ninjamstatus"))
+  {
+    hw=CreateDialog(g_hInst,0,parent,(DLGPROC)ninjamStatusProc);
+  }
+  
+  if (hw)
+  {
+    SetWindowLong(hw,GWL_ID,idx);
+    SetWindowPos(hw,HWND_TOP,x,y,w,h,SWP_NOZORDER|SWP_NOACTIVATE);
+    ShowWindow(hw,SW_SHOWNA);
+    return hw;
+  }
+  
+  return 0;
+}
+
+
+#endif
+
 void InitializeInstance()
 {
   static int first;
@@ -1681,6 +1766,15 @@ void InitializeInstance()
       wc.lpszClassName = "RichEditChild";
       RegisterClass(&wc);
     }
+    {
+      WNDCLASS wc={CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS,ninjamStatusProc,};
+      wc.lpszClassName="ninjamstatus";
+      wc.hInstance=g_hInst;
+      wc.hCursor=LoadCursor(NULL,IDC_ARROW);
+      RegisterClass(&wc);        
+    }
+#else
+    SWELL_RegisterCustomControlCreator(customControlCreator);
 #endif
   }
   if (!g_client)

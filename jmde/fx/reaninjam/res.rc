@@ -52,7 +52,7 @@ END
 // Dialog
 //
 
-IDD_MAIN DIALOGEX 0, 0, 478, 216
+IDD_MAIN DIALOGEX 0, 0, 478, 276
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
 EXSTYLE WS_EX_CONTROLPARENT
@@ -73,10 +73,8 @@ BEGIN
     CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,206,18,
                     45,12
     CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,2,16,474,1
-    CONTROL         "Status: No connection.",IDC_STATUS,"Static",
-                    SS_LEFTNOWORDWRAP | WS_GROUP,2,206,356,8
-    CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
-                    WS_BORDER,2,196,474,9
+    CONTROL         "Progress2",IDC_INTERVALPOS,"ninjamstatus",
+                    0,2,196,474,78
     CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,4,110,213,66
     CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
@@ -85,7 +83,6 @@ BEGIN
                     46,213,49
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
                     225,46,251,148
-    RTEXT           "",IDC_STATUS2,400,206,76,8
     CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,2,98,214,1
     CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,2,33,474,1
     LTEXT           "center",IDC_MASTERPANLBL,288,4,22,11,SS_NOTIFY
