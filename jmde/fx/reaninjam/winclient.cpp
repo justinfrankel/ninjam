@@ -832,10 +832,42 @@ static int last_interval_pos=-1;
 static int last_bpm_i=-1;
 LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  static int s_cap_inf;
   switch (msg)
   {
     case WM_SIZE:
       InvalidateRect(hwnd,NULL,FALSE);
+    return 0;
+    case WM_SETCURSOR:
+      {
+        POINT p;
+        GetCursorPos(&p);
+        ScreenToClient(hwnd,&p);
+        if (p.y < 8)
+        {
+          SetCursor(LoadCursor(NULL,IDC_SIZENS));
+          return 1;
+        }
+      }
+    return 0;
+    case WM_LBUTTONDOWN:
+      if (GET_Y_LPARAM(lParam) < 8)
+      {
+        s_cap_inf = GET_Y_LPARAM(lParam);
+        SetCapture(hwnd);
+      }
+    return 0;
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONUP:
+      if (GetCapture()==hwnd)
+      {
+        if (msg == WM_LBUTTONUP) ReleaseCapture();
+        int y = GET_Y_LPARAM(lParam);
+        if (y != s_cap_inf || msg == WM_LBUTTONUP)
+        {
+          SendMessage(GetParent(hwnd),WM_USER+100,0,y-s_cap_inf);
+        }
+      }
     return 0;
     case WM_ERASEBKGND: return 0;
     case WM_PAINT:
@@ -857,12 +889,13 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
           static HFONT font1, font2;
           static int lasth;
+          const int fontsz=wdl_max(12,r.bottom/8);
           if (!font1 || lasth != r.bottom)
           {
             lasth = r.bottom;
             if (font1) DeleteObject(font1);
             if (font2) DeleteObject(font2);
-            LOGFONT lf={ lasth/8, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Arial"};
+            LOGFONT lf={ fontsz, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Arial"};
             font1 = CreateFontIndirect(&lf);
             lf.lfHeight = lasth;
             font2 = CreateFontIndirect(&lf);
@@ -870,12 +903,13 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
           SetBkMode(ps.hdc,TRANSPARENT);
           SetTextColor(ps.hdc,RGB(0,128,255));
           HGDIOBJ oldfont = SelectObject(ps.hdc,font1);
-          RECT tr = { r.left+3,r.top+3,r.right,r.bottom-3};
+          const int pad = fontsz > 12 ? 3 : 1;
+          RECT tr = { r.left+pad,r.top+pad,r.right-pad,r.bottom-pad};
           if (last_bpm_i>0)
           {
             char buf[128];
             snprintf(buf,sizeof(buf),"%d BPM %d BPI",last_bpm_i,last_interval_len);
-            DrawText(ps.hdc,buf,-1,&tr,DT_LEFT|DT_TOP|DT_NOPREFIX|DT_SINGLELINE);
+            DrawText(ps.hdc,buf,-1,&tr,(lasth > fontsz*5/2 ?DT_LEFT:DT_RIGHT)|DT_TOP|DT_NOPREFIX|DT_SINGLELINE);
           }
           if (g_last_status.GetLength())
           {
@@ -1149,6 +1183,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         unsigned id;
         g_hThread=(HANDLE)_beginthreadex(NULL,0,ThreadFunc,0,0,&id);
 
+        {
+          int sz=GetPrivateProfileInt(CONFSEC,"bpisz",0,g_ini_file.Get());
+          if (sz>0) SendMessage(hwndDlg,WM_USER+100,100,sz);
+        }
       }
     return 0;
     case WM_TIMER:
@@ -1314,6 +1352,38 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         }
       }
     return 0;
+
+    case WM_USER+100:
+      {
+        WDL_WndSizer__rec *rec = resize.get_item(IDC_INTERVALPOS);
+        if (rec)
+        {
+          const int orig_sz = rec->real_orig.bottom - rec->real_orig.top;
+          const int maxsz = orig_sz*2;
+          const int minsz = orig_sz/8;
+
+          int sz;
+          if (wParam == 100)
+            sz = resize.dpi_to_sizer((int)lParam,256);
+          else
+            sz = (rec->orig.bottom - rec->orig.top) - resize.dpi_to_sizer((int)lParam);
+
+          if (sz < minsz) sz = minsz;
+          if (sz > maxsz) sz = maxsz;
+
+          const int marg = sz - orig_sz;
+          rec->orig.top = rec->real_orig.top;
+          rec->orig.bottom = rec->real_orig.bottom + marg;
+
+          resize.set_margins(0,0,0,marg);
+          if (wParam != 100 && !GetCapture())
+          {
+            char str[64];
+            snprintf(str,sizeof(str),"%d",resize.sizer_to_dpi(sz,256));
+            WritePrivateProfileString(CONFSEC,"bpisz",str,g_ini_file.Get());
+          }
+        }
+      }
 
     case WM_SIZE:
       if (wParam != SIZE_MINIMIZED) 
