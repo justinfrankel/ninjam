@@ -698,17 +698,21 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
   RECT new_rect;
   GetClientRect(hwndDlg,&new_rect);
-  RECT m_orig_rect=resize.get_orig_rect_dpi();
+  RECT orig_rect=resize.get_orig_rect_dpi();
+
+  int bm=0;
+  resize.get_margins(NULL,NULL,NULL,&bm);
+  orig_rect.bottom += resize.sizer_to_dpi(bm);
 
   {
     WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
 
     if (rec)
     {
-      int nt=rec->last.top + dy;// - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      int nt=rec->last.top + dy;
       if (nt < rec->real_orig.top) dy = rec->real_orig.top - rec->last.top;
-      else if ((new_rect.bottom - nt) < (m_orig_rect.bottom - rec->real_orig.top))
-        dy = new_rect.bottom - (m_orig_rect.bottom - rec->real_orig.top) - rec->last.top;
+      else if ((new_rect.bottom - nt) < (orig_rect.bottom - rec->real_orig.top))
+        dy = new_rect.bottom - (orig_rect.bottom - rec->real_orig.top) - rec->last.top;
     }
   }
 
@@ -726,10 +730,10 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
     if (!x || x > 1) // do top
     {
       // the output formula for top is: 
-      // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      // new_l.top = rec->orig.top + (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[1]);
       // so we compute the inverse, to find rec->orig.top
 
-      rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
+      rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[1]);
       if (x==2)
       {
         rec->orig.bottom=rec->orig.top + (rec->real_orig.bottom-rec->real_orig.top);
@@ -740,8 +744,8 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
 
     if (x <= 1) // do bottom
     {
-      // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-      rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
+      // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[3]);
+      rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[3]);
     }
 
     if (doresize) resize.onResize(rec->hwnd);
@@ -1395,11 +1399,15 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           RECT new_rect;
           GetClientRect(hwndDlg,&new_rect);
 
-          RECT m_orig_rect=resize.get_orig_rect_dpi();
+          RECT orig_rect=resize.get_orig_rect_dpi();
+          int bm=0;
+          resize.get_margins(NULL,NULL,NULL,&bm);
+          orig_rect.bottom += resize.sizer_to_dpi(bm);
+
           WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
           if (rec)
           {
-            if (new_rect.bottom - rec->last.top < m_orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
+            if (new_rect.bottom - rec->last.top < orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
             {
               resizePanes(hwndDlg,0,resize,0);
             }
