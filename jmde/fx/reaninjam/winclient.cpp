@@ -682,27 +682,32 @@ static unsigned WINAPI ThreadFunc(LPVOID p)
 
 int g_last_resize_pos;
 
+// y_pos is in sizer units
 static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
 {
   // move things, specifically 
   // IDC_DIV2 : top and bottom
   // IDC_LOCGRP, IDC_LOCRECT: bottom
   // IDC_REMGRP, IDC_REMOTERECT: top        
-  RECT divr;
-  GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
-  ScreenToClient(hwndDlg,(LPPOINT)&divr);
+  int dy;
+  {
+    RECT divr;
+    GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
+    ScreenToClient(hwndDlg,(LPPOINT)&divr);
+    dy = y_pos - resize.dpi_to_sizer(divr.top);
+  }
 
   g_last_resize_pos=y_pos;
 
-  int dy = y_pos - divr.top;
-
   RECT new_rect;
   GetClientRect(hwndDlg,&new_rect);
-  RECT orig_rect=resize.get_orig_rect_dpi();
+  new_rect.right = resize.dpi_to_sizer(new_rect.right);
+  new_rect.bottom = resize.dpi_to_sizer(new_rect.bottom);
+  RECT orig_rect=resize.get_orig_rect();
 
   int bm=0;
   resize.get_margins(NULL,NULL,NULL,&bm);
-  orig_rect.bottom += resize.sizer_to_dpi(bm);
+  orig_rect.bottom += bm;
 
   {
     WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
@@ -716,7 +721,7 @@ static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int dores
     }
   }
 
-  int tab[]={IDC_DIV2,IDC_LOCRECT,IDC_CHATLBL,IDC_CHATDISP};
+  static const unsigned short tab[]={IDC_DIV2,IDC_LOCRECT,IDC_CHATLBL,IDC_CHATDISP};
   
   // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
   int x;
@@ -1185,7 +1190,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         SetTimer(hwndDlg,1,10,NULL);
 
         int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
-        if (rsp) resizePanes(hwndDlg,rsp,resize,1);
+        if (rsp) resizePanes(hwndDlg,resize.dpi_to_sizer(rsp,256),resize,1);
 
         unsigned id;
         g_hThread=(HANDLE)_beginthreadex(NULL,0,ThreadFunc,0,0,&id);
@@ -1324,7 +1329,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       {
         if (cap_mode == 1)
         {
-          resizePanes(hwndDlg,GET_Y_LPARAM(lParam)-cap_spos,resize,1);
+          resizePanes(hwndDlg,resize.dpi_to_sizer(GET_Y_LPARAM(lParam)-cap_spos),resize,1);
         }
       }
     return 0;
@@ -1401,11 +1406,13 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         {
           RECT new_rect;
           GetClientRect(hwndDlg,&new_rect);
+          new_rect.right = resize.dpi_to_sizer(new_rect.right);
+          new_rect.bottom = resize.dpi_to_sizer(new_rect.bottom);
 
-          RECT orig_rect=resize.get_orig_rect_dpi();
+          RECT orig_rect=resize.get_orig_rect();
           int bm=0;
           resize.get_margins(NULL,NULL,NULL,&bm);
-          orig_rect.bottom += resize.sizer_to_dpi(bm);
+          orig_rect.bottom += bm;
 
           WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
           if (rec)
