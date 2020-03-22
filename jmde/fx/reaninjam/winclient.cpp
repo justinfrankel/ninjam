@@ -67,6 +67,7 @@
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
+extern int (*GetWindowDPIScaling)(HWND hwnd);
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -680,93 +681,6 @@ static unsigned WINAPI ThreadFunc(LPVOID p)
 }
 
 
-int g_last_resize_pos;
-
-// y_pos is in sizer units
-static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
-{
-  // move things, specifically 
-  // IDC_DIV2 : top and bottom
-  // IDC_LOCGRP, IDC_LOCRECT: bottom
-  // IDC_REMGRP, IDC_REMOTERECT: top        
-  int dy;
-  {
-    RECT divr;
-    GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
-    ScreenToClient(hwndDlg,(LPPOINT)&divr);
-    dy = y_pos - resize.dpi_to_sizer(divr.top);
-  }
-
-  g_last_resize_pos=y_pos;
-
-  RECT new_rect;
-  GetClientRect(hwndDlg,&new_rect);
-  new_rect.right = resize.dpi_to_sizer(new_rect.right);
-  new_rect.bottom = resize.dpi_to_sizer(new_rect.bottom);
-  RECT orig_rect=resize.get_orig_rect();
-
-  int bm=0;
-  resize.get_margins(NULL,NULL,NULL,&bm);
-  orig_rect.bottom += bm;
-
-  {
-    WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
-
-    if (rec)
-    {
-      int nt=rec->last.top + dy;
-      if (nt < rec->real_orig.top) dy = rec->real_orig.top - rec->last.top;
-      else if ((new_rect.bottom - nt) < (orig_rect.bottom - rec->real_orig.top))
-        dy = new_rect.bottom - (orig_rect.bottom - rec->real_orig.top) - rec->last.top;
-    }
-  }
-
-  static const unsigned short tab[]={IDC_DIV2,IDC_LOCRECT,IDC_CHATLBL,IDC_CHATDISP};
-  
-  // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
-  int x;
-  for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
-  {
-    WDL_WndSizer__rec *rec = resize.get_item(tab[x]);
-    if (!rec) continue;
-
-    RECT new_l=rec->last;
-
-    if (!x || x > 1) // do top
-    {
-      // the output formula for top is: 
-      // new_l.top = rec->orig.top + (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[1]);
-      // so we compute the inverse, to find rec->orig.top
-
-      rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[1]);
-      if (x==2)
-      {
-        rec->orig.bottom=rec->orig.top + (rec->real_orig.bottom-rec->real_orig.top);
-      }
-    }
-
-
-
-    if (x <= 1) // do bottom
-    {
-      // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[3]);
-      rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - orig_rect.bottom)*rec->scales[3]);
-    }
-
-    if (doresize) resize.onResize(rec->hwnd);
-  }
-
-
-  if (doresize)
-  {
-    if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
-    if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
-  }
-
-      #ifndef _WIN32
-      InvalidateRect(hwndDlg,NULL,FALSE);
-      #endif
-}
 #ifdef _MSC_VER
 #include <multimon.h>
 #endif
@@ -948,7 +862,8 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
-
+static int g_lchan_sz;
+static int g_min_lchan_sz;
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static RECT s_init_r;
@@ -1017,8 +932,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         
         resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
         
-        float loc_ratio = 0.5f;
-        resize.init_item(IDC_CHATGRP,     1.0f, 0.0f,  1.0f,  1.0f);
+        const float loc_ratio = 0.0f;
         resize.init_item(IDC_CHATLBL,     0.0f, loc_ratio,  0.0f,  loc_ratio);
 
         resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  1.0f,  1.0f);
@@ -1161,6 +1075,24 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           }
         }
 
+        {
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg,IDC_LOCRECT),&r);
+          g_min_lchan_sz = r.bottom-r.top;
+          if (g_min_lchan_sz<0) g_min_lchan_sz=-g_min_lchan_sz;
+          if (GetWindowDPIScaling)
+            g_min_lchan_sz = g_min_lchan_sz * 256 / GetWindowDPIScaling(hwndDlg);
+
+          g_lchan_sz=GetPrivateProfileInt(CONFSEC,"lchansz",g_lchan_sz,g_ini_file.Get());          
+          if (g_lchan_sz < g_min_lchan_sz)
+            g_lchan_sz = g_min_lchan_sz;
+        }
+
+        {
+          int sz=GetPrivateProfileInt(CONFSEC,"bpisz",0,g_ini_file.Get());
+          if (sz>0) SendMessage(hwndDlg,WM_USER+100,100,sz);
+        }
+
         int ws= g_last_wndpos_state = GetPrivateProfileInt(CONFSEC,"wnd_state",0,g_ini_file.Get());
 
 
@@ -1189,16 +1121,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
      
         SetTimer(hwndDlg,1,10,NULL);
 
-        int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
-        if (rsp) resizePanes(hwndDlg,resize.dpi_to_sizer(rsp,256),resize,1);
-
         unsigned id;
         g_hThread=(HANDLE)_beginthreadex(NULL,0,ThreadFunc,0,0,&id);
 
-        {
-          int sz=GetPrivateProfileInt(CONFSEC,"bpisz",0,g_ini_file.Get());
-          if (sz>0) SendMessage(hwndDlg,WM_USER+100,100,sz);
-        }
+        SendMessage(hwndDlg,WM_SIZE,0,0);
       }
     return 0;
     case WM_TIMER:
@@ -1314,7 +1240,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.sizer_to_dpi_rect(&init_r);
         LPMINMAXINFO p=(LPMINMAXINFO)lParam;
         p->ptMinTrackSize.x = init_r.right-init_r.left;
-        p->ptMinTrackSize.y = init_r.bottom-init_r.top;
+        p->ptMinTrackSize.y = (init_r.bottom-init_r.top)*2/3;
       }
     return 0;
     case WM_LBUTTONUP:
@@ -1329,7 +1255,21 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       {
         if (cap_mode == 1)
         {
-          resizePanes(hwndDlg,resize.dpi_to_sizer(GET_Y_LPARAM(lParam)-cap_spos),resize,1);
+          int y = GET_Y_LPARAM(lParam)-cap_spos;
+
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg,IDC_LOCRECT),&r);
+          ScreenToClient(hwndDlg,(LPPOINT)&r);
+          y -= r.top; // todo mac ugh
+          if (GetWindowDPIScaling)
+            y = y * 256 / GetWindowDPIScaling(hwndDlg);
+
+          if (y < g_min_lchan_sz) y = g_min_lchan_sz;
+          if (g_lchan_sz != y)
+          {
+            g_lchan_sz = y;
+            SendMessage(hwndDlg,WM_SIZE,0,0);
+          }
         }
       }
     return 0;
@@ -1354,7 +1294,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         ClientToScreen(hwndDlg,&p);
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
-         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
+        if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
+
         if (p.x >= r.left && p.x <= r.right && 
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
@@ -1366,19 +1307,24 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     return 0;
 
     case WM_USER+100:
+    case WM_SIZE:
       {
         WDL_WndSizer__rec *rec = resize.get_item(IDC_INTERVALPOS);
         if (rec)
         {
           const int orig_sz = rec->real_orig.bottom - rec->real_orig.top;
-          const int maxsz = orig_sz*2;
+          int maxsz = orig_sz*2;
           const int minsz = orig_sz/8;
+          RECT cr;
+          GetClientRect(hwndDlg,&cr);
+          cr.bottom = resize.dpi_to_sizer(cr.bottom);
+          if (maxsz > cr.bottom/5) maxsz=cr.bottom/5;
 
           int sz;
-          if (wParam == 100)
+          if (uMsg != WM_SIZE && wParam == 100)
             sz = resize.dpi_to_sizer((int)lParam,256);
           else
-            sz = (rec->orig.bottom - rec->orig.top) - resize.dpi_to_sizer((int)lParam);
+            sz = (rec->orig.bottom - rec->orig.top) - (uMsg == WM_SIZE ? 0 : resize.dpi_to_sizer((int)lParam));
 
           if (sz < minsz) sz = minsz;
           if (sz > maxsz) sz = maxsz;
@@ -1388,7 +1334,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           rec->orig.bottom = rec->real_orig.bottom + marg;
 
           resize.set_margins(0,0,0,marg);
-          if (wParam != 100 && !GetCapture())
+          if (uMsg != WM_SIZE && wParam != 100 && !GetCapture())
           {
             char str[64];
             snprintf(str,sizeof(str),"%d",resize.sizer_to_dpi(sz,256));
@@ -1396,38 +1342,47 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           }
         }
       }
+      if (uMsg != WM_SIZE && wParam == 100) return 0;
 
-    case WM_SIZE:
       if (wParam != SIZE_MINIMIZED) 
       {
-        resize.onResize(NULL,1); // don't actually resize, just compute the rects
+        RECT orig_rect=resize.get_orig_rect();
+        int bm=0;
+        resize.get_margins(NULL,NULL,NULL,&bm);
+        orig_rect.bottom += bm;
 
-        // adjust our resized items to keep minimums in order
+        RECT cr;
+        GetClientRect(hwndDlg,&cr);
+        cr.right = resize.dpi_to_sizer(cr.right);
+        cr.bottom = resize.dpi_to_sizer(cr.bottom);
+
+        WDL_WndSizer__rec *loc = resize.get_item(IDC_LOCRECT);
+        WDL_WndSizer__rec *chate = resize.get_item(IDC_CHATENT);
+        WDL_WndSizer__rec *chatd = resize.get_item(IDC_CHATDISP);
+        WDL_WndSizer__rec *chatl = resize.get_item(IDC_CHATLBL);
+        WDL_WndSizer__rec *div = resize.get_item(IDC_DIV2);
+
+        int sz = g_lchan_sz;
+        int __dpi = 256;
+        if (GetWindowDPIScaling) sz = (__dpi=GetWindowDPIScaling(hwndDlg))*sz/256;
+        sz = resize.dpi_to_sizer(sz);
+
+        // limit sz by window size
         {
-          RECT new_rect;
-          GetClientRect(hwndDlg,&new_rect);
-          new_rect.right = resize.dpi_to_sizer(new_rect.right);
-          new_rect.bottom = resize.dpi_to_sizer(new_rect.bottom);
-
-          RECT orig_rect=resize.get_orig_rect();
-          int bm=0;
-          resize.get_margins(NULL,NULL,NULL,&bm);
-          orig_rect.bottom += bm;
-
-          WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
-          if (rec)
-          {
-            if (new_rect.bottom - rec->last.top < orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
-            {
-              resizePanes(hwndDlg,0,resize,0);
-            }
-            else if (rec->last.top < rec->real_orig.top) // top section is too small, fix
-            {
-              resizePanes(hwndDlg,new_rect.bottom,resize,0);
-            }
-          }
+          int bpad = orig_rect.bottom - chate->real_orig.bottom;
+          int tpad = loc->real_orig.top;
+          int mpad = chatl->real_orig.top - loc->real_orig.bottom;
+          int avail = cr.bottom - bpad - tpad - mpad - sz;
+          const int min_chat_sz = resize.dpi_to_sizer(60 * __dpi/256);
+          if (avail < min_chat_sz) sz -= min_chat_sz-avail;
+          if (sz<40) sz=40;
         }
 
+        loc->orig.bottom = loc->orig.top + sz;
+        int offs = loc->orig.bottom - loc->real_orig.bottom;
+        div->orig = div->real_orig; OffsetRect(&div->orig, 0, offs);
+        chatl->orig = chatl->real_orig; OffsetRect(&chatl->orig, 0, offs);
+        chatd->orig.top = chatd->real_orig.top + offs;
 
         resize.onResize();
         if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
@@ -1714,8 +1669,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
-        sprintf(buf,"%d",g_last_resize_pos);
-        WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_lchan_sz);
+        WritePrivateProfileString(CONFSEC,"lchansz",buf,g_ini_file.Get());
         
 
         sprintf(buf,"%d",(int)g_last_wndpos.left);

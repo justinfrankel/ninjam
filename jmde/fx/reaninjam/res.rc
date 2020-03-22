@@ -90,7 +90,6 @@ BEGIN
     CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,329,2,147,12
     LTEXT           "Local Channels:",IDC_LOCGRP,2,37,52,8
     LTEXT           "Remote Channels:",IDC_REMGRP,225,37,59,8
-    CONTROL         "",IDC_CHATGRP,"Static",SS_ETCHEDVERT,220,37,1,156
     LTEXT           "Chat:",IDC_CHATLBL,2,100,18,8
     CONTROL         "mastermute",IDC_MASTERMUTE,"HotTrackButton",0x4b,315,2,
                     12,11
