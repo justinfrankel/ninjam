@@ -850,10 +850,13 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         if (p.y < 8)
         {
           SetCursor(LoadCursor(NULL,IDC_SIZENS));
-          return 1;
+        }
+        else
+        {
+          SetCursor(LoadCursor(NULL,IDC_ARROW));
         }
       }
-    return 0;
+    return 1;
     case WM_LBUTTONDOWN:
       if (GET_Y_LPARAM(lParam) < 8)
       {
@@ -1848,7 +1851,6 @@ void InitializeInstance()
       WNDCLASS wc={CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS,ninjamStatusProc,};
       wc.lpszClassName="ninjamstatus";
       wc.hInstance=g_hInst;
-      wc.hCursor=LoadCursor(NULL,IDC_ARROW);
       RegisterClass(&wc);        
     }
 #else
