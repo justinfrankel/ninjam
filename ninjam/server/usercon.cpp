@@ -43,6 +43,7 @@
 
 #ifdef _WIN32
 #define strncasecmp strnicmp
+#define strcasecmp stricmp
 #endif
 
 static void guidtostr(unsigned char *guid, char *str)
