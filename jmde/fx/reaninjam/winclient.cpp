@@ -563,7 +563,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
   return 0;
 }
 
-#ifdef __APPLE__
+#if 1 //def __APPLE__
 #define SHOW_CONNECT_BUTTON
 static void updateConnectButton(HWND hwnd)
 {
@@ -969,7 +969,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         ScreenToClient(hwndDlg,(LPPOINT)&r);
         ScreenToClient(hwndDlg,(LPPOINT)&r + 1);
         const int adj = r.right;
-        static const unsigned short tab[] = { IDC_MASTER_LBL, IDC_MASTERVOL, IDC_METRO_LBL, IDC_METROVOL };
+        static const unsigned short tab[] = { IDC_DIV1, IDC_MASTER_LBL, IDC_MASTERVOL, IDC_METRO_LBL, IDC_METROVOL };
         for (int x=0;x<(int) (sizeof(tab)/sizeof(tab[0]));x++)
         {
           HWND h = GetDlgItem(hwndDlg,tab[x]);
@@ -977,7 +977,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           ScreenToClient(hwndDlg,(LPPOINT)&r);
           ScreenToClient(hwndDlg,(LPPOINT)&r + 1);
           SetWindowPos(h,NULL,r.left + adj, r.top, r.right-r.left-adj, r.bottom-r.top,
-              ((x&1)==0 ? SWP_NOSIZE:0) | SWP_NOZORDER|SWP_NOACTIVATE);
+              ((x&1) ? SWP_NOSIZE:0) | SWP_NOZORDER|SWP_NOACTIVATE);
         }
 #else
         ShowWindow(GetDlgItem(hwndDlg,IDC_CONNECT),SW_HIDE);

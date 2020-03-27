@@ -96,7 +96,7 @@ BEGIN
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
                     12,11
     PUSHBUTTON      "Send",IDC_CHATOK,192,178,25,14
-    PUSHBUTTON      "Connect...",IDC_CONNECT,2,2,46,12
+    PUSHBUTTON      "Connect...",IDC_CONNECT,2,10,46,12
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236
