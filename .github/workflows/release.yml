@@ -24,6 +24,9 @@ jobs:
     - name: copy-cfg
       run: cp example.cfg ./target/config.cfg
       working-directory: ./ninjam/server
+    - name: copy-licence
+      run: cp cclicense.txt ./target/cclicense.txt
+      working-directory: ./ninjam/server
     - name: tar-gz
       run: tar -czvf ninjam.tar.gz -C target .
       working-directory: ./ninjam/server/
