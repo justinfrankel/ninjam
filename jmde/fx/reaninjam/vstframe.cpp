@@ -83,6 +83,7 @@ int (*GetWindowDPIScaling)(HWND hwnd);
 #ifdef _WIN32
 LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
 #endif
+INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
 
 void (*GetProjectPath)(char *buf, int bufsz);
 const char *(*get_ini_file)();
@@ -747,6 +748,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     *(VstIntPtr *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
     *(VstIntPtr *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
     *(VstIntPtr *)&GetWindowDPIScaling = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetWindowDPIScaling",0.0);
+    *(VstIntPtr *)&autoRepositionWindowOnMessage = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"autoRepositionWindowOnMessage",0.0);
 #ifdef _WIN32
     *(VstIntPtr *)&handleCheckboxCustomDraw=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"handleCheckboxCustomDraw",0.0);
 #endif

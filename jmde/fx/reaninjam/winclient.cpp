@@ -68,6 +68,7 @@
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 extern int (*GetWindowDPIScaling)(HWND hwnd);
+extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -336,6 +337,8 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
     case WM_DESTROY:
         delete m_httpget;
         m_httpget=0;
+        if (autoRepositionWindowOnMessage)
+          autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamconnect",0);
         wndsize.init(NULL);
         {
           RECT r;
@@ -436,6 +439,16 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         if (!serverlist_last_valid_t || serverlist_last_valid_t < time(NULL)-60*2 || !m_listbuf.Get()[0] || !RepopulateServerList(hwndDlg))
         {
           m_getServerList_status = 0;
+        }
+
+        if (autoRepositionWindowOnMessage)
+        {
+          if (autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamconnect",0) & 1)
+          {
+#ifdef __APPLE__
+            ShowWindow(hwndDlg,SW_SHOWNA);
+#endif
+          }
         }
           
         SetTimer(hwndDlg, 0x456, 100, 0);
