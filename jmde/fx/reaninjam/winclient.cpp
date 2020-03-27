@@ -59,8 +59,6 @@
 #include "../../../WDL/win32_utf8.c"
 #endif
 
-#define VERSION "0.13"
-
 #define CONFSEC "ninjam"
 
 #include "../../../WDL/setthreadname.h"
@@ -1009,7 +1007,6 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         if (s_init_r.bottom < s_init_r.top) SWAP(s_init_r.top,s_init_r.bottom,int);
         
 
-        SetWindowText(hwndDlg,"ReaNINJAM v" VERSION);
         g_hwnd=hwndDlg;
 
         resize.init(hwndDlg);
