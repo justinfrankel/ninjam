@@ -100,7 +100,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (_this)
         {
           _this->wndsizer.init(hwndDlg);
-          _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,0.0f,0.0f);
           _this->wndsizer.init_item(IDC_VOL,0.0f,0.0f,0.8f,0.0f);
           _this->wndsizer.init_item(IDC_PAN,0.8f,0.0f,1.0f,0.0f);
           _this->wndsizer.init_item(IDC_MUTE,1.0f,0.0f,1.0f,0.0f);
