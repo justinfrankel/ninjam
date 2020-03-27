@@ -1055,12 +1055,14 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         GetPrivateProfileString(CONFSEC,"mastervol","1.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_mastervolume=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,WM_USER+9999,1,(LPARAM)"Master volume");
 
 //        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,-1);       
         GetPrivateProfileString(CONFSEC,"metrovol","0.5",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_metronome=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,WM_USER+9999,1,(LPARAM)"Metronome volume");
 
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETTIC,FALSE,50);       
@@ -1069,6 +1071,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         int t=(int)(g_client->config_masterpan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,WM_USER+9999,1,(LPARAM)"Master pan");
 
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETTIC,FALSE,50);       
@@ -1077,6 +1080,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         t=(int)(g_client->config_metronome_pan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,WM_USER+9999,1,(LPARAM)"Metronome pan");
 
         if (GetPrivateProfileInt(CONFSEC,"mastermute",0,g_ini_file.Get()))
         {
@@ -1088,6 +1092,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         }
         SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
+
+        SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Master mute");
+        SendDlgItemMessage(hwndDlg,IDC_METROMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Metronome mute");
 
         updateMasterControlLabels(hwndDlg);
 

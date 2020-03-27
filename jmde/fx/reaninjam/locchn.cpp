@@ -126,6 +126,9 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
 
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)"Local channel mute");
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)"Local channel solo");
+
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Normal NINJAM");
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Voice Chat");
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Session Mode");
@@ -141,12 +144,14 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         //SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
+        SendDlgItemMessage(hwndDlg,IDC_VOL,WM_USER+9999,1,(LPARAM)"Local channel volume");
 
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
         int t=(int)(pan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_PAN,WM_USER+9999,1,(LPARAM)"Local channel pan");
 
         {
          char tmp[512];
