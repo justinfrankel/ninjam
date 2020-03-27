@@ -60,13 +60,13 @@ CAPTION "ReaNINJAM"
 MENU IDR_MENU1
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Master: ",IDC_STATIC,2,4,26,8
+    LTEXT           "Master: ",IDC_MASTER_LBL,2,4,26,8
     CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,44,2,
                     160,12
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,257,4,29,11,SS_NOTIFY
     CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,206,2,
                     45,12
-    LTEXT           "Metronome:",IDC_STATIC,2,21,38,8
+    LTEXT           "Metronome:",IDC_METRO_LBL,2,21,38,8
     CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,44,18,
                     160,12
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,257,22,29,11,SS_NOTIFY
@@ -96,6 +96,7 @@ BEGIN
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
                     12,11
     PUSHBUTTON      "Send",IDC_CHATOK,192,178,25,14
+    PUSHBUTTON      "Connect...",IDC_CONNECT,2,2,46,12
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236

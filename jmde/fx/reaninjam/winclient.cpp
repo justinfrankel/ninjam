@@ -563,6 +563,20 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
   return 0;
 }
 
+#ifdef __APPLE__
+#define SHOW_CONNECT_BUTTON
+static void updateConnectButton(HWND hwnd)
+{
+  if (hwnd && g_client)
+  {
+    SetDlgItemText(hwnd,IDC_CONNECT,g_client->GetStatus()==0 ? "Disconnect" : "Connect...");
+  }
+}
+#else
+#define updateConnectButton(h) do { } while(0)
+#endif
+
+
 static void do_disconnect()
 {
   g_audio_enable=0;
@@ -619,6 +633,7 @@ static void do_disconnect()
     }
     
   }
+  updateConnectButton(g_hwnd);
 }
 
 WDL_FastString g_last_status("Status: not connected.");
@@ -713,6 +728,7 @@ static void do_connect()
 
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_GRAYED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
+  updateConnectButton(g_hwnd);
 }
 
 static void updateMasterControlLabels(HWND hwndDlg)
@@ -946,6 +962,27 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       {
+
+#ifdef SHOW_CONNECT_BUTTON
+        RECT r;
+        GetWindowRect(GetDlgItem(hwndDlg,IDC_CONNECT),&r);
+        ScreenToClient(hwndDlg,(LPPOINT)&r);
+        ScreenToClient(hwndDlg,(LPPOINT)&r + 1);
+        const int adj = r.right;
+        static const unsigned short tab[] = { IDC_MASTER_LBL, IDC_MASTERVOL, IDC_METRO_LBL, IDC_METROVOL };
+        for (int x=0;x<(int) (sizeof(tab)/sizeof(tab[0]));x++)
+        {
+          HWND h = GetDlgItem(hwndDlg,tab[x]);
+          GetWindowRect(h,&r);
+          ScreenToClient(hwndDlg,(LPPOINT)&r);
+          ScreenToClient(hwndDlg,(LPPOINT)&r + 1);
+          SetWindowPos(h,NULL,r.left + adj, r.top, r.right-r.left-adj, r.bottom-r.top,
+              ((x&1)==0 ? SWP_NOSIZE:0) | SWP_NOZORDER|SWP_NOACTIVATE);
+        }
+#else
+        ShowWindow(GetDlgItem(hwndDlg,IDC_CONNECT),SW_HIDE);
+#endif
+
       #ifdef _WIN32
         {
           HWND h;
@@ -1218,6 +1255,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             if (ns < 0)
             {
               do_disconnect();
+            }
+            else
+            {
+              updateConnectButton(hwndDlg);
             }
 
             if (ns == NJClient::NJC_STATUS_OK)
@@ -1559,6 +1600,14 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           g_client->config_metronome_mute =!g_client->config_metronome_mute;
           SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
         break;
+        case IDC_CONNECT:
+          if (g_client->GetStatus() != 0)
+          {
+            SendMessage(hwndDlg,WM_COMMAND,ID_FILE_CONNECT,0);
+            return 0;
+          }
+            
+           // fall through
         case ID_FILE_DISCONNECT:
           do_disconnect();
           g_last_status.Set("Status: disconnected manually");

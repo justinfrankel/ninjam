@@ -117,6 +117,9 @@
 #define IDC_CONNECT_LBL                 1067
 #define IDC_USERLBL                     1068
 #define IDC_INFOTEXT                    1069
+#define IDC_MASTER_LBL                  1070
+#define IDC_METRO_LBL                   1071
+#define IDC_CONNECT                     1072
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -132,7 +135,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        122
 #define _APS_NEXT_COMMAND_VALUE         40009
-#define _APS_NEXT_CONTROL_VALUE         1070
+#define _APS_NEXT_CONTROL_VALUE         1073
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
