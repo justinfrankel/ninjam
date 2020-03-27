@@ -330,14 +330,60 @@ static void getServerList_step(HWND hwnd)
 
 static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  static WDL_WndSizer wndsize;
   switch (uMsg)
   {
     case WM_DESTROY:
         delete m_httpget;
         m_httpget=0;
+        wndsize.init(NULL);
+        {
+          RECT r;
+          GetWindowRect(hwndDlg,&r);
+          char buf[32];
+          snprintf(buf,sizeof(buf),"%d",r.right-r.left);
+          WritePrivateProfileString(CONFSEC,"connectw",buf,g_ini_file.Get());
+          snprintf(buf,sizeof(buf),"%d",r.bottom > r.top ? r.bottom-r.top : r.top-r.bottom);
+          WritePrivateProfileString(CONFSEC,"connecth",buf,g_ini_file.Get());
+
+        }
      return 0;
+    case WM_SIZE:
+     if (wParam != SIZE_MINIMIZED)
+     {
+      wndsize.onResize();
+     }
+     return 0;
+    case WM_GETMINMAXINFO:
+      {
+        RECT init_r = wndsize.get_orig_rect_dpi();
+        LPMINMAXINFO p=(LPMINMAXINFO)lParam;
+        p->ptMinTrackSize.x = init_r.right-init_r.left;
+        p->ptMinTrackSize.y = init_r.bottom-init_r.top;
+      }
+    return 0;
     case WM_INITDIALOG:
       {
+        wndsize.init(hwndDlg);
+        wndsize.init_item(IDC_HOST,0,1,0,1);
+        wndsize.init_item(IDC_USER,0,1,0,1);
+        wndsize.init_item(IDC_PASS,0,1,0,1);
+        wndsize.init_item(IDC_PASSREMEMBER,0,1,0,1);
+        wndsize.init_item(IDOK,1,1,1,1);
+        wndsize.init_item(IDCANCEL,1,1,1,1);
+        wndsize.init_item(IDC_BUTTON1,1,1,1,1);
+        wndsize.init_item(IDC_CONNECT_LBL,0,1,0,1);
+        wndsize.init_item(IDC_USERLBL,0,1,0,1);
+        wndsize.init_item(IDC_PASSLBL,0,1,0,1);
+        wndsize.init_item(IDC_INFOTEXT,0,1,0,1);
+        wndsize.init_item(IDC_ANON,0,1,0,1);
+        wndsize.init_item(IDC_LIST1,0,0,1,1);
+
+        int ww=GetPrivateProfileInt(CONFSEC,"connectw",0,g_ini_file.Get());
+        int wh=GetPrivateProfileInt(CONFSEC,"connecth",0,g_ini_file.Get());
+        if (ww>0 && wh>0)
+          SetWindowPos(hwndDlg,NULL,0,0,ww,wh,SWP_NOZORDER|SWP_NOMOVE|SWP_NOACTIVATE);
+
         int x;
         for (x = 0; x < MAX_HIST_ENTRIES; x ++)
         {
@@ -375,7 +421,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,(char*)"Users"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,800,(char*)"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
         ListView_SetExtendedListViewStyleEx(GetDlgItem(hwndDlg,IDC_LIST1),LVS_EX_FULLROWSELECT,LVS_EX_FULLROWSELECT);
@@ -385,7 +431,6 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
           m_getServerList_status = 0;
         }
           
-
         SetTimer(hwndDlg, 0x456, 100, 0);
       }
     return 0;

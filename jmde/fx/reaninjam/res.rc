@@ -99,7 +99,7 @@ BEGIN
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_CENTER | WS_THICKFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Connection Configuration"
 FONT 8, "MS Shell Dlg"
 BEGIN
@@ -115,11 +115,11 @@ BEGIN
                     10
     DEFPUSHBUTTON   "Connect",IDOK,249,215,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,304,215,50,14
-    LTEXT           "Connect to host:",IDC_STATIC,7,143,53,8
-    LTEXT           "Username:",IDC_STATIC,7,162,35,8
+    LTEXT           "Connect to host:",IDC_CONNECT_LBL,7,143,53,8
+    LTEXT           "Username:",IDC_USERLBL,7,162,35,8
     LTEXT           "Password:",IDC_PASSLBL,7,191,34,8,NOT WS_VISIBLE
     LTEXT           "For information on setting up a server, visit http://www.ninjam.com",
-                    IDC_STATIC,7,220,220,10
+                    IDC_INFOTEXT,7,220,220,10
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | 
                     WS_TABSTOP,7,7,347,126
