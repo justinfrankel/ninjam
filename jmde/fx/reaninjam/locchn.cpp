@@ -558,7 +558,6 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
         SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
 
-        m_wh -= GetSystemMetrics(SM_CYHSCROLL);
 
         if (uMsg == WM_INITDIALOG)
         {
