@@ -883,7 +883,7 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
           RECT r;
           GetClientRect(hwnd,&r);
           bool flip = last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
-          int fg = RGB(255,255,0), bg=RGB(0,0,0);
+          int fg = RGB(128,255,128), bg=RGB(0,0,0);
           if (flip) { int tmp=fg; fg=bg; bg=tmp; }
 
           {
