@@ -39,6 +39,7 @@
 
 #include "../../WDL/rng.h"
 #include "../../WDL/sha.h"
+#include "../../WDL/wdlcstring.h"
 
 
 #ifdef _WIN32
@@ -337,6 +338,26 @@ int User_Connection::OnRunAuth(User_Group *group)
     newmsg.parms[2]=group->m_topictext.Get();
     Send(newmsg.build());
   }
+
+  if (group->m_motdfile.GetLength())
+  {
+    FILE *fp = fopen(group->m_motdfile.Get(),"r");
+    if (fp)
+    {
+      char buf[512];
+      while (fgets(buf,sizeof(buf),fp))
+      {
+        WDL_remove_trailing_crlf(buf);
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]="__SERVER__";
+        newmsg.parms[2]=buf;
+        Send(newmsg.build());
+      }
+      fclose(fp);
+    }
+  }
+
   {
     mpb_chat_message newmsg;
     newmsg.parms[0]="JOIN";
