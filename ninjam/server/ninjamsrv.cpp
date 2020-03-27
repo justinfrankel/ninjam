@@ -900,10 +900,10 @@ int main(int argc, char **argv)
          
 
         }
-        Sleep(1);
+        Sleep(5);
 #else
-	      struct timespec ts={0,1*1000*1000};
-	      nanosleep(&ts,NULL);
+        struct timespec ts={0,5*1000*1000};
+        nanosleep(&ts,NULL);
 #endif
 
         if (g_reloadconfig && strcmp(argv[1],"-"))
