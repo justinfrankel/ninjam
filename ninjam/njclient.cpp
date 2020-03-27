@@ -1800,9 +1800,6 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
-          if (f > 1.0) f=1.0;
-          else if (f < -1.0) f=-1.0;
-
           *out1++ += f;
         }
         lc->decode_peak_vol[1]=lc->decode_peak_vol[0]=maxf;
