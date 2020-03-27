@@ -350,7 +350,7 @@ int User_Connection::OnRunAuth(User_Group *group)
         WDL_remove_trailing_crlf(buf);
         mpb_chat_message newmsg;
         newmsg.parms[0]="PRIVMSG";
-        newmsg.parms[1]="__SERVER__";
+        newmsg.parms[1]="*";
         newmsg.parms[2]=buf;
         Send(newmsg.build());
       }
