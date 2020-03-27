@@ -101,6 +101,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         {
           _this->wndsizer.init(hwndDlg);
           _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,0.0f,0.0f);
+          _this->wndsizer.init_item(IDC_VU2,0.0f,0.0f,1.0f,0.0f);
           _this->wndsizer.init_item(IDC_VOL,0.0f,0.0f,0.8f,0.0f);
           _this->wndsizer.init_item(IDC_PAN,0.8f,0.0f,1.0f,0.0f);
           _this->wndsizer.init_item(IDC_MUTE,1.0f,0.0f,1.0f,0.0f);
@@ -382,9 +383,27 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     return 0;
     case WM_LCUSER_VUUPDATE:
       {
-        int ival=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,0))*10.0);
-        int ival2=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,1))*10.0);
+        float pk1 = g_client->GetLocalChannelPeak(m_idx,0), pk2 = g_client->GetLocalChannelPeak(m_idx,1);
+        int ival=(int) floor(VAL2DB(pk1)*10.0);
+        int ival2=(int) floor(VAL2DB(pk2)*10.0);
         SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival2);
+
+        float v1=0,v2=0, vol=0, pan=0;
+        bool mute=false,solo=false;
+        if (!g_client->GetLocalChannelMonitoring(m_idx,&vol,&pan,&mute,&solo))
+        {
+          if (solo || (!g_client->IsASoloActive() && !mute))
+          {
+            v1=v2=vol;
+            if (pan > 0.0f) v1 *= 1.0f-pan;
+            else if (pan < 0.0f) v2 *= 1.0f+pan;
+
+          }
+        }
+        ival=(int) floor(VAL2DB(pk1 * v1)*10.0);
+        ival2=(int) floor(VAL2DB(pk2 * v2)*10.0);
+        SendDlgItemMessage(hwndDlg,IDC_VU2,WM_USER+1010,ival,ival2);
+
       }
     return 0;
 

@@ -91,6 +91,7 @@
 #define IDC_AUDIOIN                     1042
 #define IDC_VU                          1043
 #define IDC_VULBL                       1044
+#define IDC_VU2                         1044
 #define IDC_VOL                         1045
 #define IDC_PAN                         1046
 #define IDC_VOLLBL                      1047
