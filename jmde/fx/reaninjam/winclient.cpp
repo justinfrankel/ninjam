@@ -381,6 +381,13 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
         int ww=GetPrivateProfileInt(CONFSEC,"connectw",0,g_ini_file.Get());
         int wh=GetPrivateProfileInt(CONFSEC,"connecth",0,g_ini_file.Get());
+        if (ww<1)
+        {
+          RECT r;
+          GetWindowRect(hwndDlg,&r);
+          if (ww<1) ww=(r.right-r.left)*3/2;
+          if (wh<1) wh=r.bottom-r.top;
+        }
         if (ww>0 && wh>0)
           SetWindowPos(hwndDlg,NULL,0,0,ww,wh,SWP_NOZORDER|SWP_NOMOVE|SWP_NOACTIVATE);
 
@@ -413,11 +420,11 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
         HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,140,(char*)"Server"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,160,(char*)"Server"};
           ListView_InsertColumn(list,0,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,(char*)"Info"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,130,(char*)"Info"};
           ListView_InsertColumn(list,1,&lvc);
         }
         {
