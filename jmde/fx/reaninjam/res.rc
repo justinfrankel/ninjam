@@ -168,19 +168,19 @@ BEGIN
                     WS_TABSTOP,68,3,32,10
     COMBOBOX        IDC_AUDIOIN,20,16,84,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,108,16,54,11
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,110,16,50,11
     CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,163,16,36,11
     RTEXT           "+0.0 dB",IDC_VOLLBL,110,33,28,8,SS_NOTIFY
-    PUSHBUTTON      "Delete",IDC_REMOVE,166,34,33,9
+    PUSHBUTTON      "Delete",IDC_REMOVE,166,32,33,9
     CONTROL         "",IDC_EDGE,"Static",SS_ETCHEDHORZ,1,45,200,1
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
                     SS_NOTIFY | WS_GROUP,140,33,23,8
     CONTROL         "",IDC_VU,"REAPERvertvu",WS_TABSTOP,1,1,16,42
-    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,174,1,12,11
-    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,187,1,12,11
+    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,174,2,12,11
+    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,187,2,12,11
     COMBOBOX        IDC_ASYNCXMIT,20,31,84,109,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "",IDC_VU2,"REAPERhorzvu",WS_TABSTOP,108,1,64,11
+    LTEXT           "Monitoring mix:", IDC_STATIC, 109,4,64,11
 END
 
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
