@@ -54,10 +54,3 @@ jobs:
         asset_path: ./ninjam/server/ninjam.tar.gz
         asset_name: ninjam.tar.gz
         asset_content_type: application/zip
-    - name: Docker Hub Description
-      uses: peter-evans/dockerhub-description@v2.1.0
-      env:
-        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-        DOCKERHUB_REPOSITORY: zeppelinux/ninjam-server
-        README_FILEPATH: ./ninjam/server/DOCKERHUB.md
