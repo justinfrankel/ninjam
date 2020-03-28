@@ -84,7 +84,7 @@ static WDL_String g_connect_user,g_connect_pass,g_connect_host;
 static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
-
+static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
 
@@ -143,6 +143,8 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCALWAV,BST_CHECKED);
 
+       if (!(g_config_appear&1)) CheckDlgButton(hwndDlg, IDC_FLASH, BST_CHECKED);
+
         char str[2048];
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
         if (!str[0])
@@ -199,6 +201,11 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             if (!strcmp(str,buf))
               buf[0]=0;
             WritePrivateProfileString(CONFSEC,"sessiondir",buf,g_ini_file.Get());
+
+            g_config_appear &= ~1;
+            if (!IsDlgButtonChecked(hwndDlg, IDC_FLASH)) g_config_appear |= 1;
+            snprintf(buf, sizeof(buf), "%d", g_config_appear);
+            WritePrivateProfileString(CONFSEC, "config_appear", buf, g_ini_file.Get());
 
             EndDialog(hwndDlg,1);
           }
@@ -882,7 +889,7 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         {
           RECT r;
           GetClientRect(hwnd,&r);
-          bool flip = last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
+          bool flip = !(g_config_appear&1) && last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
           int fg = RGB(128,255,128), bg=RGB(0,0,0);
           if (flip) { int tmp=fg; fg=bg; bg=tmp; }
 
@@ -1045,6 +1052,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_REMOTERECT,  1.0f, 0.0f,  1.0f,  1.0f);      
         resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  1.0f,  loc_ratio);
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
+
+        g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear",
+          g_config_appear, g_ini_file.Get());
 
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
