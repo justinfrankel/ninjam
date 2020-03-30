@@ -424,8 +424,8 @@ static int ConfigOnToken(LineParser *lp)
         else 
         {
           if (g_logfp)
-            logText("Warning: Unknown user priviledge flag '%c'\n",*ptr);
-          printf("Warning: Unknown user priviledge flag '%c'\n",*ptr);
+            logText("Warning: Unknown user privilege flag '%c'\n",*ptr);
+          printf("Warning: Unknown user privilege flag '%c'\n",*ptr);
         }
         ptr++;
       }
