@@ -959,12 +959,8 @@ static WDL_DLGRET SyncProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     {
       g_syncwnd=hwndDlg;
 
-      int x=GetPrivateProfileInt(CONFSEC, "syncx", -1, g_ini_file.Get());
-      int y=GetPrivateProfileInt(CONFSEC, "syncy", -1, g_ini_file.Get());
-      if (x > 0 && y > 0)
-      {
-        SetWindowPos(hwndDlg, NULL, x, y, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
-      }
+      if (autoRepositionWindowOnMessage)
+        autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamsync",0);
 
       if (g_config_sync&1) CheckDlgButton(hwndDlg, IDC_AUTOPLAY, BST_CHECKED);
       if (g_config_sync&2) CheckDlgButton(hwndDlg, IDC_AUTOHOME, BST_CHECKED);
@@ -976,13 +972,8 @@ static WDL_DLGRET SyncProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     {
       g_syncwnd=NULL;
 
-      RECT r;
-      GetWindowRect(hwndDlg, &r);
-      char buf[128];
-      snprintf(buf, sizeof(buf), "%d", r.left);
-      WritePrivateProfileString(CONFSEC, "syncx", buf, g_ini_file.Get());
-      snprintf(buf, sizeof(buf), "%d", r.top);
-      WritePrivateProfileString(CONFSEC, "syncy", buf, g_ini_file.Get());
+      if (autoRepositionWindowOnMessage)
+        autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamsync",0);
     }
     return 0;
 
