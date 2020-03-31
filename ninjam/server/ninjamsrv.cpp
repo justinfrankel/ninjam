@@ -775,6 +775,33 @@ const char *get_privatemode_stats()
                                 sizes[x], sizes[x]==1?" has":"s have", 
                                 x, x==maxuserchk?"+":"", x==1?"":"s");
     }
+    if (lobby_cnt)
+    {
+      int linelen = 13;
+      str.Append("Lobby users: ");
+      for (x=0;x<m_group->m_users.GetSize();x++)
+      {
+        User_Connection *user = m_group->m_users.Get(x);
+        if (WDL_NORMALLY(user) && user->m_auth_state>0)
+        {
+          const char *n = user->m_username.Get();
+          int nlen = (int)strlen(n);
+          if (linelen && linelen + nlen + 1>100)
+          {
+            str.Append("\n    ");
+            linelen = 4;
+          }
+          else
+          {
+            str.Append(" ");
+            linelen += nlen+1;
+          }
+          str.Append(n);
+          lobby_cnt++;
+        }
+      }
+      str.Append("\n");
+    }
   }
   return str.Get();
 }
