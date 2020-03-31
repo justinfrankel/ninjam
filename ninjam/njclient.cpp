@@ -754,7 +754,9 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
   int x;
   for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
 
-  if (!m_audio_enable||justmonitor)
+  if (!m_audio_enable||justmonitor || 
+      (!m_max_localch && !m_remoteusers.GetSize()) // in a lobby, effectively
+      )
   {
     process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1,isPlaying,isSeek,cursessionpos);
     return;
@@ -1715,7 +1717,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   // encode my audio and send to server, if enabled
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
+  for (u = 0; u < m_locchannels.GetSize() && (u < m_max_localch || justmonitor); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
     int sc=lc->src_channel&1023;
