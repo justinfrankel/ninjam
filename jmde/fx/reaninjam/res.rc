@@ -106,7 +106,7 @@ EXSTYLE WS_EX_TOOLWINDOW
 CAPTION "NINJAM Sync"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-  LTEXT             "At NINJAM interval start (approximate):",IDC_STATIC,7,7,120,12
+  LTEXT             "At NINJAM interval start (approximate):",IDC_STATIC,7,7,140,12
   CONTROL           "Auto-start REAPER",IDC_AUTOPLAY,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,19,120,12
   CONTROL           "Auto-rewind REAPER",IDC_AUTOHOME,
