@@ -277,6 +277,11 @@ static int ConfigOnToken(LineParser *lp)
     if (lp->getnumtokens() != 2) return -1;
     g_logfilename.Set(lp->gettoken_str(1));    
   }
+  else if (!stricmp(t,"MOTDFile"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    m_group->m_motdfile.Set(lp->gettoken_str(1));
+  }
   else if (!stricmp(t,"SessionArchive"))
   {
     if (lp->getnumtokens() != 3) return -1;
@@ -517,6 +522,8 @@ static int ReadConfig(char *configfile)
   g_config_log_sessionlen=10; // ten minute default, tho the user will need to specify the path anyway
 
   m_group->m_max_users=0; // unlimited users
+  m_group->m_motdfile.Set("");
+
   g_acllist.Resize(0);
   g_config_license.Set("");
   int x;
@@ -900,10 +907,10 @@ int main(int argc, char **argv)
          
 
         }
-        Sleep(1);
+        Sleep(5);
 #else
-	      struct timespec ts={0,1*1000*1000};
-	      nanosleep(&ts,NULL);
+        struct timespec ts={0,5*1000*1000};
+        nanosleep(&ts,NULL);
 #endif
 
         if (g_reloadconfig && strcmp(argv[1],"-"))

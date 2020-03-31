@@ -127,6 +127,9 @@ class User_Group
     WDL_String m_topictext;
 
     WDL_String m_logdir;
+
+    WDL_FastString m_motdfile;
+
     FILE *m_logfp;
 
 #ifdef _WIN32

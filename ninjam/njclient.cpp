@@ -1741,7 +1741,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     if (!src2) src2=src;
 
     // monitor this channel
-    if ((!m_issoloactive && !lc->muted) || lc->solo)
+    bool chan_active = ((!m_issoloactive && !lc->muted) || lc->solo);
     {
       int use_nch=2;
       if (outnch < 2 || (lc->out_chan_index&1024)) use_nch=1;
@@ -1765,25 +1765,22 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         int x=len;
         while (x--) 
         {
-          float f=src[0] * vol1;
+          float f=src[0];
 
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
-//          if (f > 1.0) f=1.0;
-  //        else if (f < -1.0) f=-1.0;
+          if (chan_active)
+            *out1++ += f * vol1;
 
-          *out1++ += f;
-
-          f=src2[0]*vol2;
+          f=src2[0];
 
           if (f > maxf2) maxf2=f;
           else if (f < -maxf2) maxf2=-f;
 
-//          if (f > 1.0) f=1.0;
-  //        else if (f < -1.0) f=-1.0;
+          if (chan_active)
+            *out2++ += f * vol2;
 
-          *out2++ += f;
           src++;
           src2++;
         }
@@ -1796,19 +1793,16 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
         int x=len;
         while (x--) 
         {
-          float f=(*src++ + *src2++)*0.5f * vol1;
+          float f=(*src++ + *src2++)*0.5f;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
-          if (f > 1.0) f=1.0;
-          else if (f < -1.0) f=-1.0;
-
-          *out1++ += f;
+          if (chan_active)
+            *out1++ += f * vol1;;
         }
         lc->decode_peak_vol[1]=lc->decode_peak_vol[0]=maxf;
       }
     }
-    else lc->decode_peak_vol[0]=lc->decode_peak_vol[1]=0.0;
   }
 
   m_locchan_cs.Leave();
