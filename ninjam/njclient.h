@@ -198,6 +198,10 @@ public:
 
   WDL_Mutex m_remotechannel_rd_mutex;
 
+  bool is_likely_lobby() const {
+    return !m_max_localch && !m_remoteusers.GetSize();
+  }
+
 protected:
   double output_peaklevel[2];
 
