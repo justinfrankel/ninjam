@@ -1308,22 +1308,45 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
     {
       // send a privmsg to user in parm1, and if they don't
       int x;
+      int pmatch = -1;
+      const char *s1 = msg->parms[1];
+      const int l1 = (int) strlen(s1);
       for (x = 0; x < m_users.GetSize(); x ++)
       {
-        if (!strcasecmp(msg->parms[1],m_users.Get(x)->m_username.Get()))
+        const char *tu = m_users.Get(x)->m_username.Get();
+        if (!strcasecmp(s1,tu))
         {
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
-          newmsg.parms[1]=con->m_username.Get();
+          newmsg.parms[1]=tu;
           newmsg.parms[2]=msg->parms[2];
           m_users.Get(x)->Send(newmsg.build());
 
           return;
         }
+        else if (pmatch > -2)
+        {
+          if (!strncasecmp(s1,tu,l1))
+          {
+            // only match partially if there's a @ in what we're matching, or the username is immediately followed by one
+            if (tu[l1] == '@' || strstr(s1,"@"))
+              pmatch = pmatch >= 0 ? -2 : x;
+          }
+        }
+      }
+      if (pmatch >= 0)
+      {
+        const char *tu = m_users.Get(pmatch)->m_username.Get();
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]=tu;
+        newmsg.parms[2]=msg->parms[2];
+        m_users.Get(x)->Send(newmsg.build());
+        return;
       }
 
       // send a privmsg back to sender, saying shit aint there
-      WDL_String buf("No such user: ");
+      WDL_String buf(pmatch == -2 ? "Username is ambiguous (specify partial IP): " : "No such user: ");
       buf.Append(msg->parms[1]);          
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
