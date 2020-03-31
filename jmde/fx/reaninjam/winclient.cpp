@@ -1384,7 +1384,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
-              if (!intp && (g_config_sync&1) && GetMainHwnd && GetPlayState)
+              if (!intp && (g_config_sync&1) && GetMainHwnd && GetPlayState && !g_client->is_likely_lobby())
               {
                 HWND h=GetMainHwnd();
                 if (h)
