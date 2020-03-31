@@ -912,6 +912,26 @@ int NJClient::GetStatus()
   return NJC_STATUS_OK;
 }
 
+static char getConfigStringQuoteChar(const char *p) // from WDL/projectcontext.cpp
+{
+  if (!p || !*p) return '"';
+
+  char fc = *p;
+  int flags=0;
+  while (*p && flags!=15)
+  {
+    char c=*p++;
+    if (c=='"') flags|=1;
+    else if (c=='\'') flags|=2;
+    else if (c=='`') flags|=4;
+    else if (c == ' ' || c == '\t') flags |= 8;
+  }
+  if (!(flags & 8) && fc != '"' && fc != '\'' && fc != '`' && fc != '#' && fc != ';') return ' ';
+  if (!(flags & 1)) return '"';
+  if (!(flags & 2)) return '\'';
+  if (!(flags & 4)) return '`';
+  return 0;
+}
 
 int NJClient::Run() // nonzero if sleep ok
 {
@@ -1304,7 +1324,39 @@ int NJClient::Run() // nonzero if sleep ok
                   }
                 }               
               }
-              else ChatMessage_Callback(ChatMessage_User,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              else 
+              {
+                if (m_logFile && foo.parms[0])
+                {
+                  char buf[1024];
+                  buf[0]=0;
+                  for (int x=0;x<3 && foo.parms[x];x++)
+                  {
+                    const char *rd = foo.parms[x];
+                    const int f=getConfigStringQuoteChar(rd);
+                    if (f == ' ') snprintf_append(buf,sizeof(buf)," %s",rd);
+                    else if (f) snprintf_append(buf,sizeof(buf)," %c%s%c",f,rd,f);
+                    else
+                    {
+                      char *p = buf+strlen(buf);
+                      snprintf_append(buf,sizeof(buf)," `%s`",rd);
+                      if (*p) p++; // skip space
+
+                      // filter out any backticks
+                      if (*p == '`')
+                        while (*++p) if (*p == '`' && p[1]) *p = '_';
+                    }
+                  }
+                  char *p = buf;
+                  while (*p)
+                  {
+                    if (*p == '\r' || *p == '\n') *p = ' ';
+                    p++;
+                  }
+                  writeLog("chat%s\n",buf);
+                }
+                ChatMessage_Callback(ChatMessage_User,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              }
             }
           }
         break;
