@@ -67,6 +67,7 @@ extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 extern int (*GetWindowDPIScaling)(HWND hwnd);
 extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
+extern int (*GetPlayState)();
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -85,6 +86,7 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
+static int g_config_sync=0; // &1=auto-play on 1, &3=auto-home on 1
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
 
@@ -948,6 +950,64 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
+static HWND g_syncwnd;
+static WDL_DLGRET SyncProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+    {
+      g_syncwnd=hwndDlg;
+
+      int x=GetPrivateProfileInt(CONFSEC, "syncx", -1, g_ini_file.Get());
+      int y=GetPrivateProfileInt(CONFSEC, "syncy", -1, g_ini_file.Get());
+      if (x > 0 && y > 0)
+      {
+        SetWindowPos(hwndDlg, NULL, x, y, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
+      }
+
+      if (g_config_sync&1) CheckDlgButton(hwndDlg, IDC_AUTOPLAY, BST_CHECKED);
+      if (g_config_sync&2) CheckDlgButton(hwndDlg, IDC_AUTOHOME, BST_CHECKED);
+      EnableWindow(GetDlgItem(hwndDlg, IDC_AUTOHOME), (g_config_sync&1));
+    }
+    return 0;
+
+    case WM_DESTROY:
+    {
+      g_syncwnd=NULL;
+
+      RECT r;
+      GetWindowRect(hwndDlg, &r);
+      char buf[128];
+      snprintf(buf, sizeof(buf), "%d", r.left);
+      WritePrivateProfileString(CONFSEC, "syncx", buf, g_ini_file.Get());
+      snprintf(buf, sizeof(buf), "%d", r.top);
+      WritePrivateProfileString(CONFSEC, "syncy", buf, g_ini_file.Get());
+    }
+    return 0;
+
+    case WM_COMMAND:
+      switch(LOWORD(wParam))
+      {
+        case IDC_AUTOPLAY:
+          g_config_sync ^= 1;
+          EnableWindow(GetDlgItem(hwndDlg, IDC_AUTOHOME), (g_config_sync&1));
+        break;
+
+        case IDC_AUTOHOME:
+          g_config_sync ^= 2;
+        break;
+
+        case IDCANCEL:
+          DestroyWindow(hwndDlg);
+        return 0;
+      }
+    return 0;
+  }
+
+  return 0;
+}
+
 static int g_lchan_sz;
 static int g_min_lchan_sz;
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1053,8 +1113,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  1.0f,  loc_ratio);
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
 
-        g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear",
-          g_config_appear, g_ini_file.Get());
+        g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear", g_config_appear, g_ini_file.Get());
+        g_config_sync=GetPrivateProfileInt(CONFSEC, "config_sync", g_config_sync, g_ini_file.Get());
 
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
@@ -1333,6 +1393,17 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
+              if (!intp && (g_config_sync&1) && GetMainHwnd && GetPlayState)
+              {
+                HWND h=GetMainHwnd();
+                if (h)
+                {
+#define ID_HOME 40042
+#define IDC_PLAY 1007
+                  if (g_config_sync&2) SendMessage(h, WM_COMMAND, ID_HOME, 0);
+                  if (!(GetPlayState()&1)) SendMessage(h, WM_COMMAND, IDC_PLAY, 0);
+                }
+              }
               last_interval_pos = intp;
               last_interval_len=intl;
               last_bpm_i = bpm;
@@ -1634,6 +1705,16 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
             do_connect();
           }
+        break;
+        case IDC_SYNC:
+        {
+          if (!g_syncwnd)
+          {
+            CreateDialog(g_hInst, MAKEINTRESOURCE(IDD_SYNC), hwndDlg, SyncProc);
+            if (g_syncwnd) ShowWindow(g_syncwnd, SW_SHOWNA);
+          }
+          if (g_syncwnd) SetFocus(g_syncwnd);
+        }
         break;
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);

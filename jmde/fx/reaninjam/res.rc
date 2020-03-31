@@ -60,18 +60,18 @@ CAPTION "ReaNINJAM"
 MENU IDR_MENU1
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    LTEXT           "Master: ",IDC_MASTER_LBL,2,4,26,8
-    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,44,2,
+    RTEXT           "Master:",IDC_MASTER_LBL,8,4,38,8
+    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,50,2,
                     160,12
+    CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,212,2,
+                    41,12
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,257,4,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,206,2,
-                    45,12
-    LTEXT           "Metronome:",IDC_METRO_LBL,2,21,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,44,18,
+    RTEXT           "Metronome:",IDC_METRO_LBL,8,21,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,50,18,
                     160,12
+    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,212,18,
+                    41,12
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,257,22,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,206,18,
-                    45,12
     CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,2,16,474,1
     CONTROL         "Progress2",IDC_INTERVALPOS,"ninjamstatus",0x0,2,196,474,
                     78
@@ -96,7 +96,21 @@ BEGIN
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
                     12,11
     PUSHBUTTON      "Send",IDC_CHATOK,192,178,25,14
-    PUSHBUTTON      "Connect...",IDC_CONNECT,2,10,46,12
+    PUSHBUTTON      "Connect...",IDC_CONNECT,2,2,42,12
+    PUSHBUTTON      "Sync...",IDC_SYNC,2,18,42,12
+END
+
+IDD_SYNC DIALOGEX 0, 0, 160, 50
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "NINJAM Sync"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+  LTEXT             "At NINJAM interval start (approximate):",IDC_STATIC,7,7,120,12
+  CONTROL           "Auto-start REAPER",IDC_AUTOPLAY,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,19,120,12
+  CONTROL           "Auto-rewind REAPER",IDC_AUTOHOME,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,31,120,12
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236
@@ -283,6 +297,14 @@ BEGIN
         RIGHTMARGIN, 476
         TOPMARGIN, 2
         BOTTOMMARGIN, 214
+    END
+
+    IDD_SYNC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 153
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 43
     END
 
     IDD_CONNECT, DIALOG
