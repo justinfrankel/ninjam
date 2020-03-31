@@ -51,6 +51,7 @@
 #include "../../WDL/ptrlist.h"
 #include "../../WDL/wdlstring.h"
 #include "../../WDL/wdlcstring.h"
+#include "../../WDL/assocarray.h"
 
 #define VERSION "v0.080"
 
@@ -62,7 +63,11 @@ FILE *g_logfp;
 WDL_String g_pidfilename;
 WDL_String g_logfilename;
 WDL_String g_status_pass,g_status_user;
-User_Group *m_group;
+
+User_Group *m_group; // used normally, but in privategroup mode, this is a lobby
+static void delGroup(User_Group *g) { delete g; }
+WDL_StringKeyedArray<User_Group *> g_private_groups(false,delGroup);
+
 JNL_Listen *m_listener;
 void onConfigChange(int argc, char **argv);
 void logText(const char *s, ...);
@@ -114,6 +119,9 @@ int aclGet(unsigned int addr)
 }
 
 
+int g_config_private_maxsz; // if >0, in private multigroup mode (do not use m_group!)
+int g_config_private_maxlobbysz;
+int g_config_private_allowchat;
 WDL_PtrList<UserPassEntry> g_userlist;
 int g_config_allow_anonchat;
 int g_config_port;
@@ -127,16 +135,27 @@ int g_config_log_sessionlen;
 
 int g_config_max_users; // these all must be copied to User_Group
 int g_config_keepalive;
-WDL_FastString g_config_motdfile, g_config_default_topic;
+WDL_FastString g_config_motdfile, g_config_private_lobby_motdfile;
+WDL_FastString g_config_default_topic;
 int g_config_voting_threshold, g_config_voting_timeout;
 bool g_config_allow_hidden_users;
 
 static void copyConfigToGroup(User_Group *group)
 {
-  group->m_max_users = g_config_max_users;
+  if (group == m_group && g_config_private_maxsz > 0)
+  {
+    group->m_is_lobby_mode = 1;
+    if (g_config_private_allowchat) group->m_is_lobby_mode |= LOBBY_ALLOW_CHAT;
+    group->m_max_users = g_config_private_maxlobbysz;
+    group->m_motdfile.Set(g_config_private_lobby_motdfile.Get());
+  }
+  else
+  {
+    group->m_max_users = g_config_max_users;
+    group->m_motdfile.Set(g_config_motdfile.Get());
+  }
   group->m_keepalive = g_config_keepalive;
   if (!group->m_topictext.GetLength()) group->m_topictext.Set(g_config_default_topic.Get());
-  group->m_motdfile.Set(g_config_motdfile.Get());
   group->m_allow_hidden_users = g_config_allow_hidden_users;
   group->m_voting_threshold = g_config_voting_threshold;
   group->m_voting_timeout = g_config_voting_timeout;
@@ -262,7 +281,7 @@ static IUserInfoLookup *myCreateUserLookup(char *username)
   return new localUserInfoLookup(username);
 }
 
-static int ConfigOnToken(LineParser *lp)
+static int ConfigOnToken(LineParser *lp, bool is_init)
 {
   const char *t=lp->gettoken_str(0);
   if (!stricmp(t,"Port"))
@@ -502,13 +521,44 @@ static int ConfigOnToken(LineParser *lp)
     }
     g_config_allow_anonchat=!!x;
   }  
+  else if (!stricmp(t,"PrivateGroupMode"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    if (is_init || ((g_config_private_maxsz>0) == (lp->gettoken_int(1)>0)))
+    {
+      g_config_private_maxsz = lp->gettoken_int(1);
+      if (g_config_private_maxsz < 1) return -2;
+    }
+  }
+  else if (!stricmp(t,"PrivateGroupLobbySize"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_config_private_maxlobbysz = lp->gettoken_int(1);
+    if (g_config_private_maxlobbysz < 0) return -2;
+  }
+  else if (!stricmp(t,"PrivateGroupAllowChat"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+
+    int x=lp->gettoken_enum(1,"no\0yes\0");
+    if (x <0)
+    {
+      return -2;
+    }
+    g_config_private_allowchat = x;
+  }
+  else if (!stricmp(t,"PrivateGroupLobbyMOTDFile"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_config_private_lobby_motdfile.Set(lp->gettoken_str(1));
+  }
   else return -3;
   return 0;
 
 };
 
 
-static int ReadConfig(char *configfile)
+static int ReadConfig(char *configfile, bool is_init=false)
 {
   int linecnt=0;
   WDL_String linebuild;
@@ -584,7 +634,7 @@ static int ReadConfig(char *configfile)
     {
       if (lp.getnumtokens()>0)
       {
-        int err=ConfigOnToken(&lp);
+        int err=ConfigOnToken(&lp,is_init);
         if (err)
         {
           if (err == -1)
@@ -632,13 +682,13 @@ void sighandler(int sig)
 #endif
 }
 
-void enforceACL()
+void enforceACL(User_Group *group)
 {
   int x;
   int killcnt=0;
-  for (x = 0; x < m_group->m_users.GetSize(); x ++)
+  for (x = 0; x < group->m_users.GetSize(); x ++)
   {
-    User_Connection *c=m_group->m_users.Get(x);
+    User_Connection *c=group->m_users.Get(x);
     if (aclGet(c->m_netcon.GetConnection()->get_remote()) == ACL_FLAG_DENY)
     {
       c->m_netcon.Kill();
@@ -687,6 +737,47 @@ void logText(const char *s, ...)
     va_end(ap);
 }
 
+const char *get_privatemode_stats()
+{
+  if (!g_config_private_maxsz) return "";
+
+  static WDL_FastString str;
+  static time_t last_stat_time;
+  time_t now = time(NULL);
+  if (now > last_stat_time + 4)
+  {
+    int lobby_cnt = 0,x;
+    for (x=0;x<m_group->m_users.GetSize();x++)
+    {
+      User_Connection *user = m_group->m_users.Get(x);
+      if (WDL_NORMALLY(user) && user->m_auth_state>0)
+        lobby_cnt++;
+    }
+    const int maxuserchk = 9;
+    int total_cnt = 0;
+    int sizes[maxuserchk+1]={0,};
+    for (x=0;x<g_private_groups.GetSize();x++)
+    {
+      User_Group *g = g_private_groups.Enumerate(x,NULL);
+      if (WDL_NORMALLY(g))
+      {
+        total_cnt += g->m_users.GetSize();
+        int slot = g->m_users.GetSize();
+        if (slot > maxuserchk) slot=maxuserchk;
+        sizes[slot]++;
+      }
+    }
+    str.SetFormatted(256,"%d/%d private rooms occupied, %d users total in private rooms, %d users in lobby\n",g_private_groups.GetSize(),g_config_private_maxsz,total_cnt,lobby_cnt);
+    for (x=maxuserchk;x>=0;x--)
+    {
+      if (sizes[x]) 
+        str.AppendFormatted(256,"%d room%s %d%s user%s\n",
+                                sizes[x], sizes[x]==1?" has":"s have", 
+                                x, x==maxuserchk?"+":"", x==1?"":"s");
+    }
+  }
+  return str.Get();
+}
 
 
 int main(int argc, char **argv)
@@ -700,7 +791,7 @@ int main(int argc, char **argv)
   m_group=new User_Group;
 
   printf("%s",startupmessage);
-  if (ReadConfig(argv[1]))
+  if (ReadConfig(argv[1],true))
   {
     printf("Error loading config file!\n");
     exit(1);
@@ -800,7 +891,7 @@ int main(int argc, char **argv)
     m_group->CreateUserLookup=myCreateUserLookup;
 
     logText("Using defaults %d BPM %d BPI\n",g_default_bpm,g_default_bpi);
-    m_group->SetConfig(g_default_bpi,g_default_bpm);    
+    m_group->SetConfig(g_default_bpi,g_default_bpm);
 
     m_group->SetLicenseText(g_config_license.Get());
 
@@ -829,7 +920,123 @@ int main(int argc, char **argv)
         }
       }
 
-      if (m_group->Run()) 
+      int can_idle = m_group->Run();
+
+      // only check one lobby-user per cycle to see if we need to move them to a room.
+      // if this is too slow we could do a few per cycle but no need to do all of them
+      {
+        static int rrchk;
+        if (rrchk >= m_group->m_users.GetSize()) rrchk = 0;
+        User_Connection *c = m_group->m_users.Get(rrchk);
+        if (c && c->m_wants_group_migration.GetLength())
+        {
+          User_Group *ng = g_private_groups.Get(c->m_wants_group_migration.Get());
+          const char *msg = "[lobby] could not join room, unknown error.";
+          if (!ng)
+          {
+            if (g_private_groups.GetSize() < g_config_private_maxsz)
+            {
+              logText("PrivateMode - creating room '%s' (%d/%d)\n",c->m_wants_group_migration.Get(),g_private_groups.GetSize()+1,g_config_private_maxsz);
+
+              ng = new User_Group;
+              copyConfigToGroup(ng);
+              ng->m_topictext.SetFormatted(256,"Private Room - %s",c->m_wants_group_migration.Get());
+              ng->SetConfig(g_default_bpi,g_default_bpm);
+              g_private_groups.Insert(c->m_wants_group_migration.Get(),ng);
+            }
+            else
+            {
+              logText("PrivateMode - cannot create '%s' (%d/%d)\n",c->m_wants_group_migration.Get(),g_private_groups.GetSize(),g_config_private_maxsz);
+              msg = "[lobby] could not join room, server is at room capacity!";
+            }
+          }
+          else
+          {
+            if (ng->m_users.GetSize() >= ng->m_max_users)
+            {
+              logText("PrivateMode - cannot join '%s' (%d/%d)\n",c->m_wants_group_migration.Get(),ng->m_users.GetSize(), ng->m_max_users);
+              msg = "[lobby] could not join room, room is at capacity!";
+              ng = NULL;
+            }
+          }
+          c->m_wants_group_migration.Set("");
+
+          if (ng)
+            msg = "[lobby] joining room!";
+
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="MSG";
+          newmsg.parms[1]="";
+          newmsg.parms[2]=(char *)msg;
+          c->Send(newmsg.build());
+
+          if (ng)
+          {
+            m_group->m_users.Delete(rrchk--);
+            ng->m_users.Add(c);
+
+            // notify the lobby we're leaving
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="PART";
+            newmsg.parms[1]=c->m_username.Get();
+            m_group->Broadcast(newmsg.build(),NULL);
+
+            // notify existing users we're joining via chat
+            {
+              mpb_chat_message newmsg;
+              newmsg.parms[0]="JOIN";
+              newmsg.parms[1]=c->m_username.Get();
+              ng->Broadcast(newmsg.build(),c);
+            }
+
+            // broadcast our channels to any existing users
+            {
+              mpb_server_userinfo_change_notify bh;
+
+              int acnt=0;
+              for (int channel = 0; channel < c->m_max_channels && channel < MAX_USER_CHANNELS; channel ++)
+              {
+                if (c->m_channels[channel].active)
+                {
+                  bh.build_add_rec(1,channel,c->m_channels[channel].volume,c->m_channels[channel].panning,c->m_channels[channel].flags,
+                                    c->m_username.Get(),c->m_channels[channel].name.Get());
+                  acnt++;
+                }
+              }
+              if (!acnt && !ng->m_allow_hidden_users && c->m_max_channels && !(c->m_auth_privs & PRIV_HIDDEN)) // give users at least one channel
+              {
+                bh.build_add_rec(1,0,0,0,0,c->m_username.Get(),"");
+              }
+              ng->Broadcast(bh.build(),c);
+            }
+
+            c->SendAuthReply(ng);
+            c->SendUserList(ng);
+            c->SendConnectInfo(ng);
+          }
+
+
+        }
+        rrchk++;
+      }
+
+      for (int x = 0; x < g_private_groups.GetSize(); x ++)
+      {
+        const char *nm=NULL;
+        User_Group *g = g_private_groups.Enumerate(x,&nm);
+        if (WDL_NORMALLY(g))
+        {
+          if (!g->Run())
+            can_idle = 0;
+          else if (!g->m_users.GetSize())
+          {
+            logText("PrivateMode - disposing empty group '%s' %d/%d\n",nm,x,g_private_groups.GetSize());
+            g_private_groups.DeleteByIndex(x--);
+          }
+        }
+      }
+
+      if (can_idle)
       {
 #ifdef _WIN32
         if (needprompt)
@@ -936,7 +1143,10 @@ int main(int argc, char **argv)
           if (!ReadConfig(argv[1]))
             onConfigChange(argc,argv);
         }
+      }
 
+      if (can_idle && !g_config_private_maxsz)
+      {
         time_t now;
         time(&now);
         if (now >= next_session_update_time)
@@ -1000,6 +1210,7 @@ int main(int argc, char **argv)
 
   logText("Shutting down server\n");
 
+  g_private_groups.DeleteAll();
   delete m_group;
   delete m_listener;
 
@@ -1010,7 +1221,7 @@ int main(int argc, char **argv)
   }
 
   JNL::close_socketlib();
-	return 0;
+  return 0;
 }
 
 
@@ -1019,8 +1230,14 @@ void onConfigChange(int argc, char **argv)
   logText("reloading config...\n");
 
   //m_group->SetConfig(g_config_bpi,g_config_bpm);
-  enforceACL();
+  enforceACL(m_group);
   m_group->SetLicenseText(g_config_license.Get());
+
+  for (int x = 0; x < g_private_groups.GetSize(); x ++)
+  {
+    User_Group *g = g_private_groups.Enumerate(x,NULL);
+    if (WDL_NORMALLY(g)) enforceACL(g);
+  }
 
   int p;
   for (p = 2; p < argc; p ++)

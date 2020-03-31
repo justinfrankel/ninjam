@@ -123,6 +123,9 @@ class User_Group
 
     int m_allow_hidden_users;
 
+#define LOBBY_ALLOW_CHAT 2
+    int m_is_lobby_mode; // nonzero for lobby (and LOBBY_ALLOW_CHAT etc optional)
+
     WDL_String m_licensetext;
     WDL_String m_topictext;
 
@@ -202,6 +205,10 @@ class User_Connection
     int OnRunAuth(User_Group *group);
 
     void SendUserList(User_Group *group);
+    void SendConnectInfo(User_Group *group);
+    void SendAuthReply(User_Group *group); // sends "success"
+
+    void SendPrivateModeStats();
 
     Net_Connection m_netcon;
     WDL_String m_username;
@@ -231,6 +238,8 @@ class User_Connection
     WDL_PtrList<User_TransferState> m_sendfiles;
 
     IUserInfoLookup *m_lookup;
+
+    WDL_FastString m_wants_group_migration; // set from lobby in private group mode
 };
 
 
