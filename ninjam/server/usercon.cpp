@@ -1072,32 +1072,24 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
     WDL_PtrList<Net_Message> need_bcast;
-    if (msg->parms[1] && !strcmp(msg->parms[1],"!stats"))
-    {
-      con->SendPrivateModeStats();
-      return;
-    }
     if (m_is_lobby_mode)
     {
       const char *p = msg->parms[1];
       if (!p) return;
+      while (*p == ' ' || *p == '\t') p++;
 
       bool allow_chat = (m_is_lobby_mode & LOBBY_ALLOW_CHAT) != 0;
-      if (!strncmp(p,"!join",5))
+      if (!strncasecmp(p,"!stat",5))
       {
-        const char *nm = p+5;
-        while (*nm == ' ') nm++;
-        if (*nm && *nm != '!' && !strstr(nm," "))
-        {
-          p = nm;
-          allow_chat = false;
-        }
-        else
-        {
-          p = ""; // force help
-        }
+        con->SendPrivateModeStats();
+        return;
       }
-
+      if (!strncasecmp(p,"!join",5))
+      {
+        while (*p && *p != ' ') p++;
+        while (*p == ' ' || *p == '\t') p++;
+        allow_chat = false;
+      }
       if (!allow_chat)
       {
         if (p[0] && p[0] != '!' && !strstr(p," "))
