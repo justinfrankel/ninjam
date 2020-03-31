@@ -125,6 +125,23 @@ int g_config_maxch_user;
 WDL_String g_config_logpath;
 int g_config_log_sessionlen;
 
+int g_config_max_users; // these all must be copied to User_Group
+int g_config_keepalive;
+WDL_FastString g_config_motdfile, g_config_default_topic;
+int g_config_voting_threshold, g_config_voting_timeout;
+bool g_config_allow_hidden_users;
+
+static void copyConfigToGroup(User_Group *group)
+{
+  group->m_max_users = g_config_max_users;
+  group->m_keepalive = g_config_keepalive;
+  if (!group->m_topictext.GetLength()) group->m_topictext.Set(g_config_default_topic.Get());
+  group->m_motdfile.Set(g_config_motdfile.Get());
+  group->m_allow_hidden_users = g_config_allow_hidden_users;
+  group->m_voting_threshold = g_config_voting_threshold;
+  group->m_voting_timeout = g_config_voting_timeout;
+}
+
 time_t next_session_update_time;
 
 WDL_String g_config_license;
@@ -265,7 +282,7 @@ static int ConfigOnToken(LineParser *lp)
   {
     if (lp->getnumtokens() != 2) return -1;
     int p=lp->gettoken_int(1);
-    m_group->m_max_users=p;
+    g_config_max_users = p;
   }  
   else if (!stricmp(t,"PIDFile"))
   {
@@ -280,7 +297,7 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"MOTDFile"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    m_group->m_motdfile.Set(lp->gettoken_str(1));
+    g_config_motdfile.Set(lp->gettoken_str(1));
   }
   else if (!stricmp(t,"SessionArchive"))
   {
@@ -310,8 +327,7 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"DefaultTopic"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    if (!m_group->m_topictext.Get()[0])
-      m_group->m_topictext.Set(lp->gettoken_str(1));    
+    g_config_default_topic.Set(lp->gettoken_str(1));
   }
   else if (!stricmp(t,"MaxChannels"))
   {
@@ -323,19 +339,18 @@ static int ConfigOnToken(LineParser *lp)
   else if (!stricmp(t,"SetKeepAlive"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    m_group->m_keepalive=lp->gettoken_int(1);
-    if (m_group->m_keepalive < 0 || m_group->m_keepalive > 255)
-      m_group->m_keepalive=0;
+    g_config_keepalive=lp->gettoken_int(1);
+    if (g_config_keepalive < 0 || g_config_keepalive > 255) g_config_keepalive=0;
   }
   else if (!stricmp(t,"SetVotingThreshold"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    m_group->m_voting_threshold=lp->gettoken_int(1);
+    g_config_voting_threshold = lp->gettoken_int(1);
   }
   else if (!stricmp(t,"SetVotingVoteTimeout"))
   {
     if (lp->getnumtokens() != 2) return -1;
-    m_group->m_voting_timeout=lp->gettoken_int(1);
+    g_config_voting_timeout = lp->gettoken_int(1);
   }
   else if (!stricmp(t,"ServerLicense"))
   {
@@ -440,7 +455,7 @@ static int ConfigOnToken(LineParser *lp)
     {
       return -2;
     }
-    m_group->m_allow_hidden_users=!!x;
+    g_config_allow_hidden_users = !!x;
   }
   else if (!stricmp(t,"AnonymousUsers"))
   {
@@ -519,8 +534,8 @@ static int ReadConfig(char *configfile)
 
   g_config_log_sessionlen=10; // ten minute default, tho the user will need to specify the path anyway
 
-  m_group->m_max_users=0; // unlimited users
-  m_group->m_motdfile.Set("");
+  g_config_max_users=0; // unlimited users
+  g_config_motdfile.Set("");
 
   g_acllist.Resize(0);
   g_config_license.Set("");
@@ -591,6 +606,7 @@ static int ReadConfig(char *configfile)
       }
     }
   }
+  copyConfigToGroup(m_group);
 
   if (g_logfp) logText("[config] reload complete\n");
 
