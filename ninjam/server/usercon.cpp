@@ -1075,6 +1075,16 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
     if (!p) return;
     while (*p == ' ' || *p == '\t') p++;
 
+    if (!strcmp(p,"!topic"))
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="TOPIC";
+      newmsg.parms[1]="";
+      newmsg.parms[2]=m_topictext.Get();
+      con->Send(newmsg.build());
+      return;
+    }
+
     WDL_PtrList<Net_Message> need_bcast;
     if (m_is_lobby_mode)
     {
@@ -1112,7 +1122,7 @@ unknown_command:
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
           newmsg.parms[1]="*";
-          newmsg.parms[2]="[lobby] available commands: !join private_room_name, !stat";
+          newmsg.parms[2]="[lobby] available commands: !join private_room_name, !stat, !topic";
           con->Send(newmsg.build());
         }
         return;
@@ -1254,7 +1264,7 @@ unknown_command:
       mpb_chat_message newmsg;
       newmsg.parms[0]="PRIVMSG";
       newmsg.parms[1]="*";
-      newmsg.parms[2]="Unknown !command. Commands available: !vote";
+      newmsg.parms[2]="Unknown !command. Commands available: !vote, !topic";
       con->Send(newmsg.build());
       return;
     }
