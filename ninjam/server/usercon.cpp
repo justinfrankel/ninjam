@@ -1071,13 +1071,13 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 {
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
+    const char *p = msg->parms[1];
+    if (!p) return;
+    while (*p == ' ' || *p == '\t') p++;
+
     WDL_PtrList<Net_Message> need_bcast;
     if (m_is_lobby_mode)
     {
-      const char *p = msg->parms[1];
-      if (!p) return;
-      while (*p == ' ' || *p == '\t') p++;
-
       bool allow_chat = (m_is_lobby_mode & LOBBY_ALLOW_CHAT) != 0;
       if (!strncasecmp(p,"!stat",5))
       {
@@ -1090,6 +1090,9 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         while (*p == ' ' || *p == '\t') p++;
         allow_chat = false;
       }
+      else if (*p == '!')
+        goto unknown_command;
+
       if (!allow_chat)
       {
         if (p[0] && p[0] != '!' && !strstr(p," "))
@@ -1105,16 +1108,17 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         }
         else
         {
+unknown_command:
           mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="[lobby] available commands: !join private_room_name";
+          newmsg.parms[0]="PRIVMSG";
+          newmsg.parms[1]="*";
+          newmsg.parms[2]="[lobby] available commands: !join private_room_name, !stat";
           con->Send(newmsg.build());
         }
         return;
       }
     }
-    else if (msg->parms[1] && !strncmp(msg->parms[1],"!vote",5)) // chat message
+    else if (!strncmp(p,"!vote",5))
     {
       if (!(con->m_auth_privs & PRIV_VOTE) || m_voting_threshold > 100 || m_voting_threshold < 1)
       {
@@ -1125,7 +1129,6 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         con->Send(newmsg.build());
         return;
       }
-      const char *p=msg->parms[1];
       while (*p && *p != ' ') p++;
       while (*p == ' ') p++;
       const char *pn=p;
@@ -1246,9 +1249,14 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         }
       }
     }
-    else if (msg->parms[1] && !strncmp(msg->parms[1],"!join",5))
+    else if (*p == '!')
     {
-      return; // ignore !join if not on a lobby
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="PRIVMSG";
+      newmsg.parms[1]="*";
+      newmsg.parms[2]="Unknown !command. Commands available: !vote";
+      con->Send(newmsg.build());
+      return;
     }
 
     if (!(con->m_auth_privs & PRIV_CHATSEND))
@@ -1259,12 +1267,12 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       newmsg.parms[2]="No MSG permission";
       con->Send(newmsg.build());
     }
-    else if (msg->parms[1] && *msg->parms[1])
+    else if (*p)
     {
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]=con->m_username.Get();
-      newmsg.parms[2]=msg->parms[1];
+      newmsg.parms[2]=msg->parms[1]; // send leading whitespace
       Broadcast(newmsg.build());
     }
     int x;
