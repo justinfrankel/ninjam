@@ -767,7 +767,9 @@ const char *get_privatemode_stats()
         sizes[slot]++;
       }
     }
-    str.SetFormatted(256,"%d/%d private rooms occupied, %d users total in private rooms, %d users in lobby\n",g_private_groups.GetSize(),g_config_private_maxsz,total_cnt,lobby_cnt);
+    str.SetFormatted(256,"%d/%d private rooms occupied, %d user%s total in private rooms, %d user%s in lobby\n",g_private_groups.GetSize(),g_config_private_maxsz,
+        total_cnt,total_cnt==1?"":"s", 
+        lobby_cnt,lobby_cnt==1?"":"s");
     for (x=maxuserchk;x>=0;x--)
     {
       if (sizes[x]) 
