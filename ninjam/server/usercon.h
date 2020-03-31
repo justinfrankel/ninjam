@@ -209,6 +209,7 @@ class User_Connection
     void SendAuthReply(User_Group *group); // sends "success"
 
     void SendPrivateModeStats();
+    void SendMOTDFile(User_Group *group);
 
     Net_Connection m_netcon;
     WDL_String m_username;

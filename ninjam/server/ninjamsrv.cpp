@@ -1041,6 +1041,7 @@ int main(int argc, char **argv)
 
             c->SendAuthReply(ng);
             c->SendUserList(ng);
+            c->SendMOTDFile(ng);
             c->SendConnectInfo(ng);
           }
 

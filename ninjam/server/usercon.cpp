@@ -243,6 +243,28 @@ void User_Connection::SendPrivateModeStats()
   }
 }
 
+void User_Connection::SendMOTDFile(User_Group *group)
+{
+  if (group->m_motdfile.GetLength())
+  {
+    FILE *fp = fopen(group->m_motdfile.Get(),"r");
+    if (fp)
+    {
+      char buf[512];
+      while (fgets(buf,sizeof(buf),fp))
+      {
+        WDL_remove_trailing_crlf(buf);
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]="*";
+        newmsg.parms[2]=buf;
+        Send(newmsg.build());
+      }
+      fclose(fp);
+    }
+  }
+}
+
 int User_Connection::OnRunAuth(User_Group *group)
 {
   char addrbuf[256];
@@ -379,6 +401,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   SendUserList(group);
 
+  SendMOTDFile(group);
 
   {
     mpb_chat_message newmsg;
@@ -391,25 +414,6 @@ int User_Connection::OnRunAuth(User_Group *group)
   if (group->m_is_lobby_mode)
   {
     SendPrivateModeStats();
-  }
-
-  if (group->m_motdfile.GetLength())
-  {
-    FILE *fp = fopen(group->m_motdfile.Get(),"r");
-    if (fp)
-    {
-      char buf[512];
-      while (fgets(buf,sizeof(buf),fp))
-      {
-        WDL_remove_trailing_crlf(buf);
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="PRIVMSG";
-        newmsg.parms[1]="*";
-        newmsg.parms[2]=buf;
-        Send(newmsg.build());
-      }
-      fclose(fp);
-    }
   }
 
   {
