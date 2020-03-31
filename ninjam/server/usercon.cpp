@@ -1318,7 +1318,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         {
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
-          newmsg.parms[1]=tu;
+          newmsg.parms[1]=con->m_username.Get();
           newmsg.parms[2]=msg->parms[2];
           m_users.Get(x)->Send(newmsg.build());
 
@@ -1336,12 +1336,11 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       }
       if (pmatch >= 0)
       {
-        const char *tu = m_users.Get(pmatch)->m_username.Get();
         mpb_chat_message newmsg;
         newmsg.parms[0]="PRIVMSG";
-        newmsg.parms[1]=tu;
+        newmsg.parms[1]=con->m_username.Get();
         newmsg.parms[2]=msg->parms[2];
-        m_users.Get(x)->Send(newmsg.build());
+        m_users.Get(pmatch)->Send(newmsg.build());
         return;
       }
 
