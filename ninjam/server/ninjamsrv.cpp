@@ -352,9 +352,7 @@ static int ConfigOnToken(LineParser *lp)
     for (;;)
     {
       char buf[1024];
-      buf[0]=0;
-      fgets(buf,sizeof(buf),fp);
-      if (!buf[0]) break;
+      if (!fgets(buf,sizeof(buf),fp)) break;
       WDL_remove_trailing_crlf(buf);
       g_config_license.Append(buf);
       g_config_license.Append("\n");
@@ -369,7 +367,7 @@ static int ConfigOnToken(LineParser *lp)
     int suc=0;
     const char *v=lp->gettoken_str(1);
     char buf[256];
-    int vlen = strlen(v)+1;
+    size_t vlen = strlen(v)+1;
     memcpy(buf,v,vlen < sizeof(buf) ? vlen : sizeof(buf));
     buf[sizeof(buf)-1]=0;
     char *t=strstr(buf,"/");
@@ -536,10 +534,8 @@ static int ReadConfig(char *configfile)
   for (;;)
   {
     char buf[8192];
-    buf[0]=0;
-    fgets(buf,sizeof(buf),fp);
     linecnt++;
-    if (!buf[0]) break;
+    if (!fgets(buf,sizeof(buf),fp)) break;
     WDL_remove_trailing_crlf(buf);
 
     LineParser lp;
@@ -733,7 +729,11 @@ int main(int argc, char **argv)
   WDL_RNG_addentropy(&v,sizeof(v));
 #else
 
-  if (g_set_uid != -1) setuid(g_set_uid);
+  if (g_set_uid != -1) 
+  {
+    if (setuid(g_set_uid))
+      printf("warning: setuid(%d) failed\n",g_set_uid);
+  }
 
   time_t v=time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
