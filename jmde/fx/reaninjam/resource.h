@@ -126,6 +126,7 @@
 #define IDC_AUTOPLAY                    1074
 #define IDC_AUTOHOME                    1075
 #define IDC_SYNC                        1076
+#define IDC_MATCHLOOP                   1077
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -141,7 +142,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        123
 #define _APS_NEXT_COMMAND_VALUE         40009
-#define _APS_NEXT_CONTROL_VALUE         1077
+#define _APS_NEXT_CONTROL_VALUE         1078
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

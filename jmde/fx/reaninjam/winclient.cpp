@@ -67,7 +67,12 @@ extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 extern int (*GetWindowDPIScaling)(HWND hwnd);
 extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
-extern int (*GetPlayState)();
+extern int (*GetPlayStateEx)(void *proj);
+extern void (*OnPlayButtonEx)(void *proj);
+extern void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
+extern void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
+extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
+extern int (*GetSetRepeatEx)(void* proj, int val);
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -86,7 +91,9 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
-static int g_config_sync=0; // &1=auto-play on 1, &3=auto-home on 1
+// static int g_config_sync=0; // unused
+static bool s_want_sync;
+
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
 
@@ -587,7 +594,7 @@ static void updateConnectButton(HWND hwnd)
 static void do_disconnect()
 {
   g_audio_enable=0;
-
+  s_want_sync=false;
 
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_ENABLED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_GRAYED);
@@ -950,55 +957,6 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
-static HWND g_syncwnd;
-static WDL_DLGRET SyncProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  switch (uMsg)
-  {
-    case WM_INITDIALOG:
-    {
-      g_syncwnd=hwndDlg;
-
-      if (autoRepositionWindowOnMessage)
-        autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamsync",0);
-
-      if (g_config_sync&1) CheckDlgButton(hwndDlg, IDC_AUTOPLAY, BST_CHECKED);
-      if (g_config_sync&2) CheckDlgButton(hwndDlg, IDC_AUTOHOME, BST_CHECKED);
-      EnableWindow(GetDlgItem(hwndDlg, IDC_AUTOHOME), (g_config_sync&1));
-    }
-    return 0;
-
-    case WM_DESTROY:
-    {
-      g_syncwnd=NULL;
-
-      if (autoRepositionWindowOnMessage)
-        autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamsync",0);
-    }
-    return 0;
-
-    case WM_COMMAND:
-      switch(LOWORD(wParam))
-      {
-        case IDC_AUTOPLAY:
-          g_config_sync ^= 1;
-          EnableWindow(GetDlgItem(hwndDlg, IDC_AUTOHOME), (g_config_sync&1));
-        break;
-
-        case IDC_AUTOHOME:
-          g_config_sync ^= 2;
-        break;
-
-        case IDCANCEL:
-          DestroyWindow(hwndDlg);
-        return 0;
-      }
-    return 0;
-  }
-
-  return 0;
-}
-
 static int g_lchan_sz;
 static int g_min_lchan_sz;
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1018,6 +976,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       {
+        s_want_sync=false;
 
 #ifdef SHOW_CONNECT_BUTTON
         RECT r;
@@ -1105,7 +1064,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
 
         g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear", g_config_appear, g_ini_file.Get());
-        g_config_sync=GetPrivateProfileInt(CONFSEC, "config_sync", g_config_sync, g_ini_file.Get());
+        //g_config_sync=GetPrivateProfileInt(CONFSEC, "config_sync", g_config_sync, g_ini_file.Get());
 
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
@@ -1384,17 +1343,15 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
-              if (!intp && (g_config_sync&1) && GetMainHwnd && GetPlayState && !g_client->is_likely_lobby())
+              if (s_want_sync && !intp)
               {
-                HWND h=GetMainHwnd();
-                if (h)
+                if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() && OnPlayButtonEx)
                 {
-#define ID_HOME 40042
-#define IDC_PLAY 1007
-                  if (g_config_sync&2) SendMessage(h, WM_COMMAND, ID_HOME, 0);
-                  if (!(GetPlayState()&1)) SendMessage(h, WM_COMMAND, IDC_PLAY, 0);
+                  OnPlayButtonEx(NULL);
                 }
+                s_want_sync=false;
               }
+
               last_interval_pos = intp;
               last_interval_len=intl;
               last_bpm_i = bpm;
@@ -1699,13 +1656,37 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         case IDC_SYNC:
         {
-          if (!g_syncwnd)
-          {
-            CreateDialog(g_hInst, MAKEINTRESOURCE(IDD_SYNC), hwndDlg, SyncProc);
-            if (g_syncwnd) ShowWindow(g_syncwnd, SW_SHOWNA);
-          }
-          if (g_syncwnd) SetFocus(g_syncwnd);
+          HMENU hm=CreatePopupMenu();
+          int hpos=0;
+          int check=(s_want_sync ? MF_CHECKED : 0);
+          int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|check|gray, IDC_AUTOHOME,
+            "Start REAPER playback on next loop");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_MATCHLOOP,
+            "Set project loop and tempo");
+
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg, IDC_SYNC), &r);
+          TrackPopupMenu(hm, 0, r.left, r.bottom, 0, hwndDlg, NULL);
+          DestroyMenu(hm);
         }
+        break;
+        case IDC_AUTOHOME:
+          if (last_bpm_i > 0 && last_interval_len > 0)
+          {
+            s_want_sync=!s_want_sync;
+          }
+        break;
+        case IDC_MATCHLOOP:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            SetEditCurPos2 && SetCurrentBPM && GetSet_LoopTimeRange2 && GetSetRepeatEx)
+          {
+            double pos=0.0, len=(double)last_interval_len/(double)last_bpm_i*60.0;
+            SetEditCurPos2(NULL, pos, false, false);
+            SetCurrentBPM(NULL, (double)last_bpm_i, false);
+            GetSet_LoopTimeRange2(NULL, true, true, &pos, &len, false);
+            GetSetRepeatEx(NULL, 1);
+          }
         break;
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
