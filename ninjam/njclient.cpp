@@ -1401,7 +1401,7 @@ int NJClient::Run() // nonzero if sleep ok
     while (!lc->m_bq.GetBlock(&p,&block_nch,&blockstarttime))
     {
       wantsleep=0;
-      if (u >= m_max_localch)
+      if (lc->channel_idx >= m_max_localch)
       {
         if (p && p != (WDL_HeapBuf*)-1)
           lc->m_bq.DisposeBlock(p);
@@ -1717,9 +1717,11 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   // encode my audio and send to server, if enabled
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize() && (u < m_max_localch || justmonitor); u ++)
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
+    if (!justmonitor && lc->channel_idx >= m_max_localch) continue; // server does not allow this channel index
+
     int sc=lc->src_channel&1023;
     int sc_nch=(lc->src_channel&1024)?2:1;
 
@@ -2427,9 +2429,10 @@ void NJClient::on_new_interval()
 
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
+    if (lc->channel_idx >= m_max_localch) continue;
 
     if (!(lc->flags&4)) 
     {
