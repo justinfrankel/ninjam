@@ -651,8 +651,10 @@ void NJClient::_reinit()
   int x;
   for (x = 0; x < m_locchannels.GetSize(); x ++)
   {
-    m_locchannels.Get(x)->decode_peak_vol[0]=0.0f;
-    m_locchannels.Get(x)->decode_peak_vol[1]=0.0f;
+    Local_Channel *c=m_locchannels.Get(x);
+    c->channel_idx = x; // normalize the channel indices on connect/disconnect
+    c->decode_peak_vol[0]=0.0f;
+    c->decode_peak_vol[1]=0.0f;
   }
 
 }
@@ -1042,6 +1044,12 @@ int NJClient::Run() // nonzero if sleep ok
             {
               if (ar.flag) // send our channel information
               {
+                if (!m_max_localch)
+                {
+                  // went from lobby to room, normalize channel indices (in case the user deleted channels in the lobby)
+                  for (int x = 0; x < m_locchannels.GetSize(); x ++)
+                    m_locchannels.Get(x)->channel_idx = x;
+                }
                 NotifyServerOfChannelChange();
                 m_status=2;
                 m_in_auth=0;
