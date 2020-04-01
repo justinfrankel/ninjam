@@ -896,9 +896,11 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         PAINTSTRUCT ps;
         if (BeginPaint(hwnd,&ps))
         {
+          bool want_numbers=g_client && !g_client->is_likely_lobby();
+
           RECT r;
           GetClientRect(hwnd,&r);
-          bool flip = !(g_config_appear&1) && !g_client->is_likely_lobby() &&
+          bool flip = !(g_config_appear&1) && want_numbers &&
             last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
           int fg = RGB(128,255,128), bg=RGB(0,0,0);
           if (flip) { int tmp=fg; fg=bg; bg=tmp; }
@@ -938,7 +940,7 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             DrawText(ps.hdc,g_last_status.Get(),-1,&tr,DT_LEFT|DT_BOTTOM|DT_NOPREFIX|DT_SINGLELINE);
           }
           SetTextColor(ps.hdc,fg);
-          if (last_bpm_i > 0 && last_interval_len > 1 && !g_client->is_likely_lobby())
+          if (last_bpm_i > 0 && last_interval_len > 1 && want_numbers)
           {
             SelectObject(ps.hdc,font2);
             char buf[128];
