@@ -60,19 +60,19 @@ CAPTION "ReaNINJAM"
 MENU IDR_MENU1
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    RTEXT           "Master:",IDC_MASTER_LBL,8,4,38,8
-    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,50,2,
-                    160,12
+    RTEXT           "Master:",IDC_MASTER_LBL,50,4,38,8
+    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,92,2,
+                    118,12
     CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,212,2,
                     41,12
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,257,4,29,11,SS_NOTIFY
-    RTEXT           "Metronome:",IDC_METRO_LBL,8,21,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,50,18,
-                    160,12
+    RTEXT           "Metronome:",IDC_METRO_LBL,50,21,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,92,18,
+                    118,12
     CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,212,18,
                     41,12
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,257,22,29,11,SS_NOTIFY
-    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,2,16,474,1
+    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,48,16,428,1
     CONTROL         "Progress2",IDC_INTERVALPOS,"ninjamstatus",0x0,2,196,474,
                     78
     CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
