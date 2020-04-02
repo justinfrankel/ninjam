@@ -62,7 +62,7 @@ void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
 void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
 int (*GetSetRepeatEx)(void* proj, int val);
-double (*GetCursorPositionEx)();
+double (*GetCursorPositionEx)(void *proj);
 
 void (*GetProjectPath)(char *buf, int bufsz);
 const char *(*get_ini_file)();
