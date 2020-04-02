@@ -62,6 +62,7 @@ void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
 void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
 int (*GetSetRepeatEx)(void* proj, int val);
+double (*GetCursorPositionEx)();
 
 void (*GetProjectPath)(char *buf, int bufsz);
 const char *(*get_ini_file)();
@@ -430,6 +431,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     *(VstIntPtr *)&SetCurrentBPM = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SetCurrentBPM",0.0);
     *(VstIntPtr *)&GetSet_LoopTimeRange2 = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetSet_LoopTimeRange2",0.0);
     *(VstIntPtr *)&GetSetRepeatEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetSetRepeatEx",0.0);
+    *(VstIntPtr *)&GetCursorPositionEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetCursorPositionEx",0.0);
 #ifdef _WIN32
     *(VstIntPtr *)&handleCheckboxCustomDraw=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"handleCheckboxCustomDraw",0.0);
 #endif

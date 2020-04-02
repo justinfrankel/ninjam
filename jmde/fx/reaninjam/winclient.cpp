@@ -73,6 +73,7 @@ extern void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekp
 extern void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
 extern int (*GetSetRepeatEx)(void* proj, int val);
+extern double (*GetCursorPositionEx)();
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -1322,8 +1323,16 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             {
               if (s_want_sync && !intp)
               {
-                if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() && OnPlayButtonEx)
+                if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() &&
+                  GetCursorPositionEx && SetEditCurPos2 && OnPlayButtonEx)
                 {
+                  int srate=g_client->GetSampleRate();
+                  if (srate > 0)
+                  {
+                    double tpos=GetCursorPositionEx();
+                    tpos += (double)pos/(double)srate;
+                    SetEditCurPos2(NULL, tpos, false, false);
+                  }
                   OnPlayButtonEx(NULL);
                 }
                 s_want_sync=false;
