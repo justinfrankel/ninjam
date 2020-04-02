@@ -202,6 +202,8 @@ public:
     return !m_max_localch && !m_remoteusers.GetSize();
   }
 
+  int GetSampleRate() const { return m_srate; }
+
 protected:
   double output_peaklevel[2];
 
