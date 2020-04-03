@@ -75,6 +75,7 @@ extern void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
 extern int (*GetSetRepeatEx)(void* proj, int val);
 extern double (*GetCursorPositionEx)(void *proj);
+extern void (*Main_OnCommandEx)(int command, int flag, void *proj);
 
 class VSTEffectClass;
 extern VSTEffectClass *g_vst_object;
@@ -1655,8 +1656,13 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
           InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|check|gray, IDC_SYNCATLOOP,
             "Start REAPER playback on next loop");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_SEPARATOR, 0, NULL);
           InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_MATCHBPM_SETLOOP,
             "Set project tempo and loop at project start");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_SETBPM,
+            "Set project tempo");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_SETLOOP,
+            "Set loop at edit cursor");
 
           RECT r;
           GetWindowRect(GetDlgItem(hwndDlg, IDC_SYNC), &r);
@@ -1678,6 +1684,27 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             double spos=0.0, epos=(double)last_interval_len/(double)last_bpm_i*60.0;
             SetEditCurPos2(__proj, 0.0, false, false);
             SetCurrentBPM(__proj, (double)last_bpm_i, false);
+            GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
+            GetSetRepeatEx(__proj, 1);
+          }
+        break;
+        case IDC_SETBPM:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            Main_OnCommandEx && SetCurrentBPM)
+          {
+            void *__proj=get_parent_project();
+#define ID_CLEAR_TEMPO_ENV 42395
+            Main_OnCommandEx(ID_CLEAR_TEMPO_ENV, 0, __proj);
+            SetCurrentBPM(__proj, (double)last_bpm_i, false);
+          }
+        break;
+        case IDC_SETLOOP:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            GetCursorPositionEx && GetSet_LoopTimeRange2 && GetSetRepeatEx)
+          {
+            void *__proj=get_parent_project();
+            double spos=GetCursorPositionEx(__proj);
+            double epos=spos+(double)last_interval_len/(double)last_bpm_i*60.0;
             GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
             GetSetRepeatEx(__proj, 1);
           }
