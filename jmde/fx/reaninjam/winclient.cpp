@@ -67,6 +67,7 @@ extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
 extern int (*GetWindowDPIScaling)(HWND hwnd);
 extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
+extern void *get_parent_project(void);
 extern int (*GetPlayStateEx)(void *proj);
 extern void (*OnPlayButtonEx)(void *proj);
 extern void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
@@ -1326,14 +1327,15 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                 if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() &&
                   GetCursorPositionEx && SetEditCurPos2 && OnPlayButtonEx)
                 {
+                  void *__proj = get_parent_project();
                   int srate=g_client->GetSampleRate();
                   if (srate > 0)
                   {
-                    double tpos=GetCursorPositionEx(NULL);
+                    double tpos=GetCursorPositionEx(__proj);
                     tpos += (double)pos/(double)srate;
-                    SetEditCurPos2(NULL, tpos, false, false);
+                    SetEditCurPos2(__proj, tpos, false, false);
                   }
-                  OnPlayButtonEx(NULL);
+                  OnPlayButtonEx(__proj);
                 }
                 s_want_sync=false;
               }
@@ -1667,11 +1669,12 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           if (last_bpm_i > 0 && last_interval_len > 0 &&
             SetEditCurPos2 && SetCurrentBPM && GetSet_LoopTimeRange2 && GetSetRepeatEx)
           {
+            void *__proj = get_parent_project();
             double pos=0.0, len=(double)last_interval_len/(double)last_bpm_i*60.0;
-            SetEditCurPos2(NULL, pos, false, false);
-            SetCurrentBPM(NULL, (double)last_bpm_i, false);
-            GetSet_LoopTimeRange2(NULL, true, true, &pos, &len, false);
-            GetSetRepeatEx(NULL, 1);
+            SetEditCurPos2(__proj, pos, false, false);
+            SetCurrentBPM(__proj, (double)last_bpm_i, false);
+            GetSet_LoopTimeRange2(__proj, true, true, &pos, &len, false);
+            GetSetRepeatEx(__proj, 1);
           }
         break;
         case ID_OPTIONS_PREFERENCES:

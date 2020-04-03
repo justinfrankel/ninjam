@@ -117,11 +117,15 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 
 
 HINSTANCE g_hInst;
+class VSTEffectClass;
+VSTEffectClass *g_vst_object;
+
 class VSTEffectClass
 {
 public:
   VSTEffectClass(audioMasterCallback cb)
   {
+    g_vst_object = this;
     m_cb=cb;
     memset(&m_effect,0,sizeof(m_effect));
     m_samplerate=44100.0;
@@ -147,11 +151,10 @@ public:
     m_lastplaytrackpos=-100000000.0;
   }
 
-  audioMasterCallback m_cb;
-
 
   ~VSTEffectClass()
   {
+    g_vst_object = NULL;
     if (m_hwndcfg) DestroyWindow(m_hwndcfg);
   }  
 
@@ -388,6 +391,15 @@ public:
 
 };
 
+void *get_parent_project(void)
+{
+  if (g_vst_object && g_hostcb)
+    return (void *)g_hostcb(&g_vst_object->m_effect,0xdeadbeef,0xdeadf00e,3,NULL,0.0f);
+
+  return NULL;
+}
+
+
 
 extern "C" {
 
@@ -452,9 +464,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
 
   if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
   VSTEffectClass *obj = new VSTEffectClass(hostcb);
-  if (obj)
-    return &obj->m_effect;
-  return 0;
+  return &obj->m_effect;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
