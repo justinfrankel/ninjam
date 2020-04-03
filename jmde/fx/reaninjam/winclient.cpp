@@ -1641,6 +1641,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             do_disconnect();
 
             do_connect();
+            HWND fg = GetForegroundWindow();
+            if (fg && (fg == hwndDlg || IsChild(hwndDlg,fg)))
+              SetFocus(GetDlgItem(hwndDlg,IDC_CHATENT));
           }
         break;
         case IDC_SYNC:
