@@ -27,7 +27,6 @@
 #define NUM_INPUTS 8
 #define NUM_OUTPUTS 2
 
-DWORD g_object_allocated;
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) ;
 void InitializeInstance();
 void QuitInstance();
@@ -117,6 +116,8 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 
 
 HINSTANCE g_hInst;
+DWORD g_main_thread;
+
 class VSTEffectClass;
 VSTEffectClass *g_vst_object;
 
@@ -126,7 +127,6 @@ public:
   VSTEffectClass(audioMasterCallback cb)
   {
     g_vst_object = this;
-    m_cb=cb;
     memset(&m_effect,0,sizeof(m_effect));
     m_samplerate=44100.0;
     m_hwndcfg=0;
@@ -215,7 +215,7 @@ public:
       case effSetBlockSize:
 
         // initialize, yo
-        if (GetCurrentThreadId()==g_object_allocated) 
+        if (GetCurrentThreadId()==g_main_thread)
         {
           static int first;
           if (!first)
@@ -293,7 +293,6 @@ public:
       return 0;
       case effClose:
         QuitInstance();
-        g_object_allocated=0;
         if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(-1);
         delete _this;
       return 0;
@@ -410,7 +409,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
   __attribute__ ((visibility ("default"))) AEffect *VSTPluginMain(audioMasterCallback hostcb)
 #endif
 {
-  if (g_object_allocated) return 0;
+  if (g_vst_object) return 0;
 
   g_hostcb=hostcb;
 
@@ -460,7 +459,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     if (!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
   }
 
-  g_object_allocated=GetCurrentThreadId();
+  g_main_thread=GetCurrentThreadId();
 
   if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
   VSTEffectClass *obj = new VSTEffectClass(hostcb);

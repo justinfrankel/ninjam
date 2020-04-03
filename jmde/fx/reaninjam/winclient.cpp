@@ -76,6 +76,9 @@ extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double
 extern int (*GetSetRepeatEx)(void* proj, int val);
 extern double (*GetCursorPositionEx)(void *proj);
 
+class VSTEffectClass;
+extern VSTEffectClass *g_vst_object;
+
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
 
@@ -1768,8 +1771,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     break;
     case WM_CLOSE:
       {
-        extern DWORD g_object_allocated;
-        if (g_object_allocated)
+        if (g_vst_object)
           ShowWindow(hwndDlg,SW_HIDE);
         else 
           DestroyWindow(hwndDlg);
