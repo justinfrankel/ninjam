@@ -124,9 +124,9 @@
 #define IDC_CONNECT                     1072
 #define IDC_FLASH                       1073
 #define IDC_AUTOPLAY                    1074
-#define IDC_AUTOHOME                    1075
+#define IDC_SYNCATLOOP                  1075
 #define IDC_SYNC                        1076
-#define IDC_MATCHLOOP                   1077
+#define IDC_MATCHBPM_SETLOOP            1077
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003

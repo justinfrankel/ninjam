@@ -1653,10 +1653,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           int hpos=0;
           int check=(s_want_sync ? MF_CHECKED : 0);
           int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
-          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|check|gray, IDC_AUTOHOME,
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|check|gray, IDC_SYNCATLOOP,
             "Start REAPER playback on next loop");
-          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_MATCHLOOP,
-            "Set project loop and tempo");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_MATCHBPM_SETLOOP,
+            "Set project tempo and loop at project start");
 
           RECT r;
           GetWindowRect(GetDlgItem(hwndDlg, IDC_SYNC), &r);
@@ -1664,21 +1664,21 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           DestroyMenu(hm);
         }
         break;
-        case IDC_AUTOHOME:
+        case IDC_SYNCATLOOP:
           if (last_bpm_i > 0 && last_interval_len > 0)
           {
             s_want_sync=!s_want_sync;
           }
         break;
-        case IDC_MATCHLOOP:
+        case IDC_MATCHBPM_SETLOOP:
           if (last_bpm_i > 0 && last_interval_len > 0 &&
             SetEditCurPos2 && SetCurrentBPM && GetSet_LoopTimeRange2 && GetSetRepeatEx)
           {
             void *__proj = get_parent_project();
-            double pos=0.0, len=(double)last_interval_len/(double)last_bpm_i*60.0;
-            SetEditCurPos2(__proj, pos, false, false);
+            double spos=0.0, epos=(double)last_interval_len/(double)last_bpm_i*60.0;
+            SetEditCurPos2(__proj, 0.0, false, false);
             SetCurrentBPM(__proj, (double)last_bpm_i, false);
-            GetSet_LoopTimeRange2(__proj, true, true, &pos, &len, false);
+            GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
             GetSetRepeatEx(__proj, 1);
           }
         break;
