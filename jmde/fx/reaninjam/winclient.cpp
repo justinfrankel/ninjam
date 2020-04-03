@@ -1681,7 +1681,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             void *__proj = get_parent_project();
             double spos=0.0, epos=(double)last_interval_len/(double)last_bpm_i*60.0;
             SetEditCurPos2(__proj, 0.0, false, false);
-            SetCurrentBPM(__proj, (double)last_bpm_i, false);
+            SetCurrentBPM(__proj, (double)last_bpm_i, true);
             GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
             GetSetRepeatEx(__proj, 1);
           }
@@ -1693,7 +1693,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             void *__proj=get_parent_project();
 #define ID_CLEAR_TEMPO_ENV 42395
             Main_OnCommandEx(ID_CLEAR_TEMPO_ENV, 0, __proj);
-            SetCurrentBPM(__proj, (double)last_bpm_i, false);
+            SetCurrentBPM(__proj, (double)last_bpm_i, true);
           }
         break;
         case IDC_SETLOOP:
