@@ -69,7 +69,7 @@ extern int (*GetWindowDPIScaling)(HWND hwnd);
 extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
 extern void *get_parent_project(void);
 extern int (*GetPlayStateEx)(void *proj);
-extern void (*OnPlayButtonEx)(void *proj);
+extern void (*OnPlayButtonForTime)(void *proj, double forTime);
 extern void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
 extern void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
@@ -1329,19 +1329,14 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               if (s_want_sync && !intp)
               {
                 if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() &&
-                  GetCursorPositionEx && SetEditCurPos2 && OnPlayButtonEx)
+                  GetCursorPositionEx && OnPlayButtonForTime)
                 {
                   void *__proj = get_parent_project();
-                  double opos=GetCursorPositionEx(__proj);
-                  double npos=opos;
+                  double npos=GetCursorPositionEx(__proj);
                   int srate=g_client->GetSampleRate();
                   if (srate > 0)
-                  {
                     npos += (double)pos/(double)srate;
-                    SetEditCurPos2(__proj, npos, false, false);
-                  }
-                  OnPlayButtonEx(__proj);
-                  if (opos != npos) SetEditCurPos2(__proj, opos, false, false);
+                  OnPlayButtonForTime(__proj,npos);
                 }
                 s_want_sync=false;
               }

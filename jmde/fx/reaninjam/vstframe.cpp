@@ -56,7 +56,7 @@ LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, in
 #endif
 INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
 int (*GetPlayStateEx)(void *proj);
-void (*OnPlayButtonEx)(void *proj);
+void (*OnPlayButtonForTime)(void *proj, double forTime);
 void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
 void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
 void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
@@ -438,7 +438,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     *(VstIntPtr *)&GetWindowDPIScaling = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetWindowDPIScaling",0.0);
     *(VstIntPtr *)&autoRepositionWindowOnMessage = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"autoRepositionWindowOnMessage",0.0);
     *(VstIntPtr *)&GetPlayStateEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetPlayStateEx",0.0);
-    *(VstIntPtr *)&OnPlayButtonEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"OnPlayButtonEx",0.0);
+    *(VstIntPtr *)&OnPlayButtonForTime = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"OnPlayButtonForTime",0.0);
     *(VstIntPtr *)&SetEditCurPos2 = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SetEditCurPos2",0.0);
     *(VstIntPtr *)&SetCurrentBPM = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SetCurrentBPM",0.0);
     *(VstIntPtr *)&GetSet_LoopTimeRange2 = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetSet_LoopTimeRange2",0.0);
