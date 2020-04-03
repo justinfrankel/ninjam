@@ -1331,14 +1331,16 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                   GetCursorPositionEx && SetEditCurPos2 && OnPlayButtonEx)
                 {
                   void *__proj = get_parent_project();
+                  double opos=GetCursorPositionEx(__proj);
+                  double npos=opos;
                   int srate=g_client->GetSampleRate();
                   if (srate > 0)
                   {
-                    double tpos=GetCursorPositionEx(__proj);
-                    tpos += (double)pos/(double)srate;
-                    SetEditCurPos2(__proj, tpos, false, false);
+                    npos += (double)pos/(double)srate;
+                    SetEditCurPos2(__proj, npos, false, false);
                   }
                   OnPlayButtonEx(__proj);
+                  if (opos != npos) SetEditCurPos2(__proj, opos, false, false);
                 }
                 s_want_sync=false;
               }
