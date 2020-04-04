@@ -743,6 +743,29 @@ void logText(const char *s, ...)
     va_end(ap);
 }
 
+static void appendGroupUsers(User_Group *group, WDL_FastString &str, int linelen)
+{
+  for (int x=0;x<group->m_users.GetSize();x++)
+  {
+    User_Connection *user = group->m_users.Get(x);
+    if (WDL_NORMALLY(user) && user->m_auth_state>0)
+    {
+      const char *n = user->m_username.Get();
+      int nlen = (int)strlen(n);
+      if (linelen && linelen + nlen + 1>100)
+      {
+        str.Append("\n    ");
+        linelen = 4;
+      }
+      else
+      {
+        str.Append(" ");
+        linelen += nlen+1;
+      }
+      str.Append(n);
+    }
+  }
+}
 const char *get_privatemode_stats()
 {
   if (!g_config_private_maxsz) return "";
@@ -806,29 +829,8 @@ const char *get_privatemode_stats()
     }
     if (lobby_cnt)
     {
-      int linelen = 13;
       str.Append("Lobby users: ");
-      for (x=0;x<m_group->m_users.GetSize();x++)
-      {
-        User_Connection *user = m_group->m_users.Get(x);
-        if (WDL_NORMALLY(user) && user->m_auth_state>0)
-        {
-          const char *n = user->m_username.Get();
-          int nlen = (int)strlen(n);
-          if (linelen && linelen + nlen + 1>100)
-          {
-            str.Append("\n    ");
-            linelen = 4;
-          }
-          else
-          {
-            str.Append(" ");
-            linelen += nlen+1;
-          }
-          str.Append(n);
-          lobby_cnt++;
-        }
-      }
+      appendGroupUsers(m_group,str,13);
       str.Append("\n");
     }
   }
