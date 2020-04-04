@@ -1369,22 +1369,21 @@ unknown_command:
     const char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
     if (msg->parms[1] && *msg->parms[1])
     {
-      if (!strncasecmp(msg->parms[1],"topic ",6))
+      if (!strncasecmp(msg->parms[1],"topic",5) && (msg->parms[1][5] == ' ' || msg->parms[1][5] == 0))
       {
-        if (!(con->m_auth_privs & PRIV_TOPIC))
+        const char *p=msg->parms[1]+5;
+        while (*p == ' ') p++;
+        if (*p)
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No TOPIC permission";
-          con->Send(newmsg.build());
-        }
-        else
-        {
-          // set topic, notify everybody of topic change
-          const char *p=msg->parms[1]+6;
-          while (*p == ' ') p++;
-          if (*p)
+          if (!(con->m_auth_privs & PRIV_TOPIC))
+          {
+            mpb_chat_message newmsg;
+            newmsg.parms[0]="MSG";
+            newmsg.parms[1]="";
+            newmsg.parms[2]="No TOPIC permission";
+            con->Send(newmsg.build());
+          }
+          else
           {
             m_topictext.Set(p);
             mpb_chat_message newmsg;
@@ -1394,7 +1393,14 @@ unknown_command:
             Broadcast(newmsg.build());
           }
         }
-
+        else
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="TOPIC";
+          newmsg.parms[1]="";
+          newmsg.parms[2]=m_topictext.Get();
+          con->Send(newmsg.build());
+        }
       }
       else if (!strncasecmp(msg->parms[1],"kick ",5))
       {
