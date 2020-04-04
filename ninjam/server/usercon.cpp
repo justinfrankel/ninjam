@@ -219,10 +219,9 @@ void User_Connection::SendConnectInfo(User_Group *group)
   }
 }
 
-const char *get_privatemode_stats(void);
-void User_Connection::SendPrivateModeStats()
+void User_Connection::SendPrivateModeStats(const char *req)
 {
-  const char *p = get_privatemode_stats();
+  const char *p = get_privatemode_stats(m_auth_privs,req);
   
   for (;;)
   {
@@ -295,7 +294,7 @@ int User_Connection::OnRunAuth(User_Group *group)
     if (group->m_is_lobby_mode)
     {
       WDL_FastString str(group->m_topictext.Get());
-      const char *p = get_privatemode_stats();
+      const char *p = get_privatemode_stats(0,"");
       int l = 0;
       while (p[l] && p[l] != '\n') l++;
       str.Append(": ");
@@ -413,7 +412,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   if (group->m_is_lobby_mode)
   {
-    SendPrivateModeStats();
+    SendPrivateModeStats("");
   }
 
   {
@@ -1117,7 +1116,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       bool allow_chat = (m_is_lobby_mode & LOBBY_ALLOW_CHAT) != 0;
       if (!strncasecmp(p,"!stat",5))
       {
-        con->SendPrivateModeStats();
+        con->SendPrivateModeStats("");
         return;
       }
       if (!strncasecmp(p,"!join",5))
@@ -1524,7 +1523,9 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       }
       else if (str_begins_tok(msg->parms[1],"stat"))
       {
-        con->SendPrivateModeStats();
+        const char *p = msg->parms[1] + 4;
+        while (*p == ' ') p++;
+        con->SendPrivateModeStats(p);
       }
       else if (str_begins_tok(msg->parms[1],"join"))
       {

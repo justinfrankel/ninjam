@@ -52,6 +52,7 @@
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 #define PRIV_HIDDEN 64   // hidden user, doesn't count for a slot, too
 #define PRIV_VOTE 128
+#define PRIV_SHOW_PRIVATE 256
 
 #define MAX_BPM 400
 #define MAX_BPI 64
@@ -208,7 +209,7 @@ class User_Connection
     void SendConnectInfo(User_Group *group);
     void SendAuthReply(User_Group *group); // sends "success"
 
-    void SendPrivateModeStats();
+    void SendPrivateModeStats(const char *req);
     void SendMOTDFile(User_Group *group);
 
     Net_Connection m_netcon;
@@ -245,5 +246,6 @@ class User_Connection
 };
 
 
+const char *get_privatemode_stats(int privs, const char *req);
 
 #endif//_USERCON_H_

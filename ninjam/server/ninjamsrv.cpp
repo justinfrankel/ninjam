@@ -454,6 +454,7 @@ static int ConfigOnToken(LineParser *lp, bool is_init)
         else if (*ptr == 'M' || *ptr == 'm') p->priv_flag |= PRIV_ALLOWMULTI;
         else if (*ptr == 'H' || *ptr == 'h') p->priv_flag |= PRIV_HIDDEN;       
         else if (*ptr == 'V' || *ptr == 'v') p->priv_flag |= PRIV_VOTE;               
+        else if (*ptr == 'P' || *ptr == 'p') p->priv_flag |= PRIV_SHOW_PRIVATE;
         else 
         {
           if (g_logfp)
@@ -759,14 +760,16 @@ static void appendGroupUsers(User_Group *group, WDL_FastString &str, int linelen
       }
       else
       {
-        str.Append(" ");
+        if (!linelen) str.Append("    ");
+        else str.Append(" ");
         linelen += nlen+1;
       }
       str.Append(n);
     }
   }
 }
-const char *get_privatemode_stats()
+
+const char *get_privatemode_stats(int privs, const char *req)
 {
   if (!g_config_private_maxsz) return "";
 
@@ -833,6 +836,24 @@ const char *get_privatemode_stats()
       appendGroupUsers(m_group,str,13);
       str.Append("\n");
     }
+  }
+  if ((privs & PRIV_SHOW_PRIVATE) && req && strstr(req,"full"))
+  {
+    static WDL_FastString str2;
+    str2 = str;
+    str2.Append("\nFull room list:\n");
+    for (int x=0;x<g_private_groups.GetSize();x++)
+    {
+      const char *nm=NULL;
+      User_Group *g = g_private_groups.Enumerate(x,&nm);
+      if (WDL_NORMALLY(g) && nm)
+      {
+        str2.AppendFormatted(256,"  %s - %d/%d users, %d BPI %d BPM:\n",nm,g->m_users.GetSize(),g->m_max_users,g->m_last_bpi,g->m_last_bpm);
+        appendGroupUsers(g,str2,0);
+        str2.Append("\n");
+      }
+    }
+    return str2.Get();
   }
   return str.Get();
 }
