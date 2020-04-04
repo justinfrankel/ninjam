@@ -1777,7 +1777,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                   }
                   else
                   {
-                    chat_addline("","error: unknown command.");
+                    g_client_mutex.Enter();
+                    g_client->ChatMessage_Send("CMD",str+1);
+                    g_client_mutex.Leave();
                   }
                 }
                 else
