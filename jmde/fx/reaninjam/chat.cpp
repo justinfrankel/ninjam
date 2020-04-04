@@ -141,6 +141,9 @@ void chat_addline(const char *src, const char *text)
   m_append_mutex.Leave();
 
 }
+#ifndef _WIN32
+  WDL_TypedQueue<char> g_chat_textappend;
+#endif
 
 void chatRun(HWND hwndDlg)
 {
@@ -233,7 +236,7 @@ void chatRun(HWND hwndDlg)
     SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nMax),0);
   }
 #else
-  static WDL_TypedQueue<char> bla;
+  WDL_TypedQueue<char> &bla = g_chat_textappend;
   int sz=bla.Available();
   char *p=bla.Add(tmp.Get(),strlen(tmp.Get())+1);
   if (sz) p[-1]='\n';

@@ -1720,7 +1720,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               while (*str == ' ') str++;
               if (!stricmp(str,"/clear"))
               {
-                    SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
+                SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
+#ifndef _WIN32
+                extern WDL_TypedQueue<char> g_chat_textappend;
+                g_chat_textappend.Clear();
+#endif
               }
               else if (g_client->GetStatus() == NJClient::NJC_STATUS_OK)
               {
