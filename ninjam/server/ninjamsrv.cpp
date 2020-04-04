@@ -799,7 +799,7 @@ const char *get_privatemode_stats()
           if (nm && g_config_private_publicprefix.GetLength() && 
               !strnicmp(nm,g_config_private_publicprefix.Get(),g_config_private_publicprefix.GetLength()))
           {
-            str.AppendFormatted(256,"  %s - %d user%s\n",nm,g->m_users.GetSize(),g->m_users.GetSize()==1?"":"s");
+            str.AppendFormatted(256,"  %s - %d/%d users, %d BPI %d BPM\n",nm,g->m_users.GetSize(),g->m_max_users,g->m_last_bpi,g->m_last_bpm);
           }
         }
       }
