@@ -960,6 +960,15 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
   return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
+static bool str_begins_tok(const char *str, const char *tok)
+{
+  size_t l = strlen(tok);
+  if (strncasecmp(str,tok,l)) return false;
+
+  return tok[l] == ' ' || tok[l] == 0;
+}
+
+
 static int g_lchan_sz;
 static int g_min_lchan_sz;
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1718,7 +1727,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             {
               char *str = buf;
               while (*str == ' ') str++;
-              if (!stricmp(str,"/clear"))
+              if (str_begins_tok(str,"/clear"))
               {
                 SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
 #ifndef _WIN32
@@ -1730,33 +1739,15 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
               {
                 if (str[0] == '/')
                 {
-                  if (!strncasecmp(str,"/me ",4))
+                  if (str_begins_tok(str,"/me"))
                   {
                     g_client_mutex.Enter();
                     g_client->ChatMessage_Send("MSG",str);
                     g_client_mutex.Leave();
                   }
-                  else if ((!strncasecmp(str,"/topic",6)  && (str[6] == ' '|| str[6]==0) )||
-                           !strncasecmp(str,"/kick ",6) ||                        
-                           !strncasecmp(str,"/bpm ",5) ||
-                           !strncasecmp(str,"/bpi ",5)
-                    ) // alias to /admin *
+                  else if (str_begins_tok(str,"/msg"))
                   {
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",str+1);
-                    g_client_mutex.Leave();
-                  }
-                  else if (!strncasecmp(str,"/admin ",7))
-                  {
-                    char *p=str+7;
-                    while (*p == ' ') p++;
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",p);
-                    g_client_mutex.Leave();
-                  }
-                  else if (!strncasecmp(str,"/msg ",5))
-                  {
-                    char *p=str+5;
+                    char *p=str+4;
                     while (*p == ' ') p++;
                     char *n=p;
                     while (*p && *p != ' ') p++;
@@ -1781,8 +1772,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                   }
                   else
                   {
+                    const char *p = str+1;
+                    if (str_begins_tok(p,"admin")) p += 5;
+                    while (*p == ' ') p++;
                     g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("CMD",str+1);
+                    g_client->ChatMessage_Send("ADMIN",p);
                     g_client_mutex.Leave();
                   }
                 }
