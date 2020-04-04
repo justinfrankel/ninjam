@@ -1712,10 +1712,12 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         case IDC_CHATOK:
           {
-            char str[256];
-            GetDlgItemText(hwndDlg,IDC_CHATENT,str,255);
-            if (str[0])
+            char buf[256];
+            GetDlgItemText(hwndDlg,IDC_CHATENT,buf,255);
+            if (buf[0])
             {
+              char *str = buf;
+              while (*str == ' ') str++;
               if (!stricmp(str,"/clear"))
               {
                     SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
@@ -1781,7 +1783,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                 else
                 {
                   g_client_mutex.Enter();
-                  g_client->ChatMessage_Send("MSG",str);
+                  g_client->ChatMessage_Send("MSG",buf);
                   g_client_mutex.Leave();
                 }
               }
