@@ -1732,7 +1732,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                     g_client->ChatMessage_Send("MSG",str);
                     g_client_mutex.Leave();
                   }
-                  else if (!strncasecmp(str,"/topic ",7)||
+                  else if ((!strncasecmp(str,"/topic",6)  && (str[6] == ' '|| str[6]==0) )||
                            !strncasecmp(str,"/kick ",6) ||                        
                            !strncasecmp(str,"/bpm ",5) ||
                            !strncasecmp(str,"/bpi ",5)
