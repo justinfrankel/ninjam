@@ -137,6 +137,7 @@ int g_config_max_users; // these all must be copied to User_Group
 int g_config_keepalive;
 WDL_FastString g_config_motdfile, g_config_private_lobby_motdfile;
 WDL_FastString g_config_default_topic;
+WDL_FastString g_config_private_publicprefix;
 int g_config_voting_threshold, g_config_voting_timeout;
 bool g_config_allow_hidden_users;
 
@@ -530,6 +531,11 @@ static int ConfigOnToken(LineParser *lp, bool is_init)
       if (g_config_private_maxsz < 1) return -2;
     }
   }
+  else if (!stricmp(t,"PrivateGroupPublicPrefix"))
+  {
+    if (lp->getnumtokens() != 2) return -1;
+    g_config_private_publicprefix.Set(lp->gettoken_str(1));
+  }
   else if (!stricmp(t,"PrivateGroupLobbySize"))
   {
     if (lp->getnumtokens() != 2) return -1;
@@ -756,11 +762,15 @@ const char *get_privatemode_stats()
     const int maxuserchk = 9;
     int total_cnt = 0;
     int sizes[maxuserchk+1]={0,};
+    int public_cnt = 0;
     for (x=0;x<g_private_groups.GetSize();x++)
     {
-      User_Group *g = g_private_groups.Enumerate(x,NULL);
+      const char *nm=NULL;
+      User_Group *g = g_private_groups.Enumerate(x,&nm);
       if (WDL_NORMALLY(g))
       {
+        if (nm && g_config_private_publicprefix.GetLength() && !strnicmp(nm,g_config_private_publicprefix.Get(),g_config_private_publicprefix.GetLength()))
+          public_cnt++;
         total_cnt += g->m_users.GetSize();
         int slot = g->m_users.GetSize();
         if (slot > maxuserchk) slot=maxuserchk;
@@ -776,6 +786,23 @@ const char *get_privatemode_stats()
         str.AppendFormatted(256,"%d room%s %d%s user%s\n",
                                 sizes[x], sizes[x]==1?" has":"s have", 
                                 x, x==maxuserchk?"+":"", x==1?"":"s");
+    }
+    if (public_cnt > 0)
+    {
+      str.AppendFormatted(256,"%d room%s public:\n",public_cnt,public_cnt == 1 ? " is" : "s are");
+      for (x=0;x<g_private_groups.GetSize();x++)
+      {
+        const char *nm=NULL;
+        User_Group *g = g_private_groups.Enumerate(x,&nm);
+        if (WDL_NORMALLY(g))
+        {
+          if (nm && g_config_private_publicprefix.GetLength() && 
+              !strnicmp(nm,g_config_private_publicprefix.Get(),g_config_private_publicprefix.GetLength()))
+          {
+            str.AppendFormatted(256,"  %s - %d user%s\n",nm,g->m_users.GetSize(),g->m_users.GetSize()==1?"":"s");
+          }
+        }
+      }
     }
     if (lobby_cnt)
     {
