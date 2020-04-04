@@ -867,6 +867,23 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
   return 0;
 }
 
+bool User_Connection::migrateToRoom(const char *p)
+{
+  while (*p == ' ') p++;
+  if (p[0] && p[0] != '!' && !strstr(p," "))
+  {
+    m_wants_group_migration.Set(p);
+    if (m_wants_group_migration.GetLength()>30) m_wants_group_migration.SetLen(30);
+    char *c = (char *)m_wants_group_migration.Get();
+    while (*c)
+    {
+      if (*c == '\'' || *c == '\t' || *c == '\r' || *c == '\n') *c='_';
+      c++;
+    }
+    return true;
+  }
+  return false;
+}
 
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), 
   m_voting_threshold(110), m_voting_timeout(120),
@@ -1067,15 +1084,24 @@ void User_Group::AddConnection(JNL_IConnection *con, int isres)
   m_users.Add(p);
 }
 
+static bool str_begins_tok(const char *str, const char *tok)
+{
+  size_t l = strlen(tok);
+  if (strncasecmp(str,tok,l)) return false;
+
+  return tok[l] == ' ' || tok[l] == 0;
+}
+
 void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 {
+  const char *errormsg = NULL;
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
     const char *p = msg->parms[1];
     if (!p) return;
     while (*p == ' ' || *p == '\t') p++;
 
-    if (!strcmp(p,"!topic"))
+    if (str_begins_tok(p,"!topic"))
     {
       mpb_chat_message newmsg;
       newmsg.parms[0]="TOPIC";
@@ -1101,28 +1127,23 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         allow_chat = false;
       }
       else if (*p == '!')
-        goto unknown_command;
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]="*";
+        newmsg.parms[2]="[lobby] available commands: !join, !stat, !topic";
+        con->Send(newmsg.build());
+        return;
+      }
 
       if (!allow_chat)
       {
-        if (p[0] && p[0] != '!' && !strstr(p," "))
+        if (!con->migrateToRoom(p))
         {
-          con->m_wants_group_migration.Set(p);
-          if (con->m_wants_group_migration.GetLength()>30) con->m_wants_group_migration.SetLen(30);
-          char *c = (char *)con->m_wants_group_migration.Get();
-          while (*c)
-          {
-            if (*c == '\'' || *c == '\t' || *c == '\r' || *c == '\n') *c='_';
-            c++;
-          }
-        }
-        else
-        {
-unknown_command:
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
           newmsg.parms[1]="*";
-          newmsg.parms[2]="[lobby] available commands: !join private_room_name, !stat, !topic";
+          newmsg.parms[2]="[lobby] usage: !join private_room_name";
           con->Send(newmsg.build());
         }
         return;
@@ -1271,11 +1292,7 @@ unknown_command:
 
     if (!(con->m_auth_privs & PRIV_CHATSEND))
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]="No MSG permission";
-      con->Send(newmsg.build());
+      errormsg = "No MSG permission";
     }
     else if (*p)
     {
@@ -1308,11 +1325,7 @@ unknown_command:
 
     if (!(con->m_auth_privs & PRIV_CHATSEND))
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]="No PRIVMSG permission";
-      con->Send(newmsg.build());
+      errormsg = "No PRIVMSG permission";
     }
     else if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
     {
@@ -1364,12 +1377,12 @@ unknown_command:
       con->Send(newmsg.build());
     }
   }
-  else if (!strcmp(msg->parms[0],"ADMIN")) // admin message
+  else if (!strcmp(msg->parms[0],"ADMIN")) // admin message (not purely admin but also /commands)
   {
-    const char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
+    const char *adminerr="Valid commands: /topic, /kick, /bpm, /bpi, /stat, /join";
     if (msg->parms[1] && *msg->parms[1])
     {
-      if (!strncasecmp(msg->parms[1],"topic",5) && (msg->parms[1][5] == ' ' || msg->parms[1][5] == 0))
+      if (str_begins_tok(msg->parms[1],"topic"))
       {
         const char *p=msg->parms[1]+5;
         while (*p == ' ') p++;
@@ -1377,11 +1390,7 @@ unknown_command:
         {
           if (!(con->m_auth_privs & PRIV_TOPIC))
           {
-            mpb_chat_message newmsg;
-            newmsg.parms[0]="MSG";
-            newmsg.parms[1]="";
-            newmsg.parms[2]="No TOPIC permission";
-            con->Send(newmsg.build());
+            errormsg = "No TOPIC permission";
           }
           else
           {
@@ -1402,20 +1411,16 @@ unknown_command:
           con->Send(newmsg.build());
         }
       }
-      else if (!strncasecmp(msg->parms[1],"kick ",5))
+      else if (str_begins_tok(msg->parms[1],"kick"))
       {
         if (!(con->m_auth_privs & PRIV_KICK))
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No KICK permission";
-          con->Send(newmsg.build());
+          errormsg = "No KICK permission";
         }
         else
         {
           // set topic, notify everybody of topic change
-          const char *p=msg->parms[1]+5;
+          const char *p=msg->parms[1]+4;
           while (*p == ' ') p++;
           if (*p)
           {
@@ -1459,26 +1464,20 @@ unknown_command:
               newmsg.parms[2]=tmp.Get();
               con->Send(newmsg.build());
             }
-
           }
         }
-
       }
-      else if (!strncasecmp(msg->parms[1],"bpm ",4) || !strncasecmp(msg->parms[1],"bpi ",4))
+      else if (str_begins_tok(msg->parms[1],"bpm") || str_begins_tok(msg->parms[1],"bpi"))
       {
         if (!(con->m_auth_privs & PRIV_BPM))
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No BPM/BPI permission";
-          con->Send(newmsg.build());
+          errormsg = "No BPM/BPI permission";
         }
         else
         {
           int isbpm=tolower(msg->parms[1][2])=='m';
 
-          const char *p=msg->parms[1]+4;
+          const char *p=msg->parms[1]+3;
           while (*p == ' ') p++;
           int v=atoi(p);
           if (isbpm && (v < 20 || v > 400))
@@ -1522,27 +1521,45 @@ unknown_command:
             Broadcast(newmsg.build());
           }
         }
-
+      }
+      else if (str_begins_tok(msg->parms[1],"stat"))
+      {
+        con->SendPrivateModeStats();
+      }
+      else if (str_begins_tok(msg->parms[1],"join"))
+      {
+        if (!m_is_lobby_mode)
+        {
+          errormsg = "Error: can't /join if not in lobby";
+        }
+        else
+        {
+          if (!con->migrateToRoom(msg->parms[1] + 4))
+          {
+            errormsg = "Usage: /join channel_name";
+          }
+        }
       }
       else
       {
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="MSG";
-        newmsg.parms[1]="";
-        newmsg.parms[2]=adminerr;
-        con->Send(newmsg.build());
+        errormsg = adminerr;
       }
     }
     else
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]=adminerr;
-      con->Send(newmsg.build());
+      errormsg = adminerr;
     }
   }
   else // unknown message
   {
+  }
+
+  if (errormsg)
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="MSG";
+    newmsg.parms[1]="";
+    newmsg.parms[2]=errormsg;
+    con->Send(newmsg.build());
   }
 }

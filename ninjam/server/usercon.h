@@ -240,6 +240,7 @@ class User_Connection
 
     IUserInfoLookup *m_lookup;
 
+    bool migrateToRoom(const char *p);
     WDL_FastString m_wants_group_migration; // set from lobby in private group mode
 };
 
