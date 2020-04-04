@@ -8,4 +8,4 @@ RUN mkdir -p /var/tmp/ninjam && tar -xzf /var/tmp/ninjam.tar.gz -C /var/tmp/ninj
 WORKDIR /usr/local/ninjam
 
 EXPOSE 2049
-CMD ["ninjamsrv", "config.cfg"]
+ENTRYPOINT ["ninjamsrv", "config.cfg"]
