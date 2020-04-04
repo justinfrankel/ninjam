@@ -108,8 +108,8 @@ BEGIN
     COMBOBOX        IDC_HOST,65,141,155,186,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
     EDITTEXT        IDC_USER,65,160,155,12,ES_AUTOHSCROLL
-    CONTROL         "Connect &anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,68,176,85,10
+    CONTROL         "Connect with p&assword",IDC_ANON,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,68,176,100,10
     EDITTEXT        IDC_PASS,65,189,155,12,ES_PASSWORD | ES_AUTOHSCROLL | 
                     NOT WS_VISIBLE
     CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",

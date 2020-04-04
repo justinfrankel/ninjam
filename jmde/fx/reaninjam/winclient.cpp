@@ -435,11 +435,11 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         }
         if (!g_connect_anon)
         {
+          CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
         }
-        else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
 
         HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
         {
@@ -506,7 +506,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
           m_getServerList_status = 0;
         break;
         case IDC_ANON:
-          if (IsDlgButtonChecked(hwndDlg,IDC_ANON))
+          if (!IsDlgButtonChecked(hwndDlg,IDC_ANON))
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_HIDE);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_HIDE);
@@ -523,7 +523,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         case IDOK:
           {
             g_connect_passremember=!!IsDlgButtonChecked(hwndDlg,IDC_PASSREMEMBER);
-            g_connect_anon=!!IsDlgButtonChecked(hwndDlg,IDC_ANON);
+            g_connect_anon=!IsDlgButtonChecked(hwndDlg,IDC_ANON);
             WritePrivateProfileString(CONFSEC,"anon",g_connect_anon?"1":"0",g_ini_file.Get());
             char buf[512];
             GetDlgItemText(hwndDlg,IDC_HOST,buf,sizeof(buf));
