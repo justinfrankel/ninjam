@@ -1009,6 +1009,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,(char*)"REAPER"};
             InsertMenuItem(menu,0,TRUE,&mi);           
           }
+          SetMenuItemModifier(menu,ID_FILE_CONNECT,MF_BYCOMMAND,'O',FCONTROL);
+          SetMenuItemModifier(menu,ID_FILE_DISCONNECT,MF_BYCOMMAND,'D',FCONTROL);
+          SetMenuItemModifier(menu,ID_OPTIONS_PREFERENCES,MF_BYCOMMAND,',',FCONTROL);
+          SetMenuItemText(menu,ID_SYNC_MENU_HDR, MF_BYCOMMAND, "This menu can be opened directly via Cmd+Y");
 #endif
         } 
       #endif
@@ -1919,6 +1923,20 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
       JNL::close_socketlib();
       g_hwnd=NULL;
+    return 0;
+    case WM_INITMENUPOPUP:
+      if (wParam)
+      {
+        HMENU menu = (HMENU)wParam;
+        int check=(s_want_sync ? MF_CHECKED : 0);
+        int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
+        CheckMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|check);
+        EnableMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_MATCHBPM_SETLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SETBPM, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SETLOOP, MF_BYCOMMAND|gray);
+      }
     return 0;
   }
   return 0;

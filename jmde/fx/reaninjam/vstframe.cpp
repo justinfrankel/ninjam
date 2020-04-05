@@ -81,6 +81,39 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
   extern HWND g_hwnd;
   if (g_hwnd && (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_CHAR) && msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
   {
+
+    if (msg->message != WM_CHAR)
+    {
+      const bool isalt = (GetAsyncKeyState(VK_MENU)&0x8000)!=0,
+                 isshift = (GetAsyncKeyState(VK_SHIFT)&0x8000)!=0,
+                 isctrl = (GetAsyncKeyState(VK_CONTROL)&0x8000)!=0;
+      if (isctrl && !isalt && !isshift)
+      {
+        switch (msg->wParam)
+        {
+          case 'Y':
+            if (msg->message == WM_KEYDOWN) SendMessage(g_hwnd,WM_COMMAND,IDC_SYNC,0);
+          return 1;
+          case 'T':
+            if (msg->message == WM_KEYDOWN) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
+          return 1;
+          case 'O':
+            if (msg->message == WM_KEYDOWN) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_CONNECT,0);
+          return 1;
+          case 'D':
+            if (msg->message == WM_KEYDOWN) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_DISCONNECT,0);
+          return 1;
+#ifdef __APPLE__
+          case ',':
+#else
+          case 'P':
+#endif
+            if (msg->message == WM_KEYDOWN) SendMessage(g_hwnd,WM_COMMAND,ID_OPTIONS_PREFERENCES,0);
+          return 1;
+        }
+      }
+    }
+
     HWND list = GetDlgItem(g_hwnd,IDC_CHATDISP);
     HWND e = GetDlgItem(g_hwnd,IDC_CHATENT);
     if (e)

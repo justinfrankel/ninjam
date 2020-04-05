@@ -377,10 +377,21 @@ IDR_MENU1 MENU DISCARDABLE
 BEGIN
     POPUP "&File"
     BEGIN
-        MENUITEM "&Connect...",                 ID_FILE_CONNECT
-        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
+        MENUITEM "&Connect...\tCtrl+O",                 ID_FILE_CONNECT
+        MENUITEM "&Disconnect\tCtrl+D",                 ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
-        MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
+        MENUITEM "&Preferences...\tCtrl+P",             ID_OPTIONS_PREFERENCES
+        MENUITEM SEPARATOR
+        POPUP "Sync"
+        BEGIN
+            MENUITEM "This menu can be opened directly via Ctrl+Y", ID_SYNC_MENU_HDR, GRAYED
+            MENUITEM SEPARATOR
+            MENUITEM "Start REAPER playback on next loop", IDC_SYNCATLOOP
+            MENUITEM SEPARATOR
+            MENUITEM "Set project tempo and loop at project start", IDC_MATCHBPM_SETLOOP
+            MENUITEM "Set project tempo", IDC_SETBPM
+            MENUITEM "Set loop at edit cursor", IDC_SETLOOP
+      END
     END
 END
 
