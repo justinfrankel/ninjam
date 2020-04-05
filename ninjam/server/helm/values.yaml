@@ -4,7 +4,7 @@
 
 image:
   repository: zeppelinux/ninjam-server
-  tag: v0.080
+  tag: v0.081
   pullPolicy: IfNotPresent
 
 service:
