@@ -470,12 +470,12 @@ static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 }
 
 
+HWND g_remote_channel_wnd;
 
 WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
   static int m_h, m_maxpos_h, m_w,m_maxpos_w; 
-  static HWND m_child;
   switch (uMsg)
   {
 
@@ -500,16 +500,16 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
         if (uMsg == WM_INITDIALOG)
         {
           InitializeCoolSB(hwndDlg);
-          m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,RemoteChannelListProc);
-          ShowWindow(m_child,SW_SHOWNA);
+          g_remote_channel_wnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_EMPTY),hwndDlg,RemoteChannelListProc);
+          ShowWindow(g_remote_channel_wnd,SW_SHOWNA);
           ShowWindow(hwndDlg,SW_SHOWNA);
         }
       }
 
       {
-        SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
+        SendMessage(g_remote_channel_wnd,WM_RCUSER_UPDATE,0,0);
         RECT r;
-        GetWindowRect(m_child,&r);
+        GetWindowRect(g_remote_channel_wnd,&r);
         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         m_h=r.bottom-r.top;
         m_w=r.right-r.left;
@@ -561,7 +561,7 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       // update scrollbars and shit
     return 0;
     case WM_LCUSER_VUUPDATE:
-      SendMessage(m_child,uMsg,wParam,lParam);
+      SendMessage(g_remote_channel_wnd,uMsg,wParam,lParam);
     break;
     case WM_VSCROLL:
       {
@@ -654,7 +654,7 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_DESTROY:
       UninitializeCoolSB(hwndDlg);
-      m_child=NULL;
+      g_remote_channel_wnd=NULL;
     break;
 
   }
