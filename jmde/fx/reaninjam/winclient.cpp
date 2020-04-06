@@ -1020,6 +1020,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           SetMenuItemModifier(menu,ID_FILE_DISCONNECT,MF_BYCOMMAND,'D',FCONTROL);
           SetMenuItemModifier(menu,ID_OPTIONS_PREFERENCES,MF_BYCOMMAND,',',FCONTROL);
 
+          SetMenuItemModifier(menu,IDC_MASTERMUTE,MF_BYCOMMAND,'M',FSHIFT|FCONTROL);
+          SetMenuItemModifier(menu,IDC_METROMUTE,MF_BYCOMMAND,'M',FCONTROL);
+
           SetMenuItemModifier(menu,IDC_MUTE,MF_BYCOMMAND,'M',FALT);
           SetMenuItemModifier(menu,IDC_SOLO,MF_BYCOMMAND,'S',FALT);
           SetMenuItemModifier(menu,IDC_REMOVE,MF_BYCOMMAND,'D',FSHIFT|FCONTROL);

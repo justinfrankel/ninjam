@@ -142,11 +142,17 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
             if (isDown)
               SendMessage(g_hwnd,WM_COMMAND,IDC_ADDCH,0);
           return 1;
+          case 'M':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_MASTERMUTE,0);
+          return 1;
         }
       break;
       case FCONTROL:
         switch (msg->wParam)
         {
+          case 'M':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_METROMUTE,0);
+          return 1;
           case 'O':
             if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_CONNECT,0);
           return 1;

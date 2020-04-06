@@ -384,8 +384,8 @@ BEGIN
     END
     POPUP "&Channels"
     BEGIN
-        MENUITEM "Mute master", IDC_MASTERMUTE
-        MENUITEM "Mute metronome", IDC_METROMUTE
+        MENUITEM "Mute master\tCtrl+Shift+M", IDC_MASTERMUTE
+        MENUITEM "Mute metronome\tCtrl+M", IDC_METROMUTE
         MENUITEM SEPARATOR
         MENUITEM "Mute selected channel\tAlt+M", IDC_MUTE
         MENUITEM "Solo selected channel\tAlt+S", IDC_SOLO
