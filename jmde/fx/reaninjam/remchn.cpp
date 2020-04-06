@@ -662,3 +662,81 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
 }
 
 
+extern HWND g_local_channel_wnd;
+// returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
+int getChannelFromHWND(HWND h, HWND *hwndP)
+{
+  if (hwndP) *hwndP = NULL;
+  if (!h) return 0;
+
+  if (g_local_channel_wnd && IsChild(g_local_channel_wnd,h))
+  {
+    for (;;)
+    {
+      HWND h2 = GetParent(h);
+      if (!h2) return 0;
+      if (h2 == g_local_channel_wnd) break;
+      h = h2;
+    }
+    HWND hc = GetWindow(g_local_channel_wnd,GW_CHILD);
+    int cnt;
+    for (cnt = 0; cnt < 256 && hc != h; cnt ++)
+      hc = GetWindow(hc,GW_HWNDNEXT);
+    if (hc == h)
+    {
+      if (hwndP) *hwndP = h;
+      return cnt;
+    }
+  }
+  else if (g_remote_channel_wnd && IsChild(g_remote_channel_wnd,h))
+  {
+    for (;;)
+    {
+      HWND h2 = GetParent(h);
+      if (!h2) return 0;
+      if (h2 == g_remote_channel_wnd) break;
+      h = h2;
+    }
+    int idx = (int)GetWindowLongPtr(h,GWLP_USERDATA);
+    if (idx == 0x0fffffff) return 0;
+
+    if (hwndP) *hwndP = h;
+
+    if (idx<0)
+      return (-idx)<<8;
+
+    return (((idx>>16)+1)<<8) | ((idx&0xff)+1);
+  }
+  return 0;
+}
+
+HWND getHWNDFromChannel(int chan) // see above
+{
+  if (chan >= 1 && chan <= 0xff)
+  {
+    if (!g_local_channel_wnd) return NULL;
+    HWND hc = GetWindow(g_local_channel_wnd,GW_CHILD);
+    while (chan-- > 0 && hc) hc = GetWindow(hc,GW_HWNDNEXT);
+    return hc;
+  }
+  else if ((chan&0xff00)>=0x100)
+  {
+    if (!g_remote_channel_wnd) return NULL;
+    int scan_id;
+    if (!(chan&0xff)) scan_id = -((chan>>8)&0xff);
+    else scan_id = (((chan>>8)-1)<<16) | ((chan-1)&0xff);
+
+    int maxc=1000;
+    HWND h = GetWindow(g_remote_channel_wnd,GW_CHILD);
+    while (h && maxc--)
+    {
+      if (GetWindowLongPtr(h,GWLP_USERDATA) == scan_id) 
+      {
+        return h;
+      }
+
+      h = GetWindow(h,GW_HWNDNEXT);
+    }
+  }
+  return NULL;
+}

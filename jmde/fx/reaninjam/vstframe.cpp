@@ -76,10 +76,17 @@ int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPo
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 int (*plugin_register)(const char *name, void *infostruct);
 
+int getChannelFromHWND(HWND h, HWND *hwndP=NULL); // returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
+HWND getHWNDFromChannel(int chan); // see above
+
 int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 {
   extern HWND g_hwnd;
-  if (g_hwnd && (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_CHAR) && msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
+  if (g_hwnd && (
+        msg->message == WM_KEYDOWN || msg->message == WM_KEYUP ||
+        msg->message == WM_SYSKEYDOWN || msg->message == WM_SYSKEYUP ||
+        msg->message == WM_CHAR) &&
+      msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
   {
 
     if (msg->message != WM_CHAR)
@@ -87,12 +94,89 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
       const int flags = ((GetAsyncKeyState(VK_MENU)&0x8000) ? FALT : 0) |
                         ((GetAsyncKeyState(VK_SHIFT)&0x8000) ? FSHIFT : 0) |
                         ((GetAsyncKeyState(VK_CONTROL)&0x8000) ? FCONTROL : 0);
-      const bool isDown = msg->message == WM_KEYDOWN;
+      const bool isDown = msg->message == WM_KEYDOWN || msg->message == WM_SYSKEYDOWN;
       if (msg->wParam >= VK_F1 && msg->wParam <= VK_F10)
       {
+        int idx = msg->wParam - VK_F1;
+        switch (flags)
+        {
+          case 0:
+            if (isDown)
+            {
+              HWND h = getHWNDFromChannel(idx+1);
+              if (h) SetFocus(GetDlgItem(h,IDC_NAME));
+            }
+          return 1;
+          case FSHIFT:
+            if (isDown)
+            {
+              HWND h = getHWNDFromChannel((idx+1) << 8);
+              if (h)
+              {
+#ifdef __APPLE__
+                SetFocus(h);
+#else
+                SetFocus(GetDlgItem(h,IDC_USERNAME));
+#endif
+              }
+            }
+          return 1;
+          case FCONTROL|FSHIFT:
+            if (isDown)
+            {
+              int v = getChannelFromHWND(msg->hwnd) & 0xff00;
+              if (v)
+              {
+                HWND h = getHWNDFromChannel(v | (idx+1));
+                if (h)
+                {
+#ifdef __APPLE__
+                  SetFocus(h);
+#else
+                  SetFocus(GetDlgItem(h,IDC_CHANNELNAME));
+#endif
+                }
+              }
+            }
+          return 1;
+        }
+      }
+      else if (flags == FALT)
+      {
+        switch (msg->wParam)
+        {
+          case 'S':
+          case 'M':
+            if (isDown)
+            {
+              HWND hwndp=NULL;
+              if (getChannelFromHWND(msg->hwnd, &hwndp) && hwndp)
+                SendMessage(hwndp,WM_COMMAND,msg->wParam == 'S' ? IDC_SOLO : IDC_MUTE,0);
+            }
+          return 1;
+        }
       }
       else if (flags == (FCONTROL|FSHIFT))
       {
+        switch (msg->wParam)
+        {
+          case 'D':
+            if (isDown)
+            {
+              HWND hwndp=NULL;
+              int idx=getChannelFromHWND(msg->hwnd,&hwndp);
+              if (idx>0 && idx<256 && hwndp)
+                SendMessage(hwndp,WM_COMMAND,IDC_REMOVE,0);
+            }
+          return 1;
+          case 'N':
+            if (isDown)
+            {
+              extern HWND g_local_channel_wnd;
+              SendMessage(g_local_channel_wnd,WM_COMMAND,IDC_ADDCH,0);
+            }
+          return 1;
+        }
       }
       else if (flags == FCONTROL)
       {

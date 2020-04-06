@@ -463,6 +463,8 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 
           SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
           SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,uMsg == WM_COMMAND);
+          if (uMsg == WM_COMMAND)
+            SetFocus(GetDlgItem(hwnd,IDC_NAME));
         }
       }
     break;
