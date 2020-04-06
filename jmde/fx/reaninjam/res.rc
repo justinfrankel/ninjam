@@ -382,6 +382,57 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Preferences...\tCtrl+P",             ID_OPTIONS_PREFERENCES
     END
+    POPUP "&Channels"
+    BEGIN
+        MENUITEM "Mute master", IDC_MASTERMUTE
+        MENUITEM "Mute metronome", IDC_METROMUTE
+        MENUITEM SEPARATOR
+        MENUITEM "Mute selected channel\tAlt+M", IDC_MUTE
+        MENUITEM "Solo selected channel\tAlt+S", IDC_SOLO
+        MENUITEM SEPARATOR
+        MENUITEM "Add local channel\tCtrl+Shift+N", IDC_ADDCH
+        MENUITEM "Delete selected local channel\tCtrl+Shift+D", IDC_REMOVE
+        MENUITEM SEPARATOR
+        POPUP "Select local channel"
+        BEGIN
+          MENUITEM "Channel 1\tF1", ID_LOCAL_CHANNEL_1
+          MENUITEM "Channel 2\tF2", ID_LOCAL_CHANNEL_2
+          MENUITEM "Channel 3\tF3", ID_LOCAL_CHANNEL_3
+          MENUITEM "Channel 4\tF4", ID_LOCAL_CHANNEL_4
+          MENUITEM "Channel 5\tF5", ID_LOCAL_CHANNEL_5
+          MENUITEM "Channel 6\tF6", ID_LOCAL_CHANNEL_6
+          MENUITEM "Channel 7\tF7", ID_LOCAL_CHANNEL_7
+          MENUITEM "Channel 8\tF8", ID_LOCAL_CHANNEL_8
+          MENUITEM "Channel 9\tF9", ID_LOCAL_CHANNEL_9
+          MENUITEM "Channel 10\tF10", ID_LOCAL_CHANNEL_10
+        END
+        POPUP "Select remote user"
+        BEGIN
+          MENUITEM "User 1\tShift+F1", ID_REMOTE_USER_1
+          MENUITEM "User 2\tShift+F2", ID_REMOTE_USER_2
+          MENUITEM "User 3\tShift+F3", ID_REMOTE_USER_3
+          MENUITEM "User 4\tShift+F4", ID_REMOTE_USER_4
+          MENUITEM "User 5\tShift+F5", ID_REMOTE_USER_5
+          MENUITEM "User 6\tShift+F6", ID_REMOTE_USER_6
+          MENUITEM "User 7\tShift+F7", ID_REMOTE_USER_7
+          MENUITEM "User 8\tShift+F8", ID_REMOTE_USER_8
+          MENUITEM "User 9\tShift+F9", ID_REMOTE_USER_9
+          MENUITEM "User 10\tShift+F10", ID_REMOTE_USER_10
+        END
+        POPUP "Select remote-user channel"
+        BEGIN
+          MENUITEM "Channel 1\tCtrl+Shift+F1", ID_REMOTE_USER_CHANNEL_1
+          MENUITEM "Channel 2\tCtrl+Shift+F2", ID_REMOTE_USER_CHANNEL_2
+          MENUITEM "Channel 3\tCtrl+Shift+F3", ID_REMOTE_USER_CHANNEL_3
+          MENUITEM "Channel 4\tCtrl+Shift+F4", ID_REMOTE_USER_CHANNEL_4
+          MENUITEM "Channel 5\tCtrl+Shift+F5", ID_REMOTE_USER_CHANNEL_5
+          MENUITEM "Channel 6\tCtrl+Shift+F6", ID_REMOTE_USER_CHANNEL_6
+          MENUITEM "Channel 7\tCtrl+Shift+F7", ID_REMOTE_USER_CHANNEL_7
+          MENUITEM "Channel 8\tCtrl+Shift+F8", ID_REMOTE_USER_CHANNEL_8
+          MENUITEM "Channel 9\tCtrl+Shift+F9", ID_REMOTE_USER_CHANNEL_9
+          MENUITEM "Channel 10\tCtrl+Shift+F10", ID_REMOTE_USER_CHANNEL_10
+        END
+    END
     POPUP "S&ync"
     BEGIN
         MENUITEM "Start REAPER playback on next loop", IDC_SYNCATLOOP

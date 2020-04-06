@@ -76,9 +76,6 @@ int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPo
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 int (*plugin_register)(const char *name, void *infostruct);
 
-int getChannelFromHWND(HWND h, HWND *hwndP=NULL); // returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
-HWND getHWNDFromChannel(int chan); // see above
-
 int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 {
   extern HWND g_hwnd;
@@ -102,42 +99,15 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
         {
           case 0:
             if (isDown)
-            {
-              HWND h = getHWNDFromChannel(idx+1);
-              if (h) SetFocus(GetDlgItem(h,IDC_NAME));
-            }
+              SendMessage(g_hwnd,WM_COMMAND,ID_LOCAL_CHANNEL_1+idx,0);
           return 1;
           case FSHIFT:
             if (isDown)
-            {
-              HWND h = getHWNDFromChannel((idx+1) << 8);
-              if (h)
-              {
-#ifdef __APPLE__
-                SetFocus(h);
-#else
-                SetFocus(GetDlgItem(h,IDC_USERNAME));
-#endif
-              }
-            }
+              SendMessage(g_hwnd,WM_COMMAND,ID_REMOTE_USER_1+idx,0);
           return 1;
           case FCONTROL|FSHIFT:
             if (isDown)
-            {
-              int v = getChannelFromHWND(msg->hwnd) & 0xff00;
-              if (v)
-              {
-                HWND h = getHWNDFromChannel(v | (idx+1));
-                if (h)
-                {
-#ifdef __APPLE__
-                  SetFocus(h);
-#else
-                  SetFocus(GetDlgItem(h,IDC_CHANNELNAME));
-#endif
-                }
-              }
-            }
+              SendMessage(g_hwnd,WM_COMMAND,ID_REMOTE_USER_CHANNEL_1+idx,0);
           return 1;
         }
       }
@@ -153,11 +123,7 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
           case 'S':
           case 'M':
             if (isDown)
-            {
-              HWND hwndp=NULL;
-              if (getChannelFromHWND(msg->hwnd, &hwndp) && hwndp)
-                SendMessage(hwndp,WM_COMMAND,msg->wParam == 'S' ? IDC_SOLO : IDC_MUTE,0);
-            }
+              SendMessage(g_hwnd,WM_COMMAND,msg->wParam == 'S' ? IDC_SOLO : IDC_MUTE,0);
           return 1;
           case 'T':
             if (isDown) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
@@ -170,19 +136,11 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
         {
           case 'D':
             if (isDown)
-            {
-              HWND hwndp=NULL;
-              int idx=getChannelFromHWND(msg->hwnd,&hwndp);
-              if (idx>0 && idx<256 && hwndp)
-                SendMessage(hwndp,WM_COMMAND,IDC_REMOVE,0);
-            }
+              SendMessage(g_hwnd,WM_COMMAND,IDC_REMOVE,0);
           return 1;
           case 'N':
             if (isDown)
-            {
-              extern HWND g_local_channel_wnd;
-              SendMessage(g_local_channel_wnd,WM_COMMAND,IDC_ADDCH,0);
-            }
+              SendMessage(g_hwnd,WM_COMMAND,IDC_ADDCH,0);
           return 1;
         }
       }

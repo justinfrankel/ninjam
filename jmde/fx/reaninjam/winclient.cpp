@@ -968,6 +968,11 @@ static bool str_begins_tok(const char *str, const char *tok)
   return tok[l] == ' ' || tok[l] == 0;
 }
 
+int getChannelFromHWND(HWND h, HWND *hwndP=NULL); // returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
+HWND getHWNDFromChannel(int chan); // see above
+
+
+#define MAX_CHANNELS_MENU 10 // we only show 10 channels in the menus
 
 static int g_lchan_sz;
 static int g_min_lchan_sz;
@@ -1014,6 +1019,17 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           SetMenuItemModifier(menu,ID_FILE_CONNECT,MF_BYCOMMAND,'O',FCONTROL);
           SetMenuItemModifier(menu,ID_FILE_DISCONNECT,MF_BYCOMMAND,'D',FCONTROL);
           SetMenuItemModifier(menu,ID_OPTIONS_PREFERENCES,MF_BYCOMMAND,',',FCONTROL);
+
+          SetMenuItemModifier(menu,IDC_MUTE,MF_BYCOMMAND,'M',FALT);
+          SetMenuItemModifier(menu,IDC_SOLO,MF_BYCOMMAND,'S',FALT);
+          SetMenuItemModifier(menu,IDC_REMOVE,MF_BYCOMMAND,'D',FSHIFT|FCONTROL);
+          SetMenuItemModifier(menu,IDC_ADDCH,MF_BYCOMMAND,'N',FSHIFT|FCONTROL);
+          for (int x=0;x<MAX_CHANNELS_MENU;x++)
+          {
+            SetMenuItemModifier(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND,VK_F1 + x,0);
+            SetMenuItemModifier(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND,VK_F1 + x,FSHIFT);
+            SetMenuItemModifier(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND,VK_F1 + x,FSHIFT|FCONTROL);
+          }
 #endif
         } 
       #endif
@@ -1801,6 +1817,70 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             SetFocus(GetDlgItem(hwndDlg,IDC_CHATENT));
           }
         break;
+        case IDC_MUTE:
+        case IDC_SOLO:
+          {
+            HWND foc = GetFocus(), hwndp=NULL;
+            if (foc && getChannelFromHWND(foc, &hwndp) && hwndp)
+              SendMessage(hwndp,WM_COMMAND,LOWORD(wParam),0);
+          }
+        break;
+        case IDC_REMOVE:
+          {
+            HWND foc = GetFocus(), hwndp=NULL;
+            if (foc)
+            {
+              int idx=getChannelFromHWND(foc,&hwndp);
+              if (idx>0 && idx<256 && hwndp)
+                SendMessage(hwndp,WM_COMMAND,LOWORD(wParam),0);
+            }
+          }
+        break;
+        case IDC_ADDCH:
+          {
+            extern HWND g_local_channel_wnd;
+            SendMessage(g_local_channel_wnd,WM_COMMAND,IDC_ADDCH,0);
+          }
+        break;
+        default:
+          if (LOWORD(wParam)>=ID_LOCAL_CHANNEL_1 && LOWORD(wParam) <= ID_LOCAL_CHANNEL_50)
+          {
+            HWND h = getHWNDFromChannel(LOWORD(wParam) - ID_LOCAL_CHANNEL_1 + 1);
+            if (h) SetFocus(GetDlgItem(h,IDC_NAME));
+          }
+          else if (LOWORD(wParam)>=ID_REMOTE_USER_1 && LOWORD(wParam) <= ID_REMOTE_USER_50)
+          {
+            HWND h = getHWNDFromChannel((LOWORD(wParam) - ID_REMOTE_USER_1 +1) << 8);
+            if (h)
+            {
+#ifdef __APPLE__
+              SetFocus(h);
+#else
+              SetFocus(GetDlgItem(h,IDC_USERNAME));
+#endif
+            }
+          }
+          else if (LOWORD(wParam) >= ID_REMOTE_USER_CHANNEL_1 && LOWORD(wParam) <= ID_REMOTE_USER_CHANNEL_50)
+          {
+            HWND foc = GetFocus();
+            if (foc)
+            {
+              int v = getChannelFromHWND(foc) & 0xff00;
+              if (v)
+              {
+                HWND h = getHWNDFromChannel(v | (LOWORD(wParam) - ID_REMOTE_USER_CHANNEL_1 +1));
+                if (h)
+                {
+#ifdef __APPLE__
+                  SetFocus(h);
+#else
+                  SetFocus(GetDlgItem(h,IDC_CHANNELNAME));
+#endif
+                }
+              }
+            }
+          }
+        break;
       }
     break;
     case WM_CLOSE:
@@ -1937,6 +2017,22 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         EnableMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|gray);
         EnableMenuItem(menu, IDC_SETBPM, MF_BYCOMMAND|gray);
         EnableMenuItem(menu, IDC_SETLOOP, MF_BYCOMMAND|gray);
+
+        CheckMenuItem(menu,IDC_MASTERMUTE,MF_BYCOMMAND|(g_client && g_client->config_mastermute?MF_CHECKED:0));
+        CheckMenuItem(menu,IDC_METROMUTE,MF_BYCOMMAND|(g_client && g_client->config_metronome_mute?MF_CHECKED:0));
+
+        int f = getChannelFromHWND(GetFocus());
+
+        EnableMenuItem(menu, IDC_MUTE, MF_BYCOMMAND|(f ? 0 : MF_GRAYED));
+        EnableMenuItem(menu, IDC_SOLO, MF_BYCOMMAND|((f&0xff) ? 0 : MF_GRAYED));
+        EnableMenuItem(menu, IDC_REMOVE, MF_BYCOMMAND|(f && !(f&0xff00) ? 0 : MF_GRAYED));
+
+        for (int x=0;x<MAX_CHANNELS_MENU;x++)
+        {
+          CheckMenuItem(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND|(f == 1+x));
+          CheckMenuItem(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND|(((f>>8)&0xff) == 1+x));
+          CheckMenuItem(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND|((f&0xff00) && (f&0xff) == 1+x));
+        }
       }
     return 0;
   }
