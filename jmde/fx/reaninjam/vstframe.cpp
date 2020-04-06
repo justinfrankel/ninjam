@@ -111,8 +111,9 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
           return 1;
         }
       }
-      else if (flags == FALT)
+      else switch (flags)
       {
+      case FALT:
         switch (msg->wParam)
         {
 #ifdef __APPLE__
@@ -129,9 +130,8 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
             if (isDown) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
           return 1;
         }
-      }
-      else if (flags == (FCONTROL|FSHIFT))
-      {
+      break;
+      case FCONTROL|FSHIFT:
         switch (msg->wParam)
         {
           case 'D':
@@ -143,9 +143,8 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
               SendMessage(g_hwnd,WM_COMMAND,IDC_ADDCH,0);
           return 1;
         }
-      }
-      else if (flags == FCONTROL)
-      {
+      break;
+      case FCONTROL:
         switch (msg->wParam)
         {
           case 'O':
@@ -162,6 +161,7 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
             if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_OPTIONS_PREFERENCES,0);
           return 1;
         }
+      break;
       }
     }
 
