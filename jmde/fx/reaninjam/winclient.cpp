@@ -2029,9 +2029,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
         for (int x=0;x<MAX_CHANNELS_MENU;x++)
         {
-          CheckMenuItem(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND|(f == 1+x));
-          CheckMenuItem(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND|(((f>>8)&0xff) == 1+x));
-          CheckMenuItem(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND|((f&0xff00) && (f&0xff) == 1+x));
+          CheckMenuItem(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND|((f == 1+x)?MF_CHECKED:0));
+          CheckMenuItem(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND|((((f>>8)&0xff) == 1+x)?MF_CHECKED:0));
+          CheckMenuItem(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND|(((f&0xff00) && (f&0xff) == 1+x)?MF_CHECKED:0));
         }
       }
     return 0;
