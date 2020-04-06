@@ -128,7 +128,6 @@
 #define IDC_SYNC                        1076
 #define IDC_MATCHBPM_SETLOOP            1077
 #define IDC_SETLOOP                     1078
-#define ID_SYNC_MENU_HDR                1079
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003

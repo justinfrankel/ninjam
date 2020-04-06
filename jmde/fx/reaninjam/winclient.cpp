@@ -1001,6 +1001,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           HMENU menu=LoadMenu(g_hInst,MAKEINTRESOURCE(IDR_MENU1));
           SetMenu(hwndDlg,menu);
 #ifdef __APPLE__
+          SetDlgItemText(hwndDlg,IDC_CHATLBL,"Chat (Opt+T to focus):");
+
           HMENU normalFirst=GetMenu(GetMainHwnd());
           if (normalFirst) normalFirst=GetSubMenu(normalFirst,0);
           HMENU nm=SWELL_DuplicateMenu(normalFirst);
@@ -1012,7 +1014,6 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           SetMenuItemModifier(menu,ID_FILE_CONNECT,MF_BYCOMMAND,'O',FCONTROL);
           SetMenuItemModifier(menu,ID_FILE_DISCONNECT,MF_BYCOMMAND,'D',FCONTROL);
           SetMenuItemModifier(menu,ID_OPTIONS_PREFERENCES,MF_BYCOMMAND,',',FCONTROL);
-          SetMenuItemText(menu,ID_SYNC_MENU_HDR, MF_BYCOMMAND, "This menu can be opened directly via Cmd+Y");
 #endif
         } 
       #endif

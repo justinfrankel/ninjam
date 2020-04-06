@@ -145,6 +145,11 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
       {
         switch (msg->wParam)
         {
+#ifdef __APPLE__
+          case 'Y':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_SYNC,0);
+          return 1;
+#endif
           case 'S':
           case 'M':
             if (isDown)
@@ -153,6 +158,9 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
               if (getChannelFromHWND(msg->hwnd, &hwndp) && hwndp)
                 SendMessage(hwndp,WM_COMMAND,msg->wParam == 'S' ? IDC_SOLO : IDC_MUTE,0);
             }
+          return 1;
+          case 'T':
+            if (isDown) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
           return 1;
         }
       }
@@ -182,12 +190,6 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
       {
         switch (msg->wParam)
         {
-          case 'Y':
-            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_SYNC,0);
-          return 1;
-          case 'T':
-            if (isDown) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
-          return 1;
           case 'O':
             if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_CONNECT,0);
           return 1;

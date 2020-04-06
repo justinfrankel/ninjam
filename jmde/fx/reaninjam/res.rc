@@ -90,7 +90,7 @@ BEGIN
     CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,329,2,147,12
     LTEXT           "Local Channels:",IDC_LOCGRP,2,37,52,8
     LTEXT           "Remote Channels:",IDC_REMGRP,225,37,59,8
-    LTEXT           "Chat:",IDC_CHATLBL,2,100,18,8
+    LTEXT           "Cha&t:",IDC_CHATLBL,2,100,88,8
     CONTROL         "mastermute",IDC_MASTERMUTE,"HotTrackButton",0x4b,315,2,
                     12,11
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
@@ -381,17 +381,14 @@ BEGIN
         MENUITEM "&Disconnect\tCtrl+D",                 ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "&Preferences...\tCtrl+P",             ID_OPTIONS_PREFERENCES
+    END
+    POPUP "S&ync"
+    BEGIN
+        MENUITEM "Start REAPER playback on next loop", IDC_SYNCATLOOP
         MENUITEM SEPARATOR
-        POPUP "Sync"
-        BEGIN
-            MENUITEM "This menu can be opened directly via Ctrl+Y", ID_SYNC_MENU_HDR, GRAYED
-            MENUITEM SEPARATOR
-            MENUITEM "Start REAPER playback on next loop", IDC_SYNCATLOOP
-            MENUITEM SEPARATOR
-            MENUITEM "Set project tempo and loop at project start", IDC_MATCHBPM_SETLOOP
-            MENUITEM "Set project tempo", IDC_SETBPM
-            MENUITEM "Set loop at edit cursor", IDC_SETLOOP
-      END
+        MENUITEM "Set project tempo and loop at project start", IDC_MATCHBPM_SETLOOP
+        MENUITEM "Set project tempo", IDC_SETBPM
+        MENUITEM "Set loop at edit cursor", IDC_SETLOOP
     END
 END
 
