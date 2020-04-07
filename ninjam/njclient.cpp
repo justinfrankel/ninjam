@@ -144,7 +144,8 @@ class DecodeState
 {
   public:
     DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), 
-                                           decode_samplesout(0), resample_state(0.0)
+                                           decode_samplesout(0), resample_state(0.0),
+                                           is_voice_firstchk(false)
     { 
       memset(guid,0,sizeof(guid));
     }
@@ -166,6 +167,8 @@ class DecodeState
     I_NJDecoder *decode_codec;
     int decode_samplesout;
     double resample_state;
+
+    bool is_voice_firstchk;
 
     void applyOverlap(overlapFadeState *s)
     {
@@ -457,7 +460,7 @@ public:
 #define MIN_ENC_BLOCKSIZE 2048
 #define MAX_ENC_BLOCKSIZE (8192+1024)
 #define DEFAULT_CONFIG_PREBUFFER  8192
-#define LIVE_PREBUFFER 1024
+#define LIVE_PREBUFFER 128
 #define LIVE_ENC_BLOCKSIZE1 2048
 #define LIVE_ENC_BLOCKSIZE2 64
 
@@ -1685,6 +1688,8 @@ DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned
       {
         if (newstate->runDecode()) break;
       }
+      if (chanflags & 2)
+        newstate->is_voice_firstchk=true;
     }
   }
 
@@ -2199,7 +2204,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
   }
 
-  int mdump=llmode?2048:0;
+  const int mdump=0;
 
   if (userchan->dump_samples>mdump)
   {
@@ -2214,6 +2219,24 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   while (chan->decode_codec->Available() <= (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state))*srcnch)
   {
     bool done = chan->runDecode(256);
+    if (chan->decode_codec->Available() > 0 && chan->is_voice_firstchk)
+    {
+      chan->is_voice_firstchk=false;
+      while (!chan->runDecode(256))
+      {
+      }
+      const int nch = chan->decode_codec->GetNumChannels();
+      if (WDL_NORMALLY(nch > 0))
+      {
+        const int srate = chan->decode_codec->GetSampleRate();
+        const int avail = (chan->decode_codec->Available()-userchan->dump_samples)/nch;
+        const int skip = avail - (srate*3/4 + needed);
+        if (skip > 512)
+        {
+          userchan->dump_samples += nch * skip;
+        }
+      }
+    }
 
     if (userchan->dump_samples>mdump)
     {
@@ -2247,18 +2270,16 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
 
   int len_out=len;
-  if ((llmode||sessionmode) && codecavail <= needed*srcnch)
+  if (llmode ? (codecavail < needed*srcnch) : sessionmode ? (codecavail <= needed*srcnch) : false)
   {
     if (codecavail>0)
     {
+      // this is probably not really right, need to do some testing
       int oneeded=needed;
       needed=codecavail/srcnch;  
       len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
       if (len_out<0)len_out=0;
       else if (len_out>len)len_out=len;    
-
-      if (llmode)
-        userchan->dump_samples+=oneeded-needed;
     }
     else
     {
