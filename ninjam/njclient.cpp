@@ -1234,7 +1234,7 @@ int NJClient::Run() // nonzero if sleep ok
                 else if (!(theuser->channels[dib.chidx].flags&4))
                 {
 //                  OutputDebugString("added free-guid to channel\n");
-                  DecodeState *tmp=start_decode(dib.guid);
+                  DecodeState *tmp=start_decode(dib.guid, theuser->channels[dib.chidx].flags, 0, NULL);
                   m_users_cs.Enter();
                   int useidx=!!theuser->channels[dib.chidx].next_ds[0];
                   DecodeState *t2=theuser->channels[dib.chidx].next_ds[useidx];
@@ -1637,7 +1637,7 @@ int NJClient::Run() // nonzero if sleep ok
 }
 
 
-DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, DecodeMediaBuffer *decbuf)
+DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf)
 {
   DecodeState *newstate=new DecodeState;  
   if (decbuf) 
@@ -2139,7 +2139,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       double mediasr=m_srate;
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate) && userchan->curds_lenleft > 16.0/srate)
       {
-        userchan->ds=start_decode(guid);
+        userchan->ds=start_decode(guid, userchan->flags, 0, NULL);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
           userchan->ds->applyOverlap(&fade_state);
@@ -3108,7 +3108,7 @@ void RemoteDownload::startPlaying(int force)
 
       if (!(theuser->channels[chidx].flags&4)) // only "play" if not a session channel
       {
-        DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
+        DecodeState *tmp=m_parent->start_decode(guid,theuser->channels[chidx].flags,m_fourcc,m_decbuf);
 
 //        OutputDebugString(tmp?"started new decde\n":"tried to start new decode\n");
 

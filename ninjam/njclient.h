@@ -247,7 +247,7 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
-  DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0, DecodeMediaBuffer *decbuf=NULL);
+  DecodeState *start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf);
 
   BufferQueue *m_wavebq;
 
