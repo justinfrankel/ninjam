@@ -176,22 +176,7 @@ class DecodeState
         nch = decode_codec->GetNumChannels();
         if (nch && decode_codec->Available() >= s->fade_sz * nch) break;
 
-        if (decode_fp)
-        {
-          int l=fread(decode_codec->DecodeGetSrcBuffer(1024),1,1024,decode_fp);
-          decode_codec->DecodeWrote(l);
-          if (!l) 
-          {
-            clearerr(decode_fp);
-            break;
-          }
-        }
-        else if (decode_buf)
-        {
-          int l=decode_buf->Read(decode_codec->DecodeGetSrcBuffer(1024),1024);
-          decode_codec->DecodeWrote(l);
-          if (!l) break;
-        }
+        if (runDecode()) break;
       }
       if (!nch) return;
       const int avail = decode_codec->Available()/nch;
@@ -239,6 +224,28 @@ class DecodeState
           }
         }
       }
+    }
+    bool runDecode(int sz=1024) // return true if eof
+    {
+      if (!decode_fp && !decode_buf) return true;
+
+      int l;
+      void *srcbuf = decode_codec->DecodeGetSrcBuffer(sz);
+      if (!srcbuf) return true;
+
+      if (decode_fp)
+      {
+        l=fread(srcbuf,1,sz,decode_fp);
+        if (!l) clearerr(decode_fp);
+      }
+      else
+      {
+        l=decode_buf->Read(srcbuf,sz);
+      }
+
+      decode_codec->DecodeWrote(l);
+
+      return !l;
     }
 };
 
@@ -1672,25 +1679,12 @@ DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned
     newstate->decode_codec= CreateNJDecoder();
     // run some decoding
 
-    if (newstate->decode_codec) while (newstate->decode_codec->Available() <= 0)
+    if (newstate->decode_codec)
     {
-      if (newstate->decode_fp)
+      while (newstate->decode_codec->Available() <= 0)
       {
-        int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(1024),1,1024,newstate->decode_fp);          
-        newstate->decode_codec->DecodeWrote(l);
-        if (!l) 
-        {
-          clearerr(newstate->decode_fp);
-          break;
-        }
+        if (newstate->runDecode()) break;
       }
-      else if (newstate->decode_buf)
-      {
-        int l=newstate->decode_buf->Read(newstate->decode_codec->DecodeGetSrcBuffer(1024),1024);
-        newstate->decode_codec->DecodeWrote(l);
-        if (!l) break;
-      }
-      else break;
     }
   }
 
@@ -2219,19 +2213,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int srcnch=chan->decode_codec->GetNumChannels();
   while (chan->decode_codec->Available() <= (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state))*srcnch)
   {
-    int l=0;
-    
-    if (chan->decode_fp)
-    {
-      l=fread(chan->decode_codec->DecodeGetSrcBuffer(256),1,256,chan->decode_fp);          
-    }
-    else if (chan->decode_buf)
-    {
-      l=chan->decode_buf->Read(chan->decode_codec->DecodeGetSrcBuffer(256),256);          
-    }
-    else break;
-
-    chan->decode_codec->DecodeWrote(l);
+    bool done = chan->runDecode(256);
 
     if (userchan->dump_samples>mdump)
     {
@@ -2241,11 +2223,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       userchan->dump_samples-=av;
     }
 
-    if (!l) 
-    {
-      if (chan->decode_fp) clearerr(chan->decode_fp);
-      break;
-    }
+    if (done) break;
   }
 
 
