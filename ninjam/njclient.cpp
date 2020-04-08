@@ -84,6 +84,7 @@
 
 
 #define SESSION_CHUNK_SIZE 2.0
+#define LL_CHUNK_SIZE 2.0
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
@@ -1766,7 +1767,18 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
     if (!justmonitor)
     {
-      if (lc->flags&4)
+      if (lc->flags&2)
+      {
+        if (lc->bcast_active != lc->broadcasting ||
+              (lc->bcast_active && lc->m_curwritefile_curbuflen >= LL_CHUNK_SIZE * srate)
+           )
+        {
+          if (lc->bcast_active) lc->m_bq.AddBlock(0,0.0,NULL,0);
+          lc->bcast_active = lc->broadcasting;
+          lc->m_curwritefile_curbuflen=0.0;
+        }
+      }
+      else if (lc->flags&4)
       {
         if (isSeek|| // if seeked, too long, playing and not broadcasting, or not playing and broadcasting
             lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE*(double)srate || 
@@ -2440,7 +2452,7 @@ void NJClient::on_new_interval()
     Local_Channel *lc=m_locchannels.Get(u);
     if (lc->channel_idx >= m_max_localch) continue;
 
-    if (!(lc->flags&4)) 
+    if (!(lc->flags&(4|2)))  // session mode and voice chat modes use their own (fixed) intervals
     {
       if (lc->bcast_active) 
       {
