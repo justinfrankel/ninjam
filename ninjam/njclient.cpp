@@ -145,7 +145,7 @@ class DecodeState
 {
   public:
     DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), 
-                                           decode_samplesout(0), resample_state(0.0),
+                                           resample_state(0.0),
                                            is_voice_firstchk(false)
     { 
       memset(guid,0,sizeof(guid));
@@ -166,7 +166,6 @@ class DecodeState
     FILE *decode_fp;
     DecodeMediaBuffer *decode_buf;
     I_NJDecoder *decode_codec;
-    int decode_samplesout;
     double resample_state;
 
     bool is_voice_firstchk;
@@ -2356,7 +2355,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
     // advance the queue
-    chan->decode_samplesout += needed;
     chan->decode_codec->Skip(needed*srcnch);
   }
   else if (needed>0)
@@ -2364,7 +2362,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (!llmode&&!sessionmode)
     {
       userchan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
-      chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
       chan->decode_codec->Skip(chan->decode_codec->Available());
     }
   }
