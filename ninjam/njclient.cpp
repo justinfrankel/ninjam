@@ -2275,7 +2275,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     if (codecavail>0)
     {
       // this is probably not really right, need to do some testing
-      int oneeded=needed;
       needed=codecavail/srcnch;  
       len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
       if (len_out<0)len_out=0;
