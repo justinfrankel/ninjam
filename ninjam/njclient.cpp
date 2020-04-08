@@ -2176,9 +2176,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       }
       else
       {
-    //    char buf[512];
-  //      sprintf(buf,"at %f failed (%.10f)\n",playPos,userchan->curds_lenleft);
-//        OutputDebugString(buf);
       }
 
       userchan->curds_lenleft *= mediasr;
@@ -2188,19 +2185,10 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
   DecodeState *chan=userchan->ds;
-/*  if (llmode && userchan->next_ds[0])
-  {
-    delete userchan->ds;
-    chan = userchan->ds = userchan->next_ds[0];
-    userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
-    userchan->next_ds[1]=0;
-  }
-  */
   if (!chan || !chan->decode_codec || (!chan->decode_fp && !chan->decode_buf)) 
   {
     if (llmode && userchan->next_ds[0])
     {
-//      OutputDebugString("advanced to next_ds (666)\n");
       if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
@@ -2265,13 +2253,8 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int codecavail=chan->decode_codec->Available();
   if (sessionmode) 
   {
-    //double sr=chan->decode_codec->GetSampleRate();
     int a= (int)(userchan->curds_lenleft+0.5);
     if (a<1) a=1;
-
-
-    
-    
 
     a*=srcnch;
     if (codecavail >= a) 
@@ -2300,12 +2283,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if (sessionmode)
   {
     userchan->curds_lenleft -= needed;
-    if (userchan->curds_lenleft<=0)
-    {
-    //  char buf[512];
-  //    sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
-//      OutputDebugString(buf);
-    }
   }
 
   if (codecavail>0 && codecavail >= needed*srcnch)
@@ -2384,37 +2361,19 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
   else if (needed>0)
   {
-
-/*
-    if (config_debug_level>0)
-    {
-      static int cnt=0;
-
-      char s[512];
-      guidtostr(chan->guid,s);
-
-      //char buf[512];
-      //sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
-//      OutputDebugString(buf);
-    }
-*/
-
     if (!llmode&&!sessionmode)
     {
       userchan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
       chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
       chan->decode_codec->Skip(chan->decode_codec->Available());
     }
-    else
-    {
-    }
-
   }
 
-  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionmode)))
+  if ((llmode||sessionmode) && 
+      len_out < len && 
+      (userchan->next_ds[0]||(sessionmode&&len_out>0)))
   {
     // call again 
-//    OutputDebugString("advanced to next_ds (200)\n");
     userchan->curds_lenleft=-10000.0;
     if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
     delete userchan->ds;
@@ -2426,16 +2385,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
         isPlaying,false,playPos + len_out/(double)srate);
   }
-  else if (llmode && len_out < len)
-  {
-/*    OutputDebugString("llmode, didnt output enough\n");
-    char buf[512];
-    sprintf(buf,"userchan->next_ds[0]=%08x (%d)\n",userchan->next_ds[0],
-      chan && chan->decode_codec ? chan->decode_codec->Available() : -1);
-    OutputDebugString(buf);
-    */
-  }
-
 }
 
 void NJClient::on_new_interval()
