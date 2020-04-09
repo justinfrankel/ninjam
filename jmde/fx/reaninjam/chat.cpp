@@ -147,7 +147,7 @@ void chat_addline(const char *src, const char *text)
 
 void chatRun(HWND hwndDlg)
 {
-  WDL_String tmp;
+  static WDL_FastString tmp;
   m_append_mutex.Enter();
   tmp.Set(m_append_text.Get());
   m_append_text.Set("");
@@ -156,102 +156,97 @@ void chatRun(HWND hwndDlg)
   if (!tmp.Get()[0]) return;
   
   HWND m_hwnd=GetDlgItem(hwndDlg,IDC_CHATDISP);
+  const bool is_foc = GetFocus() == m_hwnd;
 #ifdef _WIN32
   SCROLLINFO si={sizeof(si),SIF_RANGE|SIF_POS|SIF_TRACKPOS,};
-  GetScrollInfo(m_hwnd,SB_VERT,&si);
+  if (is_foc) GetScrollInfo(m_hwnd,SB_VERT,&si);
+#endif
 
+  int oldsel_s=0,oldsel_e=0;
+  SendMessage(m_hwnd,EM_GETSEL,(WPARAM)&oldsel_s,(LPARAM)&oldsel_e);
+
+#ifdef _WIN32
+  // always feed in CRLF pairs to the richedit control to make sel positioning predictable (ugh)
   {
-    int oldsels,oldsele;
-    SendMessage(m_hwnd,EM_GETSEL,(WPARAM)&oldsels,(LPARAM)&oldsele);
-	  char txt[32768];
-	  if(strlen(tmp.Get())>sizeof(txt)-1) return;
-
-	  GetWindowText(m_hwnd,txt,sizeof(txt)-1);
-	  txt[sizeof(txt)-1]=0;
-
-	  while(strlen(txt)+strlen(tmp.Get())+4>sizeof(txt))
-	  {
-		  char *p=txt;
-		  while(*p!=0 && *p!='\n') p++;
-		  if(*p==0) return;
-		  while (*p=='\n') p++;
-		  strcpy(txt,p);
-      oldsels -= p-txt;
-      oldsele -= p-txt;
-	  }
-    if (oldsels < 0) oldsels=0;
-    if (oldsele < 0) oldsele=0;
-
-	  if(txt[0]) lstrcatn(txt,"\n",sizeof(txt));
-	  lstrcatn(txt,tmp.Get(),sizeof(txt));
-
-    CHARFORMAT2 cf2;
-    cf2.cbSize=sizeof(cf2);
-    cf2.dwMask=CFM_LINK;
-    cf2.dwEffects=0;
-    SendMessage(m_hwnd,EM_SETCHARFORMAT,SCF_ALL,(LPARAM)&cf2);
-	  SetWindowText(m_hwnd,txt);
-
-    GetWindowText(m_hwnd,txt,sizeof(txt)-1);
-    txt[sizeof(txt)-1]=0;
-
-    char *t=txt;
-    char lt=' ';
-    int sub=0;
-    while (*t)
+    for (int x=0;x<tmp.GetLength();x++)
     {
-      if (lt == ' ' || lt == '\n' || lt == '\r')
-      {
-        int isurl=0;
-        if (!strnicmp(t,"http:",5)) isurl=5;
-        else if (!strnicmp(t,"ftp:",4)) isurl=4;
-        else if (!strnicmp(t,"www.",4)) isurl=4;
-
-        if (isurl && t[isurl] != ' ' && t[isurl] != '\n' && t[isurl] != '\r' && t[isurl])
-        {
-          int spos=t-txt-sub;
-          t+=isurl;
-          while (*t && *t != ' ' && *t != '\n' && *t != '\r') { t++; }
-          SendMessage(m_hwnd,EM_SETSEL,spos,(t-txt)-sub);
-          CHARFORMAT2 cf2;
-          cf2.cbSize=sizeof(cf2);
-          cf2.dwMask=CFM_LINK;
-          cf2.dwEffects=CFE_LINK;
-          SendMessage(m_hwnd,EM_SETCHARFORMAT,SCF_SELECTION,(LPARAM)&cf2);
-        }
-      }
-      if (*t == '\n') sub++;
-      if (*t) lt=*t++;
+      if (tmp.Get()[x] == '\n' && (!x || tmp.Get()[x-1] != '\r'))
+        tmp.Insert("\r",x++);
     }
-    SendMessage(m_hwnd,EM_SETSEL,oldsels,oldsele);
+  }
+#endif
+
+  const int maxlen = 30000;
+  if (tmp.GetLength() > maxlen - 100) tmp.SetLen(maxlen - 100);
+#ifdef _WIN32
+  int textl = GetWindowTextLengthW(m_hwnd);
+#else
+  int textl = GetWindowTextLength(m_hwnd);
+#endif
+  const int dropb = textl + tmp.GetLength() + 2 - maxlen;
+  if (dropb > 0)
+  {
+#ifdef _WIN32
+    WCHAR txt[maxlen + 1024];
+    GetWindowTextW(m_hwnd,txt,sizeof(txt) / sizeof(WCHAR));
+#else
+    char txt[maxlen + 1024];
+    GetWindowText(m_hwnd,txt,sizeof(txt));
+#endif
+    int x, cr=0;
+    for (x = 0; x < dropb && txt[x]; x ++)
+    {
+#ifdef _WIN32
+      if (txt[x] == '\r') cr++;
+#endif
+    }
+    for (; txt[x] && txt[x] != '\r' && txt[x] != '\n'; x++);
+    for (; txt[x] == '\r' || txt[x] == '\n'; x++)
+    {
+#ifdef _WIN32
+      if (txt[x] == '\r') cr++; 
+#endif
+    }
+
+    textl -= x;
+    x -= cr;
+    // remove x from start
+    if (oldsel_s >= x && oldsel_e >= x)
+    {
+      oldsel_s -= x;
+      oldsel_e -= x;
+    }
+    else
+    {
+      oldsel_s = oldsel_e = -1; // hmm not sure if this is best but oh well
+    }
+
+    SendMessage(m_hwnd,EM_SETSEL,0, x);
+    SendMessage(m_hwnd,EM_REPLACESEL,0, (LPARAM)"");
   }
 
-  if (GetFocus() == m_hwnd)      
+  if (textl) 
   {
-    SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nTrackPos),0);
+#ifdef _WIN32
+    tmp.Insert("\r\n",0);
+#else
+    tmp.Insert("\n",0);
+#endif
   }
-  else
+
+  SendMessage(m_hwnd,EM_SETSEL,textl, textl);
+  SendMessage(m_hwnd,EM_REPLACESEL,0, (LPARAM)tmp.Get());
+
+  SendMessage(m_hwnd,EM_SETSEL,oldsel_s,oldsel_e);
+
+#ifdef _WIN32
+  if (!is_foc)
   {
     GetScrollInfo(m_hwnd,SB_VERT,&si);
-    SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nMax),0);
+    si.nTrackPos = si.nMax;
   }
+  SendMessage(m_hwnd, WM_VSCROLL, MAKEWPARAM(SB_THUMBPOSITION,si.nTrackPos),0);
 #else
-  WDL_TypedQueue<char> &bla = g_chat_textappend;
-  int sz=bla.Available();
-  char *p=bla.Add(tmp.Get(),strlen(tmp.Get())+1);
-  if (sz) p[-1]='\n';
-  
-  sz=bla.Available();
-  if (sz> 4096) 
-  {
-    bla.Advance(sz-4096);  
-    while (bla.Available() > 0 && bla.Get()[0] != '\n') bla.Advance(1);
-    bla.Advance(1);
-    bla.Compact();
-  }
-  if (bla.Available() > 0)
-    SetWindowText(m_hwnd,bla.Get());
-  else SetWindowText(m_hwnd,"");
-  SendMessage(m_hwnd,EM_SCROLL,SB_BOTTOM,0);
+  if (!is_foc) SendMessage(m_hwnd,EM_SCROLL,SB_BOTTOM,0);
 #endif
 }
