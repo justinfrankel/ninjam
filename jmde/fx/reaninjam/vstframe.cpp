@@ -175,17 +175,7 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
     HWND e = GetDlgItem(g_hwnd,IDC_CHATENT);
     if (e)
     {
-      bool didHit=false;
       if (msg->hwnd == e || IsChild(e,msg->hwnd))  
-      {
-        didHit=true;
-      }
-      else if (list && (msg->hwnd == list || IsChild(list,msg->hwnd)))
-      {
-        msg->hwnd = e;
-        didHit=true;
-      }
-      if (didHit)
       {
 #ifdef _WIN32
         if (msg->message == WM_CHAR && msg->wParam == VK_RETURN) 
@@ -196,8 +186,45 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
           SendMessage(g_hwnd,WM_COMMAND,IDC_CHATOK,0);
           return 1;
         }
-
-        return -1;
+      }
+      else if (list && (msg->hwnd == list || IsChild(list,msg->hwnd)))
+      {
+#ifndef __APPLE__
+        // this appears to be unsafe on macOS (could get it to throw exceptions bleh)
+        if (msg->message != WM_CHAR) switch (msg->wParam)
+        {
+          case VK_CONTROL:
+          case VK_SHIFT:
+          case VK_UP:
+          case VK_DOWN:
+          case VK_LEFT:
+          case VK_RIGHT:
+          case VK_NEXT:
+          case VK_PRIOR:
+          case VK_TAB:
+            // allow ctrl/shift/nav keys to go to control, everything else causes focus change to edit
+          return -1;
+        }
+        if (!(GetAsyncKeyState(VK_CONTROL)&0x8000))
+        {
+          SetFocus(e);
+#ifdef _WIN32
+          msg->hwnd = e;
+#else
+          if (msg->message == WM_KEYDOWN && msg->wParam == VK_RETURN)
+          {
+            SendMessage(g_hwnd,WM_COMMAND,IDC_CHATOK,0);
+          }
+          else
+          {
+            // linux at least needs this (otherwise it selects existing text and then overwrites it)
+            SendMessage(e,EM_SETSEL,-1,0);
+            SendMessage(e,msg->message,msg->wParam,msg->lParam);
+          }
+          return 1;
+#endif
+        }
+#endif
       }
     }
     return -1;
