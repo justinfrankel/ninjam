@@ -32,6 +32,7 @@
 #endif
 #include "winclient.h"
 #include "../../../WDL/wdlcstring.h"
+#include "../../../WDL/wdlutf8.h"
 
 #include "resource.h"
 
@@ -210,6 +211,11 @@ void chatRun(HWND hwndDlg)
 
     textl -= x;
     x -= cr;
+
+#ifndef _WIN32
+    // selection range is in characters rather than bytes
+    x = WDL_utf8_bytepos_to_charpos(txt,x);
+#endif
     // remove x from start
     if (oldsel_s >= x && oldsel_e >= x)
     {
