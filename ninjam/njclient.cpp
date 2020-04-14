@@ -625,6 +625,8 @@ NJClient::NJClient()
   m_issoloactive=0;
   m_netcon=0;
 
+  m_metro_chidx = 0;
+
   _reinit();
 
   m_session_pos_ms=m_session_pos_samples=0;
@@ -1975,15 +1977,20 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     double sc=6000.0/(double)srate;
     int x;
     int um=config_metronome>0.0001f;
+
+    int chidx = m_metro_chidx&0xff;
+
     double vol1=config_metronome_mute?0.0:config_metronome,vol2=vol1;
-    float *ptr1=outbuf[0]+offset;
-    float *ptr2=NULL;
-    if (outnch > 1)
+    float *ptr1=chidx < outnch ? outbuf[chidx] : NULL,
+          *ptr2=chidx < outnch-1 && !(m_metro_chidx&1024) ? outbuf[chidx+1] : NULL;
+
+    if (ptr1 && ptr2)
     {
-        ptr2=outbuf[1]+offset;
-        if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
-        else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
+      if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
+      else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
     }
+    if (ptr1) ptr1+=offset;
+    if (ptr2) ptr2+=offset;
     for (x = 0; x < len; x ++)
     {
       if (m_metronome_pos <= 0.0)
@@ -2002,7 +2009,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (!m_metronome_tmp) val = sin((double)m_metronome_state*sc*2.0) * 0.25;
           else val = sin((double)m_metronome_state*sc);
 
-          ptr1[x]+=(float)(val*vol1);
+          if (ptr1) ptr1[x]+=(float)(val*vol1);
           if (ptr2) ptr2[x]+=(float)(val*vol2);
         }
         if (++m_metronome_state >= metrolen) m_metronome_state=0;
