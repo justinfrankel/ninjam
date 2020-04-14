@@ -214,6 +214,7 @@ protected:
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isPlaying, bool isSeek, double cursessionpos);
   void on_new_interval();
+  void writeUserChanLog(const char *lbl, RemoteUser *user, RemoteUser_Channel *chan, int chanidx);
 
   void writeLog(const char *fmt, ...);
 
@@ -253,7 +254,8 @@ protected:
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
-  void mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
+  void mixInChannel(RemoteUser *user, int chanidx,
+                    bool muted, float vol, float pan, float **outbuf, int out_channel, 
                     int len, int srate, int outnch, int offs, double vudecay, bool isPlaying, bool isSeek, double playPos);
 
   WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;

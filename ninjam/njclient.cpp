@@ -1457,7 +1457,7 @@ int NJClient::Run() // nonzero if sleep ok
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
-            if (!(lc->flags&4)) writeLog("local %s %d\n",guidstr,lc->channel_idx);
+            if (!(lc->flags&4)) writeLog("local %s %d%s\n",guidstr,lc->channel_idx,(lc->flags&2)?"v":"");
             if (config_savelocalaudio>0) 
             {
               lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE,false);
@@ -1905,7 +1905,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
           else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
-          mixInChannel(&user->channels[ch],muteflag,
+          mixInChannel(user,ch,muteflag,
             user->volume*user->channels[ch].volume,lpan,
               outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
         }
@@ -2110,11 +2110,12 @@ static void mixFloatsNIOutput(float *src, int src_srate, int src_nch,  // length
 
 
 
-void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
+void NJClient::mixInChannel(RemoteUser *user, int chanidx,
+                            bool muted, float vol, float pan, float **outbuf, int out_channel, 
                             int len, int srate, int outnch, int offs, double vudecay,
                             bool isPlaying, bool isSeek, double playPos)
 {
-  if (!userchan) return;
+  RemoteUser_Channel * const userchan = &user->channels[chanidx];
   userchan->decode_peak_vol[0]*=vudecay;
   userchan->decode_peak_vol[1]*=vudecay;
 
@@ -2194,7 +2195,11 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
       userchan->next_ds[1]=0;
 
-      if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
+      if (userchan->ds)
+      {
+        userchan->ds->applyOverlap(&fade_state);
+        writeUserChanLog("v",user,userchan,chanidx);
+      }
     }
     if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
     {
@@ -2377,11 +2382,31 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
     userchan->next_ds[1]=0;
-    if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
+    if (userchan->ds)
+    {
+      userchan->ds->applyOverlap(&fade_state);
+      if (llmode)
+        writeUserChanLog("v",user,userchan,chanidx);
+    }
     if (sessionmode || (chan && chan->decode_codec && (chan->decode_fp||chan->decode_buf))) 
-      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
+      mixInChannel(user,chanidx,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
         isPlaying,false,playPos + len_out/(double)srate);
   }
+}
+
+void NJClient::writeUserChanLog(const char *lbl, RemoteUser *user, RemoteUser_Channel *chan, int ch)
+{
+  char guidstr[64];
+  if (!chan || !chan->ds) return;
+
+  guidtostr(chan->ds->guid,guidstr);
+  char tmp[1024],tmp2[1024],*p;
+  lstrcpyn_safe(p=tmp,user->name.Get(),sizeof(tmp));
+  while (*p) { if (*p == '\"') *p = '\''; p++; }
+
+  lstrcpyn_safe(p=tmp2,chan->name.Get(),sizeof(tmp2));
+  while (*p) { if (*p == '\"') *p = '\''; p++; }
+  writeLog("user %s \"%s\" %d%s \"%s\"\n",guidstr,tmp,ch,lbl,tmp2);
 }
 
 void NJClient::on_new_interval()
@@ -2447,15 +2472,7 @@ void NJClient::on_new_interval()
         if (chan->ds)
         {
           chan->ds->applyOverlap(&fade_state);
-          char guidstr[64];
-          guidtostr(chan->ds->guid,guidstr);
-          char tmp[1024],tmp2[1024],*p;
-          lstrcpyn_safe(p=tmp,user->name.Get(),sizeof(tmp));
-          while (*p) { if (*p == '\"') *p = '\''; p++; }
-
-          lstrcpyn_safe(p=tmp2,chan->name.Get(),sizeof(tmp2));
-          while (*p) { if (*p == '\"') *p = '\''; p++; }
-          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,tmp,ch,tmp2);
+          writeUserChanLog("",user,chan,ch);
         }
       }
     }
