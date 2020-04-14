@@ -626,6 +626,7 @@ NJClient::NJClient()
   m_netcon=0;
 
   m_metro_chidx = 0;
+  m_remote_chanoffs = 0;
 
   _reinit();
 
@@ -1909,7 +1910,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 
           mixInChannel(user,ch,muteflag,
             user->volume*user->channels[ch].volume,lpan,
-              outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
+              outbuf,user->channels[ch].out_chan_index + m_remote_chanoffs,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
         }
         a>>=1;
       }
