@@ -165,6 +165,7 @@ public:
 
   void SetMetronomeChannel(int chidx) { m_metro_chidx=chidx; } // chidx&255 is stereo pair index, add 1024 for mono only
   void SetRemoteChannelOffset(int offs) { m_remote_chanoffs = offs; }
+  void SetLocalChannelOffset(int offs) { m_local_chanoffs = offs; }
 
   int IsASoloActive() { return m_issoloactive; }
 
@@ -251,7 +252,7 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
-  int m_metro_chidx, m_remote_chanoffs;
+  int m_metro_chidx, m_remote_chanoffs, m_local_chanoffs;
 
   DecodeState *start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf);
 

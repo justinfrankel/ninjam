@@ -627,6 +627,7 @@ NJClient::NJClient()
 
   m_metro_chidx = 0;
   m_remote_chanoffs = 0;
+  m_local_chanoffs = 0;
 
   _reinit();
 
@@ -1821,8 +1822,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     bool chan_active = ((!m_issoloactive && !lc->muted) || lc->solo);
     {
       int use_nch=2;
-      if (outnch < 2 || (lc->out_chan_index&1024)) use_nch=1;
-      int idx=(lc->out_chan_index&1023);
+      const int outchanidx = lc->out_chan_index + m_local_chanoffs;
+      if (outnch < 2 || (outchanidx&1024)) use_nch=1;
+      int idx=(outchanidx & 1023);
       if (idx+use_nch>outnch) idx=outnch-use_nch;
       if (idx< 0)idx=0;
 
