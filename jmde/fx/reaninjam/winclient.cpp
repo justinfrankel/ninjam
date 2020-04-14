@@ -99,6 +99,7 @@ static int g_last_wndpos_state;
 static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
 // static int g_config_sync=0; // unused
 static bool s_want_sync;
+int g_config_audio_outputs; // &1=remote go to 3/4, &2=metronome goes to 5
 
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
@@ -142,6 +143,8 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     }
     return;
   }
+  g_client->SetRemoteChannelOffset((g_config_audio_outputs&1) ? 2 : 0);
+  g_client->SetMetronomeChannel((g_config_audio_outputs&2) ? (4|1024) : 0);
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable, isPlaying, isSeek,curpos);
 }
 
@@ -1080,6 +1083,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
 
         g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear", g_config_appear, g_ini_file.Get());
+        g_config_audio_outputs=GetPrivateProfileInt(CONFSEC,"config_audio_outputs", g_config_audio_outputs,g_ini_file.Get());
         //g_config_sync=GetPrivateProfileInt(CONFSEC, "config_sync", g_config_sync, g_ini_file.Get());
 
         char tmp[512];
@@ -1884,6 +1888,17 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             }
           }
         break;
+        case ID_METRONOME_CH5:
+        case ID_REMOTE_CH34:
+          {
+            g_config_audio_outputs ^= (LOWORD(wParam) == ID_METRONOME_CH5 ? 2 : 1);
+
+            char buf[64];
+            snprintf(buf,sizeof(buf),"%d", g_config_audio_outputs);
+            WritePrivateProfileString(CONFSEC,"config_audio_outputs", buf, g_ini_file.Get());
+          }
+        break;
+
       }
     break;
     case WM_CLOSE:
@@ -2036,6 +2051,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           CheckMenuItem(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND|((((f>>8)&0xff) == 1+x)?MF_CHECKED:0));
           CheckMenuItem(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND|(((f&0xff00) && (f&0xff) == 1+x)?MF_CHECKED:0));
         }
+
+        CheckMenuItem(menu,ID_METRONOME_CH5,MF_BYCOMMAND|((g_config_audio_outputs&2)?MF_CHECKED:0));
+        CheckMenuItem(menu,ID_REMOTE_CH34,MF_BYCOMMAND|((g_config_audio_outputs&1)?MF_CHECKED:0));
       }
     return 0;
   }

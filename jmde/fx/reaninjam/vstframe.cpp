@@ -24,9 +24,6 @@
 #define SAMPLETYPE float
 
 
-#define NUM_INPUTS 8
-#define NUM_OUTPUTS 2
-
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) ;
 void InitializeInstance();
 void QuitInstance();
@@ -75,6 +72,8 @@ int (WINAPI *CoolSB_SetScrollPos)(HWND hwnd, int nBar, int nPos, BOOL fRedraw);
 int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOOL fRedraw);
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 int (*plugin_register)(const char *name, void *infostruct);
+
+extern int g_config_audio_outputs; // &1 = remote channels use 3/4, &2=metronome uses 5
 
 int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 {
@@ -255,8 +254,8 @@ public:
     m_effect.setParameter = staticSetParameter;
     m_effect.numPrograms = 1;
     m_effect.numParams = 0;
-    m_effect.numInputs=NUM_INPUTS;
-    m_effect.numOutputs=NUM_OUTPUTS;
+    m_effect.numInputs=8;
+    m_effect.numOutputs=2;
 
     m_effect.flags=effFlagsCanReplacing|effFlagsHasEditor;
     m_effect.processReplacing=staticProcessReplacing;//do nothing
@@ -372,15 +371,25 @@ public:
           if (opCode == effGetInputProperties)
           {
             if (index >= _this->m_effect.numInputs) return 0;
-            sprintf(pp->label,"Input %s",index&1?"R":"L");
+            sprintf(pp->label,"Input %d",index+1);
           }
           else
           {
             if (index >= _this->m_effect.numOutputs) return 0;
-            sprintf(pp->label,"Output %s",index&1?"R":"L");
+            sprintf(pp->label,"(not connected)");
+            switch (index)
+            {
+              case 0: case 1: sprintf(pp->label,"Main %s",index&1?"R":"L"); break;
+              case 2: case 3: if (g_config_audio_outputs&1) sprintf(pp->label,"Remote %s",index&1?"R":"L"); break;
+              case 4: if (g_config_audio_outputs&2) sprintf(pp->label,"Metronome"); break;
+            }
           }
           pp->flags=0;
-          pp->arrangementType=kSpeakerArrStereo;
+          if (opCode == effGetOutputProperties && index == 4)
+            pp->arrangementType=kSpeakerArrMono;
+          else
+            pp->arrangementType=kSpeakerArrStereo;
+
           if (index==0||index==2)
             pp->flags|=kVstPinIsStereo;
           return 1;
@@ -481,7 +490,9 @@ public:
       }
       _this->m_lastplaytrackpos=_this->m_lasttransportpos;
 
-      audiostream_onsamples(inputs,NUM_INPUTS,outputs,NUM_OUTPUTS,sampleframes,(int)(_this->m_samplerate+0.5),isPlaying,isSeek,_this->m_lastplaytrackpos);
+      audiostream_onsamples(inputs,effect->numInputs,outputs,effect->numOutputs,sampleframes,(int)(_this->m_samplerate+0.5),isPlaying,isSeek,_this->m_lastplaytrackpos);
+
+      effect->numOutputs = (g_config_audio_outputs&2) ? 5 : (g_config_audio_outputs&1) ? 4 : 2;
     }
   }
 
