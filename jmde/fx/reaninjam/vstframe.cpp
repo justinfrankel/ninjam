@@ -73,7 +73,7 @@ int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPo
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 int (*plugin_register)(const char *name, void *infostruct);
 
-extern int g_config_audio_outputs; // &1 = remote channels use 3/4, &2=metronome uses 5
+extern int g_config_audio_outputs; // &1 = local channels use 3/4, &2=metronome uses 5
 
 int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 {
@@ -380,7 +380,7 @@ public:
             switch (index)
             {
               case 0: case 1: sprintf(pp->label,"Main %s",index&1?"R":"L"); break;
-              case 2: case 3: if (g_config_audio_outputs&1) sprintf(pp->label,"Remote %s",index&1?"R":"L"); break;
+              case 2: case 3: if (g_config_audio_outputs&1) sprintf(pp->label,"Local %s",index&1?"R":"L"); break;
               case 4: if (g_config_audio_outputs&2) sprintf(pp->label,"Metronome"); break;
             }
           }

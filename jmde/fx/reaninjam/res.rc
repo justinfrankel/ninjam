@@ -433,7 +433,7 @@ BEGIN
           MENUITEM "Channel 10\tCtrl+Shift+F10", ID_REMOTE_USER_CHANNEL_10
         END
         MENUITEM SEPARATOR
-        MENUITEM "Route remote channels to VST output 3/4", ID_REMOTE_CH34
+        MENUITEM "Route local channels to VST output 3/4", ID_LOCAL_CH34
         MENUITEM "Route metronome to VST output 5", ID_METRONOME_CH5
     END
     POPUP "S&ync"

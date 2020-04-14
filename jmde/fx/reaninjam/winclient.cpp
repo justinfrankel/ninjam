@@ -99,7 +99,7 @@ static int g_last_wndpos_state;
 static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
 // static int g_config_sync=0; // unused
 static bool s_want_sync;
-int g_config_audio_outputs; // &1=remote go to 3/4, &2=metronome goes to 5
+int g_config_audio_outputs; // &1=local go to 3/4, &2=metronome goes to 5
 
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
@@ -143,7 +143,7 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     }
     return;
   }
-  g_client->SetRemoteChannelOffset((g_config_audio_outputs&1) ? 2 : 0);
+  g_client->SetLocalChannelOffset((g_config_audio_outputs&1) ? 2 : 0);
   g_client->SetMetronomeChannel((g_config_audio_outputs&2) ? (4|1024) : 0);
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable, isPlaying, isSeek,curpos);
 }
@@ -1889,7 +1889,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           }
         break;
         case ID_METRONOME_CH5:
-        case ID_REMOTE_CH34:
+        case ID_LOCAL_CH34:
           {
             g_config_audio_outputs ^= (LOWORD(wParam) == ID_METRONOME_CH5 ? 2 : 1);
 
@@ -2053,7 +2053,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         }
 
         CheckMenuItem(menu,ID_METRONOME_CH5,MF_BYCOMMAND|((g_config_audio_outputs&2)?MF_CHECKED:0));
-        CheckMenuItem(menu,ID_REMOTE_CH34,MF_BYCOMMAND|((g_config_audio_outputs&1)?MF_CHECKED:0));
+        CheckMenuItem(menu,ID_LOCAL_CH34,MF_BYCOMMAND|((g_config_audio_outputs&1)?MF_CHECKED:0));
       }
     return 0;
   }

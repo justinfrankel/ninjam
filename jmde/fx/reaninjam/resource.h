@@ -162,7 +162,7 @@
 #define ID_REMOTE_USER_CHANNEL_10       2120
 #define ID_REMOTE_USER_CHANNEL_50       2160
 #define ID_METRONOME_CH5                2161
-#define ID_REMOTE_CH34                  2162
+#define ID_LOCAL_CH34                   2162
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
