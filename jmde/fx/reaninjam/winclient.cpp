@@ -2039,7 +2039,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         CheckMenuItem(menu,IDC_MASTERMUTE,MF_BYCOMMAND|(g_client && g_client->config_mastermute?MF_CHECKED:0));
         CheckMenuItem(menu,IDC_METROMUTE,MF_BYCOMMAND|(g_client && g_client->config_metronome_mute?MF_CHECKED:0));
 
-        int f = getChannelFromHWND(GetFocus());
+        const int f = getChannelFromHWND(GetFocus());
+        const int user_sel = (f>>8)&0xff;
 
         EnableMenuItem(menu, IDC_MUTE, MF_BYCOMMAND|(f ? 0 : MF_GRAYED));
         EnableMenuItem(menu, IDC_SOLO, MF_BYCOMMAND|((f&0xff) ? 0 : MF_GRAYED));
@@ -2047,9 +2048,30 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
         for (int x=0;x<MAX_CHANNELS_MENU;x++)
         {
-          CheckMenuItem(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND|((f == 1+x)?MF_CHECKED:0));
-          CheckMenuItem(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND|((((f>>8)&0xff) == 1+x)?MF_CHECKED:0));
-          CheckMenuItem(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND|(((f&0xff00) && (f&0xff) == 1+x)?MF_CHECKED:0));
+          char buf[512];
+          MENUITEMINFO mii={sizeof(mii),MIIM_TYPE|MIIM_STATE,MFT_STRING,};
+          mii.dwTypeData = (char *)buf;
+
+          const char *lcn = g_client->GetLocalChannelInfo(x,NULL,NULL,NULL);
+
+          if (lcn && *lcn) snprintf(buf,sizeof(buf),"Channel %s\tF%d",lcn,x+1);
+          else snprintf(buf,sizeof(buf),"Channel %d\tF%d",x+1,x+1);
+
+          mii.fState = (f == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_LOCAL_CHANNEL_1+x,FALSE,&mii);
+
+          const char *rn = g_client->GetUserState(x);
+          if (rn && *rn) snprintf(buf,sizeof(buf),"User %s\tShift+F%d",rn,x+1);
+          else snprintf(buf,sizeof(buf),"User %d\tShift+F%d",x+1,x+1);
+
+          mii.fState = (user_sel == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_REMOTE_USER_1+x,FALSE,&mii);
+
+          const char *rcn = user_sel > 0 ? g_client->GetUserChannelState(user_sel - 1,x) : NULL;
+          if (rcn && *rcn) snprintf(buf,sizeof(buf),"Channel %s\tCtrl+Shift+F%d",rcn,x+1);
+          else snprintf(buf,sizeof(buf),"Channel %d\tCtrl+Shift+F%d",x+1,x+1);
+          mii.fState = ((f&0xff00) && (f&0xff) == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_REMOTE_USER_CHANNEL_1+x,FALSE,&mii);
         }
 
         CheckMenuItem(menu,ID_METRONOME_CH5,MF_BYCOMMAND|((g_config_audio_outputs&2)?MF_CHECKED:0));
