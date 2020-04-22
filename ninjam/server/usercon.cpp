@@ -974,9 +974,10 @@ int User_Group::Run()
     // track bpm/bpi stuff
 #ifdef _WIN32
     DWORD now=GetTickCount();
-    if (now >= m_next_loop_time)
+    if (!m_next_loop_time || (now-m_next_loop_time) < 0x10000000)
     {
       m_next_loop_time = now + (60*1000*m_last_bpi) / (m_last_bpm?m_last_bpm:120);
+      if (!m_next_loop_time) m_next_loop_time++;
 #else
     struct timeval now;
     gettimeofday(&now,NULL);
