@@ -59,14 +59,26 @@
 #include "../../../WDL/win32_utf8.c"
 #endif
 
-#define VERSION "0.13"
-
 #define CONFSEC "ninjam"
 
 #include "../../../WDL/setthreadname.h"
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
+extern int (*GetWindowDPIScaling)(HWND hwnd);
+extern INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
+extern void *get_parent_project(void);
+extern int (*GetPlayStateEx)(void *proj);
+extern void (*OnPlayButtonForTime)(void *proj, double forTime);
+extern void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
+extern void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
+extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
+extern int (*GetSetRepeatEx)(void* proj, int val);
+extern double (*GetCursorPositionEx)(void *proj);
+extern void (*Main_OnCommandEx)(int command, int flag, void *proj);
+
+class VSTEffectClass;
+extern VSTEffectClass *g_vst_object;
 
 WDL_FastString g_ini_file;
 static char g_inipath[1024]; 
@@ -84,6 +96,10 @@ static WDL_String g_connect_user,g_connect_pass,g_connect_host;
 static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
+static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
+// static int g_config_sync=0; // unused
+static bool s_want_sync;
+int g_config_audio_outputs; // &1=local go to 3/4, &2=metronome goes to 5
 
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
@@ -127,6 +143,8 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
     }
     return;
   }
+  g_client->SetLocalChannelOffset((g_config_audio_outputs&1) ? 2 : 0);
+  g_client->SetMetronomeChannel((g_config_audio_outputs&2) ? (4|1024) : 0);
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable, isPlaying, isSeek,curpos);
 }
 
@@ -142,6 +160,8 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
           CheckDlgButton(hwndDlg,IDC_SAVELOCAL,BST_CHECKED);
         if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCALWAV,BST_CHECKED);
+
+       if (!(g_config_appear&1)) CheckDlgButton(hwndDlg, IDC_FLASH, BST_CHECKED);
 
         char str[2048];
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
@@ -199,6 +219,11 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             if (!strcmp(str,buf))
               buf[0]=0;
             WritePrivateProfileString(CONFSEC,"sessiondir",buf,g_ini_file.Get());
+
+            g_config_appear &= ~1;
+            if (!IsDlgButtonChecked(hwndDlg, IDC_FLASH)) g_config_appear |= 1;
+            snprintf(buf, sizeof(buf), "%d", g_config_appear);
+            WritePrivateProfileString(CONFSEC, "config_appear", buf, g_ini_file.Get());
 
             EndDialog(hwndDlg,1);
           }
@@ -329,14 +354,69 @@ static void getServerList_step(HWND hwnd)
 
 static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  static WDL_WndSizer wndsize;
   switch (uMsg)
   {
     case WM_DESTROY:
         delete m_httpget;
         m_httpget=0;
+        if (autoRepositionWindowOnMessage)
+          autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamconnect",0);
+        wndsize.init(NULL);
+        {
+          RECT r;
+          GetWindowRect(hwndDlg,&r);
+          char buf[32];
+          snprintf(buf,sizeof(buf),"%d",r.right-r.left);
+          WritePrivateProfileString(CONFSEC,"connectw",buf,g_ini_file.Get());
+          snprintf(buf,sizeof(buf),"%d",r.bottom > r.top ? r.bottom-r.top : r.top-r.bottom);
+          WritePrivateProfileString(CONFSEC,"connecth",buf,g_ini_file.Get());
+
+        }
      return 0;
+    case WM_SIZE:
+     if (wParam != SIZE_MINIMIZED)
+     {
+      wndsize.onResize();
+     }
+     return 0;
+    case WM_GETMINMAXINFO:
+      {
+        RECT init_r = wndsize.get_orig_rect_dpi();
+        LPMINMAXINFO p=(LPMINMAXINFO)lParam;
+        p->ptMinTrackSize.x = init_r.right-init_r.left;
+        p->ptMinTrackSize.y = init_r.bottom-init_r.top;
+      }
+    return 0;
     case WM_INITDIALOG:
       {
+        wndsize.init(hwndDlg);
+        wndsize.init_item(IDC_HOST,0,1,0,1);
+        wndsize.init_item(IDC_USER,0,1,0,1);
+        wndsize.init_item(IDC_PASS,0,1,0,1);
+        wndsize.init_item(IDC_PASSREMEMBER,0,1,0,1);
+        wndsize.init_item(IDOK,1,1,1,1);
+        wndsize.init_item(IDCANCEL,1,1,1,1);
+        wndsize.init_item(IDC_BUTTON1,1,1,1,1);
+        wndsize.init_item(IDC_CONNECT_LBL,0,1,0,1);
+        wndsize.init_item(IDC_USERLBL,0,1,0,1);
+        wndsize.init_item(IDC_PASSLBL,0,1,0,1);
+        wndsize.init_item(IDC_INFOTEXT,0,1,0,1);
+        wndsize.init_item(IDC_ANON,0,1,0,1);
+        wndsize.init_item(IDC_LIST1,0,0,1,1);
+
+        int ww=GetPrivateProfileInt(CONFSEC,"connectw",0,g_ini_file.Get());
+        int wh=GetPrivateProfileInt(CONFSEC,"connecth",0,g_ini_file.Get());
+        if (ww<1)
+        {
+          RECT r;
+          GetWindowRect(hwndDlg,&r);
+          if (ww<1) ww=(r.right-r.left)*3/2;
+          if (wh<1) wh=r.bottom-r.top;
+        }
+        if (ww>0 && wh>0)
+          SetWindowPos(hwndDlg,NULL,0,0,ww,wh,SWP_NOZORDER|SWP_NOMOVE|SWP_NOACTIVATE);
+
         int x;
         for (x = 0; x < MAX_HIST_ENTRIES; x ++)
         {
@@ -358,23 +438,23 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         }
         if (!g_connect_anon)
         {
+          CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_SHOWNA);
           ShowWindow(GetDlgItem(hwndDlg,IDC_PASSREMEMBER),SW_SHOWNA);          
         }
-        else CheckDlgButton(hwndDlg,IDC_ANON,BST_CHECKED);
 
         HWND list = GetDlgItem(hwndDlg, IDC_LIST1);
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,140,(char*)"Server"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,160,(char*)"Server"};
           ListView_InsertColumn(list,0,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,100,(char*)"Info"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,130,(char*)"Info"};
           ListView_InsertColumn(list,1,&lvc);
         }
         {
-          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,400,(char*)"Users"};
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,800,(char*)"Users"};
           ListView_InsertColumn(list,2,&lvc);
         }
         ListView_SetExtendedListViewStyleEx(GetDlgItem(hwndDlg,IDC_LIST1),LVS_EX_FULLROWSELECT,LVS_EX_FULLROWSELECT);
@@ -383,8 +463,17 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         {
           m_getServerList_status = 0;
         }
-          
 
+        if (autoRepositionWindowOnMessage)
+        {
+          if (autoRepositionWindowOnMessage(hwndDlg,uMsg,"reaninjamconnect",0) & 1)
+          {
+#ifdef __APPLE__
+            ShowWindow(hwndDlg,SW_SHOWNA);
+#endif
+          }
+        }
+          
         SetTimer(hwndDlg, 0x456, 100, 0);
       }
     return 0;
@@ -420,7 +509,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
           m_getServerList_status = 0;
         break;
         case IDC_ANON:
-          if (IsDlgButtonChecked(hwndDlg,IDC_ANON))
+          if (!IsDlgButtonChecked(hwndDlg,IDC_ANON))
           {
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASSLBL),SW_HIDE);
             ShowWindow(GetDlgItem(hwndDlg,IDC_PASS),SW_HIDE);
@@ -437,7 +526,7 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
         case IDOK:
           {
             g_connect_passremember=!!IsDlgButtonChecked(hwndDlg,IDC_PASSREMEMBER);
-            g_connect_anon=!!IsDlgButtonChecked(hwndDlg,IDC_ANON);
+            g_connect_anon=!IsDlgButtonChecked(hwndDlg,IDC_ANON);
             WritePrivateProfileString(CONFSEC,"anon",g_connect_anon?"1":"0",g_ini_file.Get());
             char buf[512];
             GetDlgItemText(hwndDlg,IDC_HOST,buf,sizeof(buf));
@@ -497,10 +586,18 @@ static WDL_DLGRET ConnectDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM 
   return 0;
 }
 
+static void updateConnectButton(HWND hwnd)
+{
+  if (hwnd && g_client)
+  {
+    SetDlgItemText(hwnd,IDC_CONNECT,g_client->GetStatus()==0 ? "Disconnect" : "Connect...");
+  }
+}
+
 static void do_disconnect()
 {
   g_audio_enable=0;
-
+  s_want_sync=false;
 
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_ENABLED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_GRAYED);
@@ -553,8 +650,10 @@ static void do_disconnect()
     }
     
   }
+  updateConnectButton(g_hwnd);
 }
 
+WDL_FastString g_last_status("Status: not connected.");
 
 static void do_connect()
 {
@@ -606,7 +705,8 @@ static void do_connect()
   }
   if (cnt >= 16)
   {      
-    SetDlgItemText(g_hwnd,IDC_STATUS,"Status: ERROR CREATING SESSION DIRECTORY");
+    g_last_status.Set("Status: ERROR CREATING SESSION DIRECTORY");
+    InvalidateRect(GetDlgItem(g_hwnd,IDC_INTERVALPOS),NULL,FALSE);
     MessageBox(g_hwnd,"Error creating session directory!", "NINJAM error", MB_OK);
     return;
   }
@@ -640,10 +740,12 @@ static void do_connect()
 
   g_client_mutex.Leave();
 
-  SetDlgItemText(g_hwnd,IDC_STATUS,"Status: Connecting...");
+  g_last_status.Set("Status: Connecting...");
+  InvalidateRect(GetDlgItem(g_hwnd,IDC_INTERVALPOS),NULL,FALSE);
 
   EnableMenuItem(GetMenu(g_hwnd),ID_OPTIONS_AUDIOCONFIGURATION,MF_BYCOMMAND|MF_GRAYED);
   EnableMenuItem(GetMenu(g_hwnd),ID_FILE_DISCONNECT,MF_BYCOMMAND|MF_ENABLED);
+  updateConnectButton(g_hwnd);
 }
 
 static void updateMasterControlLabels(HWND hwndDlg)
@@ -677,84 +779,6 @@ static unsigned WINAPI ThreadFunc(LPVOID p)
 }
 
 
-int g_last_resize_pos;
-
-static void resizePanes(HWND hwndDlg, int y_pos, WDL_WndSizer &resize, int doresize)
-{
-  // move things, specifically 
-  // IDC_DIV2 : top and bottom
-  // IDC_LOCGRP, IDC_LOCRECT: bottom
-  // IDC_REMGRP, IDC_REMOTERECT: top        
-  RECT divr;
-  GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&divr);
-  ScreenToClient(hwndDlg,(LPPOINT)&divr);
-
-  g_last_resize_pos=y_pos;
-
-  int dy = y_pos - divr.top;
-
-  RECT new_rect;
-  GetClientRect(hwndDlg,&new_rect);
-  RECT m_orig_rect=resize.get_orig_rect();
-
-  {
-    WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
-
-    if (rec)
-    {
-      int nt=rec->last.top + dy;// - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-      if (nt < rec->real_orig.top) dy = rec->real_orig.top - rec->last.top;
-      else if ((new_rect.bottom - nt) < (m_orig_rect.bottom - rec->real_orig.top))
-        dy = new_rect.bottom - (m_orig_rect.bottom - rec->real_orig.top) - rec->last.top;
-    }
-  }
-
-  int tab[]={IDC_DIV2,IDC_LOCRECT,IDC_CHATLBL,IDC_CHATDISP};
-  
-  // we should leave the scale intact, but adjust the original rect as necessary to meet the requirements of our scale
-  int x;
-  for (x = 0; x < sizeof(tab)/sizeof(tab[0]); x ++)
-  {
-    WDL_WndSizer__rec *rec = resize.get_item(tab[x]);
-    if (!rec) continue;
-
-    RECT new_l=rec->last;
-
-    if (!x || x > 1) // do top
-    {
-      // the output formula for top is: 
-      // new_l.top = rec->orig.top + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-      // so we compute the inverse, to find rec->orig.top
-
-      rec->orig.top = new_l.top + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[1]);
-      if (x==2)
-      {
-        rec->orig.bottom=rec->orig.top + (rec->real_orig.bottom-rec->real_orig.top);
-      }
-    }
-
-
-
-    if (x <= 1) // do bottom
-    {
-      // new_l.bottom = rec->orig.bottom + (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-      rec->orig.bottom = new_l.bottom + dy - (int) ((new_rect.bottom - m_orig_rect.bottom)*rec->scales[3]);
-    }
-
-    if (doresize) resize.onResize(rec->hwnd);
-  }
-
-
-  if (doresize)
-  {
-    if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
-    if (m_remwnd) SendMessage(m_remwnd,WM_LCUSER_RESIZE,0,0);
-  }
-
-      #ifndef _WIN32
-      InvalidateRect(hwndDlg,NULL,FALSE);
-      #endif
-}
 #ifdef _MSC_VER
 #include <multimon.h>
 #endif
@@ -824,10 +848,140 @@ static void EnsureNotCompletelyOffscreen(RECT *r)
   }
 }
 
+static int last_interval_len=-1;
+static int last_interval_pos=-1;
+static int last_bpm_i=-1;
+LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  static int s_cap_inf;
+  switch (msg)
+  {
+    case WM_SIZE:
+      InvalidateRect(hwnd,NULL,FALSE);
+    return 0;
+    case WM_SETCURSOR:
+      {
+        POINT p;
+        GetCursorPos(&p);
+        ScreenToClient(hwnd,&p);
+        if (p.y < 8)
+        {
+          SetCursor(LoadCursor(NULL,IDC_SIZENS));
+        }
+        else
+        {
+          SetCursor(LoadCursor(NULL,IDC_ARROW));
+        }
+      }
+    return 1;
+    case WM_LBUTTONDOWN:
+      if (GET_Y_LPARAM(lParam) < 8)
+      {
+        s_cap_inf = GET_Y_LPARAM(lParam);
+        SetCapture(hwnd);
+      }
+    return 0;
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONUP:
+      if (GetCapture()==hwnd)
+      {
+        if (msg == WM_LBUTTONUP) ReleaseCapture();
+        int y = GET_Y_LPARAM(lParam);
+        if (y != s_cap_inf || msg == WM_LBUTTONUP)
+        {
+          SendMessage(GetParent(hwnd),WM_USER+100,0,y-s_cap_inf);
+        }
+      }
+    return 0;
+    case WM_ERASEBKGND: return 0;
+    case WM_PAINT:
+      {
+        PAINTSTRUCT ps;
+        if (BeginPaint(hwnd,&ps))
+        {
+          bool want_numbers=g_client && !g_client->is_likely_lobby();
 
+          RECT r;
+          GetClientRect(hwnd,&r);
+          bool flip = !(g_config_appear&1) && want_numbers &&
+            last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
+          int fg = RGB(128,255,128), bg=RGB(0,0,0);
+          if (flip) { int tmp=fg; fg=bg; bg=tmp; }
+
+          {
+            HBRUSH bgbr = CreateSolidBrush(bg);
+            FillRect(ps.hdc,&r,bgbr);
+            DeleteObject(bgbr);
+          }
+
+          static HFONT font1, font2;
+          static int lasth;
+          const int fontsz=wdl_max(12,r.bottom/8);
+          if (!font1 || lasth != r.bottom)
+          {
+            lasth = r.bottom;
+            if (font1) DeleteObject(font1);
+            if (font2) DeleteObject(font2);
+            LOGFONT lf={ fontsz, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Arial"};
+            font1 = CreateFontIndirect(&lf);
+            lf.lfHeight = lasth;
+            font2 = CreateFontIndirect(&lf);
+          }
+          SetBkMode(ps.hdc,TRANSPARENT);
+          SetTextColor(ps.hdc,RGB(0,128,255));
+          HGDIOBJ oldfont = SelectObject(ps.hdc,font1);
+          const int pad = fontsz > 12 ? 3 : 1;
+          RECT tr = { r.left+pad,r.top+pad,r.right-pad,r.bottom-pad};
+          if (last_bpm_i>0)
+          {
+            char buf[128];
+            snprintf(buf,sizeof(buf),"%d BPM %d BPI",last_bpm_i,last_interval_len);
+            DrawText(ps.hdc,buf,-1,&tr,(lasth > fontsz*5/2 ?DT_LEFT:DT_RIGHT)|DT_TOP|DT_NOPREFIX|DT_SINGLELINE);
+          }
+          if (g_last_status.GetLength())
+          {
+            DrawText(ps.hdc,g_last_status.Get(),-1,&tr,DT_LEFT|DT_BOTTOM|DT_NOPREFIX|DT_SINGLELINE);
+          }
+          SetTextColor(ps.hdc,fg);
+          if (last_bpm_i > 0 && last_interval_len > 1 && want_numbers)
+          {
+            SelectObject(ps.hdc,font2);
+            char buf[128];
+            snprintf(buf,sizeof(buf),"%d",last_interval_pos+1);
+            RECT sz={0,};
+            DrawText(ps.hdc,buf,-1,&sz,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT);
+            RECT ur = { last_interval_pos * (r.right-sz.right) / (last_interval_len-1), 0, r.right, r.bottom };
+            DrawText(ps.hdc,buf,-1,&ur,DT_NOPREFIX|DT_SINGLELINE|DT_LEFT|DT_VCENTER);
+          }
+          SelectObject(ps.hdc,oldfont);
+
+          EndPaint(hwnd,&ps);
+        }
+      }
+    return 0;
+  }
+  return DefWindowProc(hwnd,msg,wParam,lParam);
+}
+
+static bool str_begins_tok(const char *str, const char *tok)
+{
+  size_t l = strlen(tok);
+  if (strncasecmp(str,tok,l)) return false;
+
+  return tok[l] == ' ' || tok[l] == 0;
+}
+
+int getChannelFromHWND(HWND h, HWND *hwndP=NULL); // returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
+HWND getHWNDFromChannel(int chan); // see above
+
+
+#define MAX_CHANNELS_MENU 10 // we only show 10 channels in the menus
+
+static int g_lchan_sz;
+static int g_min_lchan_sz;
 static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  static RECT init_r;
+  static RECT s_init_r;
   static int cap_mode;
   static int cap_spos;
   static WDL_WndSizer resize;
@@ -842,6 +996,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_INITDIALOG:
       {
+        s_want_sync=false;
+
       #ifdef _WIN32
         {
           HWND h;
@@ -853,6 +1009,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           HMENU menu=LoadMenu(g_hInst,MAKEINTRESOURCE(IDR_MENU1));
           SetMenu(hwndDlg,menu);
 #ifdef __APPLE__
+          SetDlgItemText(hwndDlg,IDC_CHATLBL,"Chat (Opt+T to focus):");
+
           HMENU normalFirst=GetMenu(GetMainHwnd());
           if (normalFirst) normalFirst=GetSubMenu(normalFirst,0);
           HMENU nm=SWELL_DuplicateMenu(normalFirst);
@@ -861,14 +1019,30 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             MENUITEMINFO mi={sizeof(mi),MIIM_STATE|MIIM_SUBMENU|MIIM_TYPE,MFT_STRING,0,0,nm,NULL,NULL,0,(char*)"REAPER"};
             InsertMenuItem(menu,0,TRUE,&mi);           
           }
+          SetMenuItemModifier(menu,ID_FILE_CONNECT,MF_BYCOMMAND,'O',FCONTROL);
+          SetMenuItemModifier(menu,ID_FILE_DISCONNECT,MF_BYCOMMAND,'D',FCONTROL);
+          SetMenuItemModifier(menu,ID_OPTIONS_PREFERENCES,MF_BYCOMMAND,',',FCONTROL);
+
+          SetMenuItemModifier(menu,IDC_MASTERMUTE,MF_BYCOMMAND,'M',FSHIFT|FCONTROL);
+          SetMenuItemModifier(menu,IDC_METROMUTE,MF_BYCOMMAND,'M',FCONTROL);
+
+          SetMenuItemModifier(menu,IDC_MUTE,MF_BYCOMMAND,'M',FALT);
+          SetMenuItemModifier(menu,IDC_SOLO,MF_BYCOMMAND,'S',FALT);
+          SetMenuItemModifier(menu,IDC_REMOVE,MF_BYCOMMAND,'D',FSHIFT|FCONTROL);
+          SetMenuItemModifier(menu,IDC_ADDCH,MF_BYCOMMAND,'N',FSHIFT|FCONTROL);
+          for (int x=0;x<MAX_CHANNELS_MENU;x++)
+          {
+            SetMenuItemModifier(menu,ID_LOCAL_CHANNEL_1+x,MF_BYCOMMAND,VK_F1 + x,0);
+            SetMenuItemModifier(menu,ID_REMOTE_USER_1+x,MF_BYCOMMAND,VK_F1 + x,FSHIFT);
+            SetMenuItemModifier(menu,ID_REMOTE_USER_CHANNEL_1+x,MF_BYCOMMAND,VK_F1 + x,FSHIFT|FCONTROL);
+          }
 #endif
         } 
       #endif
-        GetWindowRect(hwndDlg,&init_r);
-        if (init_r.bottom < init_r.top) SWAP(init_r.top,init_r.bottom,int);
+        GetWindowRect(hwndDlg,&s_init_r);
+        if (s_init_r.bottom < s_init_r.top) SWAP(s_init_r.top,s_init_r.bottom,int);
         
 
-        SetWindowText(hwndDlg,"ReaNINJAM v" VERSION);
         g_hwnd=hwndDlg;
 
         resize.init(hwndDlg);
@@ -892,12 +1066,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_DIV3,        0.0,  0.0,  1.0f,  0.0);
         
         resize.init_item(IDC_INTERVALPOS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS, 0.0,  1.0,  1.0f,  1.0);
-        resize.init_item(IDC_STATUS2, 1.0f,  1.0,  1.0f,  1.0);
-    
         
-        float loc_ratio = 0.5f;
-        resize.init_item(IDC_CHATGRP,     1.0f, 0.0f,  1.0f,  1.0f);
+        const float loc_ratio = 0.0f;
         resize.init_item(IDC_CHATLBL,     0.0f, loc_ratio,  0.0f,  loc_ratio);
 
         resize.init_item(IDC_CHATDISP,     0.0f, loc_ratio,  1.0f,  1.0f);
@@ -912,18 +1082,24 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         resize.init_item(IDC_DIV2,        0.0,  loc_ratio,  1.0f,  loc_ratio);
         resize.init_item(IDC_REMGRP,  1.0f, 0.0f,  1.0f,  0.0f);      
 
+        g_config_appear=GetPrivateProfileInt(CONFSEC, "config_appear", g_config_appear, g_ini_file.Get());
+        g_config_audio_outputs=GetPrivateProfileInt(CONFSEC,"config_audio_outputs", g_config_audio_outputs,g_ini_file.Get());
+        //g_config_sync=GetPrivateProfileInt(CONFSEC, "config_sync", g_config_sync, g_ini_file.Get());
+
         char tmp[512];
 //        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,-1);       
         GetPrivateProfileString(CONFSEC,"mastervol","1.0",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_mastervolume=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_mastervolume)));
+        SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,WM_USER+9999,1,(LPARAM)"Master volume");
 
 //        SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETTIC,FALSE,-1);       
         GetPrivateProfileString(CONFSEC,"metrovol","0.5",tmp,sizeof(tmp),g_ini_file.Get());
         g_client->config_metronome=(float)atof(tmp);
         SendDlgItemMessage(hwndDlg,IDC_METROVOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(g_client->config_metronome)));
+        SendDlgItemMessage(hwndDlg,IDC_METROVOL,WM_USER+9999,1,(LPARAM)"Metronome volume");
 
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETTIC,FALSE,50);       
@@ -932,6 +1108,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         int t=(int)(g_client->config_masterpan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_MASTERPAN,WM_USER+9999,1,(LPARAM)"Master pan");
 
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETTIC,FALSE,50);       
@@ -940,6 +1117,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         t=(int)(g_client->config_metronome_pan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_METROPAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_METROPAN,WM_USER+9999,1,(LPARAM)"Metronome pan");
 
         if (GetPrivateProfileInt(CONFSEC,"mastermute",0,g_ini_file.Get()))
         {
@@ -951,6 +1129,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         }
         SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
+
+        SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Master mute");
+        SendDlgItemMessage(hwndDlg,IDC_METROMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Metronome mute");
 
         updateMasterControlLabels(hwndDlg);
 
@@ -1040,6 +1221,24 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           }
         }
 
+        {
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg,IDC_LOCRECT),&r);
+          g_min_lchan_sz = r.bottom-r.top;
+          if (g_min_lchan_sz<0) g_min_lchan_sz=-g_min_lchan_sz;
+          if (GetWindowDPIScaling)
+            g_min_lchan_sz = g_min_lchan_sz * 256 / GetWindowDPIScaling(hwndDlg);
+
+          g_lchan_sz=GetPrivateProfileInt(CONFSEC,"lchansz",g_lchan_sz,g_ini_file.Get());          
+          if (g_lchan_sz < g_min_lchan_sz)
+            g_lchan_sz = g_min_lchan_sz;
+        }
+
+        {
+          int sz=GetPrivateProfileInt(CONFSEC,"bpisz",0,g_ini_file.Get());
+          if (sz>0) SendMessage(hwndDlg,WM_USER+100,100,sz);
+        }
+
         int ws= g_last_wndpos_state = GetPrivateProfileInt(CONFSEC,"wnd_state",0,g_ini_file.Get());
 
 
@@ -1066,14 +1265,12 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         #endif
         else ShowWindow(hwndDlg,SW_SHOW);
      
-        SetTimer(hwndDlg,1,50,NULL);
-
-        int rsp=GetPrivateProfileInt(CONFSEC,"wnd_div1",0,g_ini_file.Get());          
-        if (rsp) resizePanes(hwndDlg,rsp,resize,1);
+        SetTimer(hwndDlg,1,10,NULL);
 
         unsigned id;
         g_hThread=(HANDLE)_beginthreadex(NULL,0,ThreadFunc,0,0,&id);
 
+        SendMessage(hwndDlg,WM_SIZE,0,0);
       }
     return 0;
     case WM_TIMER:
@@ -1081,8 +1278,10 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       {
         static int in_t;
         static int m_last_status = 0xdeadbeef;
+        static int cycle_cnt;
         if (!in_t)
         {
+          const bool do_slow_things = (cycle_cnt++%5)==0;
           in_t=1;          
 
           licenseRun(hwndDlg);
@@ -1101,38 +1300,44 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             {
               do_disconnect();
             }
+            else
+            {
+              updateConnectButton(hwndDlg);
+            }
 
             if (ns == NJClient::NJC_STATUS_OK)
             {
-              WDL_String tmp;
-              tmp.Set("Status: Connected to ");
-              tmp.Append(g_client->GetHostName());
-              tmp.Append(" as ");
-              tmp.Append(g_client->GetUser());
+              g_last_status.Set("Status: Connected to ");
+              g_last_status.Append(g_client->GetHostName());
+              g_last_status.Append(" as ");
+              g_last_status.Append(g_client->GetUser());
 
-              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
             else if (errstr.Get()[0])
             {
-              WDL_String tmp("Status: ");
-              tmp.Append(errstr.Get());
-              SetDlgItemText(hwndDlg,IDC_STATUS,tmp.Get());
+              g_last_status.Set("Status: ");
+              g_last_status.Append(errstr.Get());
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
             else
             {
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: disconnected from host.");
+                g_last_status.Set("Status: disconnected from host.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Disconnected from host!", "NINJAM Notice", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"invalid authentication info.");
+                g_last_status.Set("Status: invalid authentication info.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Error connecting: invalid authentication information!", "NINJAM error", MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_CANTCONNECT)
               {
-                SetDlgItemText(hwndDlg,IDC_STATUS,"Status: can't connect to host.");
+                g_last_status.Set("Status: can't connect to host.");
+                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
                 MessageBox(g_hwnd,"Error connecting: can't connect to host!", "NINJAM error", MB_OK);
               }
             }
@@ -1143,48 +1348,52 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             g_client->GetPosition(&pos,&len);
             if (!len) len=1;
             intl=g_client->GetBPI();
-            intp = (pos * intl)/len + 1;
+            intp = (pos * intl)/len;
 
             int bpm=(int)g_client->GetActualBPM();
             if (ns != NJClient::NJC_STATUS_OK)
             {
               bpm=0;
-              intp=0;
+              intp=-1;
             }
 
             int ival=(int) floor(VAL2DB(g_client->GetOutputPeak(0))*10.0);
             int ival2=(int) floor(VAL2DB(g_client->GetOutputPeak(1))*10.0);
             SendDlgItemMessage(hwndDlg,IDC_MASTERVU,WM_USER+1010,ival,ival2);
 
-
-            static int last_interval_len=-1;
-            static int last_interval_pos=-1;
-            static int last_bpm_i=-1;
-            if (intl != last_interval_len)
-            {
-              last_interval_len=intl;
-              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETRANGE,0,MAKELPARAM(0,intl));             
-            }
             if (intl != last_interval_len || last_bpm_i != bpm || intp != last_interval_pos)
             {
-              last_bpm_i = bpm;
-              char buf[128];
-              if (bpm)
-                sprintf(buf,"%d/%d @ %d BPM",intp,intl,bpm);
-              else buf[0]=0;
-              SetDlgItemText(hwndDlg,IDC_STATUS2,buf);
-            }
+              if (s_want_sync && !intp)
+              {
+                if (bpm > 0 && intl > 0 && !g_client->is_likely_lobby() &&
+                  GetCursorPositionEx && OnPlayButtonForTime)
+                {
+                  void *__proj = get_parent_project();
+                  double npos=GetCursorPositionEx(__proj);
+                  int srate=g_client->GetSampleRate();
+                  if (srate > 0)
+                    npos += (double)pos/(double)srate;
+                  OnPlayButtonForTime(__proj,npos);
+                }
+                s_want_sync=false;
+              }
 
-            if (intp != last_interval_pos)
-            {
               last_interval_pos = intp;
-              SendDlgItemMessage(hwndDlg,IDC_INTERVALPOS,PBM_SETPOS,intp,0);
+              last_interval_len=intl;
+              last_bpm_i = bpm;
+              InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
 
-            SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
-            SendMessage(m_remwnd,WM_LCUSER_VUUPDATE,0,0);
+            if (do_slow_things)
+            {
+              SendMessage(m_locwnd,WM_LCUSER_VUUPDATE,0,0);
+              SendMessage(m_remwnd,WM_LCUSER_VUUPDATE,0,0);
+            }
           }
-          chatRun(hwndDlg);
+          if (do_slow_things)
+          {
+            chatRun(hwndDlg);
+          }
 
           in_t=0;
         }
@@ -1192,9 +1401,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
     break;
     case WM_GETMINMAXINFO:
       {
+        RECT init_r = s_init_r;
+        resize.sizer_to_dpi_rect(&init_r);
         LPMINMAXINFO p=(LPMINMAXINFO)lParam;
         p->ptMinTrackSize.x = init_r.right-init_r.left;
-        p->ptMinTrackSize.y = init_r.bottom-init_r.top;
+        p->ptMinTrackSize.y = (init_r.bottom-init_r.top)*2/3;
       }
     return 0;
     case WM_LBUTTONUP:
@@ -1209,7 +1420,21 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       {
         if (cap_mode == 1)
         {
-          resizePanes(hwndDlg,GET_Y_LPARAM(lParam)-cap_spos,resize,1);
+          int y = GET_Y_LPARAM(lParam)-cap_spos;
+
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg,IDC_LOCRECT),&r);
+          ScreenToClient(hwndDlg,(LPPOINT)&r);
+          y -= r.top; // todo mac ugh
+          if (GetWindowDPIScaling)
+            y = y * 256 / GetWindowDPIScaling(hwndDlg);
+
+          if (y < g_min_lchan_sz) y = g_min_lchan_sz;
+          if (g_lchan_sz != y)
+          {
+            g_lchan_sz = y;
+            SendMessage(hwndDlg,WM_SIZE,0,0);
+          }
         }
       }
     return 0;
@@ -1234,7 +1459,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         ClientToScreen(hwndDlg,&p);
         RECT r;
         GetWindowRect(GetDlgItem(hwndDlg,IDC_DIV2),&r);
-         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
+        if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
+
         if (p.x >= r.left && p.x <= r.right && 
             p.y >= r.top - 4 && p.y <= r.bottom + 4)
         {
@@ -1245,31 +1471,83 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       }
     return 0;
 
+    case WM_USER+100:
     case WM_SIZE:
-      if (wParam != SIZE_MINIMIZED) 
       {
-        resize.onResize(NULL,1); // don't actually resize, just compute the rects
-
-        // adjust our resized items to keep minimums in order
+        WDL_WndSizer__rec *rec = resize.get_item(IDC_INTERVALPOS);
+        if (rec)
         {
-          RECT new_rect;
-          GetClientRect(hwndDlg,&new_rect);
+          const int orig_sz = rec->real_orig.bottom - rec->real_orig.top;
+          int maxsz = orig_sz*2;
+          const int minsz = orig_sz/8;
+          RECT cr;
+          GetClientRect(hwndDlg,&cr);
+          cr.bottom = resize.dpi_to_sizer(cr.bottom);
+          if (maxsz > cr.bottom/5) maxsz=cr.bottom/5;
 
-          RECT m_orig_rect=resize.get_orig_rect();
-          WDL_WndSizer__rec *rec = resize.get_item(IDC_DIV2);
-          if (rec)
+          int sz;
+          if (uMsg != WM_SIZE && wParam == 100)
+            sz = resize.dpi_to_sizer((int)lParam,256);
+          else
+            sz = (rec->orig.bottom - rec->orig.top) - (uMsg == WM_SIZE ? 0 : resize.dpi_to_sizer((int)lParam));
+
+          if (sz < minsz) sz = minsz;
+          if (sz > maxsz) sz = maxsz;
+
+          const int marg = sz - orig_sz;
+          rec->orig.top = rec->real_orig.top;
+          rec->orig.bottom = rec->real_orig.bottom + marg;
+
+          resize.set_margins(0,0,0,marg);
+          if (uMsg != WM_SIZE && wParam != 100 && !GetCapture())
           {
-            if (new_rect.bottom - rec->last.top < m_orig_rect.bottom - rec->real_orig.top) // bottom section is too small, fix
-            {
-              resizePanes(hwndDlg,0,resize,0);
-            }
-            else if (rec->last.top < rec->real_orig.top) // top section is too small, fix
-            {
-              resizePanes(hwndDlg,new_rect.bottom,resize,0);
-            }
+            char str[64];
+            snprintf(str,sizeof(str),"%d",resize.sizer_to_dpi(sz,256));
+            WritePrivateProfileString(CONFSEC,"bpisz",str,g_ini_file.Get());
           }
         }
+      }
+      if (uMsg != WM_SIZE && wParam == 100) return 0;
 
+      if (wParam != SIZE_MINIMIZED) 
+      {
+        RECT orig_rect=resize.get_orig_rect();
+        int bm=0;
+        resize.get_margins(NULL,NULL,NULL,&bm);
+        orig_rect.bottom += bm;
+
+        RECT cr;
+        GetClientRect(hwndDlg,&cr);
+        cr.right = resize.dpi_to_sizer(cr.right);
+        cr.bottom = resize.dpi_to_sizer(cr.bottom);
+
+        WDL_WndSizer__rec *loc = resize.get_item(IDC_LOCRECT);
+        WDL_WndSizer__rec *chate = resize.get_item(IDC_CHATENT);
+        WDL_WndSizer__rec *chatd = resize.get_item(IDC_CHATDISP);
+        WDL_WndSizer__rec *chatl = resize.get_item(IDC_CHATLBL);
+        WDL_WndSizer__rec *div = resize.get_item(IDC_DIV2);
+
+        int sz = g_lchan_sz;
+        int __dpi = 256;
+        if (GetWindowDPIScaling) sz = (__dpi=GetWindowDPIScaling(hwndDlg))*sz/256;
+        sz = resize.dpi_to_sizer(sz);
+
+        // limit sz by window size
+        {
+          int bpad = orig_rect.bottom - chate->real_orig.bottom;
+          int tpad = loc->real_orig.top;
+          int mpad = chatl->real_orig.top - loc->real_orig.bottom;
+          int avail = cr.bottom - bpad - tpad - mpad - sz;
+          const int min_chat_sz = resize.dpi_to_sizer(60 * __dpi/256);
+          if (avail < min_chat_sz) sz -= min_chat_sz-avail;
+          if (sz<40) sz=40;
+        }
+
+        loc->orig.bottom = loc->orig.top + sz;
+        int offs = loc->orig.bottom - loc->real_orig.bottom;
+        div->orig = div->real_orig; OffsetRect(&div->orig, 0, offs);
+        chatl->orig = chatl->real_orig; OffsetRect(&chatl->orig, 0, offs);
+        chatd->orig.top = chatd->real_orig.top + offs;
 
         resize.onResize();
         if (m_locwnd) SendMessage(m_locwnd,WM_LCUSER_RESIZE,0,0);
@@ -1381,9 +1659,18 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           g_client->config_metronome_mute =!g_client->config_metronome_mute;
           SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
         break;
+        case IDC_CONNECT:
+          if (g_client->GetStatus() != 0)
+          {
+            SendMessage(hwndDlg,WM_COMMAND,ID_FILE_CONNECT,0);
+            return 0;
+          }
+            
+           // fall through
         case ID_FILE_DISCONNECT:
           do_disconnect();
-          SetDlgItemText(g_hwnd,IDC_STATUS,"Status: disconnected manually");
+          g_last_status.Set("Status: disconnected manually");
+          InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
         break;
         case ID_FILE_CONNECT:
           if (DialogBox(g_hInst,MAKEINTRESOURCE(IDD_CONNECT),hwndDlg,ConnectDlgProc))
@@ -1391,6 +1678,70 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             do_disconnect();
 
             do_connect();
+            HWND fg = GetForegroundWindow();
+            if (fg && (fg == hwndDlg || IsChild(hwndDlg,fg)))
+              SetFocus(GetDlgItem(hwndDlg,IDC_CHATENT));
+          }
+        break;
+        case IDC_SYNC:
+        {
+          HMENU hm=CreatePopupMenu();
+          int hpos=0;
+          int check=(s_want_sync ? MF_CHECKED : 0);
+          int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|check|gray, IDC_SYNCATLOOP,
+            "Start REAPER playback on next loop");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_SEPARATOR, 0, NULL);
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_MATCHBPM_SETLOOP,
+            "Set project tempo and loop at project start");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_SETBPM,
+            "Set project tempo");
+          InsertMenu(hm, hpos++, MF_BYPOSITION|MF_STRING|gray, IDC_SETLOOP,
+            "Set loop at edit cursor");
+
+          RECT r;
+          GetWindowRect(GetDlgItem(hwndDlg, IDC_SYNC), &r);
+          TrackPopupMenu(hm, 0, r.left, r.bottom, 0, hwndDlg, NULL);
+          DestroyMenu(hm);
+        }
+        break;
+        case IDC_SYNCATLOOP:
+          if (last_bpm_i > 0 && last_interval_len > 0)
+          {
+            s_want_sync=!s_want_sync;
+          }
+        break;
+        case IDC_MATCHBPM_SETLOOP:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            SetEditCurPos2 && SetCurrentBPM && GetSet_LoopTimeRange2 && GetSetRepeatEx)
+          {
+            void *__proj = get_parent_project();
+            double spos=0.0, epos=(double)last_interval_len/(double)last_bpm_i*60.0;
+            SetEditCurPos2(__proj, 0.0, false, false);
+            SetCurrentBPM(__proj, (double)last_bpm_i, true);
+            GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
+            GetSetRepeatEx(__proj, 1);
+          }
+        break;
+        case IDC_SETBPM:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            Main_OnCommandEx && SetCurrentBPM)
+          {
+            void *__proj=get_parent_project();
+#define ID_CLEAR_TEMPO_ENV 42395
+            Main_OnCommandEx(ID_CLEAR_TEMPO_ENV, 0, __proj);
+            SetCurrentBPM(__proj, (double)last_bpm_i, true);
+          }
+        break;
+        case IDC_SETLOOP:
+          if (last_bpm_i > 0 && last_interval_len > 0 &&
+            GetCursorPositionEx && GetSet_LoopTimeRange2 && GetSetRepeatEx)
+          {
+            void *__proj=get_parent_project();
+            double spos=GetCursorPositionEx(__proj);
+            double epos=spos+(double)last_interval_len/(double)last_bpm_i*60.0;
+            GetSet_LoopTimeRange2(__proj, true, true, &spos, &epos, false);
+            GetSetRepeatEx(__proj, 1);
           }
         break;
         case ID_OPTIONS_PREFERENCES:
@@ -1398,45 +1749,33 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         case IDC_CHATOK:
           {
-            char str[256];
-            GetDlgItemText(hwndDlg,IDC_CHATENT,str,255);
-            if (str[0])
+            char buf[256];
+            GetDlgItemText(hwndDlg,IDC_CHATENT,buf,255);
+            if (buf[0])
             {
-              if (!stricmp(str,"/clear"))
+              char *str = buf;
+              while (*str == ' ') str++;
+              if (str_begins_tok(str,"/clear"))
               {
-                    SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
+                SetDlgItemText(hwndDlg,IDC_CHATDISP,"");
+#ifndef _WIN32
+                extern WDL_TypedQueue<char> g_chat_textappend;
+                g_chat_textappend.Clear();
+#endif
               }
               else if (g_client->GetStatus() == NJClient::NJC_STATUS_OK)
               {
                 if (str[0] == '/')
                 {
-                  if (!strncasecmp(str,"/me ",4))
+                  if (str_begins_tok(str,"/me"))
                   {
                     g_client_mutex.Enter();
                     g_client->ChatMessage_Send("MSG",str);
                     g_client_mutex.Leave();
                   }
-                  else if (!strncasecmp(str,"/topic ",7)||
-                           !strncasecmp(str,"/kick ",6) ||                        
-                           !strncasecmp(str,"/bpm ",5) ||
-                           !strncasecmp(str,"/bpi ",5)
-                    ) // alias to /admin *
+                  else if (str_begins_tok(str,"/msg"))
                   {
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",str+1);
-                    g_client_mutex.Leave();
-                  }
-                  else if (!strncasecmp(str,"/admin ",7))
-                  {
-                    char *p=str+7;
-                    while (*p == ' ') p++;
-                    g_client_mutex.Enter();
-                    g_client->ChatMessage_Send("ADMIN",p);
-                    g_client_mutex.Leave();
-                  }
-                  else if (!strncasecmp(str,"/msg ",5))
-                  {
-                    char *p=str+5;
+                    char *p=str+4;
                     while (*p == ' ') p++;
                     char *n=p;
                     while (*p && *p != ' ') p++;
@@ -1461,13 +1800,18 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
                   }
                   else
                   {
-                    chat_addline("","error: unknown command.");
+                    const char *p = str+1;
+                    if (str_begins_tok(p,"admin")) p += 5;
+                    while (*p == ' ') p++;
+                    g_client_mutex.Enter();
+                    g_client->ChatMessage_Send("ADMIN",p);
+                    g_client_mutex.Leave();
                   }
                 }
                 else
                 {
                   g_client_mutex.Enter();
-                  g_client->ChatMessage_Send("MSG",str);
+                  g_client->ChatMessage_Send("MSG",buf);
                   g_client_mutex.Leave();
                 }
               }
@@ -1480,12 +1824,86 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             SetFocus(GetDlgItem(hwndDlg,IDC_CHATENT));
           }
         break;
+        case IDC_MUTE:
+        case IDC_SOLO:
+          {
+            HWND foc = GetFocus(), hwndp=NULL;
+            if (foc && getChannelFromHWND(foc, &hwndp) && hwndp)
+              SendMessage(hwndp,WM_COMMAND,LOWORD(wParam),0);
+          }
+        break;
+        case IDC_REMOVE:
+          {
+            HWND foc = GetFocus(), hwndp=NULL;
+            if (foc)
+            {
+              int idx=getChannelFromHWND(foc,&hwndp);
+              if (idx>0 && idx<256 && hwndp)
+                SendMessage(hwndp,WM_COMMAND,LOWORD(wParam),0);
+            }
+          }
+        break;
+        case IDC_ADDCH:
+          {
+            extern HWND g_local_channel_wnd;
+            SendMessage(g_local_channel_wnd,WM_COMMAND,IDC_ADDCH,0);
+          }
+        break;
+        default:
+          if (LOWORD(wParam)>=ID_LOCAL_CHANNEL_1 && LOWORD(wParam) <= ID_LOCAL_CHANNEL_50)
+          {
+            HWND h = getHWNDFromChannel(LOWORD(wParam) - ID_LOCAL_CHANNEL_1 + 1);
+            if (h) SetFocus(GetDlgItem(h,IDC_NAME));
+          }
+          else if (LOWORD(wParam)>=ID_REMOTE_USER_1 && LOWORD(wParam) <= ID_REMOTE_USER_50)
+          {
+            HWND h = getHWNDFromChannel((LOWORD(wParam) - ID_REMOTE_USER_1 +1) << 8);
+            if (h)
+            {
+#ifdef __APPLE__
+              SetFocus(h);
+#else
+              SetFocus(GetDlgItem(h,IDC_USERNAME));
+#endif
+            }
+          }
+          else if (LOWORD(wParam) >= ID_REMOTE_USER_CHANNEL_1 && LOWORD(wParam) <= ID_REMOTE_USER_CHANNEL_50)
+          {
+            HWND foc = GetFocus();
+            if (foc)
+            {
+              int v = getChannelFromHWND(foc) & 0xff00;
+              if (v)
+              {
+                HWND h = getHWNDFromChannel(v | (LOWORD(wParam) - ID_REMOTE_USER_CHANNEL_1 +1));
+                if (h)
+                {
+#ifdef __APPLE__
+                  SetFocus(h);
+#else
+                  SetFocus(GetDlgItem(h,IDC_CHANNELNAME));
+#endif
+                }
+              }
+            }
+          }
+        break;
+        case ID_METRONOME_CH5:
+        case ID_LOCAL_CH34:
+          {
+            g_config_audio_outputs ^= (LOWORD(wParam) == ID_METRONOME_CH5 ? 2 : 1);
+
+            char buf[64];
+            snprintf(buf,sizeof(buf),"%d", g_config_audio_outputs);
+            WritePrivateProfileString(CONFSEC,"config_audio_outputs", buf, g_ini_file.Get());
+          }
+        break;
+
       }
     break;
     case WM_CLOSE:
       {
-        extern DWORD g_object_allocated;
-        if (g_object_allocated)
+        if (g_vst_object)
           ShowWindow(hwndDlg,SW_HIDE);
         else 
           DestroyWindow(hwndDlg);
@@ -1555,8 +1973,8 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         
         sprintf(buf,"%d",g_last_wndpos_state);
         WritePrivateProfileString(CONFSEC,"wnd_state",buf,g_ini_file.Get());
-        sprintf(buf,"%d",g_last_resize_pos);
-        WritePrivateProfileString(CONFSEC,"wnd_div1",buf,g_ini_file.Get());
+        sprintf(buf,"%d",g_lchan_sz);
+        WritePrivateProfileString(CONFSEC,"lchansz",buf,g_ini_file.Get());
         
 
         sprintf(buf,"%d",(int)g_last_wndpos.left);
@@ -1605,9 +2023,88 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
       JNL::close_socketlib();
       g_hwnd=NULL;
     return 0;
+    case WM_INITMENUPOPUP:
+      if (wParam)
+      {
+        HMENU menu = (HMENU)wParam;
+        int check=(s_want_sync ? MF_CHECKED : 0);
+        int gray=(last_bpm_i > 0 && last_interval_len > 0 ? 0 : MF_GRAYED);
+        CheckMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|check);
+        EnableMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_MATCHBPM_SETLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SYNCATLOOP, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SETBPM, MF_BYCOMMAND|gray);
+        EnableMenuItem(menu, IDC_SETLOOP, MF_BYCOMMAND|gray);
+
+        CheckMenuItem(menu,IDC_MASTERMUTE,MF_BYCOMMAND|(g_client && g_client->config_mastermute?MF_CHECKED:0));
+        CheckMenuItem(menu,IDC_METROMUTE,MF_BYCOMMAND|(g_client && g_client->config_metronome_mute?MF_CHECKED:0));
+
+        const int f = getChannelFromHWND(GetFocus());
+        const int user_sel = (f>>8)&0xff;
+
+        EnableMenuItem(menu, IDC_MUTE, MF_BYCOMMAND|(f ? 0 : MF_GRAYED));
+        EnableMenuItem(menu, IDC_SOLO, MF_BYCOMMAND|((f&0xff) ? 0 : MF_GRAYED));
+        EnableMenuItem(menu, IDC_REMOVE, MF_BYCOMMAND|(f && !(f&0xff00) ? 0 : MF_GRAYED));
+
+        for (int x=0;x<MAX_CHANNELS_MENU;x++)
+        {
+          char buf[512];
+          MENUITEMINFO mii={sizeof(mii),MIIM_TYPE|MIIM_STATE,MFT_STRING,};
+          mii.dwTypeData = (char *)buf;
+
+          const char *lcn = g_client->GetLocalChannelInfo(x,NULL,NULL,NULL);
+
+          if (lcn && *lcn) snprintf(buf,sizeof(buf),"Channel %s\tF%d",lcn,x+1);
+          else snprintf(buf,sizeof(buf),"Channel %d\tF%d",x+1,x+1);
+
+          mii.fState = (f == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_LOCAL_CHANNEL_1+x,FALSE,&mii);
+
+          const char *rn = g_client->GetUserState(x);
+          if (rn && *rn) snprintf(buf,sizeof(buf),"User %s\tShift+F%d",rn,x+1);
+          else snprintf(buf,sizeof(buf),"User %d\tShift+F%d",x+1,x+1);
+
+          mii.fState = (user_sel == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_REMOTE_USER_1+x,FALSE,&mii);
+
+          const char *rcn = user_sel > 0 ? g_client->GetUserChannelState(user_sel - 1,x) : NULL;
+          if (rcn && *rcn) snprintf(buf,sizeof(buf),"Channel %s\tCtrl+Shift+F%d",rcn,x+1);
+          else snprintf(buf,sizeof(buf),"Channel %d\tCtrl+Shift+F%d",x+1,x+1);
+          mii.fState = ((f&0xff00) && (f&0xff) == 1+x)?MF_CHECKED:0;
+          SetMenuItemInfo(GetMenu(g_hwnd),ID_REMOTE_USER_CHANNEL_1+x,FALSE,&mii);
+        }
+
+        CheckMenuItem(menu,ID_METRONOME_CH5,MF_BYCOMMAND|((g_config_audio_outputs&2)?MF_CHECKED:0));
+        CheckMenuItem(menu,ID_LOCAL_CH34,MF_BYCOMMAND|((g_config_audio_outputs&1)?MF_CHECKED:0));
+      }
+    return 0;
   }
   return 0;
 }
+
+#ifndef _WIN32
+
+HWND customControlCreator(HWND parent, const char *cname, int idx, const char *classname, int style, int x, int y, int w, int h)
+{
+  HWND hw=0;
+  if (!strcmp(classname,"ninjamstatus"))
+  {
+    hw=CreateDialog(g_hInst,0,parent,(DLGPROC)ninjamStatusProc);
+  }
+  
+  if (hw)
+  {
+    SetWindowLong(hw,GWL_ID,idx);
+    SetWindowPos(hw,HWND_TOP,x,y,w,h,SWP_NOZORDER|SWP_NOACTIVATE);
+    ShowWindow(hw,SW_SHOWNA);
+    return hw;
+  }
+  
+  return 0;
+}
+
+
+#endif
 
 void InitializeInstance()
 {
@@ -1625,7 +2122,7 @@ void InitializeInstance()
       WDL_remove_filepart(g_inipath);
       g_ini_file.Set(g_inipath);
       g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
-      FILE *fp = fopen(g_ini_file.Get(),"r+");
+      FILE *fp = fopenUTF8(g_ini_file.Get(),"r+");
       if (fp) fclose(fp);
       else
       {
@@ -1671,6 +2168,14 @@ void InitializeInstance()
       wc.lpszClassName = "RichEditChild";
       RegisterClass(&wc);
     }
+    {
+      WNDCLASS wc={CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS,ninjamStatusProc,};
+      wc.lpszClassName="ninjamstatus";
+      wc.hInstance=g_hInst;
+      RegisterClass(&wc);        
+    }
+#else
+    SWELL_RegisterCustomControlCreator(customControlCreator);
 #endif
   }
   if (!g_client)
@@ -1731,3 +2236,81 @@ void mkvolstr(char *str, double vol)
 }
 
 
+extern HWND g_local_channel_wnd, g_remote_channel_wnd;
+// returns: 0 if unknown. Otherwise: &0xff=1-based channel index, &0xff00=0,remote user (1-based, in this case channel index=0 for user but no channel)
+int getChannelFromHWND(HWND h, HWND *hwndP)
+{
+  if (hwndP) *hwndP = NULL;
+  if (!h) return 0;
+
+  if (g_local_channel_wnd && IsChild(g_local_channel_wnd,h))
+  {
+    for (;;)
+    {
+      HWND h2 = GetParent(h);
+      if (!h2) return 0;
+      if (h2 == g_local_channel_wnd) break;
+      h = h2;
+    }
+    HWND hc = GetWindow(g_local_channel_wnd,GW_CHILD);
+    int cnt;
+    for (cnt = 0; cnt < 256 && hc != h; cnt ++)
+      hc = GetWindow(hc,GW_HWNDNEXT);
+    if (hc == h)
+    {
+      if (hwndP) *hwndP = h;
+      return cnt;
+    }
+  }
+  else if (g_remote_channel_wnd && IsChild(g_remote_channel_wnd,h))
+  {
+    for (;;)
+    {
+      HWND h2 = GetParent(h);
+      if (!h2) return 0;
+      if (h2 == g_remote_channel_wnd) break;
+      h = h2;
+    }
+    int idx = (int)GetWindowLongPtr(h,GWLP_USERDATA);
+    if (idx == 0x0fffffff) return 0;
+
+    if (hwndP) *hwndP = h;
+
+    if (idx<0)
+      return (-idx)<<8;
+
+    return (((idx>>16)+1)<<8) | ((idx&0xff)+1);
+  }
+  return 0;
+}
+
+HWND getHWNDFromChannel(int chan) // see above
+{
+  if (chan >= 1 && chan <= 0xff)
+  {
+    if (!g_local_channel_wnd) return NULL;
+    HWND hc = GetWindow(g_local_channel_wnd,GW_CHILD);
+    while (chan-- > 0 && hc) hc = GetWindow(hc,GW_HWNDNEXT);
+    return hc;
+  }
+  else if ((chan&0xff00)>=0x100)
+  {
+    if (!g_remote_channel_wnd) return NULL;
+    int scan_id;
+    if (!(chan&0xff)) scan_id = -((chan>>8)&0xff);
+    else scan_id = (((chan>>8)-1)<<16) | ((chan-1)&0xff);
+
+    int maxc=1000;
+    HWND h = GetWindow(g_remote_channel_wnd,GW_CHILD);
+    while (h && maxc--)
+    {
+      if (GetWindowLongPtr(h,GWLP_USERDATA) == scan_id) 
+      {
+        return h;
+      }
+
+      h = GetWindow(h,GW_HWNDNEXT);
+    }
+  }
+  return NULL;
+}

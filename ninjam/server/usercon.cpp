@@ -167,6 +167,103 @@ void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
   }
 }
 
+void User_Connection::SendAuthReply(User_Group *group)
+{
+  mpb_server_auth_reply bh;
+  bh.flag=1;
+  int ch=m_max_channels;
+  if (ch > MAX_USER_CHANNELS) ch=MAX_USER_CHANNELS;
+  if (ch < 0 || group->m_is_lobby_mode) ch = 0;
+
+  bh.maxchan = ch;
+
+  bh.errmsg=m_username.Get();
+  Send(bh.build());
+}
+
+void User_Connection::SendConnectInfo(User_Group *group)
+{
+  {
+    mpb_server_config_change_notify mk;
+    mk.beats_interval=group->m_last_bpi;
+    mk.beats_minute=group->m_last_bpm;
+    Send(mk.build());
+  }
+
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="TOPIC";
+    newmsg.parms[1]="";
+    newmsg.parms[2]=group->m_topictext.Get();
+    Send(newmsg.build());
+  }
+
+  {
+    int cnt=0;
+    int user;
+    for (user = 0; user < group->m_users.GetSize(); user ++)
+    {
+      User_Connection *u=group->m_users.Get(user);
+      if (u != this && u->m_auth_state > 0 && !(u->m_auth_privs & PRIV_HIDDEN))
+        cnt++;
+    }
+    char buf[64],buf2[64];
+    sprintf(buf,"%d",cnt);
+    sprintf(buf2,"%d",group->m_max_users);
+
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="USERCOUNT";
+    newmsg.parms[1]=buf;;
+    newmsg.parms[2]=buf2;
+    Send(newmsg.build());
+  }
+}
+
+void User_Connection::SendPrivateModeStats(const char *req)
+{
+  const char *p = get_privatemode_stats(m_auth_privs,req);
+  
+  for (;;)
+  {
+    while (*p == '\n') p++;
+    if (!*p) break;
+    char buf[1024];
+    int l = 0;
+    while (p[l] && p[l] != '\n' && l < (int)sizeof(buf)-1) l++;
+
+    lstrcpyn_safe(buf,p,l + 1);
+
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="PRIVMSG";
+    newmsg.parms[1]="*";
+    newmsg.parms[2]=(char *)buf;
+    Send(newmsg.build());
+    p+=l;
+  }
+}
+
+void User_Connection::SendMOTDFile(User_Group *group)
+{
+  if (group->m_motdfile.GetLength())
+  {
+    FILE *fp = fopen(group->m_motdfile.Get(),"r");
+    if (fp)
+    {
+      char buf[512];
+      while (fgets(buf,sizeof(buf),fp))
+      {
+        WDL_remove_trailing_crlf(buf);
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]="*";
+        newmsg.parms[2]=buf;
+        Send(newmsg.build());
+      }
+      fclose(fp);
+    }
+  }
+}
+
 int User_Connection::OnRunAuth(User_Group *group)
 {
   char addrbuf[256];
@@ -194,41 +291,25 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   if (m_lookup->is_status)
   {
-    SendUserList(group);
-
+    if (group->m_is_lobby_mode)
     {
-      mpb_server_config_change_notify mk;
-      mk.beats_interval=group->m_last_bpi;
-      mk.beats_minute=group->m_last_bpm;
-      Send(mk.build());
-    }
+      WDL_FastString str(group->m_topictext.Get());
+      const char *p = get_privatemode_stats(0,"");
+      int l = 0;
+      while (p[l] && p[l] != '\n') l++;
+      str.Append(": ");
+      str.Append(p,l);
 
-    {
       mpb_chat_message newmsg;
       newmsg.parms[0]="TOPIC";
       newmsg.parms[1]="";
-      newmsg.parms[2]=group->m_topictext.Get();
+      newmsg.parms[2]=(char*)str.Get();
       Send(newmsg.build());
     }
-
+    else
     {
-      int cnt=0;
-      int user;
-      for (user = 0; user < group->m_users.GetSize(); user ++)
-      {
-        User_Connection *u=group->m_users.Get(user);
-        if (u != this && u->m_auth_state > 0 && !(u->m_auth_privs & PRIV_HIDDEN))
-          cnt++;
-      }
-      char buf[64],buf2[64];
-      sprintf(buf,"%d",cnt);
-      sprintf(buf2,"%d",group->m_max_users);
-
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="USERCOUNT";
-      newmsg.parms[1]=buf;;
-      newmsg.parms[2]=buf2;
-      Send(newmsg.build());
+      SendUserList(group);
+      SendConnectInfo(group);
     }
 
     return 0;
@@ -310,18 +391,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   logText("%s: Accepted user: %s\n",addrbuf,m_username.Get());
 
-  {
-    mpb_server_auth_reply bh;
-    bh.flag=1;
-    int ch=m_max_channels;
-    if (ch > MAX_USER_CHANNELS) ch=MAX_USER_CHANNELS;
-    if (ch < 0) ch = 0;
-
-    bh.maxchan = ch;
-
-    bh.errmsg=m_username.Get();
-    Send(bh.build());
-  }
+  SendAuthReply(group);
 
   m_auth_state=1;
 
@@ -330,6 +400,7 @@ int User_Connection::OnRunAuth(User_Group *group)
 
   SendUserList(group);
 
+  SendMOTDFile(group);
 
   {
     mpb_chat_message newmsg;
@@ -339,23 +410,9 @@ int User_Connection::OnRunAuth(User_Group *group)
     Send(newmsg.build());
   }
 
-  if (group->m_motdfile.GetLength())
+  if (group->m_is_lobby_mode)
   {
-    FILE *fp = fopen(group->m_motdfile.Get(),"r");
-    if (fp)
-    {
-      char buf[512];
-      while (fgets(buf,sizeof(buf),fp))
-      {
-        WDL_remove_trailing_crlf(buf);
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="PRIVMSG";
-        newmsg.parms[1]="*";
-        newmsg.parms[2]=buf;
-        Send(newmsg.build());
-      }
-      fclose(fp);
-    }
+    SendPrivateModeStats("");
   }
 
   {
@@ -371,6 +428,8 @@ int User_Connection::OnRunAuth(User_Group *group)
 // send user list to user
 void User_Connection::SendUserList(User_Group *group)
 {
+  if (group->m_is_lobby_mode) return;
+
   mpb_server_userinfo_change_notify bh;
 
   int user;
@@ -577,12 +636,12 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
               }
             }
 
-
-            if (mfmt_changes) group->Broadcast(mfmt.build(),this);
+            if (mfmt_changes && !group->m_is_lobby_mode) group->Broadcast(mfmt.build(),this);
           }         
         }
       break;
       case MESSAGE_CLIENT_SET_USERMASK:
+        if (group->m_is_lobby_mode) break;
         {
           mpb_client_set_usermask umi;
           if (!umi.parse(msg))
@@ -624,6 +683,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         }
       break;
       case MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN:
+        if (group->m_is_lobby_mode) break;
         {
           mpb_client_upload_interval_begin mp;
           if (!mp.parse(msg) && mp.chidx < m_max_channels)
@@ -715,6 +775,7 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         //m_recvfiles
       break;
       case MESSAGE_CLIENT_UPLOAD_INTERVAL_WRITE:
+        if (group->m_is_lobby_mode) break;
         {
           mpb_client_upload_interval_write mp;
           if (!mp.parse(msg))
@@ -805,10 +866,27 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
   return 0;
 }
 
+bool User_Connection::migrateToRoom(const char *p)
+{
+  while (*p == ' ') p++;
+  if (p[0] && p[0] != '!' && !strstr(p," "))
+  {
+    m_wants_group_migration.Set(p);
+    if (m_wants_group_migration.GetLength()>30) m_wants_group_migration.SetLen(30);
+    char *c = (char *)m_wants_group_migration.Get();
+    while (*c)
+    {
+      if (*c == '\'' || *c == '\t' || *c == '\r' || *c == '\n') *c='_';
+      c++;
+    }
+    return true;
+  }
+  return false;
+}
 
 User_Group::User_Group() : m_max_users(0), m_last_bpm(120), m_last_bpi(32), m_keepalive(0), 
   m_voting_threshold(110), m_voting_timeout(120),
-  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0)
+  m_loopcnt(0), m_run_robin(0), m_allow_hidden_users(0), m_is_lobby_mode(0)
 
 {
   m_logfp = NULL;
@@ -938,16 +1016,19 @@ int User_Group::Run()
           // broadcast to other users that this user is no longer present
           if (p->m_auth_state>0) 
           {
-            mpb_chat_message newmsg;
-            newmsg.parms[0]="PART";
-            newmsg.parms[1]=p->m_username.Get();
-            Broadcast(newmsg.build(),p);
+            if (!m_is_lobby_mode || (m_is_lobby_mode&LOBBY_ALLOW_CHAT))
+            {
+              mpb_chat_message newmsg;
+              newmsg.parms[0]="PART";
+              newmsg.parms[1]=p->m_username.Get();
+              Broadcast(newmsg.build(),p);
+            }
 
             mpb_server_userinfo_change_notify mfmt;
             int mfmt_changes=0;
 
             int whichch=0;
-            while (whichch < MAX_USER_CHANNELS)
+            if (!m_is_lobby_mode) while (whichch < MAX_USER_CHANNELS)
             {
               p->m_channels[whichch].name.Set("");
 
@@ -1002,12 +1083,72 @@ void User_Group::AddConnection(JNL_IConnection *con, int isres)
   m_users.Add(p);
 }
 
+static bool str_begins_tok(const char *str, const char *tok)
+{
+  size_t l = strlen(tok);
+  if (strncasecmp(str,tok,l)) return false;
+
+  return tok[l] == ' ' || tok[l] == 0;
+}
+
 void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 {
+  const char *errormsg = NULL;
   if (!strcmp(msg->parms[0],"MSG")) // chat message
   {
+    const char *p = msg->parms[1];
+    if (!p) return;
+    while (*p == ' ' || *p == '\t') p++;
+
+    if (str_begins_tok(p,"!topic"))
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="TOPIC";
+      newmsg.parms[1]="";
+      newmsg.parms[2]=m_topictext.Get();
+      con->Send(newmsg.build());
+      return;
+    }
+
     WDL_PtrList<Net_Message> need_bcast;
-    if (msg->parms[1] && !strncmp(msg->parms[1],"!vote",5)) // chat message
+    if (m_is_lobby_mode)
+    {
+      bool allow_chat = (m_is_lobby_mode & LOBBY_ALLOW_CHAT) != 0;
+      if (!strncasecmp(p,"!stat",5))
+      {
+        con->SendPrivateModeStats("");
+        return;
+      }
+      if (!strncasecmp(p,"!join",5))
+      {
+        while (*p && *p != ' ') p++;
+        while (*p == ' ' || *p == '\t') p++;
+        allow_chat = false;
+      }
+      else if (*p == '!')
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]="*";
+        newmsg.parms[2]="[lobby] available commands: !join, !stat, !topic";
+        con->Send(newmsg.build());
+        return;
+      }
+
+      if (!allow_chat)
+      {
+        if (!con->migrateToRoom(p))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="PRIVMSG";
+          newmsg.parms[1]="*";
+          newmsg.parms[2]="[lobby] usage: !join private_room_name";
+          con->Send(newmsg.build());
+        }
+        return;
+      }
+    }
+    else if (!strncmp(p,"!vote",5))
     {
       if (!(con->m_auth_privs & PRIV_VOTE) || m_voting_threshold > 100 || m_voting_threshold < 1)
       {
@@ -1018,7 +1159,6 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         con->Send(newmsg.build());
         return;
       }
-      const char *p=msg->parms[1];
       while (*p && *p != ' ') p++;
       while (*p == ' ') p++;
       const char *pn=p;
@@ -1138,24 +1278,27 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
           }
         }
       }
-     
-
+    }
+    else if (*p == '!')
+    {
+      mpb_chat_message newmsg;
+      newmsg.parms[0]="PRIVMSG";
+      newmsg.parms[1]="*";
+      newmsg.parms[2]="Unknown !command. Commands available: !vote, !topic";
+      con->Send(newmsg.build());
+      return;
     }
 
     if (!(con->m_auth_privs & PRIV_CHATSEND))
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]="No MSG permission";
-      con->Send(newmsg.build());
+      errormsg = "No MSG permission";
     }
-    else if (msg->parms[1] && *msg->parms[1])
+    else if (*p)
     {
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]=con->m_username.Get();
-      newmsg.parms[2]=msg->parms[1];
+      newmsg.parms[2]=msg->parms[1]; // send leading whitespace
       Broadcast(newmsg.build());
     }
     int x;
@@ -1165,6 +1308,8 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
   }
   else if (!strcmp(msg->parms[0],"SESSION")) // session block descriptor message
   {
+    if (m_is_lobby_mode) return;
+
     mpb_chat_message newmsg;
     newmsg.parms[0]="SESSION";
     newmsg.parms[1]=con->m_username.Get();
@@ -1175,21 +1320,23 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {
+    if (m_is_lobby_mode && !(m_is_lobby_mode & LOBBY_ALLOW_CHAT)) return;
+
     if (!(con->m_auth_privs & PRIV_CHATSEND))
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]="No PRIVMSG permission";
-      con->Send(newmsg.build());
+      errormsg = "No PRIVMSG permission";
     }
     else if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
     {
       // send a privmsg to user in parm1, and if they don't
       int x;
+      int pmatch = -1;
+      const char *s1 = msg->parms[1];
+      const int l1 = (int) strlen(s1);
       for (x = 0; x < m_users.GetSize(); x ++)
       {
-        if (!strcasecmp(msg->parms[1],m_users.Get(x)->m_username.Get()))
+        const char *tu = m_users.Get(x)->m_username.Get();
+        if (!strcasecmp(s1,tu))
         {
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
@@ -1199,10 +1346,28 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 
           return;
         }
+        else if (pmatch > -2)
+        {
+          if (!strncasecmp(s1,tu,l1))
+          {
+            // only match partially if there's a @ in what we're matching, or the username is immediately followed by one
+            if (tu[l1] == '@' || strstr(s1,"@"))
+              pmatch = pmatch >= 0 ? -2 : x;
+          }
+        }
+      }
+      if (pmatch >= 0)
+      {
+        mpb_chat_message newmsg;
+        newmsg.parms[0]="PRIVMSG";
+        newmsg.parms[1]=con->m_username.Get();
+        newmsg.parms[2]=msg->parms[2];
+        m_users.Get(pmatch)->Send(newmsg.build());
+        return;
       }
 
       // send a privmsg back to sender, saying shit aint there
-      WDL_String buf("No such user: ");
+      WDL_String buf(pmatch == -2 ? "Username is ambiguous (specify partial IP): " : "No such user: ");
       buf.Append(msg->parms[1]);          
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
@@ -1211,27 +1376,22 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       con->Send(newmsg.build());
     }
   }
-  else if (!strcmp(msg->parms[0],"ADMIN")) // admin message
+  else if (!strcmp(msg->parms[0],"ADMIN")) // admin message (not purely admin but also /commands)
   {
-    const char *adminerr="ADMIN requires valid parameter, i.e. topic, kick, bpm, bpi";
+    const char *adminerr="Valid commands: /topic, /kick, /bpm, /bpi, /stat, /join";
     if (msg->parms[1] && *msg->parms[1])
     {
-      if (!strncasecmp(msg->parms[1],"topic ",6))
+      if (str_begins_tok(msg->parms[1],"topic"))
       {
-        if (!(con->m_auth_privs & PRIV_TOPIC))
+        const char *p=msg->parms[1]+5;
+        while (*p == ' ') p++;
+        if (*p)
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No TOPIC permission";
-          con->Send(newmsg.build());
-        }
-        else
-        {
-          // set topic, notify everybody of topic change
-          const char *p=msg->parms[1]+6;
-          while (*p == ' ') p++;
-          if (*p)
+          if (!(con->m_auth_privs & PRIV_TOPIC))
+          {
+            errormsg = "No TOPIC permission";
+          }
+          else
           {
             m_topictext.Set(p);
             mpb_chat_message newmsg;
@@ -1241,22 +1401,25 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
             Broadcast(newmsg.build());
           }
         }
-
+        else
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]="TOPIC";
+          newmsg.parms[1]="";
+          newmsg.parms[2]=m_topictext.Get();
+          con->Send(newmsg.build());
+        }
       }
-      else if (!strncasecmp(msg->parms[1],"kick ",5))
+      else if (str_begins_tok(msg->parms[1],"kick"))
       {
         if (!(con->m_auth_privs & PRIV_KICK))
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No KICK permission";
-          con->Send(newmsg.build());
+          errormsg = "No KICK permission";
         }
         else
         {
           // set topic, notify everybody of topic change
-          const char *p=msg->parms[1]+5;
+          const char *p=msg->parms[1]+4;
           while (*p == ' ') p++;
           if (*p)
           {
@@ -1300,26 +1463,20 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
               newmsg.parms[2]=tmp.Get();
               con->Send(newmsg.build());
             }
-
           }
         }
-
       }
-      else if (!strncasecmp(msg->parms[1],"bpm ",4) || !strncasecmp(msg->parms[1],"bpi ",4))
+      else if (str_begins_tok(msg->parms[1],"bpm") || str_begins_tok(msg->parms[1],"bpi"))
       {
         if (!(con->m_auth_privs & PRIV_BPM))
         {
-          mpb_chat_message newmsg;
-          newmsg.parms[0]="MSG";
-          newmsg.parms[1]="";
-          newmsg.parms[2]="No BPM/BPI permission";
-          con->Send(newmsg.build());
+          errormsg = "No BPM/BPI permission";
         }
         else
         {
           int isbpm=tolower(msg->parms[1][2])=='m';
 
-          const char *p=msg->parms[1]+4;
+          const char *p=msg->parms[1]+3;
           while (*p == ' ') p++;
           int v=atoi(p);
           if (isbpm && (v < 20 || v > 400))
@@ -1363,27 +1520,47 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
             Broadcast(newmsg.build());
           }
         }
-
+      }
+      else if (str_begins_tok(msg->parms[1],"stat"))
+      {
+        const char *p = msg->parms[1] + 4;
+        while (*p == ' ') p++;
+        con->SendPrivateModeStats(p);
+      }
+      else if (str_begins_tok(msg->parms[1],"join"))
+      {
+        if (!m_is_lobby_mode)
+        {
+          errormsg = "Error: can't /join if not in lobby";
+        }
+        else
+        {
+          if (!con->migrateToRoom(msg->parms[1] + 4))
+          {
+            errormsg = "Usage: /join channel_name";
+          }
+        }
       }
       else
       {
-        mpb_chat_message newmsg;
-        newmsg.parms[0]="MSG";
-        newmsg.parms[1]="";
-        newmsg.parms[2]=adminerr;
-        con->Send(newmsg.build());
+        errormsg = adminerr;
       }
     }
     else
     {
-      mpb_chat_message newmsg;
-      newmsg.parms[0]="MSG";
-      newmsg.parms[1]="";
-      newmsg.parms[2]=adminerr;
-      con->Send(newmsg.build());
+      errormsg = adminerr;
     }
   }
   else // unknown message
   {
+  }
+
+  if (errormsg)
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="MSG";
+    newmsg.parms[1]="";
+    newmsg.parms[2]=errormsg;
+    con->Send(newmsg.build());
   }
 }

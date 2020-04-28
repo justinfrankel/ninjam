@@ -77,6 +77,17 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     case WM_DESTROY:
       delete _this;
     return 0;
+    case WM_NOTIFY:
+#ifdef _WIN32
+      {
+        extern LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
+        const unsigned short list[] = { IDC_TRANSMIT };
+        if (handleCheckboxCustomDraw) 
+          return handleCheckboxCustomDraw(hwndDlg,lParam,list,1,true);
+      }
+#endif
+    break;
+
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORBTN:
@@ -89,7 +100,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (_this)
         {
           _this->wndsizer.init(hwndDlg);
-          _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,1.0f,0.0f);
+          _this->wndsizer.init_item(IDC_VU,0.0f,0.0f,0.0f,0.0f);
           _this->wndsizer.init_item(IDC_VOL,0.0f,0.0f,0.8f,0.0f);
           _this->wndsizer.init_item(IDC_PAN,0.8f,0.0f,1.0f,0.0f);
           _this->wndsizer.init_item(IDC_MUTE,1.0f,0.0f,1.0f,0.0f);
@@ -101,12 +112,6 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         }
         int sch;
         bool bc;
-
-        extern void (*RemoveXPStyle)(HWND hwnd, int rem);
-        if (RemoveXPStyle)
-        {
-          RemoveXPStyle(GetDlgItem(hwndDlg,IDC_TRANSMIT),1);
-        }
 
         int f=0;
         char *buf=g_client->GetLocalChannelInfo(m_idx,&sch,NULL,&bc,NULL,&f);
@@ -120,6 +125,9 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
+
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)"Local channel mute");
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)"Local channel solo");
 
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Normal NINJAM");
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Voice Chat");
@@ -136,12 +144,14 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         //SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETTIC,FALSE,-1);       
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(vol)));
+        SendDlgItemMessage(hwndDlg,IDC_VOL,WM_USER+9999,1,(LPARAM)"Local channel volume");
 
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETRANGE,FALSE,MAKELONG(0,100));
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETTIC,FALSE,50);       
         int t=(int)(pan*50.0) + 50;
         if (t < 0) t=0; else if (t > 100)t=100;
         SendDlgItemMessage(hwndDlg,IDC_PAN,TBM_SETPOS,TRUE,t);
+        SendDlgItemMessage(hwndDlg,IDC_PAN,WM_USER+9999,1,(LPARAM)"Local channel pan");
 
         {
          char tmp[512];
@@ -372,8 +382,9 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     return 0;
     case WM_LCUSER_VUUPDATE:
       {
-        int ival=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,0))*10.0);
-        int ival2=(int) floor(VAL2DB(g_client->GetLocalChannelPeak(m_idx,1))*10.0);
+        float pk1 = g_client->GetLocalChannelPeak(m_idx,0), pk2 = g_client->GetLocalChannelPeak(m_idx,1);
+        int ival=(int) floor(VAL2DB(pk1)*10.0);
+        int ival2=(int) floor(VAL2DB(pk2)*10.0);
         SendDlgItemMessage(hwndDlg,IDC_VU,WM_USER+1010,ival,ival2);
       }
     return 0;
@@ -452,6 +463,8 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 
           SetWindowPos(hwndDlg,0,0,0,w,h,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
           SendMessage(GetParent(hwndDlg),WM_LCUSER_RESIZE,0,uMsg == WM_COMMAND);
+          if (uMsg == WM_COMMAND)
+            SetFocus(GetDlgItem(hwnd,IDC_NAME));
         }
       }
     break;
@@ -527,20 +540,18 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
   return 0;
 }
 
-
-
+HWND g_local_channel_wnd;
 WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static int m_wh, m_ww,m_nScrollPos,m_nScrollPos_w;
   static int m_h, m_maxpos_h, m_w,m_maxpos_w; 
-  static HWND m_child;
   switch (uMsg)
   {
 
     case WM_INITDIALOG:
       m_nScrollPos=m_nScrollPos_w=0;
       m_maxpos_h=m_h=m_maxpos_w=m_w=0;
-      m_child=NULL;
+      g_local_channel_wnd=NULL;
     case WM_RCUSER_UPDATE:
     case WM_LCUSER_RESIZE:
       {
@@ -553,21 +564,20 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
         SetWindowPos(hwndDlg,NULL,r.left,r.top,m_ww,m_wh,SWP_NOZORDER|SWP_NOACTIVATE);
 
-        m_wh -= GetSystemMetrics(SM_CYHSCROLL);
 
         if (uMsg == WM_INITDIALOG)
         {
           InitializeCoolSB(hwndDlg);
-          m_child=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
-          ShowWindow(m_child,SW_SHOWNA);
+          g_local_channel_wnd=CreateDialog(g_hInst,MAKEINTRESOURCE(IDD_LOCALLIST),hwndDlg,LocalChannelListProc);
+          ShowWindow(g_local_channel_wnd,SW_SHOWNA);
           ShowWindow(hwndDlg,SW_SHOWNA);
         }
       }
 
       {
-        SendMessage(m_child,WM_RCUSER_UPDATE,0,0);
+        SendMessage(g_local_channel_wnd,WM_RCUSER_UPDATE,0,0);
         RECT r;
-        GetWindowRect(m_child,&r);
+        GetWindowRect(g_local_channel_wnd,&r);
         if (r.bottom < r.top) SWAP(r.bottom,r.top,int);
         m_h=r.bottom-r.top;
         m_w=r.right-r.left;
@@ -614,9 +624,9 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
       }
       {
         RECT r,r2;
-        GetClientRect(m_child,&r);
+        GetClientRect(g_local_channel_wnd,&r);
         GetClientRect(hwndDlg,&r2);
-        SetWindowPos(m_child,0,0,0,r2.right,r.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+        SetWindowPos(g_local_channel_wnd,0,0,0,r2.right,r.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
       }
       if (uMsg == WM_LCUSER_RESIZE && lParam == 1)
       {
@@ -640,7 +650,7 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case WM_LCUSER_REPOP_CH:
     case WM_LCUSER_ADDCHILD:
     case WM_LCUSER_VUUPDATE:
-      SendMessage(m_child,uMsg,wParam,lParam);
+      SendMessage(g_local_channel_wnd,uMsg,wParam,lParam);
     break;
     case WM_VSCROLL:
       {
@@ -732,7 +742,7 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case WM_DRAWITEM:
       return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
     case WM_DESTROY:
-      m_child=NULL;
+      g_local_channel_wnd=NULL;
       UninitializeCoolSB(hwndDlg);
     return 0;
   }

@@ -52,31 +52,29 @@ END
 // Dialog
 //
 
-IDD_MAIN DIALOGEX 0, 0, 478, 216
+IDD_MAIN DIALOGEX 0, 0, 478, 276
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
 EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "ReaNINJAM"
 MENU IDR_MENU1
-FONT 8, "MS Shell Dlg"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    LTEXT           "Master: ",IDC_STATIC,2,4,26,8
-    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,44,2,
-                    160,12
+    RTEXT           "Master:",IDC_MASTER_LBL,50,4,38,8
+    CONTROL         "Slider1",IDC_MASTERVOL,"REAPERhfader",WS_TABSTOP,92,2,
+                    118,12
+    CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,212,2,
+                    41,12
     RTEXT           "+0.0 dB",IDC_MASTERVOLLBL,257,4,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_MASTERPAN,"REAPERhfader",WS_TABSTOP,206,2,
-                    45,12
-    LTEXT           "Metronome:",IDC_STATIC,2,21,38,8
-    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,44,18,
-                    160,12
+    RTEXT           "Metronome:",IDC_METRO_LBL,50,21,38,8
+    CONTROL         "Slider1",IDC_METROVOL,"REAPERhfader",WS_TABSTOP,92,18,
+                    118,12
+    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,212,18,
+                    41,12
     RTEXT           "+0.0 dB",IDC_METROVOLLBL,257,22,29,11,SS_NOTIFY
-    CONTROL         "Slider1",IDC_METROPAN,"REAPERhfader",WS_TABSTOP,206,18,
-                    45,12
-    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,2,16,474,1
-    CONTROL         "Status: No connection.",IDC_STATUS,"Static",
-                    SS_LEFTNOWORDWRAP | WS_GROUP,2,206,356,8
-    CONTROL         "Progress2",IDC_INTERVALPOS,"msctls_progress32",
-                    WS_BORDER,2,196,474,9
+    CONTROL         "",IDC_DIV1,"Static",SS_ETCHEDHORZ,48,16,428,1
+    CONTROL         "Progress2",IDC_INTERVALPOS,"ninjamstatus",0x0,2,196,474,
+                    78
     CONTROL         "",IDC_CHATDISP,"RichEditChild",WS_BORDER | WS_VSCROLL | 
                     WS_TABSTOP | 0x2804,4,110,213,66
     CONTROL         "",IDC_CHATENT,"RichEditChild",WS_BORDER | WS_TABSTOP | 
@@ -85,7 +83,6 @@ BEGIN
                     46,213,49
     CONTROL         "",IDC_REMOTERECT,"Static",SS_BLACKRECT | NOT WS_VISIBLE,
                     225,46,251,148
-    RTEXT           "",IDC_STATUS2,400,206,76,8
     CONTROL         "",IDC_DIV2,"Static",SS_ETCHEDHORZ,2,98,214,1
     CONTROL         "",IDC_DIV3,"Static",SS_ETCHEDHORZ,2,33,474,1
     LTEXT           "center",IDC_MASTERPANLBL,288,4,22,11,SS_NOTIFY
@@ -93,25 +90,26 @@ BEGIN
     CONTROL         "",IDC_MASTERVU,"REAPERhorzvu",WS_TABSTOP,329,2,147,12
     LTEXT           "Local Channels:",IDC_LOCGRP,2,37,52,8
     LTEXT           "Remote Channels:",IDC_REMGRP,225,37,59,8
-    CONTROL         "",IDC_CHATGRP,"Static",SS_ETCHEDVERT,220,37,1,156
-    LTEXT           "Chat:",IDC_CHATLBL,2,100,18,8
+    LTEXT           "Cha&t:",IDC_CHATLBL,2,100,88,8
     CONTROL         "mastermute",IDC_MASTERMUTE,"HotTrackButton",0x4b,315,2,
                     12,11
     CONTROL         "metromute",IDC_METROMUTE,"HotTrackButton",0x4b,315,20,
                     12,11
     PUSHBUTTON      "Send",IDC_CHATOK,192,178,25,14
+    PUSHBUTTON      "Connect...",IDC_CONNECT,2,2,42,12
+    PUSHBUTTON      "Sync...",IDC_SYNC,2,18,42,12
 END
 
 IDD_CONNECT DIALOG DISCARDABLE  0, 0, 361, 236
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 CAPTION "NINJAM Connection Configuration"
 FONT 8, "MS Shell Dlg"
 BEGIN
     COMBOBOX        IDC_HOST,65,141,155,186,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
     EDITTEXT        IDC_USER,65,160,155,12,ES_AUTOHSCROLL
-    CONTROL         "Connect &anonymously",IDC_ANON,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,68,176,85,10
+    CONTROL         "Connect with p&assword",IDC_ANON,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,68,176,100,10
     EDITTEXT        IDC_PASS,65,189,155,12,ES_PASSWORD | ES_AUTOHSCROLL | 
                     NOT WS_VISIBLE
     CONTROL         "&Remember password",IDC_PASSREMEMBER,"Button",
@@ -119,11 +117,11 @@ BEGIN
                     10
     DEFPUSHBUTTON   "Connect",IDOK,249,215,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,304,215,50,14
-    LTEXT           "Connect to host:",IDC_STATIC,7,143,53,8
-    LTEXT           "Username:",IDC_STATIC,7,162,35,8
+    LTEXT           "Connect to host:",IDC_CONNECT_LBL,7,143,53,8
+    LTEXT           "Username:",IDC_USERLBL,7,162,35,8
     LTEXT           "Password:",IDC_PASSLBL,7,191,34,8,NOT WS_VISIBLE
     LTEXT           "For information on setting up a server, visit http://www.ninjam.com",
-                    IDC_STATIC,7,220,220,10
+                    IDC_INFOTEXT,7,220,220,10
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | 
                     WS_TABSTOP,7,7,347,126
@@ -143,13 +141,13 @@ BEGIN
                     WS_VSCROLL | WS_TABSTOP | 0x2804,7,7,302,183
 END
 
-IDD_PREFS DIALOG DISCARDABLE  0, 0, 241, 108
+IDD_PREFS DIALOG DISCARDABLE  0, 0, 241, 112
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NINJAM Preferences"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,129,87,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,184,87,50,14
+    DEFPUSHBUTTON   "OK",IDOK,129,91,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,184,91,50,14
     CONTROL         "Save multitrack recordings for remixing later",
                     IDC_SAVELOCAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,
                     152,10
@@ -159,30 +157,33 @@ BEGIN
     EDITTEXT        IDC_SESSIONDIR,7,45,182,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse...",IDC_BROWSE,192,45,42,12
     LTEXT           "Changes to the above settings will take effect on the next connection.",
-                    IDC_CHNOTE,7,65,227,8
+                    IDC_CHNOTE,7,63,227,8
+    CONTROL         "Flash beat counter at start and every 16 beats",IDC_FLASH,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,77,200,10
 END
 
-IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 202, 43
+IDD_LOCALCHANNEL DIALOG DISCARDABLE  0, 0, 202, 47
 STYLE DS_CONTROL | WS_CHILD
 FONT 8, "MS Shell Dlg"
 BEGIN
-    EDITTEXT        IDC_NAME,1,1,46,12,ES_AUTOHSCROLL | ES_WANTRETURN
+    EDITTEXT        IDC_NAME,2,1,46,12,ES_AUTOHSCROLL | ES_WANTRETURN
     CONTROL         "Xmit",IDC_TRANSMIT,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,49,3,27,10
-    COMBOBOX        IDC_AUDIOIN,78,1,55,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP,50,3,32,10
+    COMBOBOX        IDC_AUDIOIN,2,16,84,148,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,1,15,119,11
-    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,122,15,51,11
-    RTEXT           "+0.0 dB",IDC_VOLLBL,108,30,28,8,SS_NOTIFY
-    PUSHBUTTON      "Delete",IDC_REMOVE,166,30,33,9
-    CONTROL         "",IDC_EDGE,"Static",SS_ETCHEDHORZ,1,41,200,1
+    CONTROL         "Slider1",IDC_VOL,"REAPERhfader",WS_TABSTOP,110,16,50,11
+    CONTROL         "Slider1",IDC_PAN,"REAPERhfader",WS_TABSTOP,163,16,36,11
+    RTEXT           "+0.0 dB",IDC_VOLLBL,110,33,28,8,SS_NOTIFY
+    PUSHBUTTON      "Delete",IDC_REMOVE,166,32,33,9
+    CONTROL         "",IDC_EDGE,"Static",SS_ETCHEDHORZ,1,45,200,1
     CONTROL         "center",IDC_PANLBL,"Static",SS_LEFTNOWORDWRAP | 
-                    SS_NOTIFY | WS_GROUP,138,30,23,8
-    CONTROL         "",IDC_VU,"REAPERhorzvu",WS_TABSTOP,135,1,64,12
-    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,175,15,12,11
-    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,188,15,12,11
-    COMBOBOX        IDC_ASYNCXMIT,1,27,84,109,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    SS_NOTIFY | WS_GROUP,140,33,23,8
+    CONTROL         "",IDC_VU,"REAPERvertvu",WS_TABSTOP,90,1,16,42
+    CONTROL         "mute",IDC_MUTE,"HotTrackButton",0x4b,174,2,12,11
+    CONTROL         "solo",IDC_SOLO,"HotTrackButton",0x4b,187,2,12,11
+    COMBOBOX        IDC_ASYNCXMIT,2,31,84,109,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
+    LTEXT           "Monitoring mix:", IDC_STATIC, 109,4,64,11
 END
 
 IDD_EMPTY_SCROLL DIALOGEX 0, 0, 201, 35
@@ -306,13 +307,13 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 234
         TOPMARGIN, 7
-        BOTTOMMARGIN, 101
+        BOTTOMMARGIN, 105
     END
 
     IDD_LOCALCHANNEL, DIALOG
     BEGIN
         RIGHTMARGIN, 201
-        BOTTOMMARGIN, 42
+        BOTTOMMARGIN, 46
     END
 
     IDD_EMPTY_SCROLL, DIALOG
@@ -376,10 +377,72 @@ IDR_MENU1 MENU DISCARDABLE
 BEGIN
     POPUP "&File"
     BEGIN
-        MENUITEM "&Connect...",                 ID_FILE_CONNECT
-        MENUITEM "&Disconnect",                 ID_FILE_DISCONNECT, GRAYED
+        MENUITEM "&Connect...\tCtrl+O",                 ID_FILE_CONNECT
+        MENUITEM "&Disconnect\tCtrl+D",                 ID_FILE_DISCONNECT, GRAYED
         MENUITEM SEPARATOR
-        MENUITEM "&Preferences...",             ID_OPTIONS_PREFERENCES
+        MENUITEM "&Preferences...\tCtrl+P",             ID_OPTIONS_PREFERENCES
+    END
+    POPUP "&Channels"
+    BEGIN
+        MENUITEM "Mute master\tCtrl+Shift+M", IDC_MASTERMUTE
+        MENUITEM "Mute metronome\tCtrl+M", IDC_METROMUTE
+        MENUITEM SEPARATOR
+        MENUITEM "Mute selected channel\tAlt+M", IDC_MUTE
+        MENUITEM "Solo selected channel\tAlt+S", IDC_SOLO
+        MENUITEM SEPARATOR
+        MENUITEM "Add local channel\tCtrl+Shift+N", IDC_ADDCH
+        MENUITEM "Delete selected local channel\tCtrl+Shift+D", IDC_REMOVE
+        MENUITEM SEPARATOR
+        POPUP "Select local channel"
+        BEGIN
+          MENUITEM "Channel 1\tF1", ID_LOCAL_CHANNEL_1
+          MENUITEM "Channel 2\tF2", ID_LOCAL_CHANNEL_2
+          MENUITEM "Channel 3\tF3", ID_LOCAL_CHANNEL_3
+          MENUITEM "Channel 4\tF4", ID_LOCAL_CHANNEL_4
+          MENUITEM "Channel 5\tF5", ID_LOCAL_CHANNEL_5
+          MENUITEM "Channel 6\tF6", ID_LOCAL_CHANNEL_6
+          MENUITEM "Channel 7\tF7", ID_LOCAL_CHANNEL_7
+          MENUITEM "Channel 8\tF8", ID_LOCAL_CHANNEL_8
+          MENUITEM "Channel 9\tF9", ID_LOCAL_CHANNEL_9
+          MENUITEM "Channel 10\tF10", ID_LOCAL_CHANNEL_10
+        END
+        POPUP "Select remote user"
+        BEGIN
+          MENUITEM "User 1\tShift+F1", ID_REMOTE_USER_1
+          MENUITEM "User 2\tShift+F2", ID_REMOTE_USER_2
+          MENUITEM "User 3\tShift+F3", ID_REMOTE_USER_3
+          MENUITEM "User 4\tShift+F4", ID_REMOTE_USER_4
+          MENUITEM "User 5\tShift+F5", ID_REMOTE_USER_5
+          MENUITEM "User 6\tShift+F6", ID_REMOTE_USER_6
+          MENUITEM "User 7\tShift+F7", ID_REMOTE_USER_7
+          MENUITEM "User 8\tShift+F8", ID_REMOTE_USER_8
+          MENUITEM "User 9\tShift+F9", ID_REMOTE_USER_9
+          MENUITEM "User 10\tShift+F10", ID_REMOTE_USER_10
+        END
+        POPUP "Select remote-user channel"
+        BEGIN
+          MENUITEM "Channel 1\tCtrl+Shift+F1", ID_REMOTE_USER_CHANNEL_1
+          MENUITEM "Channel 2\tCtrl+Shift+F2", ID_REMOTE_USER_CHANNEL_2
+          MENUITEM "Channel 3\tCtrl+Shift+F3", ID_REMOTE_USER_CHANNEL_3
+          MENUITEM "Channel 4\tCtrl+Shift+F4", ID_REMOTE_USER_CHANNEL_4
+          MENUITEM "Channel 5\tCtrl+Shift+F5", ID_REMOTE_USER_CHANNEL_5
+          MENUITEM "Channel 6\tCtrl+Shift+F6", ID_REMOTE_USER_CHANNEL_6
+          MENUITEM "Channel 7\tCtrl+Shift+F7", ID_REMOTE_USER_CHANNEL_7
+          MENUITEM "Channel 8\tCtrl+Shift+F8", ID_REMOTE_USER_CHANNEL_8
+          MENUITEM "Channel 9\tCtrl+Shift+F9", ID_REMOTE_USER_CHANNEL_9
+          MENUITEM "Channel 10\tCtrl+Shift+F10", ID_REMOTE_USER_CHANNEL_10
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "Route local channels to VST output 3/4", ID_LOCAL_CH34
+        MENUITEM "Route metronome to VST output 5", ID_METRONOME_CH5
+    END
+    POPUP "S&ync"
+    BEGIN
+        MENUITEM "Start REAPER playback on next loop", IDC_SYNCATLOOP
+        MENUITEM SEPARATOR
+        MENUITEM "Set project tempo and loop at project start", IDC_MATCHBPM_SETLOOP
+        MENUITEM "Set project tempo", IDC_SETBPM
+        MENUITEM "Set loop at edit cursor", IDC_SETLOOP
     END
 END
 

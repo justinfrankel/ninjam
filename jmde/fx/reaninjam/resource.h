@@ -25,6 +25,7 @@
 #define IDD_VSTCFG                      120
 #define IDI_ICON2                       121
 #define IDD_CONNECT_OLD                 121
+#define IDD_SYNC                        122
 #define IDC_COMBO1                      1000
 #define IDC_MASTERVOL                   1000
 #define IDC_CRECT                       1001
@@ -49,7 +50,6 @@
 #define IDC_EDIT2                       1008
 #define IDC_DIV1                        1008
 #define IDC_EDIT3                       1009
-#define IDC_STATUS                      1009
 #define IDC_LATENCYINFO                 1010
 #define IDC_INTERVALPOS                 1010
 #define IDC_EDIT4                       1011
@@ -76,7 +76,6 @@
 #define IDC_USER                        1024
 #define IDC_HOST                        1025
 #define IDC_CHATOK                      1026
-#define IDC_STATUS2                     1028
 #define IDC_LICENSETEXT                 1029
 #define IDC_SAVEOGG                     1030
 #define IDC_SAVELOCAL                   1031
@@ -93,6 +92,7 @@
 #define IDC_AUDIOIN                     1042
 #define IDC_VU                          1043
 #define IDC_VULBL                       1044
+#define IDC_VU2                         1044
 #define IDC_VOL                         1045
 #define IDC_PAN                         1046
 #define IDC_VOLLBL                      1047
@@ -116,6 +116,53 @@
 #define IDC_ASYNCXMIT                   1064
 #define IDC_EDGE                        1065
 #define IDC_LIST1                       1066
+#define IDC_CONNECT_LBL                 1067
+#define IDC_USERLBL                     1068
+#define IDC_INFOTEXT                    1069
+#define IDC_MASTER_LBL                  1070
+#define IDC_METRO_LBL                   1071
+#define IDC_CONNECT                     1072
+#define IDC_FLASH                       1073
+#define IDC_SETBPM                      1074
+#define IDC_SYNCATLOOP                  1075
+#define IDC_SYNC                        1076
+#define IDC_MATCHBPM_SETLOOP            1077
+#define IDC_SETLOOP                     1078
+#define ID_LOCAL_CHANNEL_1              2011
+#define ID_LOCAL_CHANNEL_2              2012
+#define ID_LOCAL_CHANNEL_3              2013
+#define ID_LOCAL_CHANNEL_4              2014
+#define ID_LOCAL_CHANNEL_5              2015
+#define ID_LOCAL_CHANNEL_6              2016
+#define ID_LOCAL_CHANNEL_7              2017
+#define ID_LOCAL_CHANNEL_8              2018
+#define ID_LOCAL_CHANNEL_9              2019
+#define ID_LOCAL_CHANNEL_10             2020
+#define ID_LOCAL_CHANNEL_50             2060
+#define ID_REMOTE_USER_1                2061
+#define ID_REMOTE_USER_2                2062
+#define ID_REMOTE_USER_3                2063
+#define ID_REMOTE_USER_4                2064
+#define ID_REMOTE_USER_5                2065
+#define ID_REMOTE_USER_6                2066
+#define ID_REMOTE_USER_7                2067
+#define ID_REMOTE_USER_8                2068
+#define ID_REMOTE_USER_9                2069
+#define ID_REMOTE_USER_10               2070
+#define ID_REMOTE_USER_50               2110
+#define ID_REMOTE_USER_CHANNEL_1        2111
+#define ID_REMOTE_USER_CHANNEL_2        2112
+#define ID_REMOTE_USER_CHANNEL_3        2113
+#define ID_REMOTE_USER_CHANNEL_4        2114
+#define ID_REMOTE_USER_CHANNEL_5        2115
+#define ID_REMOTE_USER_CHANNEL_6        2116
+#define ID_REMOTE_USER_CHANNEL_7        2117
+#define ID_REMOTE_USER_CHANNEL_8        2118
+#define ID_REMOTE_USER_CHANNEL_9        2119
+#define ID_REMOTE_USER_CHANNEL_10       2120
+#define ID_REMOTE_USER_CHANNEL_50       2160
+#define ID_METRONOME_CH5                2161
+#define ID_LOCAL_CH34                   2162
 #define ID_FILE_CONNECT                 40001
 #define ID_FILE_DISCONNECT              40002
 #define ID_FILE_QUIT                    40003
@@ -129,9 +176,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        122
+#define _APS_NEXT_RESOURCE_VALUE        123
 #define _APS_NEXT_COMMAND_VALUE         40009
-#define _APS_NEXT_CONTROL_VALUE         1068
+#define _APS_NEXT_CONTROL_VALUE         1080
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

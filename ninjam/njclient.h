@@ -163,6 +163,10 @@ public:
   int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo); // 0 on success
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
 
+  void SetMetronomeChannel(int chidx) { m_metro_chidx=chidx; } // chidx&255 is stereo pair index, add 1024 for mono only
+  void SetRemoteChannelOffset(int offs) { m_remote_chanoffs = offs; }
+  void SetLocalChannelOffset(int offs) { m_local_chanoffs = offs; }
+
   int IsASoloActive() { return m_issoloactive; }
 
   void SetLogFile(char *name=NULL);
@@ -198,6 +202,12 @@ public:
 
   WDL_Mutex m_remotechannel_rd_mutex;
 
+  bool is_likely_lobby() const {
+    return !m_max_localch && !m_remoteusers.GetSize();
+  }
+
+  int GetSampleRate() const { return m_srate; }
+
 protected:
   double output_peaklevel[2];
 
@@ -208,6 +218,7 @@ protected:
   void updateBPMinfo(int bpm, int bpi);
   void process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isPlaying, bool isSeek, double cursessionpos);
   void on_new_interval();
+  void writeUserChanLog(const char *lbl, RemoteUser *user, RemoteUser_Channel *chan, int chanidx);
 
   void writeLog(const char *fmt, ...);
 
@@ -241,13 +252,16 @@ protected:
   int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
   double m_metronome_pos;
 
-  DecodeState *start_decode(unsigned char *guid, unsigned int fourcc=0, DecodeMediaBuffer *decbuf=NULL);
+  int m_metro_chidx, m_remote_chanoffs, m_local_chanoffs;
+
+  DecodeState *start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf);
 
   BufferQueue *m_wavebq;
 
   WDL_PtrList<Local_Channel> m_locchannels;
 
-  void mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
+  void mixInChannel(RemoteUser *user, int chanidx,
+                    bool muted, float vol, float pan, float **outbuf, int out_channel, 
                     int len, int srate, int outnch, int offs, double vudecay, bool isPlaying, bool isSeek, double playPos);
 
   WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;

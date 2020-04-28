@@ -13,6 +13,8 @@
 #include "../../../WDL/wdlcstring.h"
 
 #include "../../reaper_plugin.h"
+#define WDL_WIN32_HIDPI_IMPL
+#include "../../../WDL/win32_hidpi.h" // for mmon SetWindowPos() tweaks
 
 #include "resource.h"
 
@@ -22,27 +24,6 @@
 #define SAMPLETYPE float
 
 
-#define NUM_INPUTS 8
-#define NUM_OUTPUTS 2
-
-#define NUM_PARAMS 0
-
-#define USE_BOOL -1000.0
-#define USE_DB -10000.0
-typedef struct
-{
-   double parm_maxval;
-   const char *name;
-   const char *label;
-   double defparm;
-   double minval; // can be USE_DB,USE_BOOL
-   double maxval;
-   unsigned short ui_id_slider, ui_id_lbl;
-   int precisiondigits;
-   double slidershape;
-} parameterInfo; 
-
-DWORD g_object_allocated;
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos) ;
 void InitializeInstance();
 void QuitInstance();
@@ -50,17 +31,6 @@ void QuitInstance();
 
 void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride); // actually implemented in tracklist.cpp for now
 
-
-static double sliderscale_sq(double in, int dir, double n)
-{
-  if (dir < 0) return (pow((double) in,n)/pow(1000.0,n-1.0));
-  return (pow(in * pow(1000.0,n-1),1/n));
-}
-
-static parameterInfo param_infos[1 /*NUM_PARAMS*/]=
-{
- 0,
-};
 
 audioMasterCallback g_hostcb;
 
@@ -77,7 +47,19 @@ double (*SLIDER2DB)(double);
 void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
 void *(*CreateVorbisDecoder)();
 void (*PluginWantsAlwaysRunFx)(int amt);
-void (*RemoveXPStyle)(HWND hwnd, int rem);
+int (*GetWindowDPIScaling)(HWND hwnd);
+#ifdef _WIN32
+LRESULT (*handleCheckboxCustomDraw)(HWND, LPARAM, const unsigned short *list, int listsz, bool isdlg);
+#endif
+INT_PTR (*autoRepositionWindowOnMessage)(HWND hwnd, int msg, const char *desc_str, int flags); // flags unused currently
+int (*GetPlayStateEx)(void *proj);
+void (*OnPlayButtonForTime)(void *proj, double forTime);
+void (*SetEditCurPos2)(void *proj, double time, bool moveview, bool seekplay);
+void (*SetCurrentBPM)(void *proj, double bpm, bool wantUndo);
+void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek);
+int (*GetSetRepeatEx)(void* proj, int val);
+double (*GetCursorPositionEx)(void *proj);
+void (*Main_OnCommandEx)(int command, int flag, void *proj);
 
 void (*GetProjectPath)(char *buf, int bufsz);
 const char *(*get_ini_file)();
@@ -91,61 +73,108 @@ int (WINAPI *CoolSB_SetScrollRange)(HWND hwnd, int nBar, int nMinPos, int nMaxPo
 BOOL (WINAPI *CoolSB_SetMinThumbSize)(HWND hwnd, UINT wBar, UINT size);
 int (*plugin_register)(const char *name, void *infostruct);
 
-double NormalizeParm(int parm, double val)
-{
-  if (parm < 0 || parm >= NUM_PARAMS) return 0.0;
-
-  if (param_infos[parm].minval == USE_DB) return DB2VAL(val); // don't clip
-  else if (param_infos[parm].minval == USE_BOOL) val=val>=0.5?1.0:0.0;
-  else val=(val-param_infos[parm].minval)/(param_infos[parm].maxval-param_infos[parm].minval);
-
-  if (val<0.0) return 0.0;
-  if (val>1.0) return 1.0;
-  return val;
-}
-
-double DenormalizeParm(int parm, double val)
-{
-  if (parm < 0 || parm >= NUM_PARAMS) return 0.0;
-
-  if (param_infos[parm].minval == USE_DB) return VAL2DB(val);
-  if (param_infos[parm].minval == USE_BOOL) return val >= 0.5?1.0:0.0;
-
-  val /= param_infos[parm].parm_maxval;
-
-  return val*(param_infos[parm].maxval-param_infos[parm].minval) + param_infos[parm].minval;
-}
-
-static void format_parm(int parm, double val, char *ptr)
-{
-  if (parm < 0 || parm >= NUM_PARAMS) { *ptr=0; return; }
-
-  char tmp[32];
-  sprintf(tmp,"%s%%.%df",(param_infos[parm].minval == USE_DB && val >= 1.0)?"+":"",param_infos[parm].precisiondigits);
-  sprintf(ptr,tmp,DenormalizeParm(parm,val));
-}
-
+extern int g_config_audio_outputs; // &1 = local channels use 3/4, &2=metronome uses 5
 
 int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 {
   extern HWND g_hwnd;
-  if (g_hwnd && (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_CHAR) && msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
+  if (g_hwnd && (
+        msg->message == WM_KEYDOWN || msg->message == WM_KEYUP ||
+        msg->message == WM_SYSKEYDOWN || msg->message == WM_SYSKEYUP ||
+        msg->message == WM_CHAR) &&
+      msg->hwnd && (g_hwnd==msg->hwnd || IsChild(g_hwnd,msg->hwnd)))
   {
+
+    if (msg->message != WM_CHAR)
+    {
+      const int flags = ((GetAsyncKeyState(VK_MENU)&0x8000) ? FALT : 0) |
+                        ((GetAsyncKeyState(VK_SHIFT)&0x8000) ? FSHIFT : 0) |
+                        ((GetAsyncKeyState(VK_CONTROL)&0x8000) ? FCONTROL : 0);
+      const bool isDown = msg->message == WM_KEYDOWN || msg->message == WM_SYSKEYDOWN;
+      if (msg->wParam >= VK_F1 && msg->wParam <= VK_F10)
+      {
+        int idx = msg->wParam - VK_F1;
+        switch (flags)
+        {
+          case 0:
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,ID_LOCAL_CHANNEL_1+idx,0);
+          return 1;
+          case FSHIFT:
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,ID_REMOTE_USER_1+idx,0);
+          return 1;
+          case FCONTROL|FSHIFT:
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,ID_REMOTE_USER_CHANNEL_1+idx,0);
+          return 1;
+        }
+      }
+      else switch (flags)
+      {
+      case FALT:
+        switch (msg->wParam)
+        {
+#ifdef __APPLE__
+          case 'Y':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_SYNC,0);
+          return 1;
+#endif
+          case 'S':
+          case 'M':
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,msg->wParam == 'S' ? IDC_SOLO : IDC_MUTE,0);
+          return 1;
+          case 'T':
+            if (isDown) SetFocus(GetDlgItem(g_hwnd,IDC_CHATENT));
+          return 1;
+        }
+      break;
+      case FCONTROL|FSHIFT:
+        switch (msg->wParam)
+        {
+          case 'D':
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,IDC_REMOVE,0);
+          return 1;
+          case 'N':
+            if (isDown)
+              SendMessage(g_hwnd,WM_COMMAND,IDC_ADDCH,0);
+          return 1;
+          case 'M':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_MASTERMUTE,0);
+          return 1;
+        }
+      break;
+      case FCONTROL:
+        switch (msg->wParam)
+        {
+          case 'M':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,IDC_METROMUTE,0);
+          return 1;
+          case 'O':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_CONNECT,0);
+          return 1;
+          case 'D':
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_FILE_DISCONNECT,0);
+          return 1;
+#ifdef __APPLE__
+          case ',':
+#else
+          case 'P':
+#endif
+            if (isDown) SendMessage(g_hwnd,WM_COMMAND,ID_OPTIONS_PREFERENCES,0);
+          return 1;
+        }
+      break;
+      }
+    }
+
     HWND list = GetDlgItem(g_hwnd,IDC_CHATDISP);
     HWND e = GetDlgItem(g_hwnd,IDC_CHATENT);
     if (e)
     {
-      bool didHit=false;
       if (msg->hwnd == e || IsChild(e,msg->hwnd))  
-      {
-        didHit=true;
-      }
-      else if (list && (msg->hwnd == list || IsChild(list,msg->hwnd)))
-      {
-        msg->hwnd = e;
-        didHit=true;
-      }
-      if (didHit)
       {
 #ifdef _WIN32
         if (msg->message == WM_CHAR && msg->wParam == VK_RETURN) 
@@ -156,8 +185,45 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
           SendMessage(g_hwnd,WM_COMMAND,IDC_CHATOK,0);
           return 1;
         }
-
-        return -1;
+      }
+      else if (list && (msg->hwnd == list || IsChild(list,msg->hwnd)))
+      {
+#ifndef __APPLE__
+        // this appears to be unsafe on macOS (could get it to throw exceptions bleh)
+        if (msg->message != WM_CHAR) switch (msg->wParam)
+        {
+          case VK_CONTROL:
+          case VK_SHIFT:
+          case VK_UP:
+          case VK_DOWN:
+          case VK_LEFT:
+          case VK_RIGHT:
+          case VK_NEXT:
+          case VK_PRIOR:
+          case VK_TAB:
+            // allow ctrl/shift/nav keys to go to control, everything else causes focus change to edit
+          return -1;
+        }
+        if (!(GetAsyncKeyState(VK_CONTROL)&0x8000))
+        {
+          SetFocus(e);
+#ifdef _WIN32
+          msg->hwnd = e;
+#else
+          if (msg->message == WM_KEYDOWN && msg->wParam == VK_RETURN)
+          {
+            SendMessage(g_hwnd,WM_COMMAND,IDC_CHATOK,0);
+          }
+          else
+          {
+            // linux at least needs this (otherwise it selects existing text and then overwrites it)
+            SendMessage(e,EM_SETSEL,-1,0);
+            SendMessage(e,msg->message,msg->wParam,msg->lParam);
+          }
+          return 1;
+#endif
+        }
+#endif
       }
     }
     return -1;
@@ -167,30 +233,29 @@ int reaninjamAccelProc(MSG *msg, accelerator_register_t *ctx)
 
 
 HINSTANCE g_hInst;
+DWORD g_main_thread;
+
+class VSTEffectClass;
+VSTEffectClass *g_vst_object;
+
 class VSTEffectClass
 {
 public:
   VSTEffectClass(audioMasterCallback cb)
   {
-    m_cb=cb;
-    int x;
-    for (x = 0; x < NUM_PARAMS; x ++)
-    {
-      m_parms[x]=NormalizeParm(x,param_infos[x].defparm)*param_infos[x].parm_maxval;
-    }
+    g_vst_object = this;
     memset(&m_effect,0,sizeof(m_effect));
     m_samplerate=44100.0;
     m_hwndcfg=0;
-    configChanged=0;
     m_effect.magic = kEffectMagic;
     m_effect.dispatcher = staticDispatcher;
     m_effect.process = staticProcess;
     m_effect.getParameter = staticGetParameter;
     m_effect.setParameter = staticSetParameter;
-    m_effect.numPrograms=1;
-    m_effect.numParams = NUM_PARAMS;
-    m_effect.numInputs=NUM_INPUTS;
-    m_effect.numOutputs=NUM_OUTPUTS;
+    m_effect.numPrograms = 1;
+    m_effect.numParams = 0;
+    m_effect.numInputs=8;
+    m_effect.numOutputs=2;
 
     m_effect.flags=effFlagsCanReplacing|effFlagsHasEditor;
     m_effect.processReplacing=staticProcessReplacing;//do nothing
@@ -201,129 +266,25 @@ public:
     m_effect.ioRatio=1.0;
     m_lasttransportpos=-100000000.0;
     m_lastplaytrackpos=-100000000.0;
-
-    onParmChange();
-
-    Reset();
   }
 
-  audioMasterCallback m_cb;
-
-  int configChanged;
 
   ~VSTEffectClass()
   {
+    g_vst_object = NULL;
     if (m_hwndcfg) DestroyWindow(m_hwndcfg);
   }  
-
-  void Reset()
-  {
-    m_effect.initialDelay = 0;
-  }
-
-  void onParmChange()
-  {
-    //WDL_MutexLock m(&m_mutex);
-
-  }
-  void ProcessEvents(VstEvents *eventlist)
-  {
-//    if (eventlist && eventlist->numEvents)
-  //    m_pelist=eventlist;
-  }
-
-  int GetChunk(void **ptr)
-  {
-    static WDL_Queue m_cfgchunk;
-    m_cfgchunk.Clear();    
-    *ptr = m_cfgchunk.Get();
-    return m_cfgchunk.Available();
-
-  }
-
-  void SetChunk(void *ptr, int size)
-  {
-  }
 
 
   WDL_DLGRET CfgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
-    static int m_ignore_editmsg;
     switch (uMsg)
     {
       case WM_INITDIALOG:
         m_hwndcfg=hwndDlg;
 
-        {
-          int x;
-          for (x = 0; x < NUM_PARAMS; x ++)
-          {
-            if (param_infos[x].minval != USE_BOOL)
-            {
-              if (param_infos[x].ui_id_slider)
-              {
-                SetWindowLong(GetDlgItem(hwndDlg,param_infos[x].ui_id_slider),0, 1);
-                if (param_infos[x].minval == USE_DB)
-                {
-                  SendDlgItemMessage(hwndDlg,param_infos[x].ui_id_slider,TBM_SETTIC,0,-1);
-                }
-                else
-                {
-                  double dp=NormalizeParm(x,param_infos[x].defparm)*1000.0;
-
-                  if (param_infos[x].slidershape>1.0) dp=sliderscale_sq(dp,1,param_infos[x].slidershape);
-
-                  if (dp<0)dp=0;
-                  else if (dp>1000)dp=1000;
-                  SendDlgItemMessage(hwndDlg,param_infos[x].ui_id_slider,TBM_SETTIC,0,(LPARAM)(dp+0.5));
-                }
-              }
-            }
-          }
-
-        }
-
         ShowWindow(hwndDlg,SW_SHOWNA);
-        configChanged=~0;
       case WM_USER+6606:
-
-        m_ignore_editmsg++;
-        {
-          int cc=configChanged;
-          configChanged=0;
-          int x;
-          for (x = 0; x < NUM_PARAMS; x ++)
-          {
-            if (cc & (1<<x))
-            {
-              if (param_infos[x].minval==USE_BOOL)
-              {
-                CheckDlgButton(hwndDlg,param_infos[x].ui_id_slider,m_parms[x]>=0.5 ? BST_CHECKED:BST_UNCHECKED);
-              }
-              else
-              {
-                if (param_infos[x].ui_id_lbl)
-                {
-                  char buf[512];
-                  format_parm(x,m_parms[x],buf);
-                  SetDlgItemText(hwndDlg,param_infos[x].ui_id_lbl,buf);
-                }
-                if (param_infos[x].ui_id_slider)
-                {
-                  double val;
-                  if (param_infos[x].minval == USE_DB) val=(DB2SLIDER(VAL2DB(m_parms[x])));
-                  else if (param_infos[x].slidershape>1.0) 
-                    val=sliderscale_sq(m_parms[x]*1000.0/param_infos[x].parm_maxval,1,param_infos[x].slidershape);
-                  else val=(m_parms[x]*1000.0)/param_infos[x].parm_maxval;
-                  SendDlgItemMessage(hwndDlg,param_infos[x].ui_id_slider,TBM_SETPOS,0,(LPARAM)val);
-                }
-              }
-            }
-          }
-
-  
-        }
-        m_ignore_editmsg--;
 
       return 0;
       case WM_TIMER:
@@ -337,89 +298,6 @@ public:
             ShowWindow(g_hwnd,SW_SHOWNORMAL);
             SetForegroundWindow(g_hwnd); 
           }
-        }
-        if (!m_ignore_editmsg && HIWORD(wParam) == CBN_SELCHANGE)
-        {
-          int v=SendDlgItemMessage(hwndDlg,LOWORD(wParam),CB_GETCURSEL,0,0);
-          if (v != CB_ERR)
-          {
-            v=SendDlgItemMessage(hwndDlg,LOWORD(wParam),CB_GETITEMDATA,v,0);
-          }
-        }
-        if (!m_ignore_editmsg && HIWORD(wParam) == BN_CLICKED)
-        {
-          int x;
-          for (x = 0; x < NUM_PARAMS; x ++)
-          {
-            if (param_infos[x].minval == USE_BOOL && LOWORD(wParam) == param_infos[x].ui_id_slider)
-            {
-              m_parms[x]=IsDlgButtonChecked(hwndDlg,LOWORD(wParam))?1.0:0.0;
-              onParmChange();
-              if (g_hostcb) g_hostcb(&m_effect,audioMasterAutomate,x,0,NULL,(float)m_parms[x]);
-            }
-          }
-        }
-        if (!m_ignore_editmsg && HIWORD(wParam) == EN_CHANGE)
-        {
-          char buf[512];
-          GetDlgItemText(hwndDlg,LOWORD(wParam),buf,sizeof(buf));
-          double f=atof(buf);
-          int x;
-          for (x = 0; x < NUM_PARAMS; x ++)
-          {
-            if (param_infos[x].ui_id_lbl && param_infos[x].ui_id_lbl == LOWORD(wParam) && param_infos[x].minval != USE_BOOL)
-            {
-              m_parms[x]=NormalizeParm(x,f)*param_infos[x].parm_maxval;
-              if (param_infos[x].ui_id_slider)
-              {
-                double val;
-                if (param_infos[x].minval == USE_DB) val=(DB2SLIDER(VAL2DB(m_parms[x])));
-                else if (param_infos[x].slidershape>1.0) val=sliderscale_sq((m_parms[x]*1000.0)/param_infos[x].parm_maxval,1,param_infos[x].slidershape);
-                else val=(m_parms[x]*1000.0)/param_infos[x].parm_maxval;
-                SendDlgItemMessage(hwndDlg,param_infos[x].ui_id_slider,TBM_SETPOS,0,(LPARAM)val);
-              }
-              onParmChange();
-              if (g_hostcb) g_hostcb(&m_effect,audioMasterAutomate,x,0,NULL,(float)m_parms[x]);
-              break;
-            }
-          }
-        }
- 
-      return 0;
-      case WM_HSCROLL:
-      case WM_VSCROLL:
-        {
-          char buf[512];
-          int pos=SendMessage((HWND)lParam,TBM_GETPOS,0,0);
-          m_ignore_editmsg++;
-
-          int x;
-          for (x = 0; x < NUM_PARAMS; x ++)
-          {
-            if (param_infos[x].ui_id_slider && param_infos[x].minval != USE_BOOL && (HWND)lParam == GetDlgItem(hwndDlg,param_infos[x].ui_id_slider))
-            {
-              if (param_infos[x].minval == USE_DB) m_parms[x]=(float)(DB2VAL(SLIDER2DB((double)pos)));
-              else if (param_infos[x].slidershape>1.0) m_parms[x]=sliderscale_sq(pos,-1,param_infos[x].slidershape)/1000.0 * param_infos[x].parm_maxval;
-              else m_parms[x]=pos/1000.0 * param_infos[x].parm_maxval;
-
-
-              if (param_infos[x].ui_id_lbl)
-              {
-                format_parm(x,m_parms[x],buf);
-                SetDlgItemText(hwndDlg,param_infos[x].ui_id_lbl,buf);
-              }
-
-
-              onParmChange();
-              if (g_hostcb) 
-              {
-                if (LOWORD(wParam)==SB_ENDSCROLL) g_hostcb(&m_effect,audioMasterEndEdit,x,0,NULL,0.0f);
-                else g_hostcb(&m_effect,audioMasterAutomate,x,0,NULL,(float)m_parms[x]);
-              }
-              break;
-            }
-          }
-          m_ignore_editmsg--;
         }
       return 0;
       case WM_DESTROY:
@@ -444,27 +322,17 @@ public:
       case effCanDo:
         if (ptr && !strcmp((char *)ptr,"hasCockosViewAsConfig")) return 0xbeef0000;
         if (ptr && !strcmp((char *)ptr,"hasCockosExtensions")) return 0xbeef0000;
-        if (ptr)
-        {
-          if (//!stricmp((char*)ptr,"sendVstEvents") || 
-              !stricmp((char*)ptr,"sendVstMidiEvent") || 
-              !stricmp((char*)ptr,"receiveVstEvents") || 
-              !stricmp((char*)ptr,"receiveVstMidiEvent"))
-            return 1;
-        }
       return 0;
       case effStopProcess:
       case effMainsChanged:
         if (_this && !value) 
         {
-          WDL_MutexLock m(&_this->m_mutex);
-          _this->Reset();
         }
       return 0;
       case effSetBlockSize:
 
         // initialize, yo
-        if (GetCurrentThreadId()==g_object_allocated) 
+        if (GetCurrentThreadId()==g_main_thread)
         {
           static int first;
           if (!first)
@@ -490,9 +358,7 @@ public:
       case effSetSampleRate:
         if (_this) 
         {
-          WDL_MutexLock m(&_this->m_mutex);
           _this->m_samplerate=opt;
-          _this->onParmChange();
         }
       return 0;
       case effGetInputProperties:
@@ -505,15 +371,25 @@ public:
           if (opCode == effGetInputProperties)
           {
             if (index >= _this->m_effect.numInputs) return 0;
-            sprintf(pp->label,"Input %s",index&1?"R":"L");
+            sprintf(pp->label,"Input %d",index+1);
           }
           else
           {
             if (index >= _this->m_effect.numOutputs) return 0;
-            sprintf(pp->label,"Output %s",index&1?"R":"L");
+            sprintf(pp->label,"(not connected)");
+            switch (index)
+            {
+              case 0: case 1: sprintf(pp->label,"Main %s",index&1?"R":"L"); break;
+              case 2: case 3: if (g_config_audio_outputs&1) sprintf(pp->label,"Local %s",index&1?"R":"L"); break;
+              case 4: if (g_config_audio_outputs&2) sprintf(pp->label,"Metronome"); break;
+            }
           }
           pp->flags=0;
-          pp->arrangementType=kSpeakerArrStereo;
+          if (opCode == effGetOutputProperties && index == 4)
+            pp->arrangementType=kSpeakerArrMono;
+          else
+            pp->arrangementType=kSpeakerArrStereo;
+
           if (index==0||index==2)
             pp->flags|=kVstPinIsStereo;
           return 1;
@@ -544,54 +420,10 @@ public:
       return 0;
       case effClose:
         QuitInstance();
-        g_object_allocated=0;
         if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(-1);
         delete _this;
       return 0;
       case effOpen:
-      return 0;
-      case effProcessEvents:
-        if (ptr && _this)
-          _this->ProcessEvents((VstEvents*)ptr);
-      return 0;
-      case effVendorSpecific:
-        if (ptr && _this && index == 0xdeadbeef+1)
-        {
-          if (value>=0 && value<NUM_PARAMS) 
-          {
-            double *buf=(double *)ptr;  buf[0]=0.0;
-            if (param_infos[value].minval == USE_DB) buf[1]=2.0; else buf[1]=param_infos[value].parm_maxval;
-            return 0xbeef;
-          }
-        }
-        else if (ptr && _this && index == effGetParamDisplay)
-        {
-          if (value>=0 && value<NUM_PARAMS) { format_parm(value,opt,(char *)ptr); return 0xbeef; }
-          else *(char *)ptr = 0;          
-        }
-      return 0;
-      case effGetParamName:
-        if (ptr)
-        {
-          if (index>=0 && index<NUM_PARAMS) lstrcpyn((char *)ptr,param_infos[index].name,9);
-          else *(char *)ptr = 0;
-        }
-      return 0;
-
-      case effGetParamLabel:
-        if (ptr)
-        {
-          if (index>=0 && index<NUM_PARAMS) lstrcpyn((char *)ptr,param_infos[index].label,9);
-          else *(char *)ptr = 0;
-        }
-      return 0;
-
-      case effGetParamDisplay:
-        if (ptr&&_this)
-        {
-          if (index>=0 && index<NUM_PARAMS) format_parm(index,_this->m_parms[index],(char *)ptr);
-          else *(char *)ptr = 0;
-        }
       return 0;
       case effEditGetRect:
         if (_this)// && _this->m_hwndcfg) 
@@ -609,16 +441,6 @@ public:
           return 1;
 
         }
-      return 0;
-      case effSetChunk:
-        if (_this) 
-        {
-          _this->SetChunk(ptr,value);
-          return 1;
-        }
-      return 0;
-      case effGetChunk:
-        if (_this) return _this->GetChunk((void **)ptr);
       return 0;
       case effIdentify:
         return CCONST ('N', 'v', 'E', 'f');    }
@@ -668,43 +490,43 @@ public:
       }
       _this->m_lastplaytrackpos=_this->m_lasttransportpos;
 
-      audiostream_onsamples(inputs,NUM_INPUTS,outputs,NUM_OUTPUTS,sampleframes,(int)(_this->m_samplerate+0.5),isPlaying,isSeek,_this->m_lastplaytrackpos);
+      audiostream_onsamples(inputs,effect->numInputs,outputs,effect->numOutputs,sampleframes,(int)(_this->m_samplerate+0.5),isPlaying,isSeek,_this->m_lastplaytrackpos);
+
+      effect->numOutputs = (g_config_audio_outputs&2) ? 5 : (g_config_audio_outputs&1) ? 4 : 2;
     }
   }
 
-	static void VSTCALLBACK staticProcess(AEffect *effect, float **inputs, float **outputs, VstInt32 sampleframes)
+  static void VSTCALLBACK staticProcess(AEffect *effect, float **inputs, float **outputs, VstInt32 sampleframes)
   {
 
   }
 
 
-	static void VSTCALLBACK staticSetParameter(AEffect *effect, VstInt32 index, float parameter)
+  static void VSTCALLBACK staticSetParameter(AEffect *effect, VstInt32 index, float parameter)
   {
-    VSTEffectClass *_this = (VSTEffectClass *)effect->object;
-    if (!_this || index < 0 || index >= NUM_PARAMS) return;
-    WDL_MutexLock m(&_this->m_mutex);
-    _this->m_parms[index]=parameter;    
-    _this->onParmChange();
-    _this->configChanged|=1<<index;
   }
 
-	static float VSTCALLBACK staticGetParameter(AEffect *effect, VstInt32 index)
+  static float VSTCALLBACK staticGetParameter(AEffect *effect, VstInt32 index)
   {
-    VSTEffectClass *_this = (VSTEffectClass *)effect->object;
-    if (!_this || index < 0 || index >= NUM_PARAMS) return 0.0;
-    WDL_MutexLock m(&_this->m_mutex);
-    return (float)_this->m_parms[index];
+    return 0.0f;
   }
 
   HWND m_hwndcfg;
   double m_samplerate;
   AEffect m_effect;
-  double m_parms[1 /*NUM_PARAMS*/];
-  WDL_Mutex m_mutex;
 
   double m_lasttransportpos,m_lastplaytrackpos;
 
 };
+
+void *get_parent_project(void)
+{
+  if (g_vst_object && g_hostcb)
+    return (void *)g_hostcb(&g_vst_object->m_effect,0xdeadbeef,0xdeadf00e,3,NULL,0.0f);
+
+  return NULL;
+}
+
 
 
 extern "C" {
@@ -716,7 +538,7 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
   __attribute__ ((visibility ("default"))) AEffect *VSTPluginMain(audioMasterCallback hostcb)
 #endif
 {
-  if (g_object_allocated) return 0;
+  if (g_vst_object) return 0;
 
   g_hostcb=hostcb;
 
@@ -741,8 +563,18 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     *(VstIntPtr *)&GetMainHwnd=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetMainHwnd",0.0);
     *(VstIntPtr *)&GetIconThemePointer=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetIconThemePointer",0.0);
     *(VstIntPtr *)&PluginWantsAlwaysRunFx=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"PluginWantsAlwaysRunFx",0.0);
+    *(VstIntPtr *)&GetWindowDPIScaling = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetWindowDPIScaling",0.0);
+    *(VstIntPtr *)&autoRepositionWindowOnMessage = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"autoRepositionWindowOnMessage",0.0);
+    *(VstIntPtr *)&GetPlayStateEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetPlayStateEx",0.0);
+    *(VstIntPtr *)&OnPlayButtonForTime = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"OnPlayButtonForTime",0.0);
+    *(VstIntPtr *)&SetEditCurPos2 = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SetEditCurPos2",0.0);
+    *(VstIntPtr *)&SetCurrentBPM = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"SetCurrentBPM",0.0);
+    *(VstIntPtr *)&GetSet_LoopTimeRange2 = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetSet_LoopTimeRange2",0.0);
+    *(VstIntPtr *)&GetSetRepeatEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetSetRepeatEx",0.0);
+    *(VstIntPtr *)&GetCursorPositionEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"GetCursorPositionEx",0.0);
+    *(VstIntPtr *)&Main_OnCommandEx = hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"Main_OnCommandEx",0.0);
 #ifdef _WIN32
-    *(VstIntPtr *)&RemoveXPStyle=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"RemoveXPStyle",0.0);
+    *(VstIntPtr *)&handleCheckboxCustomDraw=hostcb(NULL,0xdeadbeef,0xdeadf00d,0,(void*)"handleCheckboxCustomDraw",0.0);
 #endif
     
   }
@@ -757,13 +589,11 @@ __declspec(dllexport) AEffect *VSTPluginMain(audioMasterCallback hostcb)
     if (!CreateVorbisEncoder||!CreateVorbisDecoder) return 0;
   }
 
-  g_object_allocated=GetCurrentThreadId();
+  g_main_thread=GetCurrentThreadId();
 
   if (PluginWantsAlwaysRunFx) PluginWantsAlwaysRunFx(1);
   VSTEffectClass *obj = new VSTEffectClass(hostcb);
-  if (obj)
-    return &obj->m_effect;
-  return 0;
+  return &obj->m_effect;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
@@ -780,10 +610,6 @@ BOOL WINAPI DllMain(HINSTANCE hDllInst, DWORD fdwReason, LPVOID res)
 
 
 #ifndef _WIN32 // MAC resources
-
-#define SS_ETCHEDHORZ 0
-#define SS_ETCHEDVERT 0
-
 
 #define SET_IDD_EMPTY_SCROLL_STYLE SWELL_DLG_FLAGS_AUTOGEN|SWELL_DLG_WS_CHILD
 #define SET_IDD_EMPTY_STYLE SWELL_DLG_FLAGS_AUTOGEN|SWELL_DLG_WS_CHILD
@@ -803,10 +629,10 @@ static HWND customControlCreator(HWND parent, const char *cname, int idx, const 
   {
     if ((style & 0x2800))
     {
-      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,ES_READONLY|WS_VSCROLL|ES_MULTILINE);
+      return SWELL_MakeEditField(idx,-x,-y,-w,-h,ES_READONLY|WS_VSCROLL|ES_MULTILINE);
     }
     else
-      return __SWELL_MakeEditField(idx,-x,-y,-w,-h,0);          
+      return SWELL_MakeEditField(idx,-x,-y,-w,-h,0);
   }
   return 0;
 }

@@ -904,7 +904,7 @@ Net_Message *mpb_chat_message::build()
     return 0;
   }
 
-  for (x = 0; x < sizeof(parms)/sizeof(parms[0]); x ++)
+  for (x = 0; x < (int) (sizeof(parms)/sizeof(parms[0])); x ++)
   {
     const char *sp=parms[x];
     if (sp) 

@@ -84,6 +84,7 @@
 
 
 #define SESSION_CHUNK_SIZE 2.0
+#define LL_CHUNK_SIZE 2.0
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
 
@@ -144,7 +145,8 @@ class DecodeState
 {
   public:
     DecodeState() : decode_fp(0), decode_buf(0), decode_codec(0), 
-                                           decode_samplesout(0), resample_state(0.0)
+                                           resample_state(0.0),
+                                           is_voice_firstchk(false)
     { 
       memset(guid,0,sizeof(guid));
     }
@@ -164,8 +166,9 @@ class DecodeState
     FILE *decode_fp;
     DecodeMediaBuffer *decode_buf;
     I_NJDecoder *decode_codec;
-    int decode_samplesout;
     double resample_state;
+
+    bool is_voice_firstchk;
 
     void applyOverlap(overlapFadeState *s)
     {
@@ -176,22 +179,7 @@ class DecodeState
         nch = decode_codec->GetNumChannels();
         if (nch && decode_codec->Available() >= s->fade_sz * nch) break;
 
-        if (decode_fp)
-        {
-          int l=fread(decode_codec->DecodeGetSrcBuffer(1024),1,1024,decode_fp);
-          decode_codec->DecodeWrote(l);
-          if (!l) 
-          {
-            clearerr(decode_fp);
-            break;
-          }
-        }
-        else if (decode_buf)
-        {
-          int l=decode_buf->Read(decode_codec->DecodeGetSrcBuffer(1024),1024);
-          decode_codec->DecodeWrote(l);
-          if (!l) break;
-        }
+        if (runDecode()) break;
       }
       if (!nch) return;
       const int avail = decode_codec->Available()/nch;
@@ -239,6 +227,28 @@ class DecodeState
           }
         }
       }
+    }
+    bool runDecode(int sz=1024) // return true if eof
+    {
+      if (!decode_fp && !decode_buf) return true;
+
+      int l;
+      void *srcbuf = decode_codec->DecodeGetSrcBuffer(sz);
+      if (!srcbuf) return true;
+
+      if (decode_fp)
+      {
+        l=fread(srcbuf,1,sz,decode_fp);
+        if (!l) clearerr(decode_fp);
+      }
+      else
+      {
+        l=decode_buf->Read(srcbuf,sz);
+      }
+
+      decode_codec->DecodeWrote(l);
+
+      return !l;
     }
 };
 
@@ -450,7 +460,7 @@ public:
 #define MIN_ENC_BLOCKSIZE 2048
 #define MAX_ENC_BLOCKSIZE (8192+1024)
 #define DEFAULT_CONFIG_PREBUFFER  8192
-#define LIVE_PREBUFFER 1024
+#define LIVE_PREBUFFER 128
 #define LIVE_ENC_BLOCKSIZE1 2048
 #define LIVE_ENC_BLOCKSIZE2 64
 
@@ -615,6 +625,10 @@ NJClient::NJClient()
   m_issoloactive=0;
   m_netcon=0;
 
+  m_metro_chidx = 0;
+  m_remote_chanoffs = 0;
+  m_local_chanoffs = 0;
+
   _reinit();
 
   m_session_pos_ms=m_session_pos_samples=0;
@@ -651,8 +665,10 @@ void NJClient::_reinit()
   int x;
   for (x = 0; x < m_locchannels.GetSize(); x ++)
   {
-    m_locchannels.Get(x)->decode_peak_vol[0]=0.0f;
-    m_locchannels.Get(x)->decode_peak_vol[1]=0.0f;
+    Local_Channel *c=m_locchannels.Get(x);
+    c->channel_idx = x; // normalize the channel indices on connect/disconnect
+    c->decode_peak_vol[0]=0.0f;
+    c->decode_peak_vol[1]=0.0f;
   }
 
 }
@@ -754,7 +770,9 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
   int x;
   for (x = 0; x < outnch; x ++) memset(outbuf[x],0,sizeof(float)*len);
 
-  if (!m_audio_enable||justmonitor)
+  if (!m_audio_enable||justmonitor || 
+      (!m_max_localch && !m_remoteusers.GetSize()) // in a lobby, effectively
+      )
   {
     process_samples(inbuf,innch,outbuf,outnch,len,srate,0,1,isPlaying,isSeek,cursessionpos);
     return;
@@ -912,6 +930,26 @@ int NJClient::GetStatus()
   return NJC_STATUS_OK;
 }
 
+static char getConfigStringQuoteChar(const char *p) // from WDL/projectcontext.cpp
+{
+  if (!p || !*p) return '"';
+
+  char fc = *p;
+  int flags=0;
+  while (*p && flags!=15)
+  {
+    char c=*p++;
+    if (c=='"') flags|=1;
+    else if (c=='\'') flags|=2;
+    else if (c=='`') flags|=4;
+    else if (c == ' ' || c == '\t') flags |= 8;
+  }
+  if (!(flags & 8) && fc != '"' && fc != '\'' && fc != '`' && fc != '#' && fc != ';') return ' ';
+  if (!(flags & 1)) return '"';
+  if (!(flags & 2)) return '\'';
+  if (!(flags & 4)) return '`';
+  return 0;
+}
 
 int NJClient::Run() // nonzero if sleep ok
 {
@@ -1020,6 +1058,12 @@ int NJClient::Run() // nonzero if sleep ok
             {
               if (ar.flag) // send our channel information
               {
+                if (!m_max_localch)
+                {
+                  // went from lobby to room, normalize channel indices (in case the user deleted channels in the lobby)
+                  for (int x = 0; x < m_locchannels.GetSize(); x ++)
+                    m_locchannels.Get(x)->channel_idx = x;
+                }
                 NotifyServerOfChannelChange();
                 m_status=2;
                 m_in_auth=0;
@@ -1204,7 +1248,7 @@ int NJClient::Run() // nonzero if sleep ok
                 else if (!(theuser->channels[dib.chidx].flags&4))
                 {
 //                  OutputDebugString("added free-guid to channel\n");
-                  DecodeState *tmp=start_decode(dib.guid);
+                  DecodeState *tmp=start_decode(dib.guid, theuser->channels[dib.chidx].flags, 0, NULL);
                   m_users_cs.Enter();
                   int useidx=!!theuser->channels[dib.chidx].next_ds[0];
                   DecodeState *t2=theuser->channels[dib.chidx].next_ds[useidx];
@@ -1304,7 +1348,39 @@ int NJClient::Run() // nonzero if sleep ok
                   }
                 }               
               }
-              else ChatMessage_Callback(ChatMessage_User,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              else 
+              {
+                if (m_logFile && foo.parms[0])
+                {
+                  char buf[1024];
+                  buf[0]=0;
+                  for (int x=0;x<3 && foo.parms[x];x++)
+                  {
+                    const char *rd = foo.parms[x];
+                    const int f=getConfigStringQuoteChar(rd);
+                    if (f == ' ') snprintf_append(buf,sizeof(buf)," %s",rd);
+                    else if (f) snprintf_append(buf,sizeof(buf)," %c%s%c",f,rd,f);
+                    else
+                    {
+                      char *p = buf+strlen(buf);
+                      snprintf_append(buf,sizeof(buf)," `%s`",rd);
+                      if (*p) p++; // skip space
+
+                      // filter out any backticks
+                      if (*p == '`')
+                        while (*++p) if (*p == '`' && p[1]) *p = '_';
+                    }
+                  }
+                  char *p = buf;
+                  while (*p)
+                  {
+                    if (*p == '\r' || *p == '\n') *p = ' ';
+                    p++;
+                  }
+                  writeLog("chat%s\n",buf);
+                }
+                ChatMessage_Callback(ChatMessage_User,this,foo.parms,sizeof(foo.parms)/sizeof(foo.parms[0]));
+              }
             }
           }
         break;
@@ -1347,7 +1423,7 @@ int NJClient::Run() // nonzero if sleep ok
     while (!lc->m_bq.GetBlock(&p,&block_nch,&blockstarttime))
     {
       wantsleep=0;
-      if (u >= m_max_localch)
+      if (lc->channel_idx >= m_max_localch)
       {
         if (p && p != (WDL_HeapBuf*)-1)
           lc->m_bq.DisposeBlock(p);
@@ -1385,7 +1461,7 @@ int NJClient::Run() // nonzero if sleep ok
             WDL_RNG_bytes(lc->m_curwritefile.guid,sizeof(lc->m_curwritefile.guid));
             char guidstr[64];
             guidtostr(lc->m_curwritefile.guid,guidstr);
-            if (!(lc->flags&4)) writeLog("local %s %d\n",guidstr,lc->channel_idx);
+            if (!(lc->flags&4)) writeLog("local %s %d%s\n",guidstr,lc->channel_idx,(lc->flags&2)?"v":"");
             if (config_savelocalaudio>0) 
             {
               lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE,false);
@@ -1575,7 +1651,7 @@ int NJClient::Run() // nonzero if sleep ok
 }
 
 
-DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, DecodeMediaBuffer *decbuf)
+DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf)
 {
   DecodeState *newstate=new DecodeState;  
   if (decbuf) 
@@ -1610,25 +1686,14 @@ DecodeState *NJClient::start_decode(unsigned char *guid, unsigned int fourcc, De
     newstate->decode_codec= CreateNJDecoder();
     // run some decoding
 
-    if (newstate->decode_codec) while (newstate->decode_codec->Available() <= 0)
+    if (newstate->decode_codec)
     {
-      if (newstate->decode_fp)
+      while (newstate->decode_codec->Available() <= 0)
       {
-        int l=fread(newstate->decode_codec->DecodeGetSrcBuffer(1024),1,1024,newstate->decode_fp);          
-        newstate->decode_codec->DecodeWrote(l);
-        if (!l) 
-        {
-          clearerr(newstate->decode_fp);
-          break;
-        }
+        if (newstate->runDecode()) break;
       }
-      else if (newstate->decode_buf)
-      {
-        int l=newstate->decode_buf->Read(newstate->decode_codec->DecodeGetSrcBuffer(1024),1024);
-        newstate->decode_codec->DecodeWrote(l);
-        if (!l) break;
-      }
-      else break;
+      if (chanflags & 2)
+        newstate->is_voice_firstchk=true;
     }
   }
 
@@ -1663,9 +1728,11 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
   // encode my audio and send to server, if enabled
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
+    if (!justmonitor && lc->channel_idx >= m_max_localch) continue; // server does not allow this channel index
+
     int sc=lc->src_channel&1023;
     int sc_nch=(lc->src_channel&1024)?2:1;
 
@@ -1703,7 +1770,18 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
     if (!justmonitor)
     {
-      if (lc->flags&4)
+      if (lc->flags&2)
+      {
+        if (lc->bcast_active != lc->broadcasting ||
+              (lc->bcast_active && lc->m_curwritefile_curbuflen >= LL_CHUNK_SIZE * srate)
+           )
+        {
+          if (lc->bcast_active) lc->m_bq.AddBlock(0,0.0,NULL,0);
+          lc->bcast_active = lc->broadcasting;
+          lc->m_curwritefile_curbuflen=0.0;
+        }
+      }
+      else if (lc->flags&4)
       {
         if (isSeek|| // if seeked, too long, playing and not broadcasting, or not playing and broadcasting
             lc->m_curwritefile_curbuflen>=SESSION_CHUNK_SIZE*(double)srate || 
@@ -1744,8 +1822,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     bool chan_active = ((!m_issoloactive && !lc->muted) || lc->solo);
     {
       int use_nch=2;
-      if (outnch < 2 || (lc->out_chan_index&1024)) use_nch=1;
-      int idx=(lc->out_chan_index&1023);
+      const int outchanidx = lc->out_chan_index + m_local_chanoffs;
+      if (outnch < 2 || (outchanidx&1024)) use_nch=1;
+      int idx=(outchanidx & 1023);
       if (idx+use_nch>outnch) idx=outnch-use_nch;
       if (idx< 0)idx=0;
 
@@ -1831,9 +1910,9 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (m_issoloactive) muteflag = !(user->solomask & (1<<ch));
           else muteflag=(user->mutedmask & (1<<ch)) || user->muted;
 
-          mixInChannel(&user->channels[ch],muteflag,
+          mixInChannel(user,ch,muteflag,
             user->volume*user->channels[ch].volume,lpan,
-              outbuf,user->channels[ch].out_chan_index,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
+              outbuf,user->channels[ch].out_chan_index + m_remote_chanoffs,len,srate,outnch,offset,decay,isPlaying,isSeek,cursessionpos);
         }
         a>>=1;
       }
@@ -1901,15 +1980,20 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
     double sc=6000.0/(double)srate;
     int x;
     int um=config_metronome>0.0001f;
+
+    int chidx = m_metro_chidx&0xff;
+
     double vol1=config_metronome_mute?0.0:config_metronome,vol2=vol1;
-    float *ptr1=outbuf[0]+offset;
-    float *ptr2=NULL;
-    if (outnch > 1)
+    float *ptr1=chidx < outnch ? outbuf[chidx] : NULL,
+          *ptr2=chidx < outnch-1 && !(m_metro_chidx&1024) ? outbuf[chidx+1] : NULL;
+
+    if (ptr1 && ptr2)
     {
-        ptr2=outbuf[1]+offset;
-        if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
-        else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
+      if (config_metronome_pan > 0.0f) vol1 *= 1.0f-config_metronome_pan;
+      else if (config_metronome_pan< 0.0f) vol2 *= 1.0f+config_metronome_pan;
     }
+    if (ptr1) ptr1+=offset;
+    if (ptr2) ptr2+=offset;
     for (x = 0; x < len; x ++)
     {
       if (m_metronome_pos <= 0.0)
@@ -1928,7 +2012,7 @@ void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int out
           if (!m_metronome_tmp) val = sin((double)m_metronome_state*sc*2.0) * 0.25;
           else val = sin((double)m_metronome_state*sc);
 
-          ptr1[x]+=(float)(val*vol1);
+          if (ptr1) ptr1[x]+=(float)(val*vol1);
           if (ptr2) ptr2[x]+=(float)(val*vol2);
         }
         if (++m_metronome_state >= metrolen) m_metronome_state=0;
@@ -2036,11 +2120,12 @@ static void mixFloatsNIOutput(float *src, int src_srate, int src_nch,  // length
 
 
 
-void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol, float pan, float **outbuf, int out_channel, 
+void NJClient::mixInChannel(RemoteUser *user, int chanidx,
+                            bool muted, float vol, float pan, float **outbuf, int out_channel, 
                             int len, int srate, int outnch, int offs, double vudecay,
                             bool isPlaying, bool isSeek, double playPos)
 {
-  if (!userchan) return;
+  RemoteUser_Channel * const userchan = &user->channels[chanidx];
   userchan->decode_peak_vol[0]*=vudecay;
   userchan->decode_peak_vol[1]*=vudecay;
 
@@ -2075,7 +2160,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       double mediasr=m_srate;
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate) && userchan->curds_lenleft > 16.0/srate)
       {
-        userchan->ds=start_decode(guid);
+        userchan->ds=start_decode(guid, userchan->flags, 0, NULL);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
           userchan->ds->applyOverlap(&fade_state);
@@ -2101,9 +2186,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       }
       else
       {
-    //    char buf[512];
-  //      sprintf(buf,"at %f failed (%.10f)\n",playPos,userchan->curds_lenleft);
-//        OutputDebugString(buf);
       }
 
       userchan->curds_lenleft *= mediasr;
@@ -2113,26 +2195,21 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   }
 
   DecodeState *chan=userchan->ds;
-/*  if (llmode && userchan->next_ds[0])
-  {
-    delete userchan->ds;
-    chan = userchan->ds = userchan->next_ds[0];
-    userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
-    userchan->next_ds[1]=0;
-  }
-  */
   if (!chan || !chan->decode_codec || (!chan->decode_fp && !chan->decode_buf)) 
   {
     if (llmode && userchan->next_ds[0])
     {
-//      OutputDebugString("advanced to next_ds (666)\n");
       if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
       delete userchan->ds;
       chan = userchan->ds = userchan->next_ds[0];
       userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
       userchan->next_ds[1]=0;
 
-      if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
+      if (userchan->ds)
+      {
+        userchan->ds->applyOverlap(&fade_state);
+        writeUserChanLog("v",user,userchan,chanidx);
+      }
     }
     if (!chan || !chan->decode_codec || (!chan->decode_fp&&!chan->decode_buf)) 
     {
@@ -2141,7 +2218,7 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
   }
 
-  int mdump=llmode?2048:0;
+  const int mdump=0;
 
   if (userchan->dump_samples>mdump)
   {
@@ -2155,19 +2232,25 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   int srcnch=chan->decode_codec->GetNumChannels();
   while (chan->decode_codec->Available() <= (needed=resampleLengthNeeded(chan->decode_codec->GetSampleRate(),srate,len,&chan->resample_state))*srcnch)
   {
-    int l=0;
-    
-    if (chan->decode_fp)
+    bool done = chan->runDecode(256);
+    if (chan->decode_codec->Available() > 0 && chan->is_voice_firstchk)
     {
-      l=fread(chan->decode_codec->DecodeGetSrcBuffer(256),1,256,chan->decode_fp);          
+      chan->is_voice_firstchk=false;
+      while (!chan->runDecode(256))
+      {
+      }
+      const int nch = chan->decode_codec->GetNumChannels();
+      if (WDL_NORMALLY(nch > 0))
+      {
+        const int srate = chan->decode_codec->GetSampleRate();
+        const int avail = (chan->decode_codec->Available()-userchan->dump_samples)/nch;
+        const int skip = avail - (srate*3/4 + needed);
+        if (skip > 512)
+        {
+          userchan->dump_samples += nch * skip;
+        }
+      }
     }
-    else if (chan->decode_buf)
-    {
-      l=chan->decode_buf->Read(chan->decode_codec->DecodeGetSrcBuffer(256),256);          
-    }
-    else break;
-
-    chan->decode_codec->DecodeWrote(l);
 
     if (userchan->dump_samples>mdump)
     {
@@ -2177,24 +2260,15 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
       userchan->dump_samples-=av;
     }
 
-    if (!l) 
-    {
-      if (chan->decode_fp) clearerr(chan->decode_fp);
-      break;
-    }
+    if (done) break;
   }
 
 
   int codecavail=chan->decode_codec->Available();
   if (sessionmode) 
   {
-    //double sr=chan->decode_codec->GetSampleRate();
     int a= (int)(userchan->curds_lenleft+0.5);
     if (a<1) a=1;
-
-
-    
-    
 
     a*=srcnch;
     if (codecavail >= a) 
@@ -2205,18 +2279,15 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
 
 
   int len_out=len;
-  if ((llmode||sessionmode) && codecavail <= needed*srcnch)
+  if (llmode ? (codecavail < needed*srcnch) : sessionmode ? (codecavail <= needed*srcnch) : false)
   {
     if (codecavail>0)
     {
-      int oneeded=needed;
+      // this is probably not really right, need to do some testing
       needed=codecavail/srcnch;  
       len_out = ((int) ((double)srate / (double)chan->decode_codec->GetSampleRate() * (double) (needed-chan->resample_state)));
       if (len_out<0)len_out=0;
       else if (len_out>len)len_out=len;    
-
-      if (llmode)
-        userchan->dump_samples+=oneeded-needed;
     }
     else
     {
@@ -2226,12 +2297,6 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
   if (sessionmode)
   {
     userchan->curds_lenleft -= needed;
-    if (userchan->curds_lenleft<=0)
-    {
-    //  char buf[512];
-  //    sprintf(buf,"curds_lenleft=%f, needed=%d, codecavail=%d\n",userchan->curds_lenleft,needed,codecavail/srcnch);
-//      OutputDebugString(buf);
-    }
   }
 
   if (codecavail>0 && codecavail >= needed*srcnch)
@@ -2305,63 +2370,53 @@ void NJClient::mixInChannel(RemoteUser_Channel *userchan, bool muted, float vol,
     }
 
     // advance the queue
-    chan->decode_samplesout += needed;
     chan->decode_codec->Skip(needed*srcnch);
   }
   else if (needed>0)
   {
-
-/*
-    if (config_debug_level>0)
-    {
-      static int cnt=0;
-
-      char s[512];
-      guidtostr(chan->guid,s);
-
-      //char buf[512];
-      //sprintf(buf,"underrun %d at %d on %s, %d/%d samples\n",cnt++,chan->decode_fp ? ftell(chan->decode_fp) : -1,s,chan->decode_codec->Available(),needed);
-//      OutputDebugString(buf);
-    }
-*/
-
     if (!llmode&&!sessionmode)
     {
       userchan->dump_samples+=needed*srcnch - chan->decode_codec->Available();
-      chan->decode_samplesout += chan->decode_codec->Available()/srcnch;
       chan->decode_codec->Skip(chan->decode_codec->Available());
     }
-    else
-    {
-    }
-
   }
 
-  if ((llmode||sessionmode) && len_out < len && (userchan->next_ds[0]||(sessionmode&&len_out>0&&sessionmode)))
+  if ((llmode||sessionmode) && 
+      len_out < len && 
+      (userchan->next_ds[0]||(sessionmode&&len_out>0)))
   {
     // call again 
-//    OutputDebugString("advanced to next_ds (200)\n");
     userchan->curds_lenleft=-10000.0;
     if (userchan->ds) userchan->ds->calcOverlap(&fade_state);
     delete userchan->ds;
     chan = userchan->ds = userchan->next_ds[0];
     userchan->next_ds[0]=userchan->next_ds[1]; // advance queue
     userchan->next_ds[1]=0;
-    if (userchan->ds) userchan->ds->applyOverlap(&fade_state);
+    if (userchan->ds)
+    {
+      userchan->ds->applyOverlap(&fade_state);
+      if (llmode)
+        writeUserChanLog("v",user,userchan,chanidx);
+    }
     if (sessionmode || (chan && chan->decode_codec && (chan->decode_fp||chan->decode_buf))) 
-      mixInChannel(userchan,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
+      mixInChannel(user,chanidx,muted,vol,pan,outbuf,out_channel,len-len_out,srate,outnch,offs+len_out,vudecay,
         isPlaying,false,playPos + len_out/(double)srate);
   }
-  else if (llmode && len_out < len)
-  {
-/*    OutputDebugString("llmode, didnt output enough\n");
-    char buf[512];
-    sprintf(buf,"userchan->next_ds[0]=%08x (%d)\n",userchan->next_ds[0],
-      chan && chan->decode_codec ? chan->decode_codec->Available() : -1);
-    OutputDebugString(buf);
-    */
-  }
+}
 
+void NJClient::writeUserChanLog(const char *lbl, RemoteUser *user, RemoteUser_Channel *chan, int ch)
+{
+  char guidstr[64];
+  if (!chan || !chan->ds) return;
+
+  guidtostr(chan->ds->guid,guidstr);
+  char tmp[1024],tmp2[1024],*p;
+  lstrcpyn_safe(p=tmp,user->name.Get(),sizeof(tmp));
+  while (*p) { if (*p == '\"') *p = '\''; p++; }
+
+  lstrcpyn_safe(p=tmp2,chan->name.Get(),sizeof(tmp2));
+  while (*p) { if (*p == '\"') *p = '\''; p++; }
+  writeLog("user %s \"%s\" %d%s \"%s\"\n",guidstr,tmp,ch,lbl,tmp2);
 }
 
 void NJClient::on_new_interval()
@@ -2373,11 +2428,12 @@ void NJClient::on_new_interval()
 
   int u;
   m_locchan_cs.Enter();
-  for (u = 0; u < m_locchannels.GetSize() && u < m_max_localch; u ++)
+  for (u = 0; u < m_locchannels.GetSize(); u ++)
   {
     Local_Channel *lc=m_locchannels.Get(u);
+    if (lc->channel_idx >= m_max_localch) continue;
 
-    if (!(lc->flags&4)) 
+    if (!(lc->flags&(4|2)))  // session mode and voice chat modes use their own (fixed) intervals
     {
       if (lc->bcast_active) 
       {
@@ -2426,15 +2482,7 @@ void NJClient::on_new_interval()
         if (chan->ds)
         {
           chan->ds->applyOverlap(&fade_state);
-          char guidstr[64];
-          guidtostr(chan->ds->guid,guidstr);
-          char tmp[1024],tmp2[1024],*p;
-          lstrcpyn_safe(p=tmp,user->name.Get(),sizeof(tmp));
-          while (*p) { if (*p == '\"') *p = '\''; p++; }
-
-          lstrcpyn_safe(p=tmp2,chan->name.Get(),sizeof(tmp2));
-          while (*p) { if (*p == '\"') *p = '\''; p++; }
-          writeLog("user %s \"%s\" %d \"%s\"\n",guidstr,tmp,ch,tmp2);
+          writeUserChanLog("",user,chan,ch);
         }
       }
     }
@@ -3043,7 +3091,7 @@ void RemoteDownload::startPlaying(int force)
 
       if (!(theuser->channels[chidx].flags&4)) // only "play" if not a session channel
       {
-        DecodeState *tmp=m_parent->start_decode(guid,m_fourcc,m_decbuf);
+        DecodeState *tmp=m_parent->start_decode(guid,theuser->channels[chidx].flags,m_fourcc,m_decbuf);
 
 //        OutputDebugString(tmp?"started new decde\n":"tried to start new decode\n");
 

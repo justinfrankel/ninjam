@@ -52,6 +52,7 @@
 #define PRIV_ALLOWMULTI 32 // allows multiple users by the same name (subsequent users append -X to them)
 #define PRIV_HIDDEN 64   // hidden user, doesn't count for a slot, too
 #define PRIV_VOTE 128
+#define PRIV_SHOW_PRIVATE 256
 
 #define MAX_BPM 400
 #define MAX_BPI 64
@@ -122,6 +123,9 @@ class User_Group
     unsigned int m_run_robin;
 
     int m_allow_hidden_users;
+
+#define LOBBY_ALLOW_CHAT 2
+    int m_is_lobby_mode; // nonzero for lobby (and LOBBY_ALLOW_CHAT etc optional)
 
     WDL_String m_licensetext;
     WDL_String m_topictext;
@@ -202,6 +206,11 @@ class User_Connection
     int OnRunAuth(User_Group *group);
 
     void SendUserList(User_Group *group);
+    void SendConnectInfo(User_Group *group);
+    void SendAuthReply(User_Group *group); // sends "success"
+
+    void SendPrivateModeStats(const char *req);
+    void SendMOTDFile(User_Group *group);
 
     Net_Connection m_netcon;
     WDL_String m_username;
@@ -231,8 +240,12 @@ class User_Connection
     WDL_PtrList<User_TransferState> m_sendfiles;
 
     IUserInfoLookup *m_lookup;
+
+    bool migrateToRoom(const char *p);
+    WDL_FastString m_wants_group_migration; // set from lobby in private group mode
 };
 
 
+const char *get_privatemode_stats(int privs, const char *req);
 
 #endif//_USERCON_H_
