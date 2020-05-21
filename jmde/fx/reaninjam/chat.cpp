@@ -241,7 +241,33 @@ void chatRun(HWND hwndDlg)
   }
 
   SendMessage(m_hwnd,EM_SETSEL,textl, textl);
-  SendMessage(m_hwnd,EM_REPLACESEL,0, (LPARAM)tmp.Get());
+
+#ifdef _WIN32
+  WCHAR buf[4096];
+  if (GetVersion()<0x80000000)
+  {
+    if (MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,tmp.Get(),-1,buf,4096))
+    {
+      buf[4095]=0;
+      SendMessageW(m_hwnd,EM_REPLACESEL,0, (LPARAM)buf);
+    }
+    else
+    {
+      WCHAR *p = WDL_UTF8ToWC(tmp.Get(),NULL,0,NULL);
+      if (p)
+      {
+        SendMessageW(m_hwnd,EM_REPLACESEL,0, (LPARAM)p);
+        free(p);
+      }
+      else
+      {
+        SendMessage(m_hwnd,EM_REPLACESEL,0, (LPARAM)tmp.Get()); // fallback
+      }
+    }
+  }
+  else
+#endif
+    SendMessage(m_hwnd,EM_REPLACESEL,0, (LPARAM)tmp.Get());
 
   SendMessage(m_hwnd,EM_SETSEL,oldsel_s,oldsel_e);
 
