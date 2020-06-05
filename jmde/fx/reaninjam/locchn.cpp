@@ -124,10 +124,9 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
         if (buf) SetDlgItemText(hwndDlg,IDC_NAME,buf);
         if (bc) CheckDlgButton(hwndDlg,IDC_TRANSMIT,BST_CHECKED);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(ismute ? "Unmute local channel" : "Mute local channel"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
-
-        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)"Local channel mute");
-        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)"Local channel solo");
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)(issolo ? "Unsolo local channel" : "Solo local channel"));
 
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Normal NINJAM");
         SendDlgItemMessage(hwndDlg,IDC_ASYNCXMIT,CB_ADDSTRING,0,(LPARAM)"Voice Chat");
@@ -263,6 +262,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
             g_client->NotifyServerOfChannelChange();
             g_client_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(issolo?"track_solo_on":"track_solo_off"));
+            SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)(issolo ? "Unsolo local channel" : "Solo local channel"));
           }
         break;
         case IDC_MUTE:
@@ -276,6 +276,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
             g_client->NotifyServerOfChannelChange();
             g_client_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(ismute?"track_mute_on":"track_mute_off"));
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(ismute ? "Unmute local channel" : "Mute local channel"));
           }
         break;
         case IDC_NAME:
