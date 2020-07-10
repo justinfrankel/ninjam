@@ -942,7 +942,7 @@ static char getConfigStringQuoteChar(const char *p) // from WDL/projectcontext.c
     if (c=='"') flags|=1;
     else if (c=='\'') flags|=2;
     else if (c=='`') flags|=4;
-    else if (c == ' ' || c == '\t') flags |= 8;
+    else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') flags |= 8;
   }
   if (!(flags & 8) && fc != '"' && fc != '\'' && fc != '`' && fc != '#' && fc != ';') return ' ';
   if (!(flags & 1)) return '"';
