@@ -28,7 +28,7 @@
 #include "denormal.h"
 
 #if !defined(WDL_RESAMPLE_NO_SSE) && !defined(WDL_RESAMPLE_USE_SSE)
-  #if defined(__SSE2__) || _M_IX86_FP >= 2 || defined(_WIN64)
+  #if defined(__SSE2__) || _M_IX86_FP >= 2 || (defined(_WIN64) && (_MSC_VER > 1400 || __INTEL_COMPILER > 0))
     #define WDL_RESAMPLE_USE_SSE
   #endif
 #endif
@@ -80,7 +80,8 @@ public:
   void Apply(WDL_ResampleSample *in1, WDL_ResampleSample *out1, int ns, int span, int w)
   {
     double b0=m_b0,b1=m_b1,b2=m_b2,a1=m_a1,a2=m_a2;
-    double *hist=m_hist[w];
+    double hist[4];
+    memcpy(hist,&m_hist[w][0], sizeof(hist));
     while (ns--)
     {
       double in=*in1;
@@ -91,6 +92,7 @@ public:
 
       out1+=span;
     }
+    memcpy(&m_hist[w][0], hist, sizeof(hist));
   }
 
 private:

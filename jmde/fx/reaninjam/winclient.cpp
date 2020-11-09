@@ -1128,10 +1128,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
           g_client->config_metronome_mute=true;
         }
         SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_METROMUTE,WM_USER+0x300,0xbeef,(LPARAM)(g_client->config_metronome_mute?"Unmute metronome":"Mute metronome"));
         SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
-
-        SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Master mute");
-        SendDlgItemMessage(hwndDlg,IDC_METROMUTE,WM_USER+0x300,0xbeef,(LPARAM)"Metronome mute");
+        SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,WM_USER+0x300,0xbeef,(LPARAM)(g_client->config_mastermute?"Unmute master":"Mute master"));
 
         updateMasterControlLabels(hwndDlg);
 
@@ -1622,6 +1621,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         case IDC_MASTERMUTE:
           g_client->config_mastermute=!g_client->config_mastermute;
           SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_mastermute?"track_mute_on":"track_mute_off"));
+          SendDlgItemMessage(hwndDlg,IDC_MASTERMUTE,WM_USER+0x300,0xbeef,(LPARAM)(g_client->config_mastermute?"Unmute master":"Mute master"));
         break;
         case IDC_MASTERVOLLBL:
           if (HIWORD(wParam) == STN_DBLCLK) {
@@ -1658,6 +1658,7 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         case IDC_METROMUTE:
           g_client->config_metronome_mute =!g_client->config_metronome_mute;
           SendDlgItemMessage(hwndDlg,IDC_METROMUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(g_client->config_metronome_mute?"track_mute_on":"track_mute_off"));
+          SendDlgItemMessage(hwndDlg,IDC_METROMUTE,WM_USER+0x300,0xbeef,(LPARAM)(g_client->config_metronome_mute?"Unmute metronome":"Mute metronome"));
         break;
         case IDC_CONNECT:
           if (g_client->GetStatus() != 0)

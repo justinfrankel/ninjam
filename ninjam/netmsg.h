@@ -31,6 +31,9 @@
 
 #include "../WDL/queue.h"
 #include "../WDL/jnetlib/jnetlib.h"
+#ifndef _WIN32
+#include <netinet/tcp.h>
+#endif
 
 #define NET_MESSAGE_MAX_SIZE 16384
 
@@ -96,6 +99,21 @@ class Net_Connection
     void attach(JNL_IConnection *con) 
     {
       m_con=con; 
+      if (con)
+      {
+        SOCKET sock = con->get_socket();
+        if (sock != INVALID_SOCKET)
+        {
+          int flags = 1;
+          setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+#ifdef _WIN32
+            (const char *)
+#else
+            (void *)
+#endif
+            &flags, sizeof(flags));
+        }
+      }
     }
 
     Net_Message *Run(int *wantsleep=0);

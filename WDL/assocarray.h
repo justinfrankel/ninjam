@@ -191,9 +191,18 @@ public:
     if (m_data.GetSize() > 1 && m_keycmp)
     {
       char *tmp=(char*)malloc(m_data.GetSize()*sizeof(KeyVal));
-      WDL_mergesort(m_data.Get(), m_data.GetSize(), sizeof(KeyVal),
-        (int(*)(const void*, const void*))m_keycmp, tmp);
-      free(tmp);
+      if (WDL_NORMALLY(tmp))
+      {
+        WDL_mergesort(m_data.Get(), m_data.GetSize(), sizeof(KeyVal),
+          (int(*)(const void*, const void*))m_keycmp, tmp);
+        free(tmp);
+      }
+      else
+      {
+        qsort(m_data.Get(), m_data.GetSize(), sizeof(KeyVal),
+          (int(*)(const void*, const void*))m_keycmp);
+      }
+
       RemoveDuplicateKeys();
     }
   }
@@ -254,6 +263,7 @@ public:
   void CopyContentsAsReference(const WDL_AssocArrayImpl &cp)
   {
     DeleteAll(true);
+    m_keycmp = cp.m_keycmp;
     m_keydup = NULL;  // this no longer can own any data
     m_keydispose = NULL;
     m_valdispose = NULL; 
@@ -279,18 +289,26 @@ private:
 
   void RemoveDuplicateKeys() // after resorting
   {
-    // will be expensive if there are a lot of duplicates,
-    // in which case use m_data.DeleteBatch()
-    int i;
-    for (i=0; i < m_data.GetSize()-1; ++i)
+    const int sz = m_data.GetSize();
+
+    int cnt = 1;
+    KeyVal *rd = m_data.Get() + 1, *wr = rd;
+    for (int x = 1; x < sz; x ++)
     {
-      KeyVal* kv=m_data.Get()+i;
-      KeyVal* nv=kv+1;
-      if (!m_keycmp(&kv->key, &nv->key))
+      if (m_keycmp(&rd->key, &wr[-1].key))
       {
-        DeleteByIndex(i--);
+        if (rd != wr) *wr=*rd;
+        wr++;
+        cnt++;
       }
+      else
+      {
+        if (m_keydispose) m_keydispose(rd->key);
+        if (m_valdispose) m_valdispose(rd->val);
+      }
+      rd++;
     }
+    if (cnt < sz) m_data.Resize(cnt,false);
   }
 };
 

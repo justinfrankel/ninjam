@@ -4,6 +4,8 @@ CC=gcc
 CXX=g++
 WDL_PATH=../..
 
+CFLAGS += -D_FILE_OFFSET_BITS=64
+
 ifdef NOSWELL
 CFLAGS += -D_LICE_NO_SYSBITMAPS_
 SWELL_OBJS =
@@ -24,7 +26,8 @@ else
 
   SWELL_OBJS = swell-wnd-generic.o swell-gdi-lice.o swell.o swell-misc-generic.o \
                swell-dlg-generic.o swell-menu-generic.o swell-kb-generic.o \
-               swell-gdi-generic.o swell-ini.o swell-generic-gdk.o
+               swell-gdi-generic.o swell-ini.o swell-generic-gdk.o \
+               swell-appstub-generic.o swell-miscdlg-generic.o
 
   LFLAGS += -ldl
 
@@ -46,7 +49,7 @@ JPEGLIB_OBJS = jcomapi.o jdapimin.o jdapistd.o jdatadst.o jdatasrc.o jdcoefct.o 
 
 GIFLIB_OBJS = dgif_lib.o egif_lib.o gifalloc.o gif_hash.o 
 
-LICEOBJS = lice.o lice_gif.o lice_gif_write.o lice_image.o lice_jpg.o lice_png.o lice_pcx.o lice_palette.o lice_line.o lice_arc.o lice_text.o lice_textnew.o lice_texgen.o
+LICEOBJS = lice.o lice_gif.o lice_gif_write.o lice_image.o lice_jpg.o lice_png.o lice_pcx.o lice_palette.o lice_line.o lice_arc.o lice_text.o lice_textnew.o lice_texgen.o lice_colorspace.o
 
 PLUSH_OBJS = pl_cam.o pl_make.o pl_math.o pl_obj.o pl_putface.o pl_read_3ds.o pl_read_cob.o pl_read_jaw.o pl_spline.o
 

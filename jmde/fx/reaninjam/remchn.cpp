@@ -85,7 +85,7 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
         ShowWindow(GetDlgItem(hwndDlg,IDC_DIV),m_user ? SW_SHOW : SW_HIDE);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
-        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)"Remote user mute");
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(mute?"Unmute remote user":"Mute remote user"));
       }
     break;
     case WM_LCUSER_VUUPDATE:
@@ -128,6 +128,7 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
             g_client->SetUserState(m_user,false,0.0,false,0.0,true,mute);
             g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(mute?"track_mute_on":"track_mute_off"));
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(mute?"Unmute remote user":"Mute remote user"));
           }
         break;
       }
@@ -207,10 +208,9 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
 
         CheckDlgButton(hwndDlg,IDC_RECV,sub?BST_CHECKED:0);
         SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
+        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(m?"Unmute remote channel":"Mute remote channel"));
         SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(s?"track_solo_on":"track_solo_off"));
-
-        SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)"Remote channel mute");
-        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)"Remote channel solo");
+        SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)(s?"Unsolo remote channel":"Solo remote channel"));
         
         SendDlgItemMessage(hwndDlg,IDC_VOL,TBM_SETPOS,TRUE,(LPARAM)DB2SLIDER(VAL2DB(v)));
 
@@ -283,6 +283,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,false,false,true,s);
             g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_SOLO,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(s?"track_solo_on":"track_solo_off"));
+            SendDlgItemMessage(hwndDlg,IDC_SOLO,WM_USER+0x300,0xbeef,(LPARAM)(s?"Unsolo remote channel":"Solo remote channel"));
           }
         break;
         case IDC_MUTE:
@@ -296,6 +297,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
             g_client->SetUserChannelState(user,chan,false,false,false,0.0,false,0.0,true,m,false,false);
             g_client->m_remotechannel_rd_mutex.Leave();
             SendDlgItemMessage(hwndDlg,IDC_MUTE,BM_SETIMAGE,IMAGE_ICON|0x8000,(LPARAM)GetIconThemePointer(m?"track_mute_on":"track_mute_off"));
+            SendDlgItemMessage(hwndDlg,IDC_MUTE,WM_USER+0x300,0xbeef,(LPARAM)(m?"Unmute remote channel":"Mute remote channel"));
           }
         break;
         case IDC_VOLLBL:
