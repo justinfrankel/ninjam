@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "ninjam-server.fullname" . }}
+  labels:
+    app: {{ template "ninjam-server.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+data:
+  config.cfg: |
+    # only one port line allowed (last one will be used)
+    # these are comments
+    Port 2049
+       
+    # limit connections of normal users to 10
+    MaxUsers 10
+    
+    # limit normal users to 32 channels each, anonymous users to 2
+    MaxChannels 32 2
+    
+    ServerLicense cclicense.txt
+    
+    #anonymoususers yes or no, or multi (to allow multiple users of the same name from the same IP)
+    AnonymousUsers no
+    AnonymousUsersCanChat yes
+    AnonymousMaskIP yes  # shows just the nn.nn.nn.x instead of full IP. 
+    
+    
+    AllowHiddenUsers no   # set to yes to allow people without channels to not appear in the user list
+    
+    
+    #ACL list lets you specify in order a list, first match is used
+    ACL 10.0.0.0/8 deny
+    ACL 192.168.0.0/16 reserve # reserve slots for local
+    ACL 0.0.0.0/0 allow        # allow all
+    
+    
+    #user/password/permissions sets
+    User administrator myadminpass *   # allow all functions
+    User booga anotherpass CBTKRM      # allow chat, bpm/bpi, topic changing, and kicking, a reserved slot, and multiple logins
+    User myuser mypass                 # allow default functions (chat, no topic)
+    
+    # optional user/pass with simple status retrieving permissions (this also has the advantage of having the server do less work)
+    # StatusUserPass username password
+    
+    DefaultTopic "Welcome to NINJAM. Please play nicely."
+    DefaultBPM 120
+    DefaultBPI 8
+    
+    # two parameters: path to log to, and session length (in minutes). 0 for length means 30 seconds.
+    # if the first parameter (path) is empty, no logging is done
+    # SessionArchive . 15
+    
+    
+    # these two require a full restart to update:
+    
+    # write PID file (non-windows version only)
+    # PIDFile ninjamserver.pid
+    
+    # LogFile ninjamserver.log
+    
+    
+    # set keep-alive interval in seconds. should probably not bother
+    # specifying this, the default is 3, which is adequate. 
+    # SetKeepAlive 3
+    
+    # voting system:
+    # SetVotingThreshold 50       # sets threshold to 50%. can be 1-100%, or >100 to disable
+    # SetVotingVoteTimeout 60     # sets timeout before votes are reset, in seconds
+    
+    # MOTDFile motd.txt   # send this text as a privmsg to all users when they connect
