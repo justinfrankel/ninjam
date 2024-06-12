@@ -55,7 +55,7 @@
 #define PRIV_SHOW_PRIVATE 256
 
 #define MAX_BPM 400
-#define MAX_BPI 64
+#define MAX_BPI 128
 #define MIN_BPM 40
 #define MIN_BPI 2
 
