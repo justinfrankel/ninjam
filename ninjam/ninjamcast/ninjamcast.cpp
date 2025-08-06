@@ -129,7 +129,7 @@ void usage()
 }
 
 // heh we don't upload anything anyway
-int displayLicense(int user32, char *licensetext) {
+int displayLicense(void* user32, const char *licensetext) {
   return 1;
 }
 
@@ -157,13 +157,13 @@ static int ConfigOnToken(LineParser *lp)
 
   if (!stricmp(t,"SC_Server_Name")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_sc_streamname, p, sizeof(g_sc_streamname)-1);
   } else
   if (!stricmp(t,"SC_Server_Address")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_sc_address, p, sizeof(g_sc_address)-1);
   } else
@@ -175,13 +175,13 @@ static int ConfigOnToken(LineParser *lp)
   } else
   if (!stricmp(t,"SC_Server_Password")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_sc_pass, p, sizeof(g_sc_pass)-1);
   } else
   if (!stricmp(t,"SC_Server_Genre")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_sc_genre, p, sizeof(g_sc_genre)-1);
   } else
@@ -193,7 +193,7 @@ static int ConfigOnToken(LineParser *lp)
   } else
   if (!stricmp(t,"SC_Server_Url")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_sc_url, p, sizeof(g_sc_url)-1);
   } else
@@ -217,25 +217,25 @@ static int ConfigOnToken(LineParser *lp)
   } else
   if (!stricmp(t,"NJ_Address")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_nj_address, p, sizeof(g_nj_address)-1);
   } else
   if (!stricmp(t,"NJ_User")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_nj_user, p, sizeof(g_nj_user)-1);
   } else
   if (!stricmp(t,"NJ_Password")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     strncpy(g_nj_pass, p, sizeof(g_nj_pass)-1);
   } else
   if (!stricmp(t,"NJ_Session_Dir")) {
     if (lp->getnumtokens() != 2) return -1;
-    char *p=lp->gettoken_str(1);
+    const char *p=lp->gettoken_str(1);
     if (!p || !*p) return -2;
     g_nj_sessiondir.Set(p);
   } else
@@ -249,14 +249,13 @@ static void readConfig(const char *configfile="njcast.cfg") {
 
   if (fp != NULL) {
     int linecnt=0;
-    bool comment_state=0;
     char buf[8192];
     WDL_String linebuild;
     while (fgets(buf, sizeof(buf), fp)) {
       linecnt++;
       if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
-      LineParser lp(comment_state);
+      LineParser lp;
 
       if (buf[0] && buf[strlen(buf)-1]=='\\')
       {
@@ -282,7 +281,6 @@ static void readConfig(const char *configfile="njcast.cfg") {
       }
       else
       {
-        comment_state = lp.InCommentBlock();
 
         if (lp.getnumtokens()>0)
         {
