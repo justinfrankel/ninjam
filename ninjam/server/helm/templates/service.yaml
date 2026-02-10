@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "ninjam-server.fullname" . }}
+  labels:
+    app: {{ template "ninjam-server.name" . }}
+    chart: {{ template "ninjam-server.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: ninjam-tcp
+      protocol: TCP
+      name: open
+  selector:
+    app: {{ template "ninjam-server.fullname" . }}
+    release: {{ .Release.Name }}
