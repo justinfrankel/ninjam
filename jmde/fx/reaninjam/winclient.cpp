@@ -36,7 +36,7 @@
 #define strncasecmp strnicmp
 #else
 #define PREF_DIRSTR "/"
-#include "../../../WDL/swell/swell.h"
+#include "swell/swell.h"
 #define RemoveDirectory(x) (!rmdir(x))
 #define GetDesktopWindow() ((HWND)0)
 #endif
@@ -46,20 +46,21 @@
 
 #include "resource.h"
 
-#include "../../../WDL/wingui/wndsize.h"
-#include "../../../WDL/dirscan.h"
-#include "../../../WDL/lineparse.h"
+#include "wingui/wndsize.h"
+#include "dirscan.h"
+#include "lineparse.h"
 
-#include "../../../WDL/jnetlib/httpget.h"
-#include "../../../WDL/wdlcstring.h"
+#include "jnetlib/httpget.h"
+#include "wdlcstring.h"
 
+#define WDL_WIN32_HIDPI_IMPL
 #include "winclient.h"
 
 #ifdef _WIN32
-#include "../../../WDL/win32_utf8.c"
+#include "win32_utf8.c"
 #endif
 
-#include "../../../WDL/setthreadname.h"
+#include "setthreadname.h"
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
@@ -74,6 +75,7 @@ extern void (*GetSet_LoopTimeRange2)(void* proj, bool isSet, bool isLoop, double
 extern int (*GetSetRepeatEx)(void* proj, int val);
 extern double (*GetCursorPositionEx)(void *proj);
 extern void (*Main_OnCommandEx)(int command, int flag, void *proj);
+extern void request_vst3_io_change();
 
 class VSTEffectClass;
 extern VSTEffectClass *g_vst_object;
@@ -95,7 +97,109 @@ static int g_connect_passremember, g_connect_anon;
 static RECT g_last_wndpos;
 static int g_last_wndpos_state;
 static int g_config_appear=0; // &1=don't flash beat counter on !(beat%16)
+static int g_config_theme=0;
+static int g_config_custom_hue=210;
+static int g_config_custom_bright=70;
 static bool s_want_sync;
+static bool s_has_connect_attempt = false;
+
+struct ThemeDef
+{
+  const char *name;
+  COLORREF ui_bg;
+  COLORREF ui_text;
+  COLORREF status_bg;
+  COLORREF status_fg;
+  COLORREF status_info;
+  COLORREF div_hi;
+  COLORREF div_lo;
+};
+
+static const ThemeDef s_themes[] = {
+  { "Classic Green", RGB(236,236,236), RGB(0,0,0), RGB(0,0,0), RGB(128,255,128), RGB(0,128,255), RGB(255,255,255), RGB(96,96,96) },
+  { "Ocean Blue",    RGB(224,234,246), RGB(16,28,44), RGB(8,18,34), RGB(120,210,255), RGB(80,170,255), RGB(248,252,255), RGB(70,96,126) },
+  { "Sunset Orange", RGB(248,232,220), RGB(46,24,14), RGB(28,12,6), RGB(255,190,120), RGB(255,130,90), RGB(255,250,238), RGB(150,96,70) },
+  { "Forest",        RGB(224,238,224), RGB(12,36,12), RGB(8,22,10), RGB(156,242,158), RGB(104,210,146), RGB(242,255,242), RGB(74,110,74) },
+  { "Plum Night",    RGB(228,220,236), RGB(28,16,40), RGB(16,8,28), RGB(224,170,255), RGB(176,124,255), RGB(252,244,255), RGB(110,86,138) },
+};
+
+static ThemeDef g_theme = s_themes[0];
+static HBRUSH g_theme_brush = NULL;
+
+static int GetPresetThemeCount()
+{
+  return (int)(sizeof(s_themes)/sizeof(s_themes[0]));
+}
+
+static int GetCustomThemeIndex()
+{
+  return GetPresetThemeCount();
+}
+
+static int GetThemeCount()
+{
+  return GetPresetThemeCount()+1;
+}
+
+static COLORREF MakeColor(double r, double g, double b)
+{
+  int ir = wdl_clamp((int)(r*255.0 + 0.5),0,255);
+  int ig = wdl_clamp((int)(g*255.0 + 0.5),0,255);
+  int ib = wdl_clamp((int)(b*255.0 + 0.5),0,255);
+  return RGB(ir,ig,ib);
+}
+
+static COLORREF HSVToRGB(double h, double s, double v)
+{
+  while (h < 0.0) h += 360.0;
+  while (h >= 360.0) h -= 360.0;
+  s = wdl_clamp(s,0.0,1.0);
+  v = wdl_clamp(v,0.0,1.0);
+  if (s <= 0.00001) return MakeColor(v,v,v);
+
+  const double hh = h/60.0;
+  const int i = ((int)hh) % 6;
+  const double ff = hh - (int)hh;
+  const double p = v*(1.0-s);
+  const double q = v*(1.0-(s*ff));
+  const double t = v*(1.0-(s*(1.0-ff)));
+
+  switch (i)
+  {
+    case 0: return MakeColor(v,t,p);
+    case 1: return MakeColor(q,v,p);
+    case 2: return MakeColor(p,v,t);
+    case 3: return MakeColor(p,q,v);
+    case 4: return MakeColor(t,p,v);
+    default:return MakeColor(v,p,q);
+  }
+}
+
+static void BuildCustomTheme(ThemeDef *outTheme)
+{
+  if (!outTheme) return;
+  const double hue = (double)wdl_clamp(g_config_custom_hue,0,359);
+  const double bright = (double)wdl_clamp(g_config_custom_bright,35,100) / 100.0;
+
+  outTheme->name = "Custom";
+  outTheme->ui_bg = HSVToRGB(hue, 0.16, 0.78 + bright*0.2);
+  outTheme->ui_text = HSVToRGB(hue, 0.28, 0.16 + (1.0-bright)*0.06);
+  outTheme->status_bg = HSVToRGB(hue, 0.72, 0.10 + bright*0.14);
+  outTheme->status_fg = HSVToRGB(hue, 0.44, 0.78 + bright*0.22);
+  outTheme->status_info = HSVToRGB(hue+32.0, 0.56, 0.62 + bright*0.30);
+  outTheme->div_hi = HSVToRGB(hue, 0.08, 0.92 + bright*0.06);
+  outTheme->div_lo = HSVToRGB(hue, 0.24, 0.42 + bright*0.20);
+}
+
+static void ApplyTheme(int idx)
+{
+  idx = wdl_clamp(idx,0,GetThemeCount()-1);
+  g_config_theme = idx;
+  if (idx == GetCustomThemeIndex()) BuildCustomTheme(&g_theme);
+  else g_theme = s_themes[idx];
+  if (g_theme_brush) DeleteObject(g_theme_brush);
+  g_theme_brush = CreateSolidBrush(g_theme.ui_bg);
+}
 
 int g_config_num_inputs = 8, g_config_num_outputs = 6;
 
@@ -110,6 +214,22 @@ static void GetDefaultSessionDir(char *str, int strsize)
   if (GetProjectPath)  GetProjectPath(str,strsize-30);
   strcat(str,PREF_DIRSTR "NINJAMsessions");
 }
+
+#ifdef _WIN32
+static void SetIniPathToLocalAppData()
+{
+  char appData[MAX_PATH] = {0};
+  if (SHGetFolderPath(NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appData) != S_OK || !appData[0])
+    return;
+
+  lstrcpyn(g_inipath, appData, sizeof(g_inipath));
+  WDL_remove_trailing_dirchars(g_inipath);
+  lstrcatn(g_inipath, PREF_DIRSTR "ReaNINJAM", (int)sizeof(g_inipath));
+  CreateDirectory(g_inipath, NULL);
+  WDL_remove_trailing_dirchars(g_inipath);
+  lstrcatn(g_inipath, PREF_DIRSTR, (int)sizeof(g_inipath));
+}
+#endif
 
 void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool isPlaying, bool isSeek, double curpos)
 {
@@ -143,14 +263,68 @@ void audiostream_onsamples(float **inbuf, int innch, float **outbuf, int outnch,
   g_client->AudioProc(inbuf,innch, outbuf, outnch, len,srate,!g_audio_enable, isPlaying, isSeek,curpos);
 }
 
+static void Prefs_UpdateThemeSliderLabels(HWND hwndDlg)
+{
+  char buf[64];
+  snprintf(buf,sizeof(buf), "%d deg", wdl_clamp(g_config_custom_hue,0,359));
+  SetDlgItemText(hwndDlg,IDC_THEME_HUEVAL,buf);
+  snprintf(buf,sizeof(buf), "%d%%", wdl_clamp(g_config_custom_bright,35,100));
+  SetDlgItemText(hwndDlg,IDC_THEME_BRIGHTVAL,buf);
+}
+
+static void Prefs_SetThemeSliderEnabled(HWND hwndDlg, bool enabled)
+{
+  EnableWindow(GetDlgItem(hwndDlg,IDC_THEME_HUE),enabled);
+  EnableWindow(GetDlgItem(hwndDlg,IDC_THEME_BRIGHT),enabled);
+  EnableWindow(GetDlgItem(hwndDlg,IDC_THEME_HUEVAL),enabled);
+  EnableWindow(GetDlgItem(hwndDlg,IDC_THEME_BRIGHTVAL),enabled);
+}
+
+static void RefreshThemePaint()
+{
+  if (g_hwnd) InvalidateRect(g_hwnd,NULL,TRUE);
+  if (m_locwnd) InvalidateRect(m_locwnd,NULL,TRUE);
+  if (m_remwnd) InvalidateRect(m_remwnd,NULL,TRUE);
+}
+
+static void Prefs_ApplyThemePreview(HWND hwndDlg)
+{
+  const int custom_idx = GetCustomThemeIndex();
+  int theme = (int)SendDlgItemMessage(hwndDlg,IDC_THEME,CB_GETCURSEL,0,0);
+  if (theme < 0) theme = g_config_theme;
+
+  if (theme == custom_idx)
+  {
+    g_config_custom_hue = (int)SendDlgItemMessage(hwndDlg,IDC_THEME_HUE,TBM_GETPOS,0,0);
+    g_config_custom_hue = wdl_clamp(g_config_custom_hue,0,359);
+    g_config_custom_bright = (int)SendDlgItemMessage(hwndDlg,IDC_THEME_BRIGHT,TBM_GETPOS,0,0);
+    g_config_custom_bright = wdl_clamp(g_config_custom_bright,35,100);
+    Prefs_UpdateThemeSliderLabels(hwndDlg);
+  }
+  ApplyTheme(theme);
+  RefreshThemePaint();
+}
+
+static INT_PTR ForwardToHostMainWindow(HWND self, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  HWND h = GetMainHwnd ? GetMainHwnd() : NULL;
+  if (h && h != self) return SendMessage(h,uMsg,wParam,lParam);
+  return 0;
+}
+
 
 
 static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  static int s_prev_theme, s_prev_hue, s_prev_bright;
   switch (uMsg)
   {
     case WM_INITDIALOG:
       {
+        s_prev_theme = g_config_theme;
+        s_prev_hue = g_config_custom_hue;
+        s_prev_bright = g_config_custom_bright;
+
         if (GetPrivateProfileInt(CONFSEC,"savelocal",1,g_ini_file.Get()))
           CheckDlgButton(hwndDlg,IDC_SAVELOCAL,BST_CHECKED);
         if (GetPrivateProfileInt(CONFSEC,"savelocalwav",0,g_ini_file.Get()))
@@ -165,6 +339,18 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING, 0, (LPARAM)__LOCALIZE("Auto assign remote channels to pairs 3-n","reaninjam"));
         SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_ADDSTRING, 0, (LPARAM)__LOCALIZE("Auto assign remote users to pairs 3-n","reaninjam"));
         SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_SETCURSEL, g_client->config_remote_autochan, 0);
+
+        WDL_UTF8_HookComboBox(GetDlgItem(hwndDlg,IDC_THEME));
+        for (int i = 0; i < GetPresetThemeCount(); ++i)
+          SendDlgItemMessage(hwndDlg,IDC_THEME,CB_ADDSTRING, 0, (LPARAM)s_themes[i].name);
+        SendDlgItemMessage(hwndDlg,IDC_THEME,CB_ADDSTRING, 0, (LPARAM)"Custom");
+        SendDlgItemMessage(hwndDlg,IDC_THEME,CB_SETCURSEL, g_config_theme, 0);
+        SendDlgItemMessage(hwndDlg,IDC_THEME_HUE,TBM_SETRANGE,TRUE,MAKELONG(0,359));
+        SendDlgItemMessage(hwndDlg,IDC_THEME_HUE,TBM_SETPOS,TRUE,wdl_clamp(g_config_custom_hue,0,359));
+        SendDlgItemMessage(hwndDlg,IDC_THEME_BRIGHT,TBM_SETRANGE,TRUE,MAKELONG(35,100));
+        SendDlgItemMessage(hwndDlg,IDC_THEME_BRIGHT,TBM_SETPOS,TRUE,wdl_clamp(g_config_custom_bright,35,100));
+        Prefs_UpdateThemeSliderLabels(hwndDlg);
+        Prefs_SetThemeSliderEnabled(hwndDlg,g_config_theme==GetCustomThemeIndex());
 
         char str[2048];
         GetPrivateProfileString(CONFSEC,"sessiondir","",str,sizeof(str),g_ini_file.Get());
@@ -209,6 +395,14 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         // todo: macport
         #endif
         break;
+        case IDC_THEME:
+          if (HIWORD(wParam) == CBN_SELCHANGE)
+          {
+            int theme = (int)SendDlgItemMessage(hwndDlg,IDC_THEME,CB_GETCURSEL,0,0);
+            Prefs_SetThemeSliderEnabled(hwndDlg,theme==GetCustomThemeIndex());
+            Prefs_ApplyThemePreview(hwndDlg);
+          }
+        break;
         case IDOK:
           {
             WritePrivateProfileString(CONFSEC,"savelocal",IsDlgButtonChecked(hwndDlg,IDC_SAVELOCAL)?"1":"0",g_ini_file.Get());
@@ -227,6 +421,22 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
             if (!IsDlgButtonChecked(hwndDlg, IDC_FLASH)) g_config_appear |= 1;
             snprintf(buf, sizeof(buf), "%d", g_config_appear);
             WritePrivateProfileString(CONFSEC, "config_appear", buf, g_ini_file.Get());
+
+            int theme = (int)SendDlgItemMessage(hwndDlg,IDC_THEME,CB_GETCURSEL,0,0);
+            if (theme >= 0)
+            {
+              g_config_custom_hue = (int)SendDlgItemMessage(hwndDlg,IDC_THEME_HUE,TBM_GETPOS,0,0);
+              g_config_custom_hue = wdl_clamp(g_config_custom_hue,0,359);
+              g_config_custom_bright = (int)SendDlgItemMessage(hwndDlg,IDC_THEME_BRIGHT,TBM_GETPOS,0,0);
+              g_config_custom_bright = wdl_clamp(g_config_custom_bright,35,100);
+              ApplyTheme(theme);
+              snprintf(buf, sizeof(buf), "%d", g_config_theme);
+              WritePrivateProfileString(CONFSEC, "color_theme", buf, g_ini_file.Get());
+              snprintf(buf, sizeof(buf), "%d", g_config_custom_hue);
+              WritePrivateProfileString(CONFSEC, "color_custom_hue", buf, g_ini_file.Get());
+              snprintf(buf, sizeof(buf), "%d", g_config_custom_bright);
+              WritePrivateProfileString(CONFSEC, "color_custom_bright", buf, g_ini_file.Get());
+            }
 
             int a = (int)SendDlgItemMessage(hwndDlg,IDC_COMBO1,CB_GETCURSEL,0,0);
             if (a >= 0)
@@ -267,16 +477,48 @@ static WDL_DLGRET PrefsProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
               }
             }
             if (localref) SendMessage(m_locwnd, WM_LCUSER_REPOP_CH,0,0);
+            if (localref) request_vst3_io_change();
 
             EndDialog(hwndDlg,1);
           }
         break;
         case IDCANCEL:
+          g_config_theme = s_prev_theme;
+          g_config_custom_hue = s_prev_hue;
+          g_config_custom_bright = s_prev_bright;
+          ApplyTheme(g_config_theme);
+          RefreshThemePaint();
           EndDialog(hwndDlg,0);
         break;
       }
     return 0;
+    case WM_HSCROLL:
+      {
+        HWND hs = (HWND)lParam;
+        if (hs == GetDlgItem(hwndDlg,IDC_THEME_HUE))
+        {
+          g_config_custom_hue = (int)SendMessage(hs,TBM_GETPOS,0,0);
+          g_config_custom_hue = wdl_clamp(g_config_custom_hue,0,359);
+          Prefs_UpdateThemeSliderLabels(hwndDlg);
+          if ((int)SendDlgItemMessage(hwndDlg,IDC_THEME,CB_GETCURSEL,0,0)==GetCustomThemeIndex())
+            Prefs_ApplyThemePreview(hwndDlg);
+        }
+        else if (hs == GetDlgItem(hwndDlg,IDC_THEME_BRIGHT))
+        {
+          g_config_custom_bright = (int)SendMessage(hs,TBM_GETPOS,0,0);
+          g_config_custom_bright = wdl_clamp(g_config_custom_bright,35,100);
+          Prefs_UpdateThemeSliderLabels(hwndDlg);
+          if ((int)SendDlgItemMessage(hwndDlg,IDC_THEME,CB_GETCURSEL,0,0)==GetCustomThemeIndex())
+            Prefs_ApplyThemePreview(hwndDlg);
+        }
+      }
+    return 0;
     case WM_CLOSE:
+      g_config_theme = s_prev_theme;
+      g_config_custom_hue = s_prev_hue;
+      g_config_custom_bright = s_prev_bright;
+      ApplyTheme(g_config_theme);
+      RefreshThemePaint();
       EndDialog(hwndDlg,0);
     return 0;
   }
@@ -703,6 +945,7 @@ WDL_FastString g_last_status("---");
 
 static void do_connect()
 {
+  s_has_connect_attempt = true;
   WDL_String userstr;
   if (g_connect_anon)
   {
@@ -903,8 +1146,8 @@ LRESULT WINAPI ninjamDividerProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         PAINTSTRUCT ps;
         if (BeginPaint(hwnd,&ps))
         {
-          HBRUSH br1 = CreateSolidBrush(GetSysColor(COLOR_3DHILIGHT));
-          HBRUSH br2 = CreateSolidBrush(GetSysColor(COLOR_3DSHADOW));
+          HBRUSH br1 = CreateSolidBrush(g_theme.div_hi);
+          HBRUSH br2 = CreateSolidBrush(g_theme.div_lo);
           RECT cr,r1;
           GetClientRect(hwnd,&cr);
           cr.bottom = cr.top+1;
@@ -978,7 +1221,7 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
           GetClientRect(hwnd,&r);
           bool flip = !(g_config_appear&1) && want_numbers &&
             last_bpm_i>0 && (last_interval_pos == 0 || (last_interval_len > 16 && (last_interval_len&15)==0 && !(last_interval_pos&15)));
-          int fg = RGB(128,255,128), bg=RGB(0,0,0);
+          int fg = g_theme.status_fg, bg = g_theme.status_bg;
           if (flip) { int tmp=fg; fg=bg; bg=tmp; }
 
           {
@@ -1001,7 +1244,7 @@ LRESULT WINAPI ninjamStatusProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             font2 = CreateFontIndirect(&lf);
           }
           SetBkMode(ps.hdc,TRANSPARENT);
-          SetTextColor(ps.hdc,RGB(0,128,255));
+          SetTextColor(ps.hdc,g_theme.status_info);
           HGDIOBJ oldfont = SelectObject(ps.hdc,font1);
           const int pad = fontsz > 12 ? 3 : 1;
           RECT tr = { r.left+pad,r.top+pad,r.right-pad,r.bottom-pad};
@@ -1103,11 +1346,20 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
   {
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
+      {
+        if (!g_theme_brush) ApplyTheme(g_config_theme);
+        HDC hdc = (HDC)wParam;
+        SetBkMode(hdc,TRANSPARENT);
+        SetBkColor(hdc,g_theme.ui_bg);
+        SetTextColor(hdc,g_theme.ui_text);
+        return (INT_PTR)g_theme_brush;
+      }
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_INITDIALOG:
       {
         if (SetWindowAccessibilityString)
@@ -1197,6 +1449,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         g_client->config_remote_autochan = GetPrivateProfileInt(CONFSEC,"remote_autochan",
             g_client->config_remote_autochan,g_ini_file.Get());
         g_config_appear = GetPrivateProfileInt(CONFSEC, "config_appear", g_config_appear, g_ini_file.Get());
+        g_config_custom_hue = GetPrivateProfileInt(CONFSEC, "color_custom_hue", g_config_custom_hue, g_ini_file.Get());
+        g_config_custom_hue = wdl_clamp(g_config_custom_hue,0,359);
+        g_config_custom_bright = GetPrivateProfileInt(CONFSEC, "color_custom_bright", g_config_custom_bright, g_ini_file.Get());
+        g_config_custom_bright = wdl_clamp(g_config_custom_bright,35,100);
+        ApplyTheme(GetPrivateProfileInt(CONFSEC, "color_theme", g_config_theme, g_ini_file.Get()));
 
         char tmp[512];
         SendDlgItemMessage(hwndDlg,IDC_MASTERVOL,TBM_SETTIC,FALSE,-1);
@@ -1436,7 +1693,11 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 
               InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
             }
-            else if (errstr.Get()[0])
+            else if (errstr.Get()[0] &&
+                     (s_has_connect_attempt ||
+                      (ns != NJClient::NJC_STATUS_DISCONNECTED &&
+                       ns != NJClient::NJC_STATUS_INVALIDAUTH &&
+                       ns != NJClient::NJC_STATUS_CANTCONNECT)))
             {
               g_last_status.Set(__LOCALIZE("Status: ","reaninjam"));
               g_last_status.Append(errstr.Get());
@@ -1446,24 +1707,33 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
             {
               if (ns == NJClient::NJC_STATUS_DISCONNECTED)
               {
-                g_last_status.Set(__LOCALIZE("Status: disconnected from host.","reaninjam"));
+                g_last_status.Set(s_has_connect_attempt ?
+                    __LOCALIZE("Status: disconnected from host.","reaninjam") :
+                    __LOCALIZE("Status: disconnected.","reaninjam"));
                 InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
-                MessageBox(g_hwnd,__LOCALIZE("Disconnected from host!","reaninjam"),
-                    __LOCALIZE("NINJAM Notice","reaninjam"), MB_OK);
+                if (s_has_connect_attempt)
+                  MessageBox(g_hwnd,__LOCALIZE("Disconnected from host!","reaninjam"),
+                      __LOCALIZE("NINJAM Notice","reaninjam"), MB_OK);
               }
               if (ns == NJClient::NJC_STATUS_INVALIDAUTH)
               {
-                g_last_status.Set(__LOCALIZE("Status: invalid authentication info.","reaninjam"));
-                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
-                MessageBox(g_hwnd,__LOCALIZE("Error connecting: invalid authentication information!","reaninjam"),
-                    __LOCALIZE("NINJAM Error","reaninjam"), MB_OK);
+                if (s_has_connect_attempt)
+                {
+                  g_last_status.Set(__LOCALIZE("Status: invalid authentication info.","reaninjam"));
+                  InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
+                  MessageBox(g_hwnd,__LOCALIZE("Error connecting: invalid authentication information!","reaninjam"),
+                      __LOCALIZE("NINJAM Error","reaninjam"), MB_OK);
+                }
               }
               if (ns == NJClient::NJC_STATUS_CANTCONNECT)
               {
-                g_last_status.Set(__LOCALIZE("Status: can't connect to host.","reaninjam"));
-                InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
-                MessageBox(g_hwnd,__LOCALIZE("Error connecting: can't connect to host!","reaninjam"),
-                    __LOCALIZE("NINJAM Error","reaninjam"), MB_OK);
+                if (s_has_connect_attempt)
+                {
+                  g_last_status.Set(__LOCALIZE("Status: can't connect to host.","reaninjam"));
+                  InvalidateRect(GetDlgItem(hwndDlg,IDC_INTERVALPOS),NULL,FALSE);
+                  MessageBox(g_hwnd,__LOCALIZE("Error connecting: can't connect to host!","reaninjam"),
+                      __LOCALIZE("NINJAM Error","reaninjam"), MB_OK);
+                }
               }
             }
           }
@@ -1896,6 +2166,9 @@ static WDL_DLGRET MainProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
         break;
         case ID_OPTIONS_PREFERENCES:
           DialogBox(g_hInst,MAKEINTRESOURCE(IDD_PREFS),hwndDlg,PrefsProc);
+          InvalidateRect(hwndDlg,NULL,TRUE);
+          if (m_locwnd) InvalidateRect(m_locwnd,NULL,TRUE);
+          if (m_remwnd) InvalidateRect(m_remwnd,NULL,TRUE);
         break;
         case IDC_CHATOK:
           {
@@ -2283,6 +2556,14 @@ void InitializeInstance()
           lstrcpyn(g_inipath,g_ini_file.Get(),sizeof(g_inipath));
           g_ini_file.Append(PREF_DIRSTR "reaninjam.ini");
         }
+        else
+        {
+#ifdef _WIN32
+          SetIniPathToLocalAppData();
+          g_ini_file.Set(g_inipath);
+          g_ini_file.Append("reaninjam.ini");
+#endif
+        }
         // use reaper.ini path
       }
 
@@ -2363,6 +2644,11 @@ void QuitInstance()
     g_done=0;
     m_locwnd=m_remwnd=0;
     g_audio_enable=0;
+    if (g_theme_brush)
+    {
+      DeleteObject(g_theme_brush);
+      g_theme_brush = NULL;
+    }
   }
   //UnregisterClass("RichEditChild",NULL);
 }

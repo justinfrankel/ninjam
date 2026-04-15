@@ -33,8 +33,21 @@
 #include "../WDL/wdlcstring.h"
 
 #include "../WDL/win32_utf8.h"
+#include "opus.h"
 
 #define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
+#define NJ_ENCODER_FMT_TYPE_OPUS MAKE_NJ_FOURCC('O','P','U','S')
+
+static inline float softclip_to_minus2db(float x)
+{
+  const float k = 2.0f;
+  const float d = tanhf(k);
+  const float c = d / k;
+  const float target = 0.794328f;
+  float y = tanhf(k * c * x);
+  if (d != 0.0f) y = (y / d) * target;
+  return y;
+}
 
 #ifdef REANINJAM
 #define WDL_VORBIS_INTERFACE_ONLY
@@ -45,6 +58,282 @@
 #include "../WDL/vorbisencdec.h"
 #undef VorbisEncoderInterface
 #undef VorbisDecoderInterface
+
+class OpusEncoderCodec : public I_NJEncoder
+{
+public:
+  OpusEncoderCodec(int srate, int nch, int bitrate, int)
+  {
+    int err = 0;
+    enc = opus_encoder_create(srate, nch, OPUS_APPLICATION_AUDIO, &err);
+    if (err != OPUS_OK || !enc)
+    {
+      enc = NULL;
+      errFlag = 1;
+      return;
+    }
+    channels = nch;
+    errFlag = 0;
+    frameSize = srate / 50;
+    if (frameSize <= 0) frameSize = 960;
+    pcmBuf.Resize(frameSize * channels * (int)sizeof(float));
+    pcmWritePos = 0;
+    opus_encoder_ctl(enc, OPUS_SET_BITRATE(bitrate * 1000));
+  }
+
+  ~OpusEncoderCodec()
+  {
+    if (enc) opus_encoder_destroy(enc);
+  }
+
+  void Encode(float *in, int inlen, int advance=1, int spacing=1)
+  {
+    if (!enc || errFlag) return;
+    if (!in || inlen <= 0) return;
+
+    int samples = inlen;
+    int pos = 0;
+    while (samples > 0)
+    {
+      int space = frameSize - pcmWritePos;
+      int toCopy = samples;
+      if (toCopy > space) toCopy = space;
+
+      float *dst = (float *)pcmBuf.Get() + pcmWritePos * channels;
+      if (channels == 1)
+      {
+        for (int i = 0; i < toCopy; ++i)
+        {
+          dst[i] = in[pos];
+          pos += advance;
+        }
+      }
+      else if (channels == 2)
+      {
+        for (int i = 0; i < toCopy; ++i)
+        {
+          dst[i*2] = in[pos];
+          dst[i*2+1] = in[pos + spacing];
+          pos += advance * 2;
+        }
+      }
+      else
+      {
+        for (int i = 0; i < toCopy; ++i)
+        {
+          for (int c = 0; c < channels; ++c)
+          {
+            dst[i*channels + c] = in[pos + c*spacing];
+          }
+          pos += advance * channels;
+        }
+      }
+
+      pcmWritePos += toCopy;
+      samples -= toCopy;
+
+      if (pcmWritePos == frameSize)
+      {
+        encodeFrame();
+        pcmWritePos = 0;
+      }
+    }
+  }
+
+  int isError()
+  {
+    return errFlag;
+  }
+
+  int Available()
+  {
+    return outQueue.Available();
+  }
+
+  void *Get()
+  {
+    return outQueue.Get();
+  }
+
+  void Advance(int amt)
+  {
+    outQueue.Advance(amt);
+  }
+
+  void Compact()
+  {
+    outQueue.Compact();
+  }
+
+  void reinit(int=0)
+  {
+    outQueue.Advance(outQueue.Available());
+    outQueue.Compact();
+    pcmWritePos = 0;
+  }
+
+private:
+  void encodeFrame()
+  {
+    if (!enc) return;
+    unsigned char packet[4096];
+    int bytes = opus_encode_float(enc, (const float *)pcmBuf.Get(), frameSize, packet, (opus_int32)sizeof(packet));
+    if (bytes <= 0) return;
+    unsigned char header[2];
+    header[0] = (unsigned char)(bytes & 0xff);
+    header[1] = (unsigned char)((bytes >> 8) & 0xff);
+    outQueue.Add(header, (int)sizeof(header));
+    outQueue.Add(packet, bytes);
+  }
+
+  OpusEncoder *enc;
+  int channels;
+  int frameSize;
+  int pcmWritePos;
+  int errFlag;
+  WDL_HeapBuf pcmBuf;
+  WDL_Queue outQueue;
+};
+
+class OpusDecoderCodec : public I_NJDecoder
+{
+public:
+  OpusDecoderCodec()
+  {
+    dec = NULL;
+    channels = 0;
+    srate = 48000;
+    srcLen = 0;
+    errFlag = 0;
+    srcBuf.Resize(4096);
+  }
+
+  ~OpusDecoderCodec()
+  {
+    if (dec) opus_decoder_destroy(dec);
+  }
+
+  int GetSampleRate()
+  {
+    return srate;
+  }
+
+  int GetNumChannels()
+  {
+    return channels ? channels : 1;
+  }
+
+  void *DecodeGetSrcBuffer(int srclen)
+  {
+    if (srclen <= 0) return NULL;
+    if (srcBuf.GetSize() < srclen) srcBuf.Resize(srclen);
+    srcLen = srclen;
+    return srcBuf.Get();
+  }
+
+  void DecodeWrote(int)
+  {
+    if (srcLen <= 0) return;
+
+    if (!dec)
+    {
+      int err = 0;
+      dec = opus_decoder_create(srate, 2, &err);
+      if (err != OPUS_OK || !dec)
+      {
+        dec = NULL;
+        errFlag = 1;
+        return;
+      }
+      channels = 2;
+    }
+
+    packetQueue.Add(srcBuf.Get(), srcLen);
+
+    while (packetQueue.Available() >= 2)
+    {
+      const unsigned char *raw = (const unsigned char *)packetQueue.Get();
+      if (!raw) break;
+
+      const int packetLen = (int)raw[0] | ((int)raw[1] << 8);
+      if (packetLen <= 0 || packetLen > 4000)
+      {
+        const int avail = packetQueue.Available();
+        if (avail <= 0) break;
+        decodePacket(raw, wdl_min(avail, 4000));
+        packetQueue.Advance(wdl_min(avail, 4000));
+        continue;
+      }
+
+      if (packetQueue.Available() < packetLen + 2)
+        break;
+
+      decodePacket(raw + 2, packetLen);
+      packetQueue.Advance(packetLen + 2);
+    }
+
+    packetQueue.Compact();
+  }
+
+  void Reset()
+  {
+    pcmQueue.Clear();
+    packetQueue.Clear();
+    srcLen = 0;
+  }
+
+  int Available()
+  {
+    return pcmQueue.Available();
+  }
+
+  float *Get()
+  {
+    return (float *)pcmQueue.Get();
+  }
+
+  void Skip(int amt)
+  {
+    pcmQueue.Advance(amt);
+    pcmQueue.Compact();
+  }
+
+  int GenerateLappingSamples()
+  {
+    return 0;
+  }
+
+private:
+  void decodePacket(const unsigned char *data, int len)
+  {
+    if (!dec || !data || len <= 0) return;
+
+    int maxSamples = srate / 50;
+    if (maxSamples <= 0) maxSamples = 960;
+
+    float *buf = pcmQueue.Add(NULL, maxSamples * channels);
+    if (!buf) return;
+
+    int decoded = opus_decode_float(dec, data, len, buf, maxSamples, 0);
+    if (decoded <= 0)
+    {
+      pcmQueue.Advance(-maxSamples * channels);
+      return;
+    }
+
+    if (decoded < maxSamples)
+      pcmQueue.Advance(-(maxSamples - decoded) * channels);
+  }
+
+  OpusDecoder *dec;
+  int channels;
+  int srate;
+  int srcLen;
+  int errFlag;
+  WDL_HeapBuf srcBuf;
+  WDL_Queue packetQueue;
+  WDL_TypedQueue<float> pcmQueue;
+};
 
 #ifdef REANINJAM
   extern void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
@@ -362,6 +651,25 @@ private:
   DecodeMediaBuffer *m_decbuf;
 };
 
+class CustomIntervalDownload
+{
+public:
+  CustomIntervalDownload()
+  {
+    memset(guid,0,sizeof(guid));
+    chidx = 0;
+    fourcc = 0;
+    last_time = 0;
+  }
+
+  unsigned char guid[16];
+  int chidx;
+  unsigned int fourcc;
+  WDL_String username;
+  WDL_HeapBuf data;
+  time_t last_time;
+};
+
 
 
 class BufferQueue
@@ -595,6 +903,12 @@ NJClient::NJClient()
   LicenseAgreementCallback=0;
   ChatMessage_Callback=0;
   ChatMessage_User=0;
+  IntervalMediaItem_Callback=0;
+  IntervalMediaItem_User=0;
+  NewIntervalCallback=0;
+  NewIntervalCallbackUser=0;
+  IntervalChunkCallback=0;
+  IntervalChunkCallbackUser=0;
   ChannelMixer=0;
   ChannelMixer_User=0;
 
@@ -612,6 +926,11 @@ NJClient::NJClient()
   m_remote_chanoffs = 0;
   m_local_chanoffs = 0;
 
+  m_codec_caps_encode = NJCLIENT_CAP_ENCODE_VORBIS | NJCLIENT_CAP_ENCODE_OPUS;
+  m_codec_caps_decode = NJCLIENT_CAP_DECODE_VORBIS | NJCLIENT_CAP_DECODE_OPUS;
+  m_codec_vorbis_mask = 0xffffffffu;
+  m_codec_opus_mask = 0;
+
   _reinit();
 
   m_session_pos_ms=m_session_pos_samples=0;
@@ -623,7 +942,7 @@ void NJClient::_reinit()
   output_peaklevel[0]=output_peaklevel[1]=0.0;
 
   m_connection_keepalive=0;
-  m_status=-1;
+  m_status=1002;
 
   m_in_auth=0;
 
@@ -715,6 +1034,8 @@ NJClient::~NJClient()
   m_remoteusers.Empty();
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
   m_downloads.Empty();
+  for (x = 0; x < m_customIntervalDownloads.GetSize(); x ++) delete m_customIntervalDownloads.Get(x);
+  m_customIntervalDownloads.Empty();
   for (x = 0; x < m_locchannels.GetSize(); x ++) delete m_locchannels.Get(x);
   m_locchannels.Empty();
 
@@ -851,6 +1172,7 @@ void NJClient::Disconnect()
   if (x) m_userinfochange=1; // if we removed users, notify parent
 
   for (x = 0; x < m_downloads.GetSize(); x ++) delete m_downloads.Get(x);
+  for (x = 0; x < m_customIntervalDownloads.GetSize(); x ++) delete m_customIntervalDownloads.Get(x);
 
 
   for (x = 0; x < m_locchannels.GetSize(); x ++)
@@ -870,6 +1192,7 @@ void NJClient::Disconnect()
     c->m_bq.Clear();
   }
   m_downloads.Empty();
+  m_customIntervalDownloads.Empty();
 
   m_wavebq->Clear();
 
@@ -1058,6 +1381,8 @@ int NJClient::Run() // nonzero if sleep ok
                   repl.client_caps|=1;
                 }
               }
+              repl.client_caps |= m_codec_caps_encode;
+              repl.client_caps |= m_codec_caps_decode;
               m_netcon->SetKeepAlive(m_connection_keepalive);
 
               WDL_SHA1 tmp;
@@ -1119,6 +1444,15 @@ int NJClient::Run() // nonzero if sleep ok
             }
           }
 
+        break;
+        case MESSAGE_SERVER_CODEC_CONFIG:
+          {
+            mpb_server_codec_config cc;
+            if (!cc.parse(msg))
+            {
+              SetCodecConfig(cc.vorbis_mask, cc.opus_mask);
+            }
+          }
         break;
         case MESSAGE_SERVER_USERINFO_CHANGE_NOTIFY:
           {
@@ -1284,21 +1618,46 @@ int NJClient::Run() // nonzero if sleep ok
                 }
                 else if (dib.fourcc) // download coming
                 {
-                  if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
-                  RemoteDownload *ds=new RemoteDownload;
-                  memcpy(ds->guid,dib.guid,sizeof(ds->guid));
-                  ds->Open(this,dib.fourcc,!!(theuser->channels[dib.chidx].flags&4));
+                  const bool isAudioCodec = dib.fourcc == NJ_ENCODER_FMT_TYPE || dib.fourcc == NJ_ENCODER_FMT_TYPE_OPUS;
+                  if (!isAudioCodec)
+                  {
+                    int i;
+                    for (i = 0; i < m_customIntervalDownloads.GetSize(); ++i)
+                    {
+                      CustomIntervalDownload *cs = m_customIntervalDownloads.Get(i);
+                      if (cs && !memcmp(cs->guid,dib.guid,sizeof(cs->guid)))
+                      {
+                        delete cs;
+                        m_customIntervalDownloads.Delete(i);
+                        break;
+                      }
+                    }
+                    CustomIntervalDownload *cs = new CustomIntervalDownload;
+                    memcpy(cs->guid,dib.guid,sizeof(cs->guid));
+                    cs->chidx = dib.chidx;
+                    cs->fourcc = dib.fourcc;
+                    cs->username.Set(dib.username);
+                    time(&cs->last_time);
+                    m_customIntervalDownloads.Add(cs);
+                  }
+                  else
+                  {
+                    if (config_debug_level>1) printf("RECV BLOCK %s\n",guidtostr_tmp(dib.guid));
+                    RemoteDownload *ds=new RemoteDownload;
+                    memcpy(ds->guid,dib.guid,sizeof(ds->guid));
+                    ds->Open(this,dib.fourcc,!!(theuser->channels[dib.chidx].flags&4));
 
-                  ds->playtime=(theuser->channels[dib.chidx].flags&2)?LIVE_PREBUFFER:config_play_prebuffer;
-                  ds->chidx=dib.chidx;
-                  ds->username.Set(dib.username);
+                    ds->playtime=(theuser->channels[dib.chidx].flags&2)?LIVE_PREBUFFER:config_play_prebuffer;
+                    ds->chidx=dib.chidx;
+                    ds->username.Set(dib.username);
 
-                  m_downloads.Add(ds);
+                    m_downloads.Add(ds);
+                  }
                 }
                 else if (!(theuser->channels[dib.chidx].flags&4))
                 {
 //                  OutputDebugString("added free-guid to channel\n");
-                  DecodeState *tmp=start_decode(dib.guid, theuser->channels[dib.chidx].flags, 0, NULL);
+                  DecodeState *tmp=start_decode(dib.guid, theuser->channels[dib.chidx].flags, dib.chidx, 0, NULL);
                   m_users_cs.Enter();
                   int useidx=!!theuser->channels[dib.chidx].next_ds[0];
                   DecodeState *t2=theuser->channels[dib.chidx].next_ds[useidx];
@@ -1318,7 +1677,53 @@ int NJClient::Run() // nonzero if sleep ok
             {
               time_t now;
               time(&now);
+              bool handledCustom = false;
               int x;
+              for (x = 0; x < m_customIntervalDownloads.GetSize(); x ++)
+              {
+                CustomIntervalDownload *cs = m_customIntervalDownloads.Get(x);
+                if (!cs) continue;
+                if (!memcmp(cs->guid,diw.guid,sizeof(cs->guid)))
+                {
+                  cs->last_time = now;
+                  // Per-chunk callback: fires on every write so the host can
+                  // stream/decode frames as they arrive throughout the interval.
+                  if (IntervalChunkCallback)
+                    IntervalChunkCallback(IntervalChunkCallbackUser, this, cs->username.Get(), cs->chidx, cs->fourcc, cs->guid, diw.audio_data, diw.audio_data_len, (int)diw.flags);
+                  if (diw.audio_data_len > 0 && diw.audio_data)
+                  {
+                    const int cur = (int)cs->data.GetSize();
+                    cs->data.Resize(cur + diw.audio_data_len);
+                    memcpy((char *)cs->data.Get() + cur, diw.audio_data, diw.audio_data_len);
+                  }
+                  if (diw.flags & 1)
+                  {
+                    if (IntervalMediaItem_Callback)
+                      IntervalMediaItem_Callback(IntervalMediaItem_User, this, cs->username.Get(), cs->chidx, cs->fourcc, cs->guid, cs->data.Get(), (int)cs->data.GetSize());
+                    delete cs;
+                    m_customIntervalDownloads.Delete(x);
+                  }
+                  handledCustom = true;
+                  break;
+                }
+                if (now - cs->last_time > DOWNLOAD_TIMEOUT)
+                {
+                  delete cs;
+                  m_customIntervalDownloads.Delete(x--);
+                }
+              }
+              if (handledCustom)
+                break;
+              for (x = 0; x < m_customIntervalDownloads.GetSize(); x ++)
+              {
+                CustomIntervalDownload *cs = m_customIntervalDownloads.Get(x);
+                if (!cs) continue;
+                if (now - cs->last_time > DOWNLOAD_TIMEOUT)
+                {
+                  delete cs;
+                  m_customIntervalDownloads.Delete(x--);
+                }
+              }
               for (x = 0; x < m_downloads.GetSize(); x ++)
               {
                 RemoteDownload *ds=m_downloads.Get(x);
@@ -1481,6 +1886,14 @@ int NJClient::Run() // nonzero if sleep ok
         continue;
       }
 
+      if (!ShouldEncodeVorbis(lc->channel_idx) && !ShouldEncodeOpus(lc->channel_idx))
+      {
+        if (p && p != (WDL_HeapBuf*)-1)
+          lc->m_bq.DisposeBlock(p);
+        p=0;
+        continue;
+      }
+
       if (p == (WDL_HeapBuf*)-1)
       {
         // context
@@ -1501,7 +1914,7 @@ int NJClient::Run() // nonzero if sleep ok
         // encode data
         if (!lc->m_enc)
         {
-          lc->m_enc = CreateNJEncoder(m_srate,lc->m_enc_nch_used=block_nch,lc->m_enc_bitrate_used = lc->bitrate+(block_nch>1?lc->bitrate/3:0),WDL_RNG_int32());
+          lc->m_enc = createEncoderForChannel(lc->channel_idx, m_srate, lc->m_enc_nch_used=block_nch, lc->m_enc_bitrate_used = lc->bitrate+(block_nch>1?lc->bitrate/3:0), WDL_RNG_int32());
         }
 
         if (lc->m_need_header)
@@ -1514,7 +1927,8 @@ int NJClient::Run() // nonzero if sleep ok
             if (!(lc->flags&4)) writeLog("local %s %d%s\n",guidstr,lc->channel_idx,(lc->flags&2)?"v":"");
             if (config_savelocalaudio>0)
             {
-              lc->m_curwritefile.Open(this,NJ_ENCODER_FMT_TYPE,false);
+              const unsigned int encoderFourcc = ShouldEncodeOpus(lc->channel_idx) ? NJ_ENCODER_FMT_TYPE_OPUS : NJ_ENCODER_FMT_TYPE;
+              lc->m_curwritefile.Open(this,encoderFourcc,false);
               if (lc->m_wavewritefile) delete lc->m_wavewritefile;
               lc->m_wavewritefile=0;
               if (config_savelocalaudio>1)
@@ -1538,7 +1952,7 @@ int NJClient::Run() // nonzero if sleep ok
             mpb_client_upload_interval_begin cuib;
             cuib.chidx=lc->channel_idx;
             memcpy(cuib.guid,lc->m_curwritefile.guid,sizeof(cuib.guid));
-            cuib.fourcc=NJ_ENCODER_FMT_TYPE;
+            cuib.fourcc=ShouldEncodeOpus(lc->channel_idx) ? NJ_ENCODER_FMT_TYPE_OPUS : NJ_ENCODER_FMT_TYPE;
             cuib.estsize=0;
             delete lc->m_enc_header_needsend;
             lc->m_enc_header_needsend=cuib.build();
@@ -1701,7 +2115,38 @@ int NJClient::Run() // nonzero if sleep ok
 }
 
 
-DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf)
+I_NJEncoder *NJClient::createEncoderForChannel(int chidx, int srate, int nch, int bitrate, int serno)
+{
+  bool useOpus = ShouldEncodeOpus(chidx);
+
+  if (useOpus)
+  {
+    I_NJEncoder *enc = new OpusEncoderCodec(srate, nch, bitrate, serno);
+    if (enc && !enc->isError())
+      return enc;
+    delete enc;
+  }
+
+  return (I_NJEncoder *)new VorbisEncoder(srate, nch, bitrate, serno);
+}
+
+I_NJDecoder *NJClient::createDecoderForChannel(int chidx, unsigned int fourcc, DecodeMediaBuffer *decbuf)
+{
+  bool useOpus = (fourcc == NJ_ENCODER_FMT_TYPE_OPUS);
+
+  if (!useOpus && !fourcc && decbuf && chidx >= 0 && chidx < MAX_USER_CHANNELS)
+  {
+    unsigned int bit = (1u << chidx);
+    useOpus = (m_codec_opus_mask & bit) != 0;
+  }
+
+  if (useOpus)
+    return new OpusDecoderCodec();
+
+  return CreateNJDecoder();
+}
+
+DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, int chidx, unsigned int fourcc, DecodeMediaBuffer *decbuf)
 {
   DecodeState *newstate=new DecodeState;
   if (decbuf)
@@ -1711,10 +2156,14 @@ DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned
   }
   memcpy(newstate->guid,guid,sizeof(newstate->guid));
 
+  unsigned int types[2];
+  int types_cnt = 0;
 
-  // todo: make plug-in system to allow encoders to add types allowed
-  // todo: with a preference for 'fourcc' if specified
-  unsigned int types[]={MAKE_NJ_FOURCC('O','G','G','v')}; // only types we understand
+  if (fourcc)
+  {
+    types[types_cnt++] = fourcc;
+  }
+  types[types_cnt++] = MAKE_NJ_FOURCC('O','G','G','v');
 
   if (!newstate->decode_buf)
   {
@@ -1724,7 +2173,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned
     const int oldl=s.GetLength()+1;
     s.Append(".XXXXXXXXX");
     unsigned int x;
-    for (x = 0; !newstate->decode_fp && x < sizeof(types)/sizeof(types[0]); x ++)
+    for (x = 0; !newstate->decode_fp && x < (unsigned int)types_cnt; x ++)
     {
       char tmp[8];
       s.SetLen(oldl);
@@ -1736,7 +2185,7 @@ DecodeState *NJClient::start_decode(unsigned char *guid, int chanflags, unsigned
 
   if (newstate->decode_fp||newstate->decode_buf)
   {
-    newstate->decode_codec= CreateNJDecoder();
+    newstate->decode_codec = createDecoderForChannel(chidx, fourcc, decbuf);
     // run some decoding
 
     if (newstate->decode_codec)
@@ -1772,6 +2221,128 @@ void NJClient::ChatMessage_Send(const char *parm1, const char *parm2, const char
     m.parms[4]=parm5;
     m_netcon->Send(m.build());
   }
+}
+
+int NJClient::SendRawIntervalItem(int chidx, unsigned int fourcc, const void *data, int dataLen, int maxChunkBytes)
+{
+  if (!m_netcon || GetStatus() != NJC_STATUS_OK || chidx < 0 || chidx >= MAX_USER_CHANNELS || fourcc == 0)
+    return -1;
+
+  if (maxChunkBytes < 1024) maxChunkBytes = 1024;
+  if (maxChunkBytes > 60000) maxChunkBytes = 60000;
+
+  unsigned char guid[16];
+  WDL_RNG_bytes(guid,sizeof(guid));
+
+  mpb_client_upload_interval_begin cuib;
+  cuib.chidx = chidx;
+  memcpy(cuib.guid,guid,sizeof(guid));
+  cuib.fourcc = fourcc;
+  cuib.estsize = dataLen > 0 ? dataLen : 0;
+  m_netcon->Send(cuib.build());
+
+  if (!data || dataLen <= 0)
+  {
+    mpb_client_upload_interval_write wh;
+    memcpy(wh.guid,guid,sizeof(guid));
+    wh.flags = 1;
+    wh.audio_data = NULL;
+    wh.audio_data_len = 0;
+    m_netcon->Send(wh.build());
+    return 0;
+  }
+
+  const unsigned char *p = (const unsigned char *)data;
+  int offs = 0;
+  while (offs < dataLen)
+  {
+    int n = dataLen - offs;
+    if (n > maxChunkBytes) n = maxChunkBytes;
+    mpb_client_upload_interval_write wh;
+    memcpy(wh.guid,guid,sizeof(guid));
+    wh.flags = (offs + n >= dataLen) ? 1 : 0;
+    wh.audio_data = p + offs;
+    wh.audio_data_len = n;
+    m_netcon->Send(wh.build());
+    offs += n;
+  }
+
+  return 0;
+}
+
+int NJClient::BeginRawIntervalStream(int chidx, unsigned int fourcc, unsigned char outGuid[16])
+{
+  if (!m_netcon || GetStatus() != NJC_STATUS_OK || chidx < 0 || chidx >= MAX_USER_CHANNELS || fourcc == 0)
+    return -1;
+
+  WDL_RNG_bytes(outGuid, 16);
+
+  mpb_client_upload_interval_begin cuib;
+  cuib.chidx = chidx;
+  memcpy(cuib.guid, outGuid, 16);
+  cuib.fourcc = fourcc;
+  cuib.estsize = 0;
+  m_netcon->Send(cuib.build());
+  return 0;
+}
+
+int NJClient::WriteRawIntervalChunk(const unsigned char guid[16], const void *data, int dataLen)
+{
+  if (!m_netcon || GetStatus() != NJC_STATUS_OK || !data || dataLen <= 0)
+    return -1;
+
+  mpb_client_upload_interval_write wh;
+  memcpy(wh.guid, guid, 16);
+  wh.flags = 0;
+  wh.audio_data = data;
+  wh.audio_data_len = dataLen;
+  m_netcon->Send(wh.build());
+  return 0;
+}
+
+int NJClient::EndRawIntervalStream(const unsigned char guid[16])
+{
+  if (!m_netcon || GetStatus() != NJC_STATUS_OK)
+    return -1;
+
+  mpb_client_upload_interval_write wh;
+  memcpy(wh.guid, guid, 16);
+  wh.flags = 1;
+  wh.audio_data = NULL;
+  wh.audio_data_len = 0;
+  m_netcon->Send(wh.build());
+  return 0;
+}
+
+void NJClient::SetCodecCapabilities(int encodeCaps, int decodeCaps)
+{
+  m_codec_caps_encode = encodeCaps;
+  m_codec_caps_decode = decodeCaps;
+}
+
+void NJClient::SetCodecConfig(unsigned int vorbisMask, unsigned int opusMask)
+{
+  m_codec_vorbis_mask = vorbisMask;
+  m_codec_opus_mask = opusMask;
+}
+
+bool NJClient::ShouldEncodeVorbis(int chidx) const
+{
+  if (!(m_codec_caps_encode & NJCLIENT_CAP_ENCODE_VORBIS)) return false;
+  if (chidx < 0) return false;
+  if (chidx >= 32) return false;
+  unsigned int bit = (1u << chidx);
+  if (m_codec_vorbis_mask & bit) return true;
+  if (m_codec_opus_mask & bit) return true;
+  return false;
+}
+
+bool NJClient::ShouldEncodeOpus(int chidx) const
+{
+  if (!(m_codec_caps_encode & NJCLIENT_CAP_ENCODE_OPUS)) return false;
+  if (chidx < 0) return false;
+  if (chidx >= 32) return false;
+  return (m_codec_opus_mask & (1u << chidx)) != 0;
 }
 
 void NJClient::process_samples(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, int offset, int justmonitor, bool isPlaying, bool isSeek, double cursessionpos)
@@ -2213,7 +2784,7 @@ void NJClient::mixInChannel(RemoteUser *user, int chanidx,
       double mediasr=m_srate;
       if (userchan->GetSessionInfo(playPos,guid,&offs,&userchan->curds_lenleft,1.0/srate) && userchan->curds_lenleft > 16.0/srate)
       {
-        userchan->ds=start_decode(guid, userchan->flags, 0, NULL);
+        userchan->ds=start_decode(guid, userchan->flags, chanidx, 0, NULL);
         if (userchan->ds&&userchan->ds->decode_codec)
         {
           userchan->ds->applyOverlap(&fade_state);
@@ -2368,15 +2939,13 @@ void NJClient::mixInChannel(RemoteUser *user, int chanidx,
         l/=2;
         while (l--)
         {
-          float f=*p;
-          if (f<-1.0f) f=*p=-1.0f;
-          else if (f>1.0f) f=*p=1.0f;
+          float f = softclip_to_minus2db(*p);
+          *p = f;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
 
-          f=*++p;
-          if (f<-1.0f) f=*p=-1.0f;
-          else if (f>1.0f) f=*p=1.0f;
+          f = softclip_to_minus2db(*++p);
+          *p = f;
           if (f > maxf2) maxf2=f;
           else if (f < -maxf2) maxf2=-f;
           p++;
@@ -2386,9 +2955,8 @@ void NJClient::mixInChannel(RemoteUser *user, int chanidx,
       {
         while (l--)
         {
-          float f=*p;
-          if (f<-1.0f) f=*p=-1.0f;
-          else if (f>1.0f) f=*p=1.0f;
+          float f = softclip_to_minus2db(*p);
+          *p = f;
           if (f > maxf) maxf=f;
           else if (f < -maxf) maxf=-f;
           p++;
@@ -2476,6 +3044,12 @@ void NJClient::on_new_interval()
 {
   m_loopcnt++;
   writeLog("interval %d %.2f %d\n",m_loopcnt,GetActualBPM(),m_active_bpi);
+
+  // Notify host at sample-accurate timing — same point audio ds/next_ds
+  // promotion happens, allowing video (or other interval data) to be
+  // synchronised without poll jitter.
+  if (NewIntervalCallback)
+    NewIntervalCallback(NewIntervalCallbackUser, this);
 
   m_metronome_pos=0.0;
 
@@ -2598,6 +3172,14 @@ const char *NJClient::GetUserChannelState(int useridx, int channelidx, bool *sub
   return p->name.Get();
 }
 
+
+int NJClient::GetUserChannelOutput(int useridx, int channelidx)
+{
+  WDL_MutexLock lock(&m_remotechannel_rd_mutex);
+  if (useridx<0 || useridx>=m_remoteusers.GetSize()||channelidx<0||channelidx>=MAX_USER_CHANNELS) return 0;
+  RemoteUser *user=m_remoteusers.Get(useridx);
+  return user->channels[channelidx].out_chan_index;
+}
 
 void NJClient::SetUserChannelState(int useridx, int channelidx,
                                    bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo, bool setoutch, int outchannel)
@@ -2879,6 +3461,30 @@ int NJClient::GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mu
   return 0;
 }
 
+void NJClient::ResetLocalBroadcastState()
+{
+  m_locchan_cs.Enter();
+  for (int x = 0; x < m_locchannels.GetSize(); ++x)
+  {
+    Local_Channel *c = m_locchannels.Get(x);
+    c->m_bq.Clear();
+    c->bcast_active = c->broadcasting;
+    c->m_need_header = true;
+    c->m_curwritefile_curbuflen = 0.0;
+  }
+  m_locchan_cs.Leave();
+}
+
+void NJClient::ResetTransportPhase()
+{
+  m_misc_cs.Enter();
+  m_interval_pos = -1;
+  m_metronome_pos = 0.0;
+  m_metronome_state = 0;
+  m_metronome_tmp = 0;
+  m_misc_cs.Leave();
+}
+
 
 
 void NJClient::NotifyServerOfChannelChange()
@@ -3144,7 +3750,7 @@ void RemoteDownload::startPlaying(int force)
 
       if (!(theuser->channels[chidx].flags&4)) // only "play" if not a session channel
       {
-        DecodeState *tmp=m_parent->start_decode(guid,theuser->channels[chidx].flags,m_fourcc,m_decbuf);
+        DecodeState *tmp=m_parent->start_decode(guid,theuser->channels[chidx].flags,chidx,m_fourcc,m_decbuf);
 
 //        OutputDebugString(tmp?"started new decde\n":"tried to start new decode\n");
 

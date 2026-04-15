@@ -28,7 +28,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #else
-#include "../../../WDL/swell/swell.h"
+#include "swell/swell.h"
 #endif
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
@@ -38,10 +38,17 @@
 #include "winclient.h"
 
 #include "resource.h"
-#include "../../../WDL/wingui/wndsize.h"
+#include "wingui/wndsize.h"
 
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
+
+static INT_PTR ForwardToHostMainWindow(HWND self, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  HWND h = GetMainHwnd ? GetMainHwnd() : NULL;
+  if (h && h != self) return SendMessage(h,uMsg,wParam,lParam);
+  return 0;
+}
 
 
 class LocalChannelRec
@@ -144,7 +151,7 @@ static WDL_DLGRET LocalChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_INITDIALOG:
       {
         if (_this)
@@ -602,7 +609,7 @@ static WDL_DLGRET LocalChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, L
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
   }
   return 0;
 }
@@ -809,7 +816,7 @@ WDL_DLGRET LocalOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_DESTROY:
       g_local_channel_wnd=NULL;
       UninitializeCoolSB(hwndDlg);

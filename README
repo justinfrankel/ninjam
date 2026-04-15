@@ -1,8 +1,14 @@
-This is NINJAM, www.ninjam.com
+This is based on the original code of NINJAM made by Justin Frankel
 
-To build the server, go to ninjam/server and run make
+Mainly this is the same version updated via Juce which includes VST3, AU multi I/O plugins
+and Standalone's which also support Multiple I/O.
+Including Midi Learn and OSC Learn for knobs, buttons and faders.
+Skin and Video backgrounds systenm to add to and make your own skins.
+VDO Ninjam VideoSync'd to NINJAM Intervals with options to perfect the sync.
 
-The various clients in ninjam/ are all old and probably need some attention to function
+Other extra's, Auto volume to better level all, Master Out Limiter, Reverb and Delay Sends for
+all local channels.
+Multiple Channels sent via Opus Multichannel Codec.
+Backwards compatible with NINJAMs Vobis Audio.
 
-The REAPER ReaNINJAM plug-in is in jmde/fx/reaninjam/. It is more fully featured. You will need the VST2 SDK to compile it, though.
-
+All the extra's are in the branches.

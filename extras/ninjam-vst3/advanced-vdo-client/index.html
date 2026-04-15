@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>NINJAM Launcher</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; width: 100%; height: 100%; }
+        body {
+            background: #101520;
+            color: #e7eaf0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 8px;
+            padding: 8px;
+        }
+        .bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #2a3450;
+            background: #151d2d;
+        }
+        .bar button {
+            height: 30px;
+            border: 1px solid #3f4f73;
+            border-radius: 4px;
+            background: #1d2740;
+            color: #e7eaf0;
+            cursor: pointer;
+            padding: 0 10px;
+        }
+        .bar button:hover {
+            background: #293655;
+        }
+        .room {
+            font-size: 12px;
+            color: #9fb0cf;
+            padding: 0 6px;
+        }
+        .peer-offsets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .peer {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid #2f3a58;
+            border-radius: 4px;
+            padding: 3px 5px;
+            background: #121a2b;
+        }
+        .peer-name {
+            font-size: 12px;
+            color: #c5d1e6;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .peer button {
+            height: 24px;
+            min-width: 34px;
+            padding: 0 7px;
+            font-size: 12px;
+        }
+        .peer-offset {
+            min-width: 50px;
+            text-align: right;
+            font-size: 12px;
+            color: #d5dded;
+        }
+        .status {
+            margin-left: auto;
+            font-size: 12px;
+            color: #afbbd3;
+        }
+        .frame-wrap {
+            border: 1px solid #2a3450;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #000;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <span class="room" id="roomText"></span>
+        <button id="obsBtn">Copy OBS Link</button>
+        <div class="peer-offsets" id="peerOffsets"></div>
+        <span class="status" id="statusText"></span>
+    </div>
+    <div class="frame-wrap">
+        <iframe id="appFrame" allow="camera; microphone; fullscreen"></iframe>
+    </div>
+    <script>
+        const query = new URLSearchParams(window.location.search);
+        const roomText = document.getElementById('roomText');
+        const obsBtn = document.getElementById('obsBtn');
+        const peerOffsets = document.getElementById('peerOffsets');
+        const statusText = document.getElementById('statusText');
+        const appFrame = document.getElementById('appFrame');
+
+        const roomParam = query.get('room') || '';
+        const ninjamServer = query.get('ninjamServer') || '';
+        const roomFromServer = ninjamServer ? ninjamServer.replace(/\./g, '_') : '';
+        const resolvedRoom = roomParam || roomFromServer || 'ninjam';
+        const intervalSource = query.get('intervalSource') || (window.location.origin + '/intervals');
+        roomText.textContent = 'Room: ' + resolvedRoom;
+
+        function buildMainUrl() {
+            const p = new URLSearchParams(window.location.search);
+            p.delete('view');
+            const q = p.toString();
+            return q ? ('/app?' + q) : '/app';
+        }
+
+        function buildObsUrl() {
+            const p = new URLSearchParams(window.location.search);
+            p.delete('view');
+            p.set('bg', 'green');
+            return window.location.origin + '/app?' + p.toString();
+        }
+
+        function copyTextToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+            return new Promise(function (resolve, reject) {
+                try {
+                    const temp = document.createElement('textarea');
+                    temp.value = text;
+                    temp.style.position = 'fixed';
+                    temp.style.left = '-9999px';
+                    document.body.appendChild(temp);
+                    temp.focus();
+                    temp.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(temp);
+                    if (ok) resolve();
+                    else reject(new Error('copy failed'));
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        }
+
+        function normalizeUserId(userId) {
+            let v = String(userId || '').trim().toLowerCase();
+            v = v.replace(/^anonymous:/, '');
+            v = v.replace(/^guest:/, '');
+            v = v.replace(/\s+/g, '');
+            v = v.replace(/@.*$/, '');
+            v = v.replace(/[^a-z0-9._-]/g, '');
+            return v;
+        }
+
+        function offsetStorageKey(userId) {
+            return 'ninjamPeerOffset:' + resolvedRoom + ':' + normalizeUserId(userId);
+        }
+
+        function getOffsetMs(userId) {
+            const raw = window.localStorage ? window.localStorage.getItem(offsetStorageKey(userId)) : '';
+            const parsed = parseInt(raw || '', 10);
+            return isFinite(parsed) ? parsed : 0;
+        }
+
+        function setOffsetMs(userId, value) {
+            const v = Math.max(-6000, Math.min(6000, Math.round(value)));
+            if (window.localStorage) {
+                window.localStorage.setItem(offsetStorageKey(userId), String(v));
+            }
+            return v;
+        }
+
+        function fmt(v) {
+            if (v > 0) return '+' + v + 'ms';
+            if (v < 0) return String(v) + 'ms';
+            return '0ms';
+        }
+
+        const measuredBufferMsByUser = {};
+        const userLastSeenAt = {};
+        const userLastSampleKey = {};
+        const userStaleMs = 12000;
+
+        function getMeasuredBufferMs(userId) {
+            const v = measuredBufferMsByUser[normalizeUserId(userId)];
+            return (typeof v === 'number' && isFinite(v) && v >= 0) ? Math.round(v) : null;
+        }
+
+        function getUserDisplayText(userId) {
+            const measured = getMeasuredBufferMs(userId);
+            const measuredText = measured !== null ? String(measured) + 'ms' : '--';
+            return fmt(getOffsetMs(userId)) + ' | ' + measuredText;
+        }
+
+        function pushOffsetToFrame(userId) {
+            if (!appFrame || !appFrame.contentWindow) {
+                return;
+            }
+            appFrame.contentWindow.postMessage({
+                type: 'ninjamOffsetUpdate',
+                userId: String(userId),
+                offsetMs: getOffsetMs(userId)
+            }, window.location.origin);
+        }
+
+        function pushAllOffsetsToFrame() {
+            const users = Object.keys(knownUsers);
+            for (let i = 0; i < users.length; i++) {
+                pushOffsetToFrame(users[i]);
+            }
+        }
+
+        const knownUsers = {};
+
+        function addUser(userId) {
+            const key = normalizeUserId(userId);
+            if (!key) return false;
+            if (knownUsers[key]) return false;
+            knownUsers[key] = String(userId || '').trim() || key;
+            return true;
+        }
+
+        function markUserSeen(userId) {
+            const key = normalizeUserId(userId);
+            if (!key) return;
+            userLastSeenAt[key] = Date.now();
+        }
+
+        function buildUserSampleKey(msg, bufferVal) {
+            return [
+                String(msg.interval ?? ''),
+                String(msg.syncTag ?? ''),
+                String(msg.videoClockMs ?? ''),
+                String(msg.timecode ?? ''),
+                String(msg.eventId ?? ''),
+                isFinite(bufferVal) ? String(Math.round(bufferVal)) : ''
+            ].join('|');
+        }
+
+        function pruneInactiveUsers() {
+            const now = Date.now();
+            let changed = false;
+            const users = Object.keys(knownUsers);
+            for (let i = 0; i < users.length; i++) {
+                const userId = users[i];
+                const lastSeen = userLastSeenAt[userId] || 0;
+                if ((now - lastSeen) > userStaleMs) {
+                    delete knownUsers[userId];
+                    delete measuredBufferMsByUser[userId];
+                    delete userLastSeenAt[userId];
+                    delete userLastSampleKey[userId];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                renderUsers();
+            }
+        }
+
+        function loadUsersFromStorage() {
+            if (!window.localStorage) return false;
+            const prefix = 'ninjamPeerOffset:' + resolvedRoom + ':';
+            let changed = false;
+            for (let i = 0; i < window.localStorage.length; i++) {
+                const k = window.localStorage.key(i) || '';
+                if (!k.startsWith(prefix)) continue;
+                const userId = k.slice(prefix.length);
+                if (addUser(userId)) changed = true;
+            }
+            return changed;
+        }
+
+        function renderUsers() {
+            const users = Object.keys(knownUsers).sort();
+            peerOffsets.innerHTML = '';
+            if (!users.length) {
+                statusText.textContent = 'Waiting for remote users';
+                return;
+            }
+            for (let i = 0; i < users.length; i++) {
+                const userId = users[i];
+                const wrap = document.createElement('div');
+                wrap.className = 'peer';
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'peer-name';
+                nameEl.textContent = knownUsers[userId] || userId;
+
+                const minusBtn = document.createElement('button');
+                minusBtn.type = 'button';
+                minusBtn.textContent = '-20';
+
+                const plusBtn = document.createElement('button');
+                plusBtn.type = 'button';
+                plusBtn.textContent = '+20';
+
+                const resetBtn = document.createElement('button');
+                resetBtn.type = 'button';
+                resetBtn.textContent = 'Reset';
+
+                const offsetEl = document.createElement('span');
+                offsetEl.className = 'peer-offset';
+                offsetEl.id = 'peer-offset-display-' + userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const syncOffset = function () {
+                    offsetEl.textContent = getUserDisplayText(userId);
+                };
+                syncOffset();
+
+                minusBtn.addEventListener('click', function () {
+                    setOffsetMs(userId, getOffsetMs(userId) - 20);
+                    syncOffset();
+                    pushOffsetToFrame(userId);
+                });
+                plusBtn.addEventListener('click', function () {
+                    setOffsetMs(userId, getOffsetMs(userId) + 20);
+                    syncOffset();
+                    pushOffsetToFrame(userId);
+                });
+                resetBtn.addEventListener('click', function () {
+                    setOffsetMs(userId, 0);
+                    syncOffset();
+                    pushOffsetToFrame(userId);
+                });
+
+                wrap.appendChild(nameEl);
+                wrap.appendChild(minusBtn);
+                wrap.appendChild(plusBtn);
+                wrap.appendChild(resetBtn);
+                wrap.appendChild(offsetEl);
+                peerOffsets.appendChild(wrap);
+            }
+            statusText.textContent = 'Remote users: ' + users.length;
+        }
+
+        function processIntervalData(payload) {
+            const items = Array.isArray(payload) ? payload : [payload];
+            let changed = false;
+            let updated = false;
+            for (let i = 0; i < items.length; i++) {
+                const msg = items[i] || {};
+                const type = String(msg.type || '');
+                if (type !== 'remoteTimecode' && type !== 'videoTimecode') {
+                    continue;
+                }
+                const userId = msg.userId || msg.userKey || '';
+                if (addUser(userId)) {
+                    changed = true;
+                }
+                const normalizedUserId = normalizeUserId(userId);
+                const bufferVal = (typeof msg.receiverBufferMs === 'number')
+                    ? msg.receiverBufferMs
+                    : ((typeof msg.measuredAudioDelayMs === 'number')
+                        ? msg.measuredAudioDelayMs
+                        : ((typeof msg.bufferTotalMs === 'number')
+                            ? msg.bufferTotalMs
+                            : NaN));
+                const sampleKey = buildUserSampleKey(msg, bufferVal);
+                if (userLastSampleKey[normalizedUserId] === sampleKey) {
+                    continue;
+                }
+                userLastSampleKey[normalizedUserId] = sampleKey;
+                markUserSeen(normalizedUserId);
+                if (isFinite(bufferVal) && bufferVal >= 0) {
+                    measuredBufferMsByUser[normalizedUserId] = Math.round(bufferVal);
+                    updated = true;
+                    const id = 'peer-offset-display-' + normalizedUserId.replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.textContent = getUserDisplayText(normalizedUserId);
+                    }
+                }
+            }
+            if (changed) {
+                renderUsers();
+                return;
+            }
+            if (updated) {
+                statusText.textContent = 'Remote users: ' + Object.keys(knownUsers).length;
+            }
+            pruneInactiveUsers();
+        }
+
+        async function pollIntervalUsers() {
+            try {
+                const res = await fetch(intervalSource, { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                processIntervalData(data);
+            } catch (e) {
+            }
+        }
+
+        function startUserDiscovery() {
+            if (intervalSource.startsWith('ws:') || intervalSource.startsWith('wss:')) {
+                try {
+                    const ws = new WebSocket(intervalSource);
+                    ws.onmessage = function (event) {
+                        try {
+                            const payload = JSON.parse(event.data);
+                            processIntervalData(payload);
+                        } catch (e) {
+                        }
+                    };
+                } catch (e) {
+                }
+                return;
+            }
+            pollIntervalUsers();
+            setInterval(pollIntervalUsers, 800);
+        }
+
+        obsBtn.addEventListener('click', function () {
+            copyTextToClipboard(buildObsUrl())
+                .then(function () { statusText.textContent = 'OBS link copied'; })
+                .catch(function () { statusText.textContent = 'Could not copy OBS link'; });
+        });
+
+        renderUsers();
+        appFrame.addEventListener('load', pushAllOffsetsToFrame);
+        appFrame.src = buildMainUrl();
+        startUserDiscovery();
+        setInterval(pruneInactiveUsers, 1500);
+    </script>
+</body>
+</html>

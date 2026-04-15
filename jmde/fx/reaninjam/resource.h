@@ -91,6 +91,11 @@
 #define IDC_INCH                        1085
 #define IDC_OUTCH                       1086
 #define IDC_COMBO1                      1087
+#define IDC_THEME                       1088
+#define IDC_THEME_HUE                   1089
+#define IDC_THEME_BRIGHT                1090
+#define IDC_THEME_HUEVAL                1091
+#define IDC_THEME_BRIGHTVAL             1092
 #define ID_LOCAL_CHANNEL_1              2011
 #define ID_LOCAL_CHANNEL_2              2012
 #define ID_LOCAL_CHANNEL_3              2013
@@ -135,7 +140,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        123
 #define _APS_NEXT_COMMAND_VALUE         40009
-#define _APS_NEXT_CONTROL_VALUE         1088
+#define _APS_NEXT_CONTROL_VALUE         1093
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

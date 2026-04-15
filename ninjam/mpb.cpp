@@ -473,6 +473,54 @@ Net_Message *mpb_server_download_interval_write::build()
   return nm;
 }
 
+int mpb_server_codec_config::parse(Net_Message *msg)
+{
+  if (msg->get_type() != MESSAGE_SERVER_CODEC_CONFIG) return -1;
+  if (msg->get_size() < 8) return 1;
+  const unsigned char *p=(const unsigned char *)msg->get_data();
+  if (!p) return 2;
+
+  vorbis_mask = ((unsigned int)p[0]);
+  vorbis_mask |= ((unsigned int)p[1])<<8;
+  vorbis_mask |= ((unsigned int)p[2])<<16;
+  vorbis_mask |= ((unsigned int)p[3])<<24;
+
+  opus_mask = ((unsigned int)p[4]);
+  opus_mask |= ((unsigned int)p[5])<<8;
+  opus_mask |= ((unsigned int)p[6])<<16;
+  opus_mask |= ((unsigned int)p[7])<<24;
+
+  return 0;
+}
+
+Net_Message *mpb_server_codec_config::build()
+{
+  Net_Message *nm=new Net_Message;
+  nm->set_type(MESSAGE_SERVER_CODEC_CONFIG);
+
+  nm->set_size(8);
+
+  unsigned char *p=(unsigned char *)nm->get_data();
+
+  if (!p)
+  {
+    delete nm;
+    return 0;
+  }
+
+  p[0] = (unsigned char)(vorbis_mask & 0xff);
+  p[1] = (unsigned char)((vorbis_mask >> 8) & 0xff);
+  p[2] = (unsigned char)((vorbis_mask >> 16) & 0xff);
+  p[3] = (unsigned char)((vorbis_mask >> 24) & 0xff);
+
+  p[4] = (unsigned char)(opus_mask & 0xff);
+  p[5] = (unsigned char)((opus_mask >> 8) & 0xff);
+  p[6] = (unsigned char)((opus_mask >> 16) & 0xff);
+  p[7] = (unsigned char)((opus_mask >> 24) & 0xff);
+
+  return nm;
+}
+
 
 
 

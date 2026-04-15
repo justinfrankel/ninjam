@@ -1,0 +1,98 @@
+name: ReaNINJAM Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build VST3 (x64 Release)
+        shell: pwsh
+        run: |
+          msbuild "jmde/fx/reaninjam/reaninjam.vcxproj" `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform=x64
+
+      - name: Package Windows artifact
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "jmde/fx/reaninjam/x64/Release/reaninjam.vst3" -DestinationPath "reaninjam-windows-vst3.zip"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reaninjam-windows-vst3
+          path: reaninjam-windows-vst3.zip
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install libogg libvorbis
+
+      - name: Build plugin target
+        run: |
+          mkdir -p build/macos
+          make -C jmde/fx/reaninjam \
+            OUTDIR="$GITHUB_WORKSPACE/build/macos" \
+            TARGET_DARWIN=1 \
+            DLL_EXT=.dylib \
+            OGGDIR=/opt/homebrew/opt/libogg \
+            VORBISDIR=/opt/homebrew/opt/libvorbis \
+            WDL_PATH="$GITHUB_WORKSPACE/WDL"
+
+      - name: Package macOS VST3 bundle
+        run: |
+          mkdir -p build/macos/reaninjam.vst3/Contents/MacOS
+          cp build/macos/reaninjam.vst.dylib build/macos/reaninjam.vst3/Contents/MacOS/reaninjam
+          cd build/macos
+          zip -r ../../reaninjam-macos-vst3.zip reaninjam.vst3
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reaninjam-macos-vst3
+          path: reaninjam-macos-vst3.zip
+          if-no-files-found: error
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: reaninjam-windows-vst3
+          path: artifacts
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: reaninjam-macos-vst3
+          path: artifacts
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/reaninjam-windows-vst3.zip
+            artifacts/reaninjam-macos-vst3.zip

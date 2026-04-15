@@ -7,7 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include <winres.h>
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -32,7 +32,7 @@ END
 
 2 TEXTINCLUDE 
 BEGIN
-    "#include ""afxres.h""\r\n"
+    "#include <winres.h>\r\n"
     "\0"
 END
 
@@ -119,13 +119,13 @@ BEGIN
     CONTROL         "",IDC_LICENSETEXT,"RichEditChild",WS_BORDER | WS_VSCROLL | WS_TABSTOP | 0x2804,7,7,302,183
 END
 
-IDD_PREFS DIALOGEX 0, 0, 295, 137
+IDD_PREFS DIALOGEX 0, 0, 295, 170
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "ReaNINJAM Preferences"
 FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,182,116,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,238,116,50,14
+    DEFPUSHBUTTON   "OK",IDOK,182,148,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,238,148,50,14
     CONTROL         "Save multitrack recordings for remixing later",IDC_SAVELOCAL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,174,10
     CONTROL         "Save uncompressed .WAV recordings too",IDC_SAVELOCALWAV,
@@ -134,13 +134,21 @@ BEGIN
     EDITTEXT        IDC_SESSIONDIR,7,45,235,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse...",IDC_BROWSE,246,45,42,12
     LTEXT           "Changes to the above settings will take effect on the next connection.",IDC_CHNOTE,7,61,281,8
-    RTEXT           "Input channels:",IDC_STATIC,7,76,69,8
-    EDITTEXT        IDC_INCH,78,74,20,12,ES_AUTOHSCROLL
-    RTEXT           "Output channels:",IDC_STATIC,7,91,69,8
-    EDITTEXT        IDC_OUTCH,78,89,20,12,ES_AUTOHSCROLL
     CONTROL         "Flash beat counter at start and every 16 beats",IDC_FLASH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,105,200,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,76,200,10
+    RTEXT           "Input channels:",IDC_STATIC,7,90,69,8
+    EDITTEXT        IDC_INCH,78,88,20,12,ES_AUTOHSCROLL
+    RTEXT           "Output channels:",IDC_STATIC,7,105,69,8
+    EDITTEXT        IDC_OUTCH,78,103,20,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO1,103,89,185,81,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Color theme:",IDC_STATIC,103,76,53,8
+    COMBOBOX        IDC_THEME,158,74,130,80,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Custom hue:",IDC_STATIC,103,120,44,8
+    CONTROL         "",IDC_THEME_HUE,"msctls_trackbar32",TBS_HORZ | WS_TABSTOP,149,117,106,18
+    LTEXT           "0",IDC_THEME_HUEVAL,258,120,30,8
+    LTEXT           "Brightness:",IDC_STATIC,103,138,44,8
+    CONTROL         "",IDC_THEME_BRIGHT,"msctls_trackbar32",TBS_HORZ | WS_TABSTOP,149,135,106,18
+    LTEXT           "70",IDC_THEME_BRIGHTVAL,258,138,30,8
 END
 
 IDD_LOCALCHANNEL DIALOGEX 0, 0, 202, 49

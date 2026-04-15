@@ -27,7 +27,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #else
-#include "../../../WDL/swell/swell.h"
+#include "swell/swell.h"
 #endif
 
 #define SWAP(a,b,t) { t __tmp = (a); (a)=(b); (b)=__tmp; }
@@ -42,6 +42,13 @@
 extern void (*format_timestr_pos)(double tpos, char *buf, int buflen, int modeoverride); // actually implemented in tracklist.cpp for now
 extern HWND (*GetMainHwnd)();
 extern HANDLE * (*GetIconThemePointer)(const char *name);
+
+static INT_PTR ForwardToHostMainWindow(HWND self, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  HWND h = GetMainHwnd ? GetMainHwnd() : NULL;
+  if (h && h != self) return SendMessage(h,uMsg,wParam,lParam);
+  return 0;
+}
 
 static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -77,7 +84,7 @@ static WDL_DLGRET RemoteUserItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_RCUSER_UPDATE: // update the items
       {
         g_client->m_remotechannel_rd_mutex.Enter();
@@ -171,7 +178,7 @@ static WDL_DLGRET RemoteChannelItemProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_INITDIALOG:
       SetWindowLongPtr(hwndDlg,GWLP_USERDATA,0x0fffffff);
 
@@ -519,7 +526,7 @@ static WDL_DLGRET RemoteChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, 
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_DESTROY:
       m_children.Empty();
      break;
@@ -711,7 +718,7 @@ WDL_DLGRET RemoteOuterChannelListProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LP
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC :
     case WM_DRAWITEM:
-      return SendMessage(GetMainHwnd(),uMsg,wParam,lParam);;
+      return ForwardToHostMainWindow(hwndDlg,uMsg,wParam,lParam);
     case WM_DESTROY:
       UninitializeCoolSB(hwndDlg);
       g_remote_channel_wnd=NULL;

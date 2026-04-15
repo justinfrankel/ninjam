@@ -79,6 +79,7 @@
 
 
 class I_NJEncoder;
+class I_NJDecoder;
 class RemoteDownload;
 class RemoteUser;
 class RemoteUser_Channel;
@@ -86,6 +87,7 @@ class Local_Channel;
 class DecodeState;
 class BufferQueue;
 class DecodeMediaBuffer;
+class CustomIntervalDownload;
 
 // #define NJCLIENT_NO_XMIT_SUPPORT // might want to do this for njcast :)
 //  it also removes mixed ogg writing support
@@ -94,6 +96,14 @@ class NJClient
 {
   friend class RemoteDownload;
 public:
+  enum
+  {
+    NJCLIENT_CAP_DECODE_VORBIS = 1 << 8,
+    NJCLIENT_CAP_DECODE_OPUS   = 1 << 9,
+    NJCLIENT_CAP_ENCODE_VORBIS = 1 << 10,
+    NJCLIENT_CAP_ENCODE_OPUS   = 1 << 11
+  };
+
   NJClient();
   ~NJClient();
 
@@ -147,6 +157,7 @@ public:
   const char *GetUserState(int idx, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
 
+  int GetUserChannelOutput(int useridx, int channelidx);
   float GetUserChannelPeak(int useridx, int channelidx, int whichch=-1);
   double GetUserSessionPos(int useridx, time_t *lastupdatetime, double *maxlen);
   const char *GetUserChannelState(int useridx, int channelidx, bool *sub=0, float *vol=0, float *pan=0, bool *mute=0, bool *solo=0, int *outchannel=0, int *flags=0);
@@ -163,6 +174,8 @@ public:
   const char *GetLocalChannelInfo(int ch, int *srcch, int *bitrate, bool *broadcast, int *outch=0, int *flags=0);
   void SetLocalChannelMonitoring(int ch, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo);
   int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo); // 0 on success
+  void ResetLocalBroadcastState();
+  void ResetTransportPhase();
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
 
   void SetMetronomeChannel(int chidx) { m_metro_chidx=chidx; } // chidx&255 is stereo pair index, add 1024 for mono only
@@ -187,6 +200,22 @@ public:
   // "MSG" "text"  - broadcast "text" to everybody
   // "PRIVMSG" "username" "text"  - send text to "username"
   void ChatMessage_Send(const char *parm1, const char *parm2, const char *parm3=NULL, const char *parm4=NULL, const char *parm5=NULL);
+  int SendRawIntervalItem(int chidx, unsigned int fourcc, const void *data, int dataLen, int maxChunkBytes=60000);
+
+  // Streaming interval API — mirrors the internal audio pipeline.
+  // Call BeginRawIntervalStream once, then WriteRawIntervalChunk for each piece of data,
+  // then EndRawIntervalStream at the interval boundary.  This streams data to the
+  // server during the interval (like audio) rather than bursting it all at once.
+  int BeginRawIntervalStream(int chidx, unsigned int fourcc, unsigned char outGuid[16]);
+  int WriteRawIntervalChunk(const unsigned char guid[16], const void *data, int dataLen);
+  int EndRawIntervalStream(const unsigned char guid[16]);
+
+  void SetCodecCapabilities(int encodeCaps, int decodeCaps);
+  int GetCodecEncodeCaps() const { return m_codec_caps_encode; }
+  int GetCodecDecodeCaps() const { return m_codec_caps_decode; }
+  void SetCodecConfig(unsigned int vorbisMask, unsigned int opusMask);
+  unsigned int GetCodecVorbisMask() const { return m_codec_vorbis_mask; }
+  unsigned int GetCodecOpusMask() const { return m_codec_opus_mask; }
 
   // messages you can receive from this:
   // "MSG" "user" "text"   - message from user to everybody (including you!), or if user is empty, from the server
@@ -197,6 +226,20 @@ public:
   // note that nparms is the MAX number of parms, you still can get NULL parms entries in there (though rarely)
   void (*ChatMessage_Callback)(void *userData, NJClient *inst, const char **parms, int nparms);
   void *ChatMessage_User;
+  // Fired from inside on_new_interval() (audio thread, sample-accurate).
+  // Allows the host to synchronise non-audio interval data at the exact same
+  // moment as audio's ds/next_ds promotion, with no poll jitter.
+  void (*NewIntervalCallback)(void *userData, NJClient *inst);
+  void *NewIntervalCallbackUser;
+
+  void (*IntervalMediaItem_Callback)(void *userData, NJClient *inst, const char *username, int chidx, unsigned int fourcc, const unsigned char *guid, const void *data, int dataLen);
+  void *IntervalMediaItem_User;
+
+  // Fired for EVERY download_interval_write (flag=0 and flag=1), allowing
+  // the host to decode/stream chunks as they arrive rather than waiting for flag=1.
+  // data/dataLen may be 0 for a flag=1 end-of-stream marker with no payload.
+  void (*IntervalChunkCallback)(void *userData, NJClient *inst, const char *username, int chidx, unsigned int fourcc, const unsigned char *guid, const void *data, int dataLen, int flags);
+  void *IntervalChunkCallbackUser;
 
 
   // set these if you want to mix multiple channels into the output channel
@@ -232,6 +275,10 @@ protected:
   int m_status;
   int m_max_localch;
   int m_connection_keepalive;
+  int m_codec_caps_encode;
+  int m_codec_caps_decode;
+  unsigned int m_codec_vorbis_mask;
+  unsigned int m_codec_opus_mask;
   FILE *m_logFile;
 #ifndef NJCLIENT_NO_XMIT_SUPPORT
   FILE *m_oggWrite;
@@ -258,7 +305,13 @@ protected:
 
   int m_metro_chidx, m_remote_chanoffs, m_local_chanoffs;
 
-  DecodeState *start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf);
+  DecodeState *start_decode(unsigned char *guid, int chanflags, int chidx, unsigned int fourcc, DecodeMediaBuffer *decbuf);
+
+  bool ShouldEncodeVorbis(int chidx) const;
+  bool ShouldEncodeOpus(int chidx) const;
+
+  I_NJEncoder *createEncoderForChannel(int chidx, int srate, int nch, int bitrate, int serno);
+  I_NJDecoder *createDecoderForChannel(int chidx, unsigned int fourcc, DecodeMediaBuffer *decbuf);
 
   BufferQueue *m_wavebq;
 
@@ -272,6 +325,7 @@ protected:
   Net_Connection *m_netcon;
   WDL_PtrList<RemoteUser> m_remoteusers;
   WDL_PtrList<RemoteDownload> m_downloads;
+  WDL_PtrList<CustomIntervalDownload> m_customIntervalDownloads;
 
   WDL_HeapBuf tmpblock;
 

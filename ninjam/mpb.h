@@ -156,6 +156,20 @@ class mpb_server_download_interval_write
     int audio_data_len; // not encoded in, just used internally
 };
 
+#define MESSAGE_SERVER_CODEC_CONFIG 0x06
+class mpb_server_codec_config
+{
+  public:
+    mpb_server_codec_config() : vorbis_mask(0), opus_mask(0) { }
+    ~mpb_server_codec_config() { }
+
+    int parse(Net_Message *msg); // return 0 on success
+    Net_Message *build();
+
+    unsigned int vorbis_mask;
+    unsigned int opus_mask;
+};
+
 
 
 

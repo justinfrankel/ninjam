@@ -96,6 +96,7 @@ class User_Group
     void SetConfig(int bpi, int bpm);
     void SetLicenseText(char *text) { m_licensetext.Set(text); }
     void Broadcast(Net_Message *msg, User_Connection *nosend=0);
+    void UpdateCodecConfig();
 
 
     void SetLogDir(char *path); // NULL to not log
@@ -195,11 +196,20 @@ public:
 class User_Connection
 {
   public:
+    enum
+    {
+      CLIENT_CAP_DECODE_VORBIS = 1 << 8,
+      CLIENT_CAP_DECODE_OPUS   = 1 << 9,
+      CLIENT_CAP_ENCODE_VORBIS = 1 << 10,
+      CLIENT_CAP_ENCODE_OPUS   = 1 << 11
+    };
+
     User_Connection(JNL_IConnection *con, User_Group *grp);
     ~User_Connection();
 
     int Run(User_Group *group, int *wantsleep=0); // returns 1 if disconnected, -1 if error in data. 0 if ok.
     void SendConfigChangeNotify(int bpm, int bpi);
+    void SendCodecConfig(User_Group *group);
 
     void Send(Net_Message *msg);
 
@@ -220,6 +230,12 @@ class User_Connection
     int m_auth_state;      // 1 if authorized, 0 if not yet, -1 if auth pending
     unsigned char m_challenge[8];
     int m_clientcaps;
+    bool m_supports_video;
+
+    bool ClientCanDecodeVorbis() const;
+    bool ClientCanDecodeOpus() const;
+    bool ClientCanEncodeVorbis() const;
+    bool ClientCanEncodeOpus() const;
 
     int m_auth_privs;
 

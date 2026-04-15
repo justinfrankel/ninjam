@@ -35,7 +35,7 @@
 #include <netinet/tcp.h>
 #endif
 
-#define NET_MESSAGE_MAX_SIZE 16384
+#define NET_MESSAGE_MAX_SIZE 1048576
 
 #define NET_CON_MAX_MESSAGES 512
 

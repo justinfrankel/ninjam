@@ -98,7 +98,7 @@ extern void logText(const char *s, ...);
 
 #define TRANSFER_TIMEOUT 8
 
-User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_auth_privs(0), m_reserved(0), m_max_channels(0),
+User_Connection::User_Connection(JNL_IConnection *con, User_Group *grp) : m_auth_state(0), m_clientcaps(0), m_supports_video(false), m_auth_privs(0), m_reserved(0), m_max_channels(0),
       m_vote_bpm(0), m_vote_bpm_lasttime(0), m_vote_bpi(0), m_vote_bpi_lasttime(0)
 {
   m_netcon.attach(con);
@@ -155,6 +155,76 @@ User_Connection::~User_Connection()
   m_lookup=0;
 }
 
+void User_Connection::SendCodecConfig(User_Group *group)
+{
+  mpb_server_codec_config cfg;
+
+  int ch = m_max_channels;
+  if (ch > MAX_USER_CHANNELS) ch = MAX_USER_CHANNELS;
+  if (ch < 0 || group->m_is_lobby_mode) ch = 0;
+
+  unsigned int mask = ch ? ((1u << ch) - 1u) : 0u;
+
+  bool any_requires_vorbis = false;
+  bool any_can_decode_opus = false;
+
+  int i;
+  for (i = 0; i < group->m_users.GetSize(); ++i)
+  {
+    User_Connection *u = group->m_users.Get(i);
+    if (!u || u == this) continue;
+
+    if (u->ClientCanDecodeOpus()) any_can_decode_opus = true;
+    if (u->ClientCanDecodeVorbis() && !u->ClientCanDecodeOpus()) any_requires_vorbis = true;
+  }
+
+  if (!any_can_decode_opus)
+  {
+    cfg.vorbis_mask = mask;
+    cfg.opus_mask = 0;
+  }
+  else if (any_requires_vorbis)
+  {
+    cfg.vorbis_mask = mask;
+    cfg.opus_mask = mask;
+  }
+  else
+  {
+    cfg.vorbis_mask = 0;
+    cfg.opus_mask = mask;
+  }
+
+  Send(cfg.build());
+}
+
+bool User_Connection::ClientCanDecodeVorbis() const
+{
+  int mask = CLIENT_CAP_DECODE_VORBIS | CLIENT_CAP_DECODE_OPUS | CLIENT_CAP_ENCODE_VORBIS | CLIENT_CAP_ENCODE_OPUS;
+  if (!(m_clientcaps & mask)) return true;
+  return (m_clientcaps & CLIENT_CAP_DECODE_VORBIS) != 0;
+}
+
+bool User_Connection::ClientCanDecodeOpus() const
+{
+  int mask = CLIENT_CAP_DECODE_VORBIS | CLIENT_CAP_DECODE_OPUS | CLIENT_CAP_ENCODE_VORBIS | CLIENT_CAP_ENCODE_OPUS;
+  if (!(m_clientcaps & mask)) return false;
+  return (m_clientcaps & CLIENT_CAP_DECODE_OPUS) != 0;
+}
+
+bool User_Connection::ClientCanEncodeVorbis() const
+{
+  int mask = CLIENT_CAP_DECODE_VORBIS | CLIENT_CAP_DECODE_OPUS | CLIENT_CAP_ENCODE_VORBIS | CLIENT_CAP_ENCODE_OPUS;
+  if (!(m_clientcaps & mask)) return true;
+  return (m_clientcaps & CLIENT_CAP_ENCODE_VORBIS) != 0;
+}
+
+bool User_Connection::ClientCanEncodeOpus() const
+{
+  int mask = CLIENT_CAP_DECODE_VORBIS | CLIENT_CAP_DECODE_OPUS | CLIENT_CAP_ENCODE_VORBIS | CLIENT_CAP_ENCODE_OPUS;
+  if (!(m_clientcaps & mask)) return false;
+  return (m_clientcaps & CLIENT_CAP_ENCODE_OPUS) != 0;
+}
+
 
 void User_Connection::SendConfigChangeNotify(int bpm, int bpi)
 {
@@ -195,6 +265,19 @@ void User_Connection::SendConnectInfo(User_Group *group)
     newmsg.parms[0]="TOPIC";
     newmsg.parms[1]="";
     newmsg.parms[2]=group->m_topictext.Get();
+    Send(newmsg.build());
+  }
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="SERVER_CAPS";
+    newmsg.parms[1]="video_signal_v2 pro_video_v2 opus_sync_v2";
+    Send(newmsg.build());
+  }
+  {
+    mpb_chat_message newmsg;
+    newmsg.parms[0]="MSG";
+    newmsg.parms[1]="*";
+    newmsg.parms[2]="SERVER_CAPS video_signal_v2 pro_video_v2 opus_sync_v2";
     Send(newmsg.build());
   }
 
@@ -389,11 +472,13 @@ int User_Connection::OnRunAuth(User_Group *group)
 
 
 
-  logText("%s: Accepted user: %s\n",addrbuf,m_username.Get());
+  logText("%s: Accepted user: %s (privs=%d)\n",addrbuf,m_username.Get(),m_auth_privs);
 
   SendAuthReply(group);
 
   m_auth_state=1;
+
+  group->UpdateCodecConfig();
 
   SendConfigChangeNotify(group->m_last_bpm,group->m_last_bpi);
 
@@ -966,6 +1051,21 @@ void User_Group::Broadcast(Net_Message *msg, User_Connection *nosend)
   }
 }
 
+void User_Group::UpdateCodecConfig()
+{
+  if (m_is_lobby_mode) return;
+
+  int x;
+  for (x = 0; x < m_users.GetSize(); ++x)
+  {
+    User_Connection *p = m_users.Get(x);
+    if (p && p->m_auth_state > 0)
+    {
+      p->SendCodecConfig(this);
+    }
+  }
+}
+
 int User_Group::Run()
 {
     int wantsleep=1;
@@ -1059,6 +1159,8 @@ int User_Group::Run()
           delete p;
           m_users.Delete(thispos);
           x--;
+
+          UpdateCodecConfig();
         }
       }
     }
@@ -1292,15 +1394,21 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
 
     if (!(con->m_auth_privs & PRIV_CHATSEND))
     {
+      logText("MSG from %s DROPPED: no PRIV_CHATSEND (privs=%d)\n", con->m_username.Get(), con->m_auth_privs);
       errormsg = "No MSG permission";
     }
     else if (*p)
     {
+      logText("MSG from %s broadcasting: %.60s\n", con->m_username.Get(), p);
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]=con->m_username.Get();
       newmsg.parms[2]=msg->parms[1]; // send leading whitespace
       Broadcast(newmsg.build());
+    }
+    else
+    {
+      logText("MSG from %s DROPPED: empty message after trim\n", con->m_username.Get());
     }
     int x;
     for (x = 0; x < need_bcast.GetSize(); x ++)
@@ -1318,6 +1426,98 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
     newmsg.parms[3]=msg->parms[2]; // index
     newmsg.parms[4]=msg->parms[3]; // offset, length
     Broadcast(newmsg.build(),con);
+  }
+  else if (!strcmp(msg->parms[0],"VIDEO_CAP"))
+  {
+    const char *p = msg->parms[1];
+    if (!p) return;
+    while (*p == ' ') p++;
+    int v = atoi(p);
+    con->m_supports_video = v != 0;
+    if (v != 0)
+    {
+      mpb_chat_message capsmsg;
+      capsmsg.parms[0]="SERVER_CAPS";
+      capsmsg.parms[1]="video_signal_v2 pro_video_v2 opus_sync_v2";
+      con->Send(capsmsg.build());
+      mpb_chat_message fallback;
+      fallback.parms[0]="MSG";
+      fallback.parms[1]="*";
+      fallback.parms[2]="SERVER_CAPS video_signal_v2 pro_video_v2 opus_sync_v2";
+      con->Send(fallback.build());
+    }
+  }
+  else if (!strcmp(msg->parms[0],"VIDEO_SIGNAL") || !strcmp(msg->parms[0],"SIDE_SIGNAL"))
+  {
+    if (!con->m_supports_video) return;
+    const bool useSideSignal = !strcmp(msg->parms[0],"SIDE_SIGNAL");
+    const char *signalFromCommand = useSideSignal ? "SIDE_SIGNAL_FROM" : "VIDEO_SIGNAL_FROM";
+    const char *target = msg->parms[1];
+    const char *stype = msg->parms[2];
+    const char *spayload = msg->parms[3];
+    if (!stype || !spayload) return;
+    if (useSideSignal && !strcmp(stype,"proVideoFrame")) return;
+    if (target && *target && strcmp(target,"*"))
+    {
+      int x;
+      int pmatch = -1;
+      int l1 = (int) strlen(target);
+      for (x = 0; x < m_users.GetSize(); x ++)
+      {
+        User_Connection *u = m_users.Get(x);
+        if (!u || u == con) continue;
+        if (!u->m_supports_video) continue;
+        if (u->m_auth_state <= 0) continue;
+        const char *tu = u->m_username.Get();
+        if (!strcasecmp(target,tu))
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]=signalFromCommand;
+          newmsg.parms[1]=con->m_username.Get();
+          newmsg.parms[2]=stype;
+          newmsg.parms[3]=spayload;
+          u->Send(newmsg.build());
+          return;
+        }
+        else if (pmatch > -2)
+        {
+          if (!strncasecmp(target,tu,l1))
+          {
+            pmatch = pmatch >= 0 ? -2 : x;
+          }
+        }
+      }
+      if (pmatch >= 0)
+      {
+        User_Connection *u = m_users.Get(pmatch);
+        if (u && u != con && u->m_supports_video && u->m_auth_state > 0)
+        {
+          mpb_chat_message newmsg;
+          newmsg.parms[0]=signalFromCommand;
+          newmsg.parms[1]=con->m_username.Get();
+          newmsg.parms[2]=stype;
+          newmsg.parms[3]=spayload;
+          u->Send(newmsg.build());
+        }
+      }
+    }
+    else
+    {
+      int x;
+      for (x = 0; x < m_users.GetSize(); x ++)
+      {
+        User_Connection *u = m_users.Get(x);
+        if (!u || u == con) continue;
+        if (!u->m_supports_video) continue;
+        if (u->m_auth_state <= 0) continue;
+        mpb_chat_message newmsg;
+        newmsg.parms[0]=signalFromCommand;
+        newmsg.parms[1]=con->m_username.Get();
+        newmsg.parms[2]=stype;
+        newmsg.parms[3]=spayload;
+        u->Send(newmsg.build());
+      }
+    }
   }
   else if (!strcmp(msg->parms[0],"PRIVMSG")) // chat message
   {
