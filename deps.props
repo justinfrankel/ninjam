@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  deps.props : Dependency paths for njclient.vcxproj
+
+  Uses the VCPKG_ROOT user/system environment variable.
+  Set it to your vcpkg installation directory, e.g.:
+      [System.Environment]::SetEnvironmentVariable("VCPKG_ROOT","C:\path\to\vcpkg","User")
+
+  Packages must be installed for the x64-windows triplet (dynamic DLLs):
+      vcpkg install libogg:x64-windows libvorbis:x64-windows
+
+  The ninjam static lib only needs headers at compile time.
+  The consuming project must also link libvorbis.lib + libogg.lib
+  and copy the Vorbis/Ogg DLLs to its output directory at runtime.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- vcpkg installed tree for the x64-windows (dynamic) triplet -->
+    <VcpkgInstalledDir Condition="'$(VCPKG_ROOT)'!=''"
+      >$(VCPKG_ROOT)\installed\x64-windows</VcpkgInstalledDir>
+
+    <!-- Headers: both ogg/ogg.h and vorbis/codec.h live under the same include root -->
+    <OggIncludeDir>$(VcpkgInstalledDir)\include</OggIncludeDir>
+    <VorbisIncludeDir>$(VcpkgInstalledDir)\include</VorbisIncludeDir>
+
+    <!-- Lib dir (informational — used by consuming projects, not this static lib) -->
+    <VcpkgLibDir>$(VcpkgInstalledDir)\lib</VcpkgLibDir>
+
+    <!-- Bin dir — copy these DLLs next to your consuming project's executable -->
+    <VcpkgBinDir>$(VcpkgInstalledDir)\bin</VcpkgBinDir>
+  </PropertyGroup>
+
+</Project>

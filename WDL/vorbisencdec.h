@@ -42,6 +42,7 @@
 #include "vorbis/vorbisenc.h"
 #include "vorbis/codec.h"
 
+#ifdef VORBISENC_WANT_FULLCONFIG
 #include "assocarray.h"
 #include "lice/lice.h"
 
@@ -52,6 +53,7 @@ bool PackFlacPicBase64(WDL_StringKeyedArray<char*> *metadata,
   int img_w, int img_h, int bpp, WDL_HeapBuf *hb);
 
 extern LICE_IBitmap* (*_LICE_LoadImage)(const char* filename, LICE_IBitmap* bmp, bool tryIgnoreExtension);
+#endif // VORBISENC_WANT_FULLCONFIG
 
 
 class VorbisDecoderInterface

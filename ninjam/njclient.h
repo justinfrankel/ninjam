@@ -63,19 +63,78 @@
 #else
 #include <stdlib.h>
 #include <memory.h>
+#include <pthread.h>
 #endif
 #include <stdio.h>
 #include <time.h>
-#include "../WDL/wdlstring.h"
-#include "../WDL/ptrlist.h"
-#include "../WDL/jnetlib/jnetlib.h"
-#include "../WDL/sha.h"
-#include "../WDL/rng.h"
-#include "../WDL/mutex.h"
 
-#include "../WDL/wavwrite.h"
+class WDL_Mutex {
+public:
+  WDL_Mutex()
+  {
+#ifdef _WIN32
+    InitializeCriticalSection(&m_cs);
+#else
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&m_mutex, &attr);
+    pthread_mutexattr_destroy(&attr);
+#endif
+  }
 
-#include "netmsg.h"
+  ~WDL_Mutex()
+  {
+#ifdef _WIN32
+    DeleteCriticalSection(&m_cs);
+#else
+    pthread_mutex_destroy(&m_mutex);
+#endif
+  }
+
+  void Enter()
+  {
+#ifdef _WIN32
+    EnterCriticalSection(&m_cs);
+#else
+    pthread_mutex_lock(&m_mutex);
+#endif
+  }
+
+  void Leave()
+  {
+#ifdef _WIN32
+    LeaveCriticalSection(&m_cs);
+#else
+    pthread_mutex_unlock(&m_mutex);
+#endif
+  }
+
+private:
+#ifdef _WIN32
+  CRITICAL_SECTION m_cs;
+#else
+  pthread_mutex_t m_mutex;
+#endif
+
+  WDL_Mutex(const WDL_Mutex &);
+  WDL_Mutex &operator=(const WDL_Mutex &);
+};
+
+class WDL_MutexLock {
+public:
+  explicit WDL_MutexLock(WDL_Mutex *mutex) : m_m(mutex)
+  {
+    if (m_m) m_m->Enter();
+  }
+
+  ~WDL_MutexLock()
+  {
+    if (m_m) m_m->Leave();
+  }
+
+  WDL_Mutex *m_m;
+};
 
 
 class I_NJEncoder;
@@ -86,6 +145,9 @@ class Local_Channel;
 class DecodeState;
 class BufferQueue;
 class DecodeMediaBuffer;
+class WaveWriter;
+class WDL_String;
+struct NJClientInternal;
 
 // #define NJCLIENT_NO_XMIT_SUPPORT // might want to do this for njcast :)
 //  it also removes mixed ogg writing support
@@ -103,9 +165,9 @@ public:
   // call Run() from your main (UI) thread
   int Run();// returns nonzero if sleep is OK
 
-  const char *GetErrorStr() { return m_errstr.Get(); }
+  const char *GetErrorStr();
 
-  int IsAudioRunning() { return m_audio_enable; }
+  int IsAudioRunning();
   // call AudioProc, (and only AudioProc) from your audio thread
   void AudioProc(float **inbuf, int innch, float **outbuf, int outnch, int len, int srate, bool justmonitor=false, bool isPlaying=true, bool isSeek=false, double cursessionpos=-1.0); // len is number of sample pairs or samples
 
@@ -131,19 +193,19 @@ public:
   int GetStatus();
 
   void SetWorkDir(char *path);
-  const char *GetWorkDir() { return m_workdir.Get(); }
+  const char *GetWorkDir();
 
-  const char *GetUser() { return m_user.Get(); }
-  const char *GetHostName() { return m_host.Get(); }
+  const char *GetUser();
+  const char *GetHostName();
 
-  float GetActualBPM() { return (float) m_active_bpm; }
-  int GetBPI() { return m_active_bpi; }
+  float GetActualBPM();
+  int GetBPI();
   void GetPosition(int *pos, int *length);  // positions in samples
-  int GetLoopCount() { return m_loopcnt; }
+  int GetLoopCount();
   unsigned int GetSessionPosition(); // returns milliseconds
 
-  int HasUserInfoChanged() { if (m_userinfochange) { m_userinfochange=0; return 1; } return 0; }
-  int GetNumUsers() { return m_remoteusers.GetSize(); }
+  int HasUserInfoChanged();
+  int GetNumUsers();
   const char *GetUserState(int idx, float *vol=0, float *pan=0, bool *mute=0);
   void SetUserState(int idx, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute);
 
@@ -153,7 +215,7 @@ public:
   void SetUserChannelState(int useridx, int channelidx, bool setsub, bool sub, bool setvol, float vol, bool setpan, float pan, bool setmute, bool mute, bool setsolo, bool solo, bool setoutch=false, int outchannel=0);
   int EnumUserChannels(int useridx, int i); // returns <0 if out of channels. start with i=0, and go upwards
 
-  int GetMaxLocalChannels() { return m_max_localch; }
+  int GetMaxLocalChannels();
   void DeleteLocalChannel(int ch);
   int EnumLocalChannels(int i);
   float GetLocalChannelPeak(int ch, int whichch=-1);
@@ -165,13 +227,13 @@ public:
   int GetLocalChannelMonitoring(int ch, float *vol, float *pan, bool *mute, bool *solo); // 0 on success
   void NotifyServerOfChannelChange(); // call after any SetLocalChannel* that occur after initial connect
 
-  void SetMetronomeChannel(int chidx) { m_metro_chidx=chidx; } // chidx&255 is stereo pair index, add 1024 for mono only
-  int GetMetronomeChannel() const { return m_metro_chidx; }
+  void SetMetronomeChannel(int chidx); // chidx&255 is stereo pair index, add 1024 for mono only
+  int GetMetronomeChannel() const;
 
-  void SetRemoteChannelOffset(int offs) { m_remote_chanoffs = offs; }
-  void SetLocalChannelOffset(int offs) { m_local_chanoffs = offs; }
+  void SetRemoteChannelOffset(int offs);
+  void SetLocalChannelOffset(int offs);
 
-  int IsASoloActive() { return m_issoloactive; }
+  int IsASoloActive();
 
   void SetLogFile(const char *name=NULL);
 
@@ -206,15 +268,11 @@ public:
 
   WDL_Mutex m_remotechannel_rd_mutex;
 
-  bool is_likely_lobby() const {
-    return !m_max_localch && !m_remoteusers.GetSize();
-  }
+  bool is_likely_lobby() const;
 
-  int GetSampleRate() const { return m_srate; }
+  int GetSampleRate() const;
 
 protected:
-  double output_peaklevel[2];
-
   void _reinit();
 
   void makeFilenameFromGuid(WDL_String *s, unsigned char *guid);
@@ -226,56 +284,16 @@ protected:
 
   void writeLog(const char *fmt, ...);
 
-  WDL_String m_errstr;
-
-  WDL_String m_workdir;
-  int m_status;
-  int m_max_localch;
-  int m_connection_keepalive;
-  FILE *m_logFile;
-#ifndef NJCLIENT_NO_XMIT_SUPPORT
-  FILE *m_oggWrite;
-  I_NJEncoder *m_oggComp;
-#endif
-
-  WDL_String m_user, m_pass, m_host;
-
-  int m_in_auth;
-  int m_bpm,m_bpi;
-  int m_beatinfo_updated;
-  int m_audio_enable;
-  int m_srate;
-  int m_userinfochange;
-  int m_issoloactive;
-
-  unsigned int m_session_pos_ms,m_session_pos_samples; // samples just keeps track of any samples lost to precision errors
-
-  int m_loopcnt;
-  int m_active_bpm, m_active_bpi;
-  int m_interval_length;
-  int m_interval_pos, m_metronome_state, m_metronome_tmp,m_metronome_interval;
-  double m_metronome_pos;
-
-  int m_metro_chidx, m_remote_chanoffs, m_local_chanoffs;
-
   DecodeState *start_decode(unsigned char *guid, int chanflags, unsigned int fourcc, DecodeMediaBuffer *decbuf);
-
-  BufferQueue *m_wavebq;
-
-  WDL_PtrList<Local_Channel> m_locchannels;
 
   void mixInChannel(RemoteUser *user, int chanidx,
                     bool muted, float vol, float pan, float **outbuf, int out_channel,
                     int len, int srate, int outnch, int offs, double vudecay, bool isPlaying, bool isSeek, double playPos);
 
-  WDL_Mutex m_users_cs, m_locchan_cs, m_log_cs, m_misc_cs;
-  Net_Connection *m_netcon;
-  WDL_PtrList<RemoteUser> m_remoteusers;
-  WDL_PtrList<RemoteDownload> m_downloads;
-
-  WDL_HeapBuf tmpblock;
-
   int find_unused_output_channel_pair() const;
+
+private:
+  NJClientInternal *m_impl;
 };
 
 

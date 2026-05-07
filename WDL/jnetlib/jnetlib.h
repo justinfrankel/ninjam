@@ -40,8 +40,5 @@
 
 #include "asyncdns.h"
 #include "connection.h"
-#include "httpget.h"
-#include "httpserv.h"
-#include "listen.h"
 
 #endif//_JNETLIB_H_

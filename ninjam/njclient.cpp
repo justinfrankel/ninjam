@@ -28,17 +28,18 @@
 #include <stdarg.h>
 #include "njclient.h"
 #include "mpb.h"
+#include "netmsg.h"
 #include "../WDL/pcmfmtcvt.h"
+#include "../WDL/ptrlist.h"
+#include "../WDL/rng.h"
+#include "../WDL/sha.h"
 #include "../WDL/wavwrite.h"
+#include "../WDL/wdlstring.h"
 #include "../WDL/wdlcstring.h"
 
 #include "../WDL/win32_utf8.h"
 
 #define NJ_ENCODER_FMT_TYPE MAKE_NJ_FOURCC('O','G','G','v')
-
-#ifdef REANINJAM
-#define WDL_VORBIS_INTERFACE_ONLY
-#endif
 
 #define VorbisEncoderInterface I_NJEncoder
 #define VorbisDecoderInterface I_NJDecoder
@@ -46,47 +47,120 @@
 #undef VorbisEncoderInterface
 #undef VorbisDecoderInterface
 
-#ifdef REANINJAM
-  extern void *(*CreateVorbisEncoder)(int srate, int nch, int serno, float qv, int cbr, int minbr, int maxbr);
-  extern void *(*CreateVorbisDecoder)();
-  static void *__CreateVorbisEncoder(int srate, int nch, int bitrate, int serno)
-  {
-    float qv=0.0;
-    if (nch == 2) bitrate=  (bitrate*5)/8;
-    // at least for mono 44khz
-    //-0.1 = ~40kbps
-    //0.0 == ~64kbps
-    //0.1 == 75
-    //0.3 == 95
-    //0.5 == 110
-    //0.75== 140
-    //1.0 == 240
-
-    if (bitrate < 40) qv=-0.1f;
-    else if (bitrate < 64) qv=-0.10f + (bitrate-40)*(0.10f/24.0f);
-    else if (bitrate < 75) qv=(bitrate-64)*(0.1f/9.0f);
-    else if (bitrate < 95) qv=0.1f+(bitrate-75)*(0.2f/20.0f);
-    else if (bitrate < 110) qv=0.3f+(bitrate-95)*(0.2f/15.0f);
-    else if (bitrate < 140) qv=0.5f+(bitrate-110)*(0.25f/30.0f);
-    else qv=0.75f+(bitrate-140)*(0.25f/100.0f);
-
-    if (qv<-0.10f)qv=-0.10f;
-    if (qv>1.0f)qv=1.0f;
-    return CreateVorbisEncoder(srate,nch,serno,qv,-1,-1,-1);
-
-  }
-  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)__CreateVorbisEncoder(srate,ch,br,id))
-  #define CreateNJDecoder() ((I_NJDecoder *)CreateVorbisDecoder())
-#else
-  #define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)new VorbisEncoder(srate,ch,br,id))
-  #define CreateNJDecoder() ((I_NJDecoder *)new VorbisDecoder)
-#endif
+#define CreateNJEncoder(srate,ch,br,id) ((I_NJEncoder *)new VorbisEncoder(srate,ch,br,id))
+#define CreateNJDecoder() ((I_NJDecoder *)new VorbisDecoder)
 
 
 #define SESSION_CHUNK_SIZE 2.0
 #define LL_CHUNK_SIZE 2.0
 
 #define MAKE_NJ_FOURCC(A,B,C,D) ((A) | ((B)<<8) | ((C)<<16) | ((D)<<24))
+
+struct NJClientInternal
+{
+  double output_peaklevel[2];
+
+  WDL_String m_errstr;
+  WDL_String m_workdir;
+  int m_status;
+  int m_max_localch;
+  int m_connection_keepalive;
+  FILE *m_logFile;
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
+  FILE *m_oggWrite;
+  I_NJEncoder *m_oggComp;
+#endif
+
+  WDL_String m_user;
+  WDL_String m_pass;
+  WDL_String m_host;
+
+  int m_in_auth;
+  int m_bpm;
+  int m_bpi;
+  int m_beatinfo_updated;
+  int m_audio_enable;
+  int m_srate;
+  int m_userinfochange;
+  int m_issoloactive;
+
+  unsigned int m_session_pos_ms;
+  unsigned int m_session_pos_samples;
+
+  int m_loopcnt;
+  int m_active_bpm;
+  int m_active_bpi;
+  int m_interval_length;
+  int m_interval_pos;
+  int m_metronome_state;
+  int m_metronome_tmp;
+  int m_metronome_interval;
+  double m_metronome_pos;
+
+  int m_metro_chidx;
+  int m_remote_chanoffs;
+  int m_local_chanoffs;
+
+  BufferQueue *m_wavebq;
+  WDL_PtrList<Local_Channel> m_locchannels;
+
+  WDL_Mutex m_users_cs;
+  WDL_Mutex m_locchan_cs;
+  WDL_Mutex m_log_cs;
+  WDL_Mutex m_misc_cs;
+  Net_Connection *m_netcon;
+  WDL_PtrList<RemoteUser> m_remoteusers;
+  WDL_PtrList<RemoteDownload> m_downloads;
+
+  WDL_HeapBuf tmpblock;
+};
+
+#define output_peaklevel (m_impl->output_peaklevel)
+#define m_errstr (m_impl->m_errstr)
+#define m_workdir (m_impl->m_workdir)
+#define m_status (m_impl->m_status)
+#define m_max_localch (m_impl->m_max_localch)
+#define m_connection_keepalive (m_impl->m_connection_keepalive)
+#define m_logFile (m_impl->m_logFile)
+#ifndef NJCLIENT_NO_XMIT_SUPPORT
+#define m_oggWrite (m_impl->m_oggWrite)
+#define m_oggComp (m_impl->m_oggComp)
+#endif
+#define m_user (m_impl->m_user)
+#define m_pass (m_impl->m_pass)
+#define m_host (m_impl->m_host)
+#define m_in_auth (m_impl->m_in_auth)
+#define m_bpm (m_impl->m_bpm)
+#define m_bpi (m_impl->m_bpi)
+#define m_beatinfo_updated (m_impl->m_beatinfo_updated)
+#define m_audio_enable (m_impl->m_audio_enable)
+#define m_srate (m_impl->m_srate)
+#define m_userinfochange (m_impl->m_userinfochange)
+#define m_issoloactive (m_impl->m_issoloactive)
+#define m_session_pos_ms (m_impl->m_session_pos_ms)
+#define m_session_pos_samples (m_impl->m_session_pos_samples)
+#define m_loopcnt (m_impl->m_loopcnt)
+#define m_active_bpm (m_impl->m_active_bpm)
+#define m_active_bpi (m_impl->m_active_bpi)
+#define m_interval_length (m_impl->m_interval_length)
+#define m_interval_pos (m_impl->m_interval_pos)
+#define m_metronome_state (m_impl->m_metronome_state)
+#define m_metronome_tmp (m_impl->m_metronome_tmp)
+#define m_metronome_interval (m_impl->m_metronome_interval)
+#define m_metronome_pos (m_impl->m_metronome_pos)
+#define m_metro_chidx (m_impl->m_metro_chidx)
+#define m_remote_chanoffs (m_impl->m_remote_chanoffs)
+#define m_local_chanoffs (m_impl->m_local_chanoffs)
+#define m_wavebq (m_impl->m_wavebq)
+#define m_locchannels (m_impl->m_locchannels)
+#define m_users_cs (m_impl->m_users_cs)
+#define m_locchan_cs (m_impl->m_locchan_cs)
+#define m_log_cs (m_impl->m_log_cs)
+#define m_misc_cs (m_impl->m_misc_cs)
+#define m_netcon (m_impl->m_netcon)
+#define m_remoteusers (m_impl->m_remoteusers)
+#define m_downloads (m_impl->m_downloads)
+#define tmpblock (m_impl->tmpblock)
 
 class DecodeMediaBuffer
 {
@@ -542,6 +616,102 @@ static void type_to_string(unsigned int t, char *out)
   else *out=0;
 }
 
+const char *NJClient::GetErrorStr()
+{
+  return m_errstr.Get();
+}
+
+int NJClient::IsAudioRunning()
+{
+  return m_audio_enable;
+}
+
+const char *NJClient::GetWorkDir()
+{
+  return m_workdir.Get();
+}
+
+const char *NJClient::GetUser()
+{
+  return m_user.Get();
+}
+
+const char *NJClient::GetHostName()
+{
+  return m_host.Get();
+}
+
+float NJClient::GetActualBPM()
+{
+  return (float)m_active_bpm;
+}
+
+int NJClient::GetBPI()
+{
+  return m_active_bpi;
+}
+
+int NJClient::GetLoopCount()
+{
+  return m_loopcnt;
+}
+
+int NJClient::HasUserInfoChanged()
+{
+  if (m_userinfochange)
+  {
+    m_userinfochange=0;
+    return 1;
+  }
+  return 0;
+}
+
+int NJClient::GetNumUsers()
+{
+  return m_remoteusers.GetSize();
+}
+
+int NJClient::GetMaxLocalChannels()
+{
+  return m_max_localch;
+}
+
+void NJClient::SetMetronomeChannel(int chidx)
+{
+  m_metro_chidx=chidx;
+}
+
+int NJClient::GetMetronomeChannel() const
+{
+  return m_metro_chidx;
+}
+
+void NJClient::SetRemoteChannelOffset(int offs)
+{
+  m_remote_chanoffs=offs;
+}
+
+void NJClient::SetLocalChannelOffset(int offs)
+{
+  m_local_chanoffs=offs;
+}
+
+int NJClient::IsASoloActive()
+{
+  return m_issoloactive;
+}
+
+bool NJClient::is_likely_lobby() const
+{
+  NJClient *self = const_cast<NJClient *>(this);
+  return !self->GetMaxLocalChannels() && !self->GetNumUsers();
+}
+
+int NJClient::GetSampleRate() const
+{
+  return m_srate;
+}
+
 void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 {
   char buf[256];
@@ -565,6 +735,7 @@ void NJClient::makeFilenameFromGuid(WDL_String *s, unsigned char *guid)
 
 NJClient::NJClient()
 {
+  m_impl = new NJClientInternal;
   m_wavebq=new BufferQueue;
   m_userinfochange=0;
   m_loopcnt=0;
@@ -719,6 +890,7 @@ NJClient::~NJClient()
   m_locchannels.Empty();
 
   delete m_wavebq;
+  delete m_impl;
 }
 
 
@@ -3117,9 +3289,13 @@ void RemoteDownload::Open(NJClient *parent, unsigned int fourcc, bool forceToDis
   }
 }
 
+#undef m_users_cs
+#undef m_remoteusers
+
 void RemoteDownload::startPlaying(int force)
 {
   if (!m_parent || chidx<0) return;
+  NJClientInternal *impl = m_parent->m_impl;
   if (!force)
   {
     if (playtime)
@@ -3135,8 +3311,8 @@ void RemoteDownload::startPlaying(int force)
   {
     int x;
     RemoteUser *theuser;
-    for (x = 0; x < m_parent->m_remoteusers.GetSize() && strcmp((theuser=m_parent->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
-    if (x < m_parent->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
+    for (x = 0; x < impl->m_remoteusers.GetSize() && strcmp((theuser=impl->m_remoteusers.Get(x))->name.Get(),username.Get()); x ++);
+    if (x < impl->m_remoteusers.GetSize() && chidx >= 0 && chidx < MAX_USER_CHANNELS)
     {
     //  char buf[512];
   //    sprintf(buf,"download %s:%d flags=%d\n",username.Get(),chidx,theuser->channels[chidx].flags);
@@ -3149,11 +3325,11 @@ void RemoteDownload::startPlaying(int force)
 //        OutputDebugString(tmp?"started new decde\n":"tried to start new decode\n");
 
         DecodeState *tmp2;
-        m_parent->m_users_cs.Enter();
+  impl->m_users_cs.Enter();
         int useidx=!!theuser->channels[chidx].next_ds[0];
         tmp2=theuser->channels[chidx].next_ds[useidx];
         theuser->channels[chidx].next_ds[useidx]=tmp;
-        m_parent->m_users_cs.Leave();
+  impl->m_users_cs.Leave();
         delete tmp2;
       }
     }
@@ -3162,6 +3338,9 @@ void RemoteDownload::startPlaying(int force)
     chidx=-1;
   }
 }
+
+#define m_users_cs (m_impl->m_users_cs)
+#define m_remoteusers (m_impl->m_remoteusers)
 
 void RemoteDownload::Write(const void *buf, int len)
 {

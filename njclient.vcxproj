@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{3F8A2C1D-B74E-4D92-A5F0-9E6C1B3D7A84}</ProjectGuid>
+    <RootNamespace>njclient</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!-- User-defined OGG / Vorbis paths — see deps.props -->
+  <Import Project="$(MSBuildProjectDirectory)\deps.props" Condition="Exists('$(MSBuildProjectDirectory)\deps.props')" />
+
+  <!--
+    Runtime CRT selection:
+    - Static (default): /MT for Release, /MTd for Debug
+    - Dynamic: /MD for Release, /MDd for Debug
+    Override from the command line with:
+      /p:NinjamRuntimeMode=Dynamic
+  -->
+  <PropertyGroup>
+    <NinjamRuntimeMode Condition="'$(NinjamRuntimeMode)'==''">Static</NinjamRuntimeMode>
+
+    <NinjamRuntimeLibrary Condition="'$(NinjamRuntimeMode)'=='Static' and '$(Configuration)'=='Debug'">MultiThreadedDebug</NinjamRuntimeLibrary>
+    <NinjamRuntimeLibrary Condition="'$(NinjamRuntimeMode)'=='Static' and '$(Configuration)'=='Release'">MultiThreaded</NinjamRuntimeLibrary>
+    <NinjamRuntimeLibrary Condition="'$(NinjamRuntimeMode)'=='Dynamic' and '$(Configuration)'=='Debug'">MultiThreadedDebugDLL</NinjamRuntimeLibrary>
+    <NinjamRuntimeLibrary Condition="'$(NinjamRuntimeMode)'=='Dynamic' and '$(Configuration)'=='Release'">MultiThreadedDLL</NinjamRuntimeLibrary>
+
+    <NinjamRuntimeTag Condition="'$(NinjamRuntimeMode)'=='Static'">MT</NinjamRuntimeTag>
+    <NinjamRuntimeTag Condition="'$(NinjamRuntimeMode)'=='Dynamic'">MD</NinjamRuntimeTag>
+  </PropertyGroup>
+
+  <!-- Output / intermediate directories -->
+  <PropertyGroup>
+    <OutDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(NinjamRuntimeTag)\</OutDir>
+    <IntDir>$(MSBuildProjectDirectory)\obj\$(Platform)\$(Configuration)\$(NinjamRuntimeTag)\</IntDir>
+    <TargetName>njclient</TargetName>
+    <ClientIntegrationOutDir>$(MSBuildProjectDirectory)\output\</ClientIntegrationOutDir>
+  </PropertyGroup>
+
+  <!-- ===== Debug ===== -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(MSBuildProjectDirectory);$(OggIncludeDir);$(VorbisIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <RuntimeLibrary>$(NinjamRuntimeLibrary)</RuntimeLibrary>
+      <DisableSpecificWarnings>4244;4267;4018;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Lib>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
+    </Lib>
+  </ItemDefinitionGroup>
+
+  <!-- ===== Release ===== -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(MSBuildProjectDirectory);$(OggIncludeDir);$(VorbisIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <RuntimeLibrary>$(NinjamRuntimeLibrary)</RuntimeLibrary>
+      <DisableSpecificWarnings>4244;4267;4018;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DebugInformationFormat>None</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- ===== Source files ===== -->
+  <ItemGroup>
+    <ClCompile Include="ninjam\njclient.cpp" />
+    <ClCompile Include="ninjam\netmsg.cpp" />
+    <ClCompile Include="ninjam\mpb.cpp" />
+    <ClCompile Include="WDL\sha.cpp" />
+    <ClCompile Include="WDL\rng.cpp" />
+    <!-- win32_utf8.c uses wchar_t through wdlutf8.h; compile as C++ -->
+    <ClCompile Include="WDL\win32_utf8.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="WDL\jnetlib\connection.cpp" />
+    <ClCompile Include="WDL\jnetlib\asyncdns.cpp" />
+    <ClCompile Include="WDL\jnetlib\util.cpp" />
+  </ItemGroup>
+
+  <!-- ===== Header files (informational only) ===== -->
+  <ItemGroup>
+    <ClInclude Include="ninjam\njclient.h" />
+    <ClInclude Include="ninjam\netmsg.h" />
+    <ClInclude Include="ninjam\mpb.h" />
+    <ClInclude Include="WDL\jnetlib\jnetlib.h" />
+    <ClInclude Include="WDL\jnetlib\netinc.h" />
+    <ClInclude Include="WDL\jnetlib\connection.h" />
+    <ClInclude Include="WDL\jnetlib\asyncdns.h" />
+    <ClInclude Include="WDL\jnetlib\util.h" />
+  </ItemGroup>
+
+  <Target Name="PackageClientIntegration" AfterTargets="Build">
+    <PropertyGroup>
+      <ClientIntegrationPlatformDir>$(ClientIntegrationOutDir)$(Platform)\$(Configuration)\$(NinjamRuntimeTag)\</ClientIntegrationPlatformDir>
+      <BuiltPdbPath>$(OutDir)$(TargetName).pdb</BuiltPdbPath>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(ClientIntegrationOutDir)" />
+    <MakeDir Directories="$(ClientIntegrationPlatformDir)" />
+
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\ninjam\njclient.h"
+          DestinationFiles="$(ClientIntegrationOutDir)njclient.h"
+          SkipUnchangedFiles="true" />
+
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(ClientIntegrationPlatformDir)"
+          SkipUnchangedFiles="true" />
+
+    <Copy Condition="Exists('$(BuiltPdbPath)')"
+          SourceFiles="$(BuiltPdbPath)"
+          DestinationFolder="$(ClientIntegrationPlatformDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+</Project>

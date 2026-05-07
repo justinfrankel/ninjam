@@ -1,8 +1,0 @@
-This is NINJAM, www.ninjam.com
-
-To build the server, go to ninjam/server and run make
-
-The various clients in ninjam/ are all old and probably need some attention to function
-
-The REAPER ReaNINJAM plug-in is in jmde/fx/reaninjam/. It is more fully featured. You will need the VST2 SDK to compile it, though.
-
