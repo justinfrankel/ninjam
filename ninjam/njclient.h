@@ -130,7 +130,7 @@ public:
   enum { NJC_STATUS_DISCONNECTED=-3,NJC_STATUS_INVALIDAUTH=-2, NJC_STATUS_CANTCONNECT=-1, NJC_STATUS_OK=0, NJC_STATUS_PRECONNECT};
   int GetStatus();
 
-  void SetWorkDir(char *path);
+  void SetWorkDir(const char *path);
   const char *GetWorkDir() { return m_workdir.Get(); }
 
   const char *GetUser() { return m_user.Get(); }
