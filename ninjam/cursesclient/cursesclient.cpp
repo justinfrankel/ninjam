@@ -1810,7 +1810,9 @@ time(NULL) >= nextupd
   }
   if (g_client->GetErrorStr()[0])
   {
-    printf("Server gave explanation: %s\n",g_client->GetErrorStr());
+    // not necessarily the server's words: this also reports why the client
+    // itself gave up, e.g. a corrupted byte stream
+    printf("Reason: %s\n",g_client->GetErrorStr());
   }
 
 

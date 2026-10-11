@@ -914,6 +914,31 @@ int NJClient::GetStatus()
   return NJC_STATUS_OK;
 }
 
+// Why a live session ended, in words the user can act on.
+//
+// The status code cannot say: 1002 covers a socket that went away, a byte
+// stream that stopped being a message stream, and a peer that fell silent,
+// and until this existed all three reached the user as a bare
+// "disconnected" with nothing behind it -- so a corrupted stream was
+// indistinguishable from a network that went away. ERR_NONE means the
+// transport itself failed, which is the case the status name describes.
+static const char *disconnect_reason(int stream_err)
+{
+  switch (stream_err)
+  {
+    case Net_Connection::ERR_FRAMING:
+      return "the data stream from the server was corrupted and could not be "
+             "parsed -- the connection itself is still up, so this is not a "
+             "network dropout, and the session cannot be resumed";
+    case Net_Connection::ERR_SENDQ_FULL:
+      return "the client fell too far behind to keep up with its own audio";
+    case Net_Connection::ERR_TIMEOUT:
+      return "the server stopped responding";
+    default:
+      return "the connection to the server was lost";
+  }
+}
+
 static char getConfigStringQuoteChar(const char *p) // from WDL/projectcontext.cpp
 {
   if (!p || !*p) return '"';
@@ -1020,6 +1045,12 @@ int NJClient::Run() // nonzero if sleep ok
         if (m_in_auth)  m_status=1001;
         if (m_status > 0 && m_status < 1000) m_status=1002;
         if (m_status == 0) m_status=1000;
+        // say WHICH failure this was, since the status code cannot. Never
+        // overwrite an explanation that is already there: a server-side
+        // rejection sets one first and is the more useful thing to show,
+        // and Connect()/Disconnect() clear it between sessions.
+        if (!m_errstr.Get()[0])
+          m_errstr.Set(disconnect_reason(m_netcon->GetStreamError()));
         return 1;
       }
     }

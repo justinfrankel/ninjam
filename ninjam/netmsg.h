@@ -116,10 +116,30 @@ class Net_Connection
       }
     }
 
+    // Why the connection failed. GetStatus() folds all of these into "the
+    // session is over", but they are different faults with different fixes,
+    // and the transport going away is not in this list at all -- see
+    // GetStreamError(). Until the client asked the connection which of these
+    // happened, a stream that stopped parsing and a socket that closed were
+    // both reported as a bare "disconnected".
+    enum
+    {
+      ERR_NONE       =  0,
+      ERR_FRAMING    = -1, // the peer's byte stream stopped being parseable
+      ERR_SENDQ_FULL = -2, // our send queue overran; we could not keep up
+      ERR_TIMEOUT    = -3, // nothing arrived for keepalive*3 seconds
+    };
+
     Net_Message *Run(int *wantsleep=0);
     int Send(Net_Message *msg); // -1 on error, i.e. queue full
     int GetStatus(); // returns <0 on error, 0 on normal, 1 on disconnect
     JNL_IConnection *GetConnection() { return m_con; }
+
+    // The fault behind a negative GetStatus(), or 0 both for a healthy
+    // connection and for a transport that simply went away. Sticky: Run()
+    // stops touching the socket once it is set, so the reason a session
+    // ended is still readable afterwards.
+    int GetStreamError() const { return m_error; }
 
     void SetKeepAlive(int interval)
     {

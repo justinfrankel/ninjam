@@ -182,7 +182,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
       a=m_recvmsg->parseMessageHeader(buf,bufl);
       if (a<0)
       {
-        m_error=-1;
+        m_error=ERR_FRAMING;
         break;
       }
       if (a==0) break;
@@ -214,7 +214,7 @@ Net_Message *Net_Connection::Run(int *wantsleep)
   }
   else if (now > m_last_recv + m_keepalive*3)
   {
-    m_error=-3;
+    m_error=ERR_TIMEOUT;
   }
 
   return retv;
@@ -229,7 +229,7 @@ int Net_Connection::Send(Net_Message *msg)
       m_sendq.Add(&msg,sizeof(Net_Message *));
     else
     {
-      m_error=-2;
+      m_error=ERR_SENDQ_FULL;
       msg->releaseRef(); // todo: debug message to log overrun error
       return -1;
     }
