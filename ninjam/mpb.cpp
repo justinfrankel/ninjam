@@ -324,28 +324,30 @@ int mpb_server_userinfo_change_notify::parse_get_rec(int offs, int *isActive, in
   len -= hdrsize;
   unp=(char *)hdrbuf+hdrsize;
   cnp=unp;
-  while (*cnp)
+  while (len > 0 && *cnp) // bounds check first: username may lack a terminator
   {
     cnp++;
-    if (!len--) return 0;
+    len--;
   }
+  if (len <= 0) return 0;
   cnp++;
-  if (!len--) return 0;
+  len--;
 
   p=(unsigned char *)cnp;
-  while (*p)
+  while (len > 0 && *p) // bounds check first: channel name may lack a terminator
   {
     p++;
-    if (!len--) return 0;
+    len--;
   }
+  if (len <= 0) return 0;
   p++;
-  if (!len--) return 0;
+  len--;
 
   *isActive=(int)*hdrbuf++;
   *channelid=(int)*hdrbuf++;
   *volume=(int)*hdrbuf++;
   *volume |= ((int)*hdrbuf++)<<8;
-  *pan = (int) *hdrbuf++;
+  *pan = (int)(signed char)*hdrbuf++; // pan is -128..127
   *flags = (int) *hdrbuf++;
 
   *username = unp;
@@ -497,7 +499,7 @@ int mpb_client_auth_user::parse(Net_Message *msg) // return 0 on success
   len -= sizeof(passhash);
 
   username=(char *)p;
-  while (*p && len>0)
+  while (len>0 && *p) // bounds check first: username may lack a terminator
   {
     p++;
     len--;
@@ -621,17 +623,20 @@ void mpb_client_set_usermask::build_add_rec(const char *username, unsigned int c
 int mpb_client_set_usermask::parse_get_rec(int offs, const char **username, unsigned int *chflags)
 {
   if (!m_intmsg) return 0;
-  const unsigned char *p=(const unsigned char *)m_intmsg->get_data();
-  int len=m_intmsg->get_size()-offs;
-  if (!p || len < 5) return 0;
-  p+=offs;
+  const unsigned char *base=(const unsigned char *)m_intmsg->get_data();
+  const int size=m_intmsg->get_size();
+  if (!base) return 0;
+  if (offs < 0 || offs >= size) return 0;
+  int len=size-offs;
+  const unsigned char *p=base+offs;
 
   *username=(const char*)p;
-  while (*p && len > 0)
+  while (len > 0 && *p) // bounds check first: name may lack a terminator
   {
     len--;
     p++;
   }
+  if (len <= 0) return 0; // name ran to the end of the message without a terminator
   p++;
   len--;
 
@@ -713,24 +718,28 @@ void mpb_client_set_channel_info::build_add_rec(const char *chname, short volume
 
 
 // returns offset of next item on success, or <= 0 if out of items
+// message layout: 2-byte mpisize header at offset 0, then records of
+// name\0 + mpisize field bytes; offs is the previous record's return value
+// (name offset minus the 2-byte header)
 int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, short *volume, int *pan, int *flags)
 {
   if (!m_intmsg) return 0;
-  const unsigned char *p=(const unsigned char *)m_intmsg->get_data();
-  if (!p || m_intmsg->get_size() <= 2) return 0;
-  int len=m_intmsg->get_size()-offs;
+  const unsigned char *base=(const unsigned char *)m_intmsg->get_data();
+  const int size=m_intmsg->get_size();
+  if (!base || size <= 2) return 0;
+  if (offs < 0 || offs+2 > size) return 0;
 
-  mpisize=(int)p[0] | (((int)p[1])<<8);
-  if (len < mpisize) return 0;
-
-  p+=offs+2;
+  mpisize=(int)base[0] | (((int)base[1])<<8); // global header, always at offset 0
+  int len=size-offs-2; // bytes available from the name start
+  const unsigned char *p=base+offs+2;
 
   *chname=(const char*)p;
-  while (*p && len > 0)
+  while (len > 0 && *p) // bounds check first: name may lack a terminator
   {
     len--;
     p++;
   }
+  if (len <= 0) return 0; // name ran to the end of the message without a terminator
   p++;
   len--;
 
@@ -742,12 +751,12 @@ int mpb_client_set_channel_info::parse_get_rec(int offs, const char **chname, sh
     *volume|=((int)p[1])<<8;
   }
   else *volume=0;
-  if (mpisize>2) *pan=(int)p[2];
+  if (mpisize>2) *pan=(int)(signed char)p[2]; // pan is -128..127
   else *pan=0;
   if (mpisize>3) *flags=(int)p[3];
   else *flags=0;
 
-  return (int) ((p+mpisize) - ((unsigned char *)m_intmsg->get_data()+2));
+  return (int) ((p+mpisize) - (base+2));
 }
 
 // MESSAGE_CLIENT_UPLOAD_INTERVAL_BEGIN
@@ -874,6 +883,13 @@ int mpb_chat_message::parse(Net_Message *msg) // return 0 on success
   {
     parms[x]=p;
     while (p < endp && *p) p++;
+    if (p >= endp)
+    {
+      // string ran to the end of the message without a terminator: handlers
+      // use parms as C strings, so refuse instead of returning a parm that
+      // reads past the buffer
+      return 4;
+    }
     p++;
     if (p >= endp) break;
   }
