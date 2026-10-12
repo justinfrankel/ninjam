@@ -24,6 +24,7 @@
 
 
 #include <math.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include "njclient.h"
@@ -724,6 +725,9 @@ NJClient::~NJClient()
 
 void NJClient::updateBPMinfo(int bpm, int bpi)
 {
+  // reject nonsense beat info from the wire: bpm<=0 divides by zero when
+  // computing the interval length, bpi<=0 in the metronome interval
+  if (bpm <= 0 || bpi <= 0) return;
   m_misc_cs.Enter();
   m_bpm=bpm;
   m_bpi=bpi;
@@ -803,11 +807,20 @@ void NJClient::AudioProc(float **inbuf, int innch, float **outbuf, int outnch, i
         v *= (double) srate;
 
         m_beatinfo_updated=0;
-        m_interval_length = (int)v;
-        //m_interval_length-=m_interval_length%1152;//hack
-        m_active_bpm=m_bpm;
-        m_active_bpi=m_bpi;
-        m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
+        if (v >= 1.0 && v <= (double)INT_MAX)
+        {
+          m_interval_length = (int)v;
+          //m_interval_length-=m_interval_length%1152;//hack
+          m_active_bpm=m_bpm;
+          m_active_bpi=m_bpi;
+          m_metronome_interval=(int) ((double)m_interval_length / (double)m_active_bpi);
+        }
+        else
+        {
+          // interval doesn't fit in an int; keep the previous beat info
+          m_bpm=m_active_bpm;
+          m_bpi=m_active_bpi;
+        }
       }
       m_misc_cs.Leave();
 
