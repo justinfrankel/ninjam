@@ -26,6 +26,10 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
+#ifndef _WIN32
+#include <time.h>
+#include <unistd.h>
+#endif
 #include "njclient.h"
 #include "mpb.h"
 #include "../WDL/pcmfmtcvt.h"
@@ -575,8 +579,21 @@ NJClient::NJClient()
   v=(DWORD)time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
 #else
+  // time(NULL) alone (1 s resolution) made every client created in the same second
+  // generate the same interval GUID sequence; receivers key downloads by GUID, so two
+  // users joining in the same second had their streams mixed up (video of one lost).
+  // Mix in a high-resolution clock, the process id and this instance's address.
   time_t v=time(NULL);
   WDL_RNG_addentropy(&v,sizeof(v));
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  WDL_RNG_addentropy(&ts,sizeof(ts));
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  WDL_RNG_addentropy(&ts,sizeof(ts));
+  pid_t pid=getpid();
+  WDL_RNG_addentropy(&pid,sizeof(pid));
+  void *self=this;
+  WDL_RNG_addentropy(&self,sizeof(self));
 #endif
 
   config_autosubscribe=1;
