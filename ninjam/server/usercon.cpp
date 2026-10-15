@@ -74,6 +74,19 @@ static int is_type_valid(unsigned int t)
           is_type_char_valid(t);
 }
 
+// Issue #2: incoming chat/topic text was relayed unfiltered, letting control
+// characters (e.g. newlines) make one line masquerade as several and corrupt
+// downstream consumers such as the public server-list scripts. Map chars
+// < 0x20 to space before relaying.
+static void sanitize_relay_text(char *s)
+{
+  if (!s) return;
+  while (*s)
+  {
+    if ((unsigned char)*s < 0x20) *s=' ';
+    s++;
+  }
+}
 
 static void type_to_string(unsigned int t, char *out)
 {
@@ -578,17 +591,22 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
             {
               if (!chnp) chnp=""; 
 
+              // channel names are relayed verbatim to every client and written
+              // into clipsort.log; a newline in one forges log lines
+              WDL_String sanchname(chnp);
+              sanitize_relay_text(sanchname.Get()); // no control chars in channel names
+
               int doactive=!(f&0x80);
 
               // only if something changes, do we add it to the rec
               int hadch=!m_channels[whichch].active != !doactive;
-              if (!hadch) hadch = strcmp(chnp,m_channels[whichch].name.Get());
+              if (!hadch) hadch = strcmp(sanchname.Get(),m_channels[whichch].name.Get());
               if (!hadch) hadch = m_channels[whichch].volume!=v;
               if (!hadch) hadch = m_channels[whichch].panning!=p;
               if (!hadch) hadch = m_channels[whichch].flags!=f;
 
               m_channels[whichch].active=doactive;
-              m_channels[whichch].name.Set(chnp);
+              m_channels[whichch].name.Set(sanchname.Get());
               m_channels[whichch].volume=v;
               m_channels[whichch].panning=p;
               m_channels[whichch].flags=f;
@@ -876,7 +894,7 @@ bool User_Connection::migrateToRoom(const char *p)
     char *c = (char *)m_wants_group_migration.Get();
     while (*c)
     {
-      if (*c == '\'' || *c == '\t' || *c == '\r' || *c == '\n') *c='_';
+      if (*c == '\'' || (unsigned char)*c < 0x20) *c='_'; // no control chars in room names
       c++;
     }
     return true;
@@ -1299,7 +1317,9 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]=con->m_username.Get();
-      newmsg.parms[2]=msg->parms[1]; // send leading whitespace
+      WDL_String santext(msg->parms[1]);
+      sanitize_relay_text(santext.Get()); // no control chars in relayed chat
+      newmsg.parms[2]=santext.Get(); // send leading whitespace
       Broadcast(newmsg.build());
     }
     int x;
@@ -1329,6 +1349,8 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
     }
     else if (msg->parms[1] && *msg->parms[1] && msg->parms[2] && *msg->parms[2])
     {
+      WDL_String santext(msg->parms[2]);
+      sanitize_relay_text(santext.Get()); // no control chars in relayed chat
       // send a privmsg to user in parm1, and if they don't
       int x;
       int pmatch = -1;
@@ -1342,7 +1364,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
           mpb_chat_message newmsg;
           newmsg.parms[0]="PRIVMSG";
           newmsg.parms[1]=con->m_username.Get();
-          newmsg.parms[2]=msg->parms[2];
+          newmsg.parms[2]=santext.Get();
           m_users.Get(x)->Send(newmsg.build());
 
           return;
@@ -1362,14 +1384,15 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
         mpb_chat_message newmsg;
         newmsg.parms[0]="PRIVMSG";
         newmsg.parms[1]=con->m_username.Get();
-        newmsg.parms[2]=msg->parms[2];
+        newmsg.parms[2]=santext.Get();
         m_users.Get(pmatch)->Send(newmsg.build());
         return;
       }
 
       // send a privmsg back to sender, saying shit aint there
       WDL_String buf(pmatch == -2 ? "Username is ambiguous (specify partial IP): " : "No such user: ");
-      buf.Append(msg->parms[1]);          
+      buf.Append(msg->parms[1]);
+      sanitize_relay_text(buf.Get()); // the echoed name may carry control chars
       mpb_chat_message newmsg;
       newmsg.parms[0]="MSG";
       newmsg.parms[1]="";
@@ -1395,6 +1418,7 @@ void User_Group::onChatMessage(User_Connection *con, mpb_chat_message *msg)
           else
           {
             m_topictext.Set(p);
+            sanitize_relay_text(m_topictext.Get()); // store sanitized so all relays stay clean
             mpb_chat_message newmsg;
             newmsg.parms[0]="TOPIC";
             newmsg.parms[1]=con->m_username.Get();
