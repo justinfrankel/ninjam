@@ -355,6 +355,13 @@ static int ConfigOnToken(LineParser *lp, bool is_init)
     
     g_config_maxch_user=lp->gettoken_int(1);
     g_config_maxch_anon=lp->gettoken_int(lp->getnumtokens()>2?2:1);
+    // clamp to the wire-representable range: channel masks are 32-bit and
+    // chidx indexes m_channels[MAX_USER_CHANNELS], so values above that
+    // admit a wire chidx that makes 1<<chidx UB
+    if (g_config_maxch_user<0) g_config_maxch_user=0;
+    else if (g_config_maxch_user>MAX_USER_CHANNELS) g_config_maxch_user=MAX_USER_CHANNELS;
+    if (g_config_maxch_anon<0) g_config_maxch_anon=0;
+    else if (g_config_maxch_anon>MAX_USER_CHANNELS) g_config_maxch_anon=MAX_USER_CHANNELS;
   }
   else if (!stricmp(t,"SetKeepAlive"))
   {

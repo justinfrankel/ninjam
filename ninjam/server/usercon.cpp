@@ -686,7 +686,9 @@ int User_Connection::Run(User_Group *group, int *wantsleep)
         if (group->m_is_lobby_mode) break;
         {
           mpb_client_upload_interval_begin mp;
-          if (!mp.parse(msg) && mp.chidx < m_max_channels)
+          // chidx must be in [0,MAX_USER_CHANNELS): it indexes m_channels and
+          // is shifted into a 32-bit subscription mask (1<<chidx is UB otherwise)
+          if (!mp.parse(msg) && mp.chidx >= 0 && mp.chidx < MAX_USER_CHANNELS && mp.chidx < m_max_channels)
           {
             char *myusername=m_username.Get();
 
