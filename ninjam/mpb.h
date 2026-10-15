@@ -71,7 +71,7 @@ class mpb_server_auth_reply
     // public data
     char flag;  // low bit is success bit
     const char *errmsg; // if success bit is set, and this is also set, then it is the effective username of the client
-    char maxchan;
+    unsigned char maxchan; // unsigned: a wire byte >= 0x80 must not become a negative channel count
 };
 
 
